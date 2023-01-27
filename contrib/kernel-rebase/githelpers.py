@@ -39,6 +39,16 @@ def branch_name(branch_prefix, target, topic):
     return "chromeos-" + branch_prefix + "-" + target[1:] + topic
 
 
+def is_tag(repo, tag):
+    """Check if tag exists."""
+    with sh.pushd(repo):
+        try:
+            sh.git("--no-pager", "show-ref", "--quiet", f"refs/tags/{tag}")
+        except (sh.ErrorReturnCode_128, sh.ErrorReturnCode_1):
+            return False
+        return True
+
+
 def is_dirty(repo):
     """Check if repo is dirty"""
 
@@ -77,6 +87,18 @@ def commit_subject(repo, sha):
             lines = str(ret, "ascii").splitlines()
 
     return lines[0].strip()
+
+
+def show_file_at(repo, sha, path):
+    """Return specified file at specified commit as string"""
+
+    with sh.pushd(repo):
+        try:
+            ret = sh.git("--no-pager", "show", "--no-color", f"{sha}:{path}")
+        except (sh.ErrorReturnCode_128, sh.ErrorReturnCode_1):
+            return ""
+
+    return ret
 
 
 def revert(repo, sha):
@@ -127,8 +149,8 @@ def ref_exists(repo, name):
     """checks if specified ref (branch, sha...) exists in a repository"""
     with sh.pushd(repo):
         try:
-            sh.git("show-ref", "--quiet", name)
-        except sh.ErrorReturnCode_1:
+            sh.git("cat-file", "-e", f"{name}" + "^{commit}")
+        except (sh.ErrorReturnCode_128, sh.ErrorReturnCode_1):
             return False
         return True
 
@@ -144,7 +166,7 @@ def create_head(repo, name, force=False):
                 f"Branch {name} already exists. Remove it?"
             ):
                 sh.git("branch", "-D", name)
-        sh.git("branch", name)
+        sh.git("checkout", "-b", name)
 
 
 def add_tag_to_commit_hdr(repo, tag_name, tag_value):
@@ -345,6 +367,17 @@ def head_sha(repo):
     return str(sha).strip("\n")
 
 
+def sha_in_head(repo, sha):
+    """Checks if current HEAD contains specified SHA"""
+
+    with sh.pushd(repo):
+        try:
+            sh.git("--no-pager", "merge-base", "--is-ancestor", sha, "HEAD")
+        except (sh.ErrorReturnCode_128, sh.ErrorReturnCode_1):
+            return False
+        return True
+
+
 def save_head(repo, sha, path_override=None, add_prefix=False):
     """Saves the current diff as a conflict resolution"""
 
@@ -375,6 +408,28 @@ def commit_message(repo, sha):
         )
 
     return str(msg)
+
+
+def commit_messages_for_file(repo, path):
+    """Gets all commit messages for file as list"""
+
+    commits = list_shas(repo, os.path.normcase(path))
+    messages = []
+
+    for commit in commits:
+        with sh.pushd(repo):
+            msg = sh.git(
+                "--no-pager",
+                "log",
+                "--no-color",
+                "-n1",
+                "--format=medium",
+                "--quiet",
+                commit,
+            )
+            messages.append(str(msg))
+
+    return messages
 
 
 def replacement(repo, sha):
