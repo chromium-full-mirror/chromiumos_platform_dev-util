@@ -22,6 +22,7 @@ from collections import OrderedDict
 from datetime import datetime
 import logging
 import os
+import pickle
 import re
 import sys
 
@@ -238,6 +239,12 @@ def get_patches(ver):
     commit-title and change-id fields.
     """
 
+    patches_cache_file = f".bisect_cache_patches_{ver}.pickle"
+    if os.path.exists(patches_cache_file):
+        res = pickle.load(open(patches_cache_file, "rb"))
+        log.info(f"Found cached patches list for {ver}, nice.")
+        return res
+
     branch = f"{KERNELUPSTREAM_BRANCH_PREFIX}{ver}"
 
     checkout("kernel-upstream", branch)
@@ -269,6 +276,11 @@ def get_patches(ver):
             res.append(entry)
 
     res.reverse()
+
+    pickle.dump(res, open(patches_cache_file, "wb"))
+    log.info(
+        f"Dumped cached patches list for {ver}, to be used in future calls."
+    )
 
     return res
 
