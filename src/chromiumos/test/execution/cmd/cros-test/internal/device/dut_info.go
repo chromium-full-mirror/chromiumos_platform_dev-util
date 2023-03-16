@@ -43,6 +43,10 @@ type DutInfo struct {
 	BTPeers             int
 	CacheServer         string
 	HWID                string
+	FrontendAddress     string
+	PowerUnitHostName   string
+	PowerUnitOutlet     string
+	HydraHostName       string
 }
 
 // joinHostAndPort joins host and port to a single address.
@@ -50,6 +54,9 @@ type DutInfo struct {
 // Example 2: "0:0:0:0:0:ffff:7f00:1" "2" -> "[0:0:0:0:0:ffff:7f00:1]:2".
 // Example 3: "0:0:0:0:0:ffff:7f00:1" "" -> 0:0:0:0:0:ffff:7f00:1"
 func joinHostAndPort(endpoint *labapi.IpEndpoint) string {
+	if endpoint == nil {
+		return ""
+	}
 	if endpoint.Port == 0 {
 		return endpoint.Address
 	}
@@ -103,6 +110,16 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 		servoPort = fmt.Sprintf("%v", chromeOS.Servo.ServodAddress.Port)
 		servoSerial = chromeOS.Servo.Serial
 	}
+
+	// Address to the frontend service for accessing the RPM.
+	// The frontend service is an HTTP service that supports XMLRPC calls.
+	frontendAddress := joinHostAndPort(chromeOS.GetRpm().GetFrontendAddress())
+	// Hostname of a particular PDU that assigned to the DUT.
+	powerUnitHostName := joinHostAndPort(chromeOS.GetRpm().GetPowerUnitHostname())
+	// Outlet name/number assigned to the DUT
+	powerUnitOutlet := chromeOS.GetRpm().GetPowerUnitOutlet()
+	// (Optional) Hydra hostname if the PDU access require a hydra.
+	hydraHostName := joinHostAndPort(chromeOS.GetRpm().GetHydraHostname())
 
 	// DUT Server address.
 	var dutServer string
@@ -245,6 +262,10 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 		BTPeers:             btpeers,
 		CacheServer:         cacheServer,
 		HWID:                hwid,
+		FrontendAddress:     frontendAddress,
+		PowerUnitHostName:   powerUnitHostName,
+		PowerUnitOutlet:     powerUnitOutlet,
+		HydraHostName:       hydraHostName,
 	}, nil
 }
 

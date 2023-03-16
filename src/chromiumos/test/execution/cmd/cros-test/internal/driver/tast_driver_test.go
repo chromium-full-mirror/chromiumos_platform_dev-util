@@ -294,8 +294,8 @@ func TestGenHostInfoYAML(t *testing.T) {
 
 	for k, v := range expected {
 		testStr := fmt.Sprintf("\"%v:%v\"", k, v)
-		if !strings.Contains(data.Autotest_host_info_labels, testStr) {
-			t.Errorf("Missing |%v| in: %v", testStr, data.Autotest_host_info_labels)
+		if !strings.Contains(data.AutotestHostInfoLabels, testStr) {
+			t.Errorf("Missing |%v| in: %v", testStr, data.AutotestHostInfoLabels)
 		}
 	}
 }

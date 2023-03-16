@@ -264,6 +264,24 @@ func genArgList(args *runArgs) (argList []string) {
 		argList = append(argList, fmt.Sprintf("%v=servers.libs=%s", varFlag, libsServerStr))
 	}
 
+	// Fill in RPM var flags.
+	// Fill in the frontendAddress var flags.
+	if args.primary.FrontendAddress != "" {
+		argList = append(argList, fmt.Sprintf("%v=frontendAddress=%s", varFlag, args.primary.FrontendAddress))
+	}
+	// Fill in the powerunitHostname var flags.
+	if args.primary.PowerUnitHostName != "" {
+		argList = append(argList, fmt.Sprintf("%v=powerunitHostname=%s", varFlag, args.primary.PowerUnitHostName))
+	}
+	// Fill in the powerunitOutlet var flags.
+	if args.primary.PowerUnitOutlet != "" {
+		argList = append(argList, fmt.Sprintf("%v=powerunitOutlet=%s", varFlag, args.primary.PowerUnitOutlet))
+	}
+	// Fill in the hydraHostname var flags.
+	if args.primary.HydraHostName != "" {
+		argList = append(argList, fmt.Sprintf("%v=hydraHostname=%s", varFlag, args.primary.HydraHostName))
+	}
+
 	// Fill in Provision server var flags.
 	provisionServerStrs := ""
 	if args.primary.ProvisionServer != "" {
@@ -285,10 +303,10 @@ func genArgList(args *runArgs) (argList []string) {
 	return argList
 }
 
-// Labels contains Autotest_host_info_labels
-// Note, the name is intentionally `Autotest_host_info_labels` as that is a key string for parsing.
+// Labels contains AutotestHostInfoLabels
+// Note, the name is intentionally `AutotestHostInfoLabels` as that is a key string for parsing.
 type Labels struct {
-	Autotest_host_info_labels string
+	AutotestHostInfoLabels string
 }
 
 func getLabelsString(dut *device.DutInfo) (string, error) {
@@ -315,7 +333,7 @@ func genHostInfoYAML(dut *device.DutInfo) (string, error) {
 		return "", err
 	}
 	labels := Labels{
-		Autotest_host_info_labels: generateLabels,
+		AutotestHostInfoLabels: generateLabels,
 	}
 
 	yamlData, err := yaml.Marshal(&labels)
