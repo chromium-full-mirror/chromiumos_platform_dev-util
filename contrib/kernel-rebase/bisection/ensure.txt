@@ -1,0 +1,2 @@
+infra/tools/git/linux-amd64 latest
+infra/tools/luci/git-credential-luci/linux-amd64 latest

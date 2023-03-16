@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Copyright 2023 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+cd /home/builder || exit
+if [ ! -d "/home/builder/chromiumos" ]; then
+    echo "[!] No chromiumos source found, fetching..."
+
+    mkdir chromiumos
+    cd chromiumos || exit
+        repo init -u https://chrome-internal.googlesource.com/chromeos/manifest-internal.git \
+        --repo-url https://chromium.googlesource.com/external/repo.git && \
+        repo sync -c -j8
+    cd .. || exit
+fi
+
+echo "[*] initializing cros_sdk..."
+cd chromiumos || exit
+    cros_sdk true
+    cros_sdk bash --login -c './update_chroot'
+    cros_sdk bash --login -c 'setup_board -b hatch-kernelnext'
+cd .. || exit

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Copyright 2023 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+getkey() {
+    gcloud --project google.com:chromeos-missing-patches secrets versions access latest --secret kcr-bisection
+}
+
+volume() {
+    docker volume create cros-sdk
+}
+
+build() {
+    volume
+    getkey > kcr-bisect.key
+    docker build -t kernel-builder .
+    rm ./kcr-bisect.key
+}
+
+delete() {
+    docker rm -f kbuild
+    docker image rm kernel-builder
+}
+
+run() {
+    [ "$(docker images -q kernel-builder)" = "" ] && build
+    docker run --privileged -v cros-sdk:/home/builder --name kbuild --network host -ti kernel-builder
+}
+
+usage() {
+    echo "${0} -- run and cleanup bisection containers when needed"
+    echo ""
+    echo "Usage: ${0} COMMAND"
+    echo ""
+    echo "Commands:"
+    echo "    help -- show this help"
+    echo "   build -- build container"
+    echo "     run -- run the default container (kernel-builder)"
+    echo "  delete -- delete container and image"
+    echo "  getkey -- get service account key for gcloud"
+    echo "  volume -- create sdk volume"
+    echo ""
+}
+
+case "$1" in
+        "")       usage  ;;
+        "help")   usage  ;;
+        "build")  build  ;;
+        "run")    run    ;;
+        "delete") delete ;;
+        "getkey") getkey ;;
+        *)        usage  ;;
+esac
