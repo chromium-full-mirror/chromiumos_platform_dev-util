@@ -54,7 +54,7 @@ case ${DIR} in
         STAGING_NAME="${SOC}-staging"
     fi
     CHROMEOS_BRANCH=chromeos
-    SRC_DIR="${CHROMIUM_TOT_ROOT}/src/third_party/fsp/${SOC}/${DIR}/${LOCAL_DIR}"
+    SRC_DIR="${CHROMIUM_BRYA_FW_ROOT}/src/third_party/fsp/${SOC}/${DIR}/${LOCAL_DIR}"
     STAGING_REPO="https://chrome-internal.googlesource.com/chromeos/third_party/intel-fsp/${STAGING_NAME}"
     ;;
 
@@ -70,14 +70,14 @@ case ${DIR} in
     else
       CHROMEOS_BRANCH="chromeos-${SOC}-${LOCAL_DIR}"
     fi
-    SRC_DIR="${CHROMIUM_TOT_ROOT}/src/third_party/fsp/${SOC}/${DIR}/${LOCAL_DIR}"
+    SRC_DIR="${CHROMIUM_BRYA_FW_ROOT}/src/third_party/fsp/${SOC}/${DIR}/${LOCAL_DIR}"
     STAGING_REPO="https://chrome-internal.googlesource.com/chromeos/third_party/intel-fsp/${STAGING_NAME}"
     ;;
 
   coreboot)
     STAGING_NAME="${SOC}-staging"
     CHROMEOS_BRANCH=chromeos
-    SRC_DIR="${CHROMIUM_TOT_ROOT}/src/third_party/coreboot-intel-private/${SOC}"
+    SRC_DIR="${CHROMIUM_BRYA_FW_ROOT}/src/third_party/coreboot-intel-private/${SOC}"
     STAGING_REPO="https://chrome-internal.googlesource.com/chromeos/third_party/coreboot-intel-private/${STAGING_NAME}"
     ;;
 
@@ -98,8 +98,8 @@ case ${VERSION} in
     ;;
 esac
 
-if [ -z "${CHROMIUM_TOT_ROOT}" ]; then
-  die 1 "CHROMIUM_TOT_ROOT environment variable is not set"
+if [ -z "${CHROMIUM_BRYA_FW_ROOT}" ]; then
+    die 1 "CHROMIUM_BRYA_FW_ROOT environment variable is not set"
 fi
 
 # Clone the repo where the staging changes need to be pushed
