@@ -5,6 +5,7 @@
 """Configuration managers for CrOS callboxes"""
 
 from enum import Enum
+from multiprocessing.pool import ThreadPool
 
 from acts import logger
 from acts.controllers import handover_simulator as hs
@@ -14,6 +15,7 @@ from acts.controllers.cellular_lib.LteSimulation import (
 from acts.controllers.rohdeschwarz_lib import cmw500
 from acts.controllers.rohdeschwarz_lib import cmw500_cellular_simulator as cmw
 from acts.controllers.rohdeschwarz_lib import cmx500_cellular_simulator as cmx
+from acts.controllers.rohdeschwarz_lib import cmx500_events
 from acts.controllers.rohdeschwarz_lib.cmw500_handover_simulator import (
     Cmw500HandoverSimulator,
 )
@@ -301,7 +303,8 @@ class CMX500Configuration(CallboxConfiguration):
             technology: the RAT technology.
         """
         super().__init__()
-
+        self._pool = ThreadPool(processes=1)
+        self._unsub_connect_event = None
         self._lte_simulation = None
         self._nr5g_nsa_simulation = None
         self.dut = dut
@@ -346,6 +349,7 @@ class CMX500Configuration(CallboxConfiguration):
         """
         # no need to stop cmx before configuring like cmw, it's already
         # handled by cmx controller
+        self._stop_connection_watcher()
         self.simulation.configure(parameters)
         # if SA, keep rrc otherwise will fall back to RRC_IDLE
         if self.technology == CellularTechnology.NR5G_SA:
@@ -354,12 +358,33 @@ class CMX500Configuration(CallboxConfiguration):
 
     def start(self):
         """Starts a simulation on the callbox."""
+        self._stop_connection_watcher()
         self.simulation.start()
         self.simulator.wait_until_quiet()
+
+        # CMX500 won't automatically reattach secondary cells (ENDC or SCCs),
+        # so watch for register/connection event and automatically attach
+        # secondary carriers when device reconnects.
+        if self.technology == CellularTechnology.NR5G_SA:
+            self._unsub_connect_event = cmx500_events.on_fiveg_pdu_session_activate(
+                # Launch reattach in background thread otherwise we will block
+                # the XLAPI event thread and will timeout instead.
+                lambda: self._pool.apply_async(
+                    self._reattach_secondary_carriers
+                )
+            )
+        else:
+            self._unsub_connect_event = cmx500_events.on_emm_registered(
+                lambda: self._pool.apply_async(
+                    self._reattach_secondary_carriers
+                )
+            )
 
     def close(self):
         """Releases any resources held open by the controller."""
         self.simulator.destroy()
+        self._stop_connection_watcher()
+        self._pool.close()
 
     def _set_technology(self, technology):
         """Switches the active simulation technology implementation."""
@@ -395,3 +420,20 @@ class CMX500Configuration(CallboxConfiguration):
             raise ValueError(f"Unsupported technology for CMW500: {technology}")
 
         self.technology = technology
+
+    def _stop_connection_watcher(self):
+        if self._unsub_connect_event:
+            self._unsub_connect_event()
+            self._unsub_connect_event = None
+
+    def _reattach_secondary_carriers(self):
+        """Reattach secondary carriers (includes ENDC and SCCs)."""
+        if not self.simulator.cmx.secondary_cells:
+            return
+
+        self.logger.info(
+            "Device reconnection detected, reattaching secondary carriers"
+        )
+
+        # lte_attach_secondary_carriers is used for LTE, NSA, and SA.
+        self.simulator.lte_attach_secondary_carriers(None)
