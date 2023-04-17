@@ -76,7 +76,7 @@ def _daemonize() -> None:
 
     # Override standard IO with /dev/null and continue running the second forked
     # process.
-    with open(os.devnull, "r+") as f:
+    with open(os.devnull, "r+b") as f:
         os.dup2(f.fileno(), sys.stdin.fileno())
         os.dup2(f.fileno(), sys.stdout.fileno())
         os.dup2(f.fileno(), sys.stderr.fileno())
@@ -91,7 +91,6 @@ def _handle_request(
         with os.fdopen(fds[0], "rb") as stdin, os.fdopen(
             fds[1], "wb"
         ) as stdout, os.fdopen(fds[2], "wb") as stderr:
-
             # Check if the given host name is a valid IPv4 address, IPv6
             # address, or a host name which satisfies the spec described in
             # `man hosts`.
@@ -114,6 +113,8 @@ def _handle_request(
                 args.append("-dest4")
             if msg["dest6"]:
                 args.append("-dest6")
+            if msg["relay"]:
+                args.extend(("-relay", msg["relay"]))
             args.append(host)
             args.append(port)
 
@@ -162,7 +163,7 @@ def main() -> int:
         with socket.socket(socket.AF_UNIX) as s:
             try:
                 s.connect(socket_path)
-            except ConnectionRefusedError as err:
+            except ConnectionRefusedError:
                 # ConnectionRefusedError means there is no existing server
                 # process.
                 if args.kill:

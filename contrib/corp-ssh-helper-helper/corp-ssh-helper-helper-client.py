@@ -43,6 +43,10 @@ def main() -> int:
             "host using IPv6."
         ),
     )
+    arg_parser.add_argument(
+        "-relay",
+        help="The relay address to use for proxying connections.",
+    )
     arg_parser.add_argument("host")
     arg_parser.add_argument("port")
     args = arg_parser.parse_args()
@@ -68,6 +72,7 @@ def main() -> int:
                 "port": args.port,
                 "dest4": args.dest4,
                 "dest6": args.dest6,
+                "relay": args.relay,
             }
         ).encode("utf-8")
         fds = [sys.stdin.fileno(), sys.stdout.fileno(), sys.stderr.fileno()]
