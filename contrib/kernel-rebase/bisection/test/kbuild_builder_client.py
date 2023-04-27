@@ -29,7 +29,7 @@ def run():
         rep = stub.CreateBisectKbuild(
             BisectKbuildRequest(
                 commit_sha="d1678bf45f21fa5ae4a456f821858679556ea5f8",
-                board_name="volteer-kernelnext",
+                board_name="hatch-kernelnext",
                 branch_name="chromeos-kernelupstream-6.2-rc3",
             )
         )
