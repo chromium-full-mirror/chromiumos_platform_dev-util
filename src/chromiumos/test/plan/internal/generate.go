@@ -49,7 +49,8 @@ func Generate(
 	var allHwTestPlans []*test_api_v1.HWTestPlan
 	var allVmTestPlans []*test_api_v1.VMTestPlan
 	for _, planFilename := range planFilenames {
-		hwTestPlans, vmTestPlans, err := starlark.ExecTestPlan(ctx, planFilename, buildMetadataList, configBundleList)
+		// TODO(b/278886899): Pass tag criteria to ExecTestPlan.
+		hwTestPlans, vmTestPlans, err := starlark.ExecTestPlan(ctx, planFilename, buildMetadataList, configBundleList, nil)
 		if err != nil {
 			return nil, nil, err
 		}

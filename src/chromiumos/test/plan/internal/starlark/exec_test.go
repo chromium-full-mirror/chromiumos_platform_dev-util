@@ -18,6 +18,7 @@ import (
 	"go.chromium.org/chromiumos/config/go/payload"
 	test_api "go.chromium.org/chromiumos/config/go/test/api"
 	test_api_v1 "go.chromium.org/chromiumos/config/go/test/api/v1"
+	"go.chromium.org/chromiumos/config/go/test/plan"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -93,13 +94,24 @@ func TestExecTestPlan(t *testing.T) {
 	starlarkSource := `
 load("@proto//chromiumos/test/api/v1/plan.proto", plan_pb = "chromiumos.test.api.v1")
 load("@proto//chromiumos/test/api/coverage_rule.proto", coverage_rule_pb = "chromiumos.test.api")
+load("@proto//chromiumos/test/api/test_suite.proto", test_suite_pb = "chromiumos.test.api")
 load("@proto//lab/license.proto", licence_pb = "lab")
 
 build_metadata = testplan.get_build_metadata()
 config_bundles = testplan.get_config_bundle_list()
 print('Got {} BuildMetadatas'.format(len(build_metadata.values)))
 print('Got {} ConfigBundles'.format(len(config_bundles.values)))
-coverage_rule_a = coverage_rule_pb.CoverageRule(name='ruleA')
+coverage_rule_a = coverage_rule_pb.CoverageRule(
+	name='ruleA',
+	test_suites=[
+		test_suite_pb.TestSuite(
+			name=testplan.get_suite_name(),
+			test_case_tag_criteria=test_suite_pb.TestSuite.TestCaseTagCriteria(
+				tags=testplan.get_tag_criteria().tags
+			)
+		)
+	]
+)
 coverage_rule_b = coverage_rule_pb.CoverageRule(name='ruleB')
 test_licence = licence_pb.LICENSE_TYPE_WINDOWS_10_PRO
 testplan.add_hw_test_plan(
@@ -127,6 +139,12 @@ print('Got struct {}'.format(s1))
 		planFilename,
 		buildMetadataList,
 		configBundleList,
+		&plan.SourceTestPlan_TestPlanStarlarkFile_TemplateParameters{
+			TagCriteria: &test_api.TestSuite_TestCaseTagCriteria{
+				Tags: []string{"group:mainline", "group:mycustomgroup"},
+			},
+			SuiteName: "mycustomgroup",
+		},
 	)
 
 	if err != nil {
@@ -139,6 +157,16 @@ print('Got struct {}'.format(s1))
 			CoverageRules: []*test_api.CoverageRule{
 				{
 					Name: "ruleA",
+					TestSuites: []*test_api.TestSuite{
+						{
+							Name: "mycustomgroup",
+							Spec: &test_api.TestSuite_TestCaseTagCriteria_{
+								TestCaseTagCriteria: &test_api.TestSuite_TestCaseTagCriteria{
+									Tags: []string{"group:mainline", "group:mycustomgroup"},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -183,31 +211,37 @@ func TestExecTestPlanErrors(t *testing.T) {
 		name           string
 		starlarkSource string
 		err            string
+		templateParams *plan.SourceTestPlan_TestPlanStarlarkFile_TemplateParameters
 	}{
 		{
 			name:           "invalid positional args",
 			starlarkSource: "testplan.get_build_metadata(1, 2)",
 			err:            "get_build_metadata: got 2 arguments, want at most 0",
+			templateParams: nil,
 		},
 		{
 			name:           "invalid named args",
 			starlarkSource: "testplan.get_config_bundle_list(somearg='abc')",
 			err:            "get_config_bundle_list: unexpected keyword argument \"somearg\"",
+			templateParams: nil,
 		},
 		{
 			name:           "invalid named args ctor HW",
 			starlarkSource: "testplan.add_hw_test_plan(somearg='abc')",
 			err:            "add_hw_test_plan: unexpected keyword argument \"somearg\"",
+			templateParams: nil,
 		},
 		{
 			name:           "invalid named args ctor VM",
 			starlarkSource: "testplan.add_vm_test_plan(somearg='abc')",
 			err:            "add_vm_test_plan: unexpected keyword argument \"somearg\"",
+			templateParams: nil,
 		},
 		{
 			name:           "invalid type ctor HW",
 			starlarkSource: "testplan.add_hw_test_plan(hw_test_plan='abc')",
 			err:            "add_hw_test_plan: arg must be a chromiumos.test.api.v1.HWTestPlan, got \"\\\"abc\\\"\"",
+			templateParams: nil,
 		},
 		{
 			name:           "invalid type ctor VM",
@@ -220,7 +254,20 @@ func TestExecTestPlanErrors(t *testing.T) {
 load("@proto//chromiumos/test/api/v1/plan.proto", plan_pb = "chromiumos.test.api.v1")
 testplan.add_hw_test_plan(hw_test_plan=plan_pb.HWTestPlan.TestPlanId(value='abc'))
 			`,
-			err: "add_hw_test_plan: arg must be a chromiumos.test.api.v1.HWTestPlan, got \"value:\\\"abc\\\"\"",
+			err:            "add_hw_test_plan: arg must be a chromiumos.test.api.v1.HWTestPlan, got \"value:\\\"abc\\\"\"",
+			templateParams: nil,
+		},
+		{
+			name:           "no tag criteria available",
+			starlarkSource: "testplan.get_tag_criteria()",
+			err:            "get_tag_criteria: no TestCaseTagCriteria available in this Starlark execution, was it specified on the interpreter command line?",
+			templateParams: nil,
+		},
+		{
+			name:           "no suite name available",
+			starlarkSource: "testplan.get_suite_name()",
+			err:            "get_suite_name: no test suite name available in this Starlark execution, was it specified on the interpreter command line?",
+			templateParams: nil,
 		},
 	}
 
@@ -231,7 +278,7 @@ testplan.add_hw_test_plan(hw_test_plan=plan_pb.HWTestPlan.TestPlanId(value='abc'
 			)
 
 			_, _, err := starlark.ExecTestPlan(
-				ctx, planFilename, buildMetadataList, configBundleList,
+				ctx, planFilename, buildMetadataList, configBundleList, tc.templateParams,
 			)
 
 			if err == nil {

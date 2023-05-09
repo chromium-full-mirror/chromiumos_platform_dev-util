@@ -11,6 +11,7 @@ import (
 	buildpb "go.chromium.org/chromiumos/config/go/build/api"
 	"go.chromium.org/chromiumos/config/go/payload"
 	test_api_v1 "go.chromium.org/chromiumos/config/go/test/api/v1"
+	"go.chromium.org/chromiumos/config/go/test/plan"
 	"go.chromium.org/luci/starlark/interpreter"
 	"go.chromium.org/luci/starlark/starlarkproto"
 	"go.starlark.net/starlark"
@@ -24,6 +25,11 @@ func protoAccessorBuiltin(
 	name string,
 	m proto.Message,
 ) *starlark.Builtin {
+	return accessorBuiltin(name, protoLoader.MessageType(m.ProtoReflect().Descriptor()).MessageFromProto(m))
+}
+
+// accessorBuiltin returns a Builtin that provides access to v.
+func accessorBuiltin(name string, v starlark.Value) *starlark.Builtin {
 	return starlark.NewBuiltin(
 		name,
 		func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
@@ -33,7 +39,7 @@ func protoAccessorBuiltin(
 				return nil, err
 			}
 
-			return protoLoader.MessageType(m.ProtoReflect().Descriptor()).MessageFromProto(m), nil
+			return v, nil
 		},
 	)
 }
@@ -120,15 +126,22 @@ func buildAddVMTestPlanBuiltin(result *[]*test_api_v1.VMTestPlan) *starlark.Buil
 }
 
 // ExecTestPlan executes the Starlark file planFilename.
+//
 // Builtins are provided to planFilename to access buildMetadataList and
 // configBundleList, and add [VM,HW]TestPlans to the output.
 //
 // A loader is provided to load proto constructors.
+//
+// If templateParameters is non-nil, builtins are provided to access its fields.
+// This function does not check that the suite_name field is used properly to
+// prevent name collisions, this is the responsibility of the caller when there
+// are multiple templateParameters for the same file.
 func ExecTestPlan(
 	ctx context.Context,
 	planFilename string,
 	buildMetadataList *buildpb.SystemImage_BuildMetadataList,
 	configBundleList *payload.ConfigBundleList,
+	templateParameters *plan.SourceTestPlan_TestPlanStarlarkFile_TemplateParameters,
 ) ([]*test_api_v1.HWTestPlan, []*test_api_v1.VMTestPlan, error) {
 	protoLoader, err := buildProtoLoader()
 	if err != nil {
@@ -143,6 +156,41 @@ func ExecTestPlan(
 		protoLoader, "get_config_bundle_list", configBundleList,
 	)
 
+	// If templateParameters is non-nil, provide builtins to access tagCriteria
+	// and suiteName. Otherwise, the builtins will return errors.
+	var getTagCriteriaBuiltin *starlark.Builtin
+	var getSuiteNameBuiltin *starlark.Builtin
+	getTagCriteriaBuiltinName := "get_tag_criteria"
+	getSuiteNameBuiltinName := "get_suite_name"
+	if templateParameters != nil {
+		getTagCriteriaBuiltin = protoAccessorBuiltin(
+			protoLoader, getTagCriteriaBuiltinName, templateParameters.GetTagCriteria(),
+		)
+		getSuiteNameBuiltin = accessorBuiltin(
+			getSuiteNameBuiltinName, starlark.String(templateParameters.GetSuiteName()),
+		)
+	} else {
+		getTagCriteriaBuiltin = starlark.NewBuiltin(
+			getTagCriteriaBuiltinName,
+			func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+				return nil, fmt.Errorf(
+					"%s: no TestCaseTagCriteria available in this Starlark execution, was it specified on the interpreter command line?",
+					getTagCriteriaBuiltinName,
+				)
+			},
+		)
+
+		getSuiteNameBuiltin = starlark.NewBuiltin(
+			getSuiteNameBuiltinName,
+			func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+				return nil, fmt.Errorf(
+					"%s: no test suite name available in this Starlark execution, was it specified on the interpreter command line?",
+					getSuiteNameBuiltinName,
+				)
+			},
+		)
+	}
+
 	var hw_test_plans []*test_api_v1.HWTestPlan
 	addHWTestPlanBuiltin := buildAddHWTestPlanBuiltin(&hw_test_plans)
 
@@ -154,6 +202,8 @@ func ExecTestPlan(
 		Members: starlark.StringDict{
 			getBuildMetadataBuiltin.Name():  getBuildMetadataBuiltin,
 			getFlatConfigListBuiltin.Name(): getFlatConfigListBuiltin,
+			getTagCriteriaBuiltin.Name():    getTagCriteriaBuiltin,
+			getSuiteNameBuiltin.Name():      getSuiteNameBuiltin,
 			addHWTestPlanBuiltin.Name():     addHWTestPlanBuiltin,
 			addVMTestPlanBuiltin.Name():     addVMTestPlanBuiltin,
 		},
