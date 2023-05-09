@@ -80,6 +80,10 @@ topic_patches["tpm-virtio"] = [
     "fixups/FROMLIST: tpm: add sysfs attributes for tpm2.patch",
 ]
 
+topic_patches["chromeos"] = [
+    "fixups/CHROMIUM: create alt-syscall infrastructure.patch",
+]
+
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
