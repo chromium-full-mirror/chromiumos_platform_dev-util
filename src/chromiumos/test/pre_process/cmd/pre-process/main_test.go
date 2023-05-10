@@ -16,24 +16,23 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func generateTestCaseResponse(tests []string) *api.CrosTestFinderResponse {
+func generateTestCaseResponse(tests []string) []*api.TestSuite {
 	testInfos := []*api.TestCase{}
 	for _, md := range tests {
 		testInfos = append(testInfos, &api.TestCase{
 			Id: &api.TestCase_Id{Value: md},
 		})
 	}
-	suiteResp := api.CrosTestFinderResponse{
-		TestSuites: []*api.TestSuite{
-			{
-				Name: "suite1",
-				Spec: &api.TestSuite_TestCases{
-					TestCases: &api.TestCaseList{TestCases: testInfos},
-				},
+
+	TestSuites := []*api.TestSuite{
+		{
+			Name: "suite1",
+			Spec: &api.TestSuite_TestCases{
+				TestCases: &api.TestCaseList{TestCases: testInfos},
 			},
 		},
 	}
-	return &suiteResp
+	return TestSuites
 }
 
 func generateMetadataList(tests []string) []*api.TestCaseMetadata {
@@ -78,30 +77,27 @@ func generateTestMDSuites(tests []string) []*api.TestSuite {
 	return TestSuites
 
 }
-func generateTestMDesponse(tests []string) *api.CrosTestFinderResponse {
-	suiteResp := api.CrosTestFinderResponse{
-		TestSuites: generateTestMDSuites(tests),
-	}
-	return &suiteResp
+func generateTestMDesponse(tests []string) []*api.TestSuite {
+	return generateTestMDSuites(tests)
 }
 
-func testCaseRequest() *api.CrosTestFinderResponse {
+func testCaseRequest() []*api.TestSuite {
 	return generateTestCaseResponse([]string{"example.Pass", "example.Fail"})
 
 }
 
-func testMDRequest() *api.CrosTestFinderResponse {
+func testMDRequest() []*api.TestSuite {
 	return generateTestMDesponse([]string{"example.Pass", "example.Fail"})
 
 }
 
-func testMdNoFail() *api.CrosTestFinderResponse {
+func testMdNoFail() []*api.TestSuite {
 	return generateTestCaseResponse([]string{"example.Pass"})
 
 }
 
 func basicReq(useMD bool) *api.FilterFlakyRequest {
-	var TFI *api.CrosTestFinderResponse
+	var TFI []*api.TestSuite
 	if useMD {
 		TFI = testCaseRequest()
 	} else {
@@ -115,7 +111,7 @@ func basicReq(useMD bool) *api.FilterFlakyRequest {
 	p := &api.FilterFlakyRequest_PassRatePolicy{
 		PassRatePolicy: prp,
 	}
-	return &api.FilterFlakyRequest{Policy: p, TestFinderInput: TFI, Milestone: "114", DefaultEnabled: true}
+	return &api.FilterFlakyRequest{Policy: p, TestSuites: TFI, Milestone: "114", DefaultEnabled: true}
 
 }
 
@@ -147,7 +143,7 @@ func TestReadInput(t *testing.T) {
 
 func TestWriteOutput(t *testing.T) {
 	expectedRspn := api.FilterFlakyResponse{
-		Response:     testCaseRequest(),
+		TestSuites:   testCaseRequest(),
 		RemovedTests: []string{},
 	}
 	td, err := ioutil.TempDir("", "faketestrunner_TestWriteOutput_*")

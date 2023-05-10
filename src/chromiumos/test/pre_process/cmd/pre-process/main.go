@@ -29,6 +29,7 @@ const (
 	defaultOutputFileName = "result.json"
 )
 
+// Filter struct shows what was removed, notfound etc
 type Filter struct {
 	data     map[string]policies.SignalFormat
 	removed  []string
@@ -139,9 +140,8 @@ func (f *Filter) testEligible(value string) bool {
 		isAllowed = f.data[value].Signal == true
 		if isAllowed {
 			return true
-		} else {
-			f.removed = append(f.removed, value)
 		}
+		f.removed = append(f.removed, value)
 	} else {
 		// If the test is not found, and `DefaultEnabled` is set, keep the test
 		f.notFound = append(f.notFound, value)
@@ -201,7 +201,7 @@ func testCasesToSet(testcases []*api.TestCase) map[string]struct{} {
 func innerMain(req *api.FilterFlakyRequest) (*api.FilterFlakyResponse, error) {
 	filter := Filter{req: req}
 	var filteredSuites []*api.TestSuite
-	for _, md := range req.TestFinderInput.TestSuites {
+	for _, md := range req.TestSuites {
 		// The input request, cros-test-finder, can be either TestCases OR TestCaseMetadata. Support both options.
 		var filteredSuite *api.TestSuite
 		switch op := md.Spec.(type) {
@@ -223,10 +223,8 @@ func innerMain(req *api.FilterFlakyRequest) (*api.FilterFlakyResponse, error) {
 
 	}
 
-	CTFrspn := &api.CrosTestFinderResponse{TestSuites: filteredSuites}
-
 	rspn := &api.FilterFlakyResponse{
-		Response:     CTFrspn,
+		TestSuites:   filteredSuites,
 		RemovedTests: filter.removed,
 	}
 
