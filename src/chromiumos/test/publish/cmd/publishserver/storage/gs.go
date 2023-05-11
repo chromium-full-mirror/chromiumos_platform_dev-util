@@ -6,6 +6,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -97,15 +98,13 @@ func (c *GSClient) Upload(ctx context.Context, localFolder string, gsUrl string)
 	if err != nil {
 		return fmt.Errorf("unable to get local files, %w", err)
 	}
-	log.Printf("Uploading files (max %d workers) with retries: %s", maxConcurrentUploads, allFiles)
+	log.Printf("Uploading files (max %d workers): %s", maxConcurrentUploads, allFiles)
 
 	uploadOne := func(currentFile LocalObject) error {
 		currentObject := rootObject.Extend(currentFile.RelPath)
 		if err := c.client.Write(ctx, currentFile.FullPath, currentObject); err != nil {
 			decoratedError := fmt.Errorf("failed upload for file %s to %s, %w", currentFile, gsUrl, err)
-			// If the original error requires retry, mark the decorated error as transient
-			// to preserve all information in case all retry attempts fail.
-			if isTransientError(err) {
+			if isTransientError(decoratedError) {
 				return transient.Tag.Apply(decoratedError)
 			}
 			return decoratedError
@@ -208,7 +207,15 @@ func (c *GSClient) getAllFilesInFolderRecursively(localFolder string) ([]LocalOb
 
 // isTransientError check if an error is transient, aka needs retry.
 func isTransientError(e error) bool {
-	if gerr, _ := e.(*googleapi.Error); gerr != nil {
+	lastErr := e
+	for {
+		unwrapped := errors.Unwrap(lastErr)
+		if unwrapped == nil {
+			break
+		}
+		lastErr = unwrapped
+	}
+	if gerr, _ := lastErr.(*googleapi.Error); gerr != nil {
 		if gerr.Code >= 500 || gerr.Code == 429 {
 			return true
 		}
