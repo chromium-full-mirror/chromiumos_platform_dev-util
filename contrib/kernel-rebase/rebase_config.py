@@ -234,3 +234,6 @@ disp_overwrite[
 disp_overwrite[
     "5767b180a693"
 ] = "drop"  # CHROMIUM: wifi: ath11k: Enable split scan functionality on WCN6750
+disp_overwrite[
+    "537842397d6f"
+] = "drop"  # CHROMIUM: ath10k: enable napi poll in threaded context
