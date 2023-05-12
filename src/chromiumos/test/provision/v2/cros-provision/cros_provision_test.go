@@ -219,8 +219,8 @@ func TestStateTransitions(t *testing.T) {
 
 	// VERIFY
 	st = st.Next()
-
-	gomock.InOrder()
+	gomock.InOrder(
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=path/to/image", nil))
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed verify state: %v", err)
@@ -265,6 +265,126 @@ func TestStateTransitions(t *testing.T) {
 	// Check state completion
 	if st.Next() != nil {
 		t.Fatalf("install minios should be the last step")
+	}
+}
+
+func TestMismatchPostInstall(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sam := mock_common_utils.NewMockServiceAdapterInterface(ctrl)
+	log, _ := cli.SetUpLog(constants.DefaultLogDirectory)
+	cs := service.NewCrOSServiceFromExistingConnection(
+		sam,
+		&conf.StoragePath{
+			HostType: conf.StoragePath_GS,
+			Path:     "path/to/image",
+		},
+		nil,
+		false,
+		[]*api.CrOSProvisionMetadata_DLCSpec{{Id: "1"}},
+		true, // FirmwareUpdate enabled.
+	)
+
+	ctx := context.Background()
+
+	// PRE INIT STATE
+	st := state_machine.NewCrOSPreInitState(&cs)
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed init state: %v", err)
+	}
+
+	// INIT STATE
+	st = st.Next()
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
+		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed init state: %v", err)
+	}
+
+	// INSTALL
+	st = st.Next()
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, stopUI).Return("", nil),
+		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
+		getPipeDataCommand(sam, copyKernel).Return(nil),
+		getPipeDataCommand(sam, copyRoot).Return(nil),
+		getRunCmdCommand(sam, makeTemp).Return("temporary_dir", nil),
+		getRunCmdCommand(sam, mountTemp).Return("", nil),
+		getRunCmdCommand(sam, postInstTemp).Return("", nil),
+		getRunCmdCommand(sam, umountTemp).Return("", nil),
+		getRunCmdCommand(sam, deleteTemp).Return("", nil),
+		getRunCmdCommand(sam, crosSystem).Return("", nil),
+		getRestartCommand(sam).Return(nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed install state: %v", err)
+	}
+
+	// UPDATE FIRMWARE
+	st = st.Next()
+
+	gomock.InOrder(
+		getPathExistsCommand(sam, checkFirmwareUpdater).Return(true, nil),
+		getRunCmdCommand(sam, waitforStabilize).Return("start/running", nil),
+		getRunCmdCommand(sam, updateFirmware).Return("", nil),
+		getRunCmdCommand(sam, currentFirmwareSlot).Return("A", nil),
+		getRunCmdCommand(sam, nextFirmwareSlot).Return("B", nil),
+		getRestartCommand(sam).Return(nil),
+		getRunCmdCommand(sam, firmwareManifest).Return(mockedValidFirmwareManifestStdout, nil),
+		getRunCmdCommand(sam, getCrosid).Return(mockedValidCrosidStdout, nil),
+		getRunCmdCommand(sam, getCurrentFirmware).Return("Google_Coral.10068.113.0", nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed firmware-update state: %v", err)
+	}
+
+	// POST INSTALL
+	st = st.Next()
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, waitforStabilize).Return("start/running", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
+		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, cgptStickyCheck).Return("1", nil),
+		getRunCmdCommand(sam, echoFastKeepImg).Return("", nil),
+		getRestartCommand(sam).Return(nil),
+		getRunCmdCommand(sam, stopUI).Return("", nil),
+		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
+		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
+		getPipeDataCommand(sam, copyStateful).Return(nil),
+		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
+		getRunCmdCommand(sam, crosSystem).Return("", nil),
+		getRestartCommand(sam).Return(nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
+		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed post-install state: %v", err)
+	}
+
+	// VERIFY
+	st = st.Next()
+	gomock.InOrder(
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=a/differentto/image", nil))
+
+	if _, _, err := st.Execute(ctx, log); err.Error() != "image could not be validated as correct post install, post install version does not match taregt image" {
+		t.Fatalf("expected specific error, instead got: %v", err)
 	}
 }
 

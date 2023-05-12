@@ -8,7 +8,9 @@ package state_machine
 import (
 	common_utils "chromiumos/test/provision/v2/common-utils"
 	"chromiumos/test/provision/v2/cros-provision/service"
+	"chromiumos/test/provision/v2/cros-provision/state-machine/commands"
 	"context"
+	"fmt"
 	"log"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -20,7 +22,20 @@ type CrOSVerifyState struct {
 }
 
 func (s CrOSVerifyState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
-	// Currently there is no verification post step as we don't specify install type
+	log.Printf("State: Execute CrOSVerfiyState")
+	comms := []common_utils.CommandInterface{
+		commands.NewGetVersionCommand(ctx, s.service),
+		commands.NewCheckVersionMatches(ctx, s.service),
+	}
+
+	for _, comm := range comms {
+		err := comm.Execute(log)
+		if err != nil {
+			return nil, comm.GetStatus(), fmt.Errorf("%s, %s", comm.GetErrorMessage(), err)
+		}
+	}
+
+	log.Printf("State: CrOSVerfiyState Completed")
 	return nil, api.InstallResponse_STATUS_OK, nil
 }
 

@@ -42,6 +42,7 @@ var statusToResult = map[api.InstallResponse_Status]api.InstallFailure_Reason{
 	api.InstallResponse_STATUS_STABLIZE_DUT_FAILED:                    api.InstallFailure_REASON_STABLIZE_DUT_FAILED,
 	api.InstallResponse_STATUS_INSTALL_DLC_FAILED:                     api.InstallFailure_REASON_INSTALL_DLC_FAILED,
 	api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED:             api.InstallFailure_REASON_PRE_PROVISION_SETUP_FAILED,
+	api.InstallResponse_STATUS_IMAGE_MISMATCH_POST_PROVISION_UPDATE:   api.InstallFailure_REASON_IMAGE_MISMATCH_POST_PROVISION_UPDATE,
 }
 
 // CLI command executed the provisioning as a CLI
