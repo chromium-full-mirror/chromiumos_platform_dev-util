@@ -84,6 +84,11 @@ topic_patches["chromeos"] = [
     "fixups/CHROMIUM: create alt-syscall infrastructure.patch",
 ]
 
+topic_patches["net"] = [
+    "fixups/FROMLIST: net: wwan: t7xx: Enable fw flashing and coredump collection.patch",
+    "fixups/ROMLIST: net: wwan: t7xx: Infrastructure for early port configuration.patch",
+]
+
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
