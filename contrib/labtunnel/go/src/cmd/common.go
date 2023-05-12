@@ -28,12 +28,7 @@ const (
 	crosHostnameSuffix      = ".cros"
 )
 
-var satlabHostnameMatcher = regexp.MustCompile("^satlab-(\\w+)-.*$")
-var satlabIDToHostnameMapping = map[string]string{
-	"0wgatfqi22088083": "chromeos1-row2-rack1-satlab",
-	"0wgatfqi22088022": "chromeos1-row2-rack2-satlab",
-	"0wgatfqi22088036": "chromeos1-row2-rack3-satlab",
-}
+var satlabHostnameMatcher = regexp.MustCompile("^(satlab-\\w+)-(.*)-host.+$")
 
 const satlabUsername = "moblab"
 
@@ -139,7 +134,6 @@ func tunnelLocalPortToRemotePort(ctx context.Context, sshManager *ssh.Concurrent
 		var satlabDroneHost string
 		if satlabDroneHostOverride != "" {
 			satlabDroneHost = satlabDroneHostOverride
-
 		} else {
 			var err error
 			satlabDroneHost, err = buildSatlabHostname(sshHost)
@@ -166,15 +160,12 @@ func isSatlabHost(hostname string) bool {
 
 func buildSatlabHostname(satlabDeviceHostname string) (string, error) {
 	matches := satlabHostnameMatcher.FindAllStringSubmatch(satlabDeviceHostname, -1)
-	if len(matches) != 1 || len(matches[0]) != 2 {
+	if len(matches) != 1 || len(matches[0]) != 3 {
 		return "", fmt.Errorf("failed to parse satlab drone host and local device host from satlab device hostname %q", satlabDeviceHostname)
 	}
 	satlabID := matches[0][1]
-	// TODO(b/277986050): Deterministically deduce satlab done hostnames.
-	satlabDroneHost, ok := satlabIDToHostnameMapping[satlabID]
-	if !ok {
-		return "", fmt.Errorf("unmapped satlab hostname for satlab with ID %q", satlabID)
-	}
+	satlabLocation := matches[0][2]
+	satlabDroneHost := fmt.Sprintf("%s-%s", satlabLocation, satlabID)
 	return satlabDroneHost, nil
 }
 
