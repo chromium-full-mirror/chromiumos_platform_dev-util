@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	defaultRootPath       = "/tmp/test/cros-test-finder"
+	defaultRootPath       = "/tmp/test/pre-process"
 	defaultInputFileName  = "request.json"
 	defaultOutputFileName = "result.json"
 )
@@ -54,7 +54,7 @@ func readInput(fileName string) (*api.FilterFlakyRequest, error) {
 	return &req, nil
 }
 
-// writeOutput writes a CrosTestFinderResponse json.
+// writeOutput writes a FilterFlakyResponse json.
 func writeOutput(output string, resp *api.FilterFlakyResponse) error {
 	f, err := os.Create(output)
 	if err != nil {
@@ -202,7 +202,7 @@ func innerMain(req *api.FilterFlakyRequest) (*api.FilterFlakyResponse, error) {
 	filter := Filter{req: req}
 	var filteredSuites []*api.TestSuite
 	for _, md := range req.TestSuites {
-		// The input request, cros-test-finder, can be either TestCases OR TestCaseMetadata. Support both options.
+		// The input request, TestSuites, can be either TestCases OR TestCaseMetadata. Support both options.
 		var filteredSuite *api.TestSuite
 		switch op := md.Spec.(type) {
 		case *api.TestSuite_TestCases:
@@ -233,7 +233,7 @@ func innerMain(req *api.FilterFlakyRequest) (*api.FilterFlakyResponse, error) {
 
 }
 
-// runCLI is the entry point for running cros-test (TestFinderService) in CLI mode.
+// runCLI is the entry point for running cros-test (PreProcess) in CLI mode.
 func runCLI(ctx context.Context, d []string) int {
 	t := time.Now()
 	defaultLogPath := filepath.Join(defaultRootPath, t.Format("20060102-150405"))
@@ -243,7 +243,7 @@ func runCLI(ctx context.Context, d []string) int {
 	a := args{}
 
 	fs := flag.NewFlagSet("Run pre-process", flag.ExitOnError)
-	fs.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
+	fs.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record pre-process logs. Default value is %s", defaultLogPath))
 	fs.StringVar(&a.inputPath, "input", defaultRequestFile, "specify the test filter request json input file")
 	fs.StringVar(&a.output, "output", defaultResultFile, "specify the test filter request json input file")
 	fs.BoolVar(&a.version, "version", false, "print version and exit")
