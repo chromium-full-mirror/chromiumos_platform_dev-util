@@ -70,6 +70,7 @@ topic_patches["mm"] = [
 
 topic_patches["drivers"] = [
     "fixups/FROMGIT: xhci: check for a pending command completion during command timeout.patch",
+    "fixups/CHROMIUM: PCI: Allowlist for drivers allowed to bind to untrusted devices.patch",
 ]
 
 topic_patches["power-thermal"] = [
