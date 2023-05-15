@@ -245,3 +245,9 @@ disp_overwrite[
 disp_overwrite[
     "bc81c62ad899"
 ] = "drop"  # CHROMIUM: arm64: dts: qcom: Restore camera bits on mrbland
+disp_overwrite[
+    "5cc32570d892"
+] = "drop"  # CHROMIUM: ASOC: SOF: amd : Implementation of sof host stream pointer callback function
+disp_overwrite[
+    "5c2684ddd2cd"
+] = "drop"  # CHROMIUM: ASoC: SOF: amd: Add support for Linear position registers for tdm DAI.
