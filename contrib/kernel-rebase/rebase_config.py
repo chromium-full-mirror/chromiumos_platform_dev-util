@@ -242,3 +242,6 @@ disp_overwrite[
 disp_overwrite[
     "537842397d6f"
 ] = "drop"  # CHROMIUM: ath10k: enable napi poll in threaded context
+disp_overwrite[
+    "bc81c62ad899"
+] = "drop"  # CHROMIUM: arm64: dts: qcom: Restore camera bits on mrbland
