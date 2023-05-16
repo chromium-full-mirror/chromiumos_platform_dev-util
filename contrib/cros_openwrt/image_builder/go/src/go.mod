@@ -1,4 +1,4 @@
-module chromiumos/platform/dev/contrib/cros_openwrt/image_builder
+module go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder
 
 go 1.18
 

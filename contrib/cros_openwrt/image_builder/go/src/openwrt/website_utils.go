@@ -11,8 +11,8 @@ import (
 	"net/url"
 	"strings"
 
-	"chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
 	"github.com/PuerkitoBio/goquery"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
 )
 
 const openWrtDownloadsUrlPrefix = "https://downloads.openwrt.org/"

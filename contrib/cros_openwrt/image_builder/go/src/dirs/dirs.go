@@ -11,8 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"chromiumos/platform/dev/contrib/cros_openwrt/image_builder/fileutils"
-	"chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/fileutils"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
 )
 
 const defaultWorkingDirPath = "/tmp/cros_openwrt_image_builder"

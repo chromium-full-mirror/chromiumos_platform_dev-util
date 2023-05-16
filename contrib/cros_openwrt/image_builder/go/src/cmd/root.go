@@ -10,8 +10,8 @@ import (
 	"os/user"
 	"path"
 
-	"chromiumos/platform/dev/contrib/cros_openwrt/image_builder/openwrt"
 	"github.com/spf13/cobra"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/openwrt"
 )
 
 var (

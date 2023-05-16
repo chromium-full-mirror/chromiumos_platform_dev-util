@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
 )
 
 const pendingDownloadFileSuffix = ".downloading"

@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"strings"
 
-	"chromiumos/platform/dev/contrib/cros_openwrt/image_builder/fileutils"
-	"chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/fileutils"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
 )
 
 type SdkRunner struct {

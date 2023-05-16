@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"chromiumos/platform/dev/contrib/cros_openwrt/image_builder/fileutils"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/fileutils"
 )
 
 func Execute(ctx context.Context) error {

@@ -11,8 +11,8 @@ import (
 	"os"
 	"os/signal"
 
-	"chromiumos/platform/dev/contrib/cros_openwrt/image_builder/cmd"
-	"chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/cmd"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
 )
 
 func main() {

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 
-	"chromiumos/platform/dev/contrib/cros_openwrt/image_builder/dirs"
 	"github.com/spf13/cobra"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/dirs"
 )
 
 var (
