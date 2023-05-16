@@ -89,7 +89,7 @@ RETRIES_WAIT = 10
 DO_NOT_BUILD = set(["cros-callbox"])
 # NOTE: when promoting a service from DO_NOT_BUILD, it should be added to
 # NON_CRITICAL for atleast a short time to verify health.
-NON_CRITICAL = set(["cros-servod", "cros-publish"])
+NON_CRITICAL = set(["cros-servod", "cros-publish", "android-provision"])
 
 
 def parse_local_arguments() -> argparse.Namespace:
