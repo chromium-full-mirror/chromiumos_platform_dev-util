@@ -9,20 +9,33 @@ import (
 	"fmt"
 	"os/user"
 	"path"
+	"strings"
 
 	"github.com/spf13/cobra"
+	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/openwrt"
 )
 
 var (
 	rootCmd = &cobra.Command{
 		Use:     "cros_openwrt_image_builder",
-		Version: "1.0.7",
+		Version: "1.1.0",
 		Short:   "Utility for building custom OpenWrt OS images with custom compiled packages",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if useExisting {
 				useExistingSdk = true
 				useExistingImageBuilder = true
+			}
+			for _, name := range imageFeatureNames {
+				value, ok := labapi.WifiRouterFeature_value[name]
+				if !ok {
+					return fmt.Errorf(
+						"invalid WifiRouterFeature %q, must be one of [%s]",
+						name,
+						strings.Join(possibleImageFeatureNames, ", "),
+					)
+				}
+				imageFeatures = append(imageFeatures, labapi.WifiRouterFeature(value))
 			}
 			if autoURL != "" && (!useExistingSdk && !useExistingImageBuilder) {
 				// Resolve URLs.
@@ -74,6 +87,9 @@ var (
 	autoRetrySdkCompile          bool
 	sdkCompileMaxCPUs            int
 	sdkConfigOverrides           map[string]string
+	imageFeatureNames            []string
+	possibleImageFeatureNames    []string
+	imageFeatures                []labapi.WifiRouterFeature
 )
 
 func init() {
@@ -256,5 +272,16 @@ func init() {
 			"eapol-test-wolfssl",
 		},
 		"Packages to exclude from the built image.",
+	)
+
+	possibleImageFeatureNames = make([]string, len(labapi.WifiRouterFeature_name))
+	for i, name := range labapi.WifiRouterFeature_name {
+		possibleImageFeatureNames[i] = name
+	}
+	rootCmd.PersistentFlags().StringArrayVar(
+		&imageFeatureNames,
+		"image_feature",
+		[]string{},
+		fmt.Sprintf("Wifi router features this image supports for testing (possible features: [%s])", strings.Join(possibleImageFeatureNames, ", ")),
 	)
 }

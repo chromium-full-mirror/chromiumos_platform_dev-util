@@ -108,7 +108,7 @@ func (sdk *SdkRunner) CompileCustomPackages(ctx context.Context, configOptions m
 				return fmt.Errorf("failed to compile package %q: %w", makefile, err)
 			}
 			// Try one more time, as it can be a flaky process.
-			log.Logger.Printf("Failed to compile package %q on first attempt: %w\n", makefile, err)
+			log.Logger.Printf("Failed to compile package %q on first attempt: %s\n", makefile, err)
 			log.Logger.Printf("Retrying compilation of package once %q\n", makefile)
 			if err := sdk.Make(ctx, compileArgs...); err != nil {
 				return fmt.Errorf("failed to compile package %q after two attempts: %w", makefile, err)

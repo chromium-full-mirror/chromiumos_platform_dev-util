@@ -24,7 +24,7 @@ IMAGE_BUILDER_WORKING_DIR="${BUILD_DIR}/cros_openwrt"
 echo "Building standard OpenWRT image for profile ${BUILD_PROFILE} in ${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
 
-# Compile cros_openwrt_image_builder.
+# Building cros_openwrt_image_builder.
 echo "Compiling cros_openwrt_image_builder"
 bash "${SCRIPT_DIR}/../image_builder/build.sh"
 
@@ -59,4 +59,10 @@ cros_openwrt_image_builder --working_dir "${IMAGE_BUILDER_WORKING_DIR}" \
 --image_builder_url "${IMAGE_BUILDER_DOWNLOAD_URL}" \
 --image_profile "${BUILD_PROFILE}" \
 --extra_image_name "${EXTRA_IMAGE_NAME}" \
+--image_feature WIFI_ROUTER_FEATURE_IEEE_802_11_A \
+--image_feature WIFI_ROUTER_FEATURE_IEEE_802_11_B \
+--image_feature WIFI_ROUTER_FEATURE_IEEE_802_11_G \
+--image_feature WIFI_ROUTER_FEATURE_IEEE_802_11_N \
+--image_feature WIFI_ROUTER_FEATURE_IEEE_802_11_AC \
+--image_feature WIFI_ROUTER_FEATURE_IEEE_802_11_AX \
 build:image

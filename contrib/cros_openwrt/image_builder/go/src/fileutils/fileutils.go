@@ -98,7 +98,7 @@ func DownloadFileFromURL(ctx context.Context, src, dstFolder string) (string, er
 		return "", fmt.Errorf("failed to download file from %q to %q: %w", src, pendingDownloadFilePath, err)
 	}
 	if err := os.Rename(pendingDownloadFilePath, dstFilePath); err != nil {
-		return "", fmt.Errorf("failed to rename %q to %q after completed download from %q: %w", pendingDownloadFilePath, dstFile, src, err)
+		return "", fmt.Errorf("failed to rename %q to %q after completed download from %q: %w", pendingDownloadFilePath, dstFilePath, src, err)
 	}
 	downloadSuccessful = true
 
@@ -293,6 +293,13 @@ func AssertDirectoriesExist(dirs ...string) error {
 // Directories in path are created if they do not exist.
 // Existing file contents are overwritten.
 func WriteStringToFile(ctx context.Context, input string, outFilePath string) error {
+	return WriteBytesToFile(ctx, []byte(input), outFilePath)
+}
+
+// WriteBytesToFile writes input bytes to file.
+// Directories in path are created if they do not exist.
+// Existing file contents are overwritten.
+func WriteBytesToFile(ctx context.Context, input []byte, outFilePath string) error {
 	outFileDir := path.Dir(outFilePath)
 	if outFileDir != "" {
 		if err := os.MkdirAll(outFileDir, DefaultDirPermissions); err != nil {
@@ -307,7 +314,7 @@ func WriteStringToFile(ctx context.Context, input string, outFilePath string) er
 		_ = outFile.Close()
 	}()
 	outFileWriter := NewContextualWriterWrapper(ctx, outFile)
-	if _, err := outFileWriter.Write([]byte(input)); err != nil {
+	if _, err := outFileWriter.Write(input); err != nil {
 		return fmt.Errorf("failed to write to file %q: %w", outFilePath, err)
 	}
 	return nil

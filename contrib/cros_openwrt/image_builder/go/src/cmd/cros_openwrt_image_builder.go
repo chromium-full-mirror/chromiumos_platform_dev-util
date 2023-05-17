@@ -1,4 +1,4 @@
-// Copyright 2022 The ChromiumOS Authors
+// Copyright 2023 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,19 +6,23 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path"
 	"sort"
 	"strings"
-	"time"
 
+	"github.com/google/uuid"
+	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/dirs"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/fileutils"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/openwrt"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+const buildSummaryFilename = "cros_openwrt_image_build_info.json"
 
 // CrosOpenWrtImageBuilder is a utility that can preform different steps related
 // to building OpenWrt OS images customized for ChromeOS testing.
@@ -151,7 +155,7 @@ func (ib *CrosOpenWrtImageBuilder) prepareBuilder(ctx context.Context) error {
 	// may be used for ssh access to the router.
 	dropbearDirPath := path.Join(ib.wd.ImageBuilderIncludedFilesDirPath, "etc/dropbear")
 	if err := os.MkdirAll(dropbearDirPath, fileutils.DefaultDirPermissions); err != nil {
-		return fmt.Errorf("failed to make dir %q: %w", dropbearDirPath)
+		return fmt.Errorf("failed to make dir %q: %w", dropbearDirPath, err)
 	}
 	crosPubKeyPath := path.Join(ib.src.ChromiumosDirPath, "chromeos-admin/puppet/modules/profiles/files/user-common/ssh/testing_rsa.pub")
 	if err := fileutils.CopyFile(ctx, crosPubKeyPath, path.Join(dropbearDirPath, "authorized_keys")); err != nil {
@@ -251,20 +255,37 @@ func (ib *CrosOpenWrtImageBuilder) BuildCustomChromeOSTestImage(ctx context.Cont
 		}
 	}
 
+	// Collect build info and validate profile selection.
+	standardBuildInfo, err := ib.builder.FetchStandardBuildInfoForProfile(ctx, makeImageArgs.Profile)
+	if err != nil {
+		return fmt.Errorf("failed to fetch standard build info for profile %q: %w", makeImageArgs.Profile, err)
+	}
+
+	// Make preliminary image so that we can parse its build files for build summary.
+	log.Logger.Println("Making preliminary image")
+	err = ib.builder.MakeImage(ctx, makeImageArgs)
+	if err != nil {
+		return fmt.Errorf("failed to make preliminary image: %w", err)
+	}
+
 	// Prepare a build summary and add to included files.
 	log.Logger.Println("Preparing image build summary")
-	buildSummary, err := ib.prepareBuildSummaryJSON(ctx, makeImageArgs)
+	osRelease, err := ib.builder.FetchOSReleaseFromLastImageBuild()
+	if err != nil {
+		return fmt.Errorf("failed to fetch OSRelease from preliminary image build files: %w", err)
+	}
+	buildSummary, err := ib.prepareBuildSummaryJSON(ctx, makeImageArgs, imageFeatures, osRelease, standardBuildInfo)
 	if err != nil {
 		return fmt.Errorf("failed to prepare build summary: %w", err)
 	}
-	relativeImageBuildSummaryFilePath := "etc/cros/build_info.json"
+	relativeImageBuildSummaryFilePath := "etc/cros/" + buildSummaryFilename
 	log.Logger.Printf("Image build summary (available on image install at \"/%s\":\n%s\n", relativeImageBuildSummaryFilePath, buildSummary)
 	if err := fileutils.WriteStringToFile(ctx, buildSummary, path.Join(ib.wd.ImageBuilderIncludedFilesDirPath, relativeImageBuildSummaryFilePath)); err != nil {
 		return fmt.Errorf("failed to save build build summary in included image files: %w", err)
 	}
 
-	// Make image.
-	log.Logger.Println("Making image")
+	// Make final image with build summary included.
+	log.Logger.Println("Making final image")
 	err = ib.builder.MakeImage(ctx, makeImageArgs)
 	if err != nil {
 		return fmt.Errorf("failed to make image: %w", err)
@@ -272,11 +293,13 @@ func (ib *CrosOpenWrtImageBuilder) BuildCustomChromeOSTestImage(ctx context.Cont
 
 	// Export image.
 	log.Logger.Println("Exporting built image")
-	imageDirPath, err := ib.builder.ExportBuiltImage(ctx, ib.wd.ImagesOutputDirPath)
+	imageDirPath, err := ib.builder.ExportBuiltImage(ctx, ib.wd.ImagesOutputDirPath, map[string][]byte{
+		buildSummaryFilename: []byte(buildSummary),
+	})
 	if err != nil {
 		return fmt.Errorf("failed to export built image: %w", err)
 	}
-	log.Logger.Printf("New OpenWrt OS image available at file://%s\n", imageDirPath)
+	log.Logger.Printf("New %q OpenWrt OS image available at file://%s\n", standardBuildInfo.DeviceName, imageDirPath)
 
 	return nil
 }
@@ -323,37 +346,44 @@ func (ib *CrosOpenWrtImageBuilder) promptForImageProfile(ctx context.Context) (s
 	return selectedProfile, nil
 }
 
-func (ib *CrosOpenWrtImageBuilder) prepareBuildSummaryJSON(ctx context.Context, makeImageArgs *openwrt.MakeImageArgs) (string, error) {
-	summaryStats := make(map[string]interface{})
-
-	// Basic stats.
-	summaryStats["EXTRA_IMAGE_NAME"] = makeImageArgs.ExtraImageName
-	summaryStats["IMAGE_BUILDER_PROFILE"] = makeImageArgs.Profile
-	summaryStats["INCLUDE_PACKAGES"] = makeImageArgs.IncludePackages
-	summaryStats["EXCLUDED_PACKAGES"] = makeImageArgs.ExcludePackages
-	summaryStats["DISABLED_SERVICES"] = makeImageArgs.DisabledServices
-	summaryStats["CROS_IMAGE_BUILDER_VERSION"] = rootCmd.Version
-	summaryStats["BUILD_DATETIME"] = time.Now().Format(time.RFC3339)
+func (ib *CrosOpenWrtImageBuilder) prepareBuildSummaryJSON(ctx context.Context, makeImageArgs *openwrt.MakeImageArgs, routerFeatures []labapi.WifiRouterFeature, osRelease *labapi.CrosOpenWrtImageBuildInfo_OSRelease, standardBuildConfig *labapi.CrosOpenWrtImageBuildInfo_StandardBuildConfig) (string, error) {
+	buildInfo := &labapi.CrosOpenWrtImageBuildInfo{
+		ImageUuid:                      uuid.New().String(),
+		CustomImageName:                makeImageArgs.ExtraImageName,
+		OsRelease:                      osRelease,
+		StandardBuildConfig:            standardBuildConfig,
+		RouterFeatures:                 routerFeatures,
+		BuildTime:                      timestamppb.Now(),
+		CrosOpenwrtImageBuilderVersion: rootCmd.Version,
+		ExtraIncludedPackages:          makeImageArgs.IncludePackages,
+		ExcludedPackages:               makeImageArgs.ExcludePackages,
+		DisabledServices:               makeImageArgs.DisabledServices,
+	}
 
 	// Packages customizations.
 	packagesChecksums, err := fileutils.CollectFileChecksums(ctx, path.Join(ib.wd.ImageBuilderDirPath, "packages"))
 	if err != nil {
 		return "", err
 	}
-	summaryStats["CUSTOM_PACKAGES"] = packagesChecksums
+	buildInfo.CustomPackages = packagesChecksums
 
 	// File customizations.
 	includedImageFileChecksums, err := fileutils.CollectFileChecksums(ctx, makeImageArgs.Files)
 	if err != nil {
 		return "", err
 	}
-	summaryStats["CUSTOM_INCLUDED_FILES"] = includedImageFileChecksums
+	buildInfo.CustomIncludedFiles = includedImageFileChecksums
 
 	// Return as pretty marshalled JSON object to allow for easy script parsing
-	// and human reading.
-	summaryJson, err := json.MarshalIndent(summaryStats, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal build summary stats to json: %w", err)
+	// and human reading from a terminal.
+	marshaller := protojson.MarshalOptions{
+		Indent:          "  ",
+		Multiline:       true,
+		EmitUnpopulated: true,
 	}
-	return string(summaryJson) + "\n", nil
+	buildInfoJSON, err := marshaller.Marshal(buildInfo)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal build info to JSON: %w", err)
+	}
+	return string(buildInfoJSON) + "\n", nil
 }

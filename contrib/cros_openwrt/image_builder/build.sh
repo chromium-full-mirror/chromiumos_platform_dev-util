@@ -9,5 +9,8 @@ set -e
 SCRIPT_DIR="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
 source "${SCRIPT_DIR}/enter_gopath.sh"
 CMD_PATH="${PROJECT_GOPATH}/bin/cros_openwrt_image_builder"
+cd "${PROJECT_GOPATH}/src" && go mod tidy
+cd "${PROJECT_GOPATH}/src" && go fmt ./...
+cd "${PROJECT_GOPATH}/src" && go test ./...
 cd "${PROJECT_GOPATH}/src" && go build -o "${CMD_PATH}"
 echo "Successfully built cros_openwrt_image_builder at '${CMD_PATH}'"

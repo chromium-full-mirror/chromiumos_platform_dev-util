@@ -1,4 +1,4 @@
-// Copyright 2022 The ChromiumOS Authors
+// Copyright 2023 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/fileutils"
 )
 
@@ -24,6 +25,7 @@ type ImageBuilderRunner struct {
 	builderDirPath         string
 	runMakeImageScriptPath string
 	binDirPath             string
+	buildDirPath           string
 }
 
 type MakeImageArgs struct {
@@ -46,11 +48,22 @@ type MakeImageArgs struct {
 	DisabledServices []string
 }
 
+type ImageBuilderProfileInfo struct {
+	OpenWrtRevision  string
+	BuildTarget      string
+	ProfileName      string
+	DeviceName       string
+	DefaultPackages  []string
+	ProfilePackages  []string
+	SupportedDevices []string
+}
+
 func NewImageBuilderRunner(builderDirPath, runMakeImageScriptPath string) (*ImageBuilderRunner, error) {
 	ib := &ImageBuilderRunner{
 		builderDirPath:         builderDirPath,
 		runMakeImageScriptPath: runMakeImageScriptPath,
 		binDirPath:             path.Join(builderDirPath, "bin"),
+		buildDirPath:           path.Join(builderDirPath, "build_dir"),
 	}
 	if err := fileutils.AssertDirectoriesExist(ib.builderDirPath); err != nil {
 		return nil, err
@@ -64,7 +77,7 @@ func NewImageBuilderRunner(builderDirPath, runMakeImageScriptPath string) (*Imag
 // so that its arguments are passed correctly, as it relies on bash to pass
 // them in a way that is not supported with golang's exec.
 func (ib *ImageBuilderRunner) MakeImage(ctx context.Context, imageArgs *MakeImageArgs) error {
-	// Clean local image output directory, if it exists.
+	// Clean local image output and build directories, if they exist.
 	binDirExists, err := fileutils.DirectoryExists(ib.binDirPath)
 	if err != nil {
 		return err
@@ -112,18 +125,24 @@ func (ib *ImageBuilderRunner) MakeImage(ctx context.Context, imageArgs *MakeImag
 	return nil
 }
 
-// AvailableProfiles runs "make info" to retrieve available image profiles this
-// image builder supports as a map of profile to its description.
-func (ib *ImageBuilderRunner) AvailableProfiles(ctx context.Context) (map[string]string, error) {
-	// Run "make info" and collect output.
+func (ib *ImageBuilderRunner) runMakeInfo(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "make", "info")
 	cmd.Dir = ib.builderDirPath
 	cmd.Stderr = os.Stderr
 	stdout, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to run image builder make info: %w", err)
+		return "", fmt.Errorf("failed to run image builder make info: %w", err)
 	}
-	makeInfoOutput := string(stdout)
+	return string(stdout), nil
+}
+
+// AvailableProfiles runs "make info" to retrieve available image profiles this
+// image builder supports as a map of profile to its description.
+func (ib *ImageBuilderRunner) AvailableProfiles(ctx context.Context) (map[string]string, error) {
+	makeInfoOutput, err := ib.runMakeInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// Parse out available profiles and device names.
 	availProfilesLine := "Available Profiles:"
@@ -144,14 +163,72 @@ func (ib *ImageBuilderRunner) AvailableProfiles(ctx context.Context) (map[string
 	return availProfilesToDescription, nil
 }
 
-// ExportBuiltImage exports built OpenWrt OS image built
-func (ib *ImageBuilderRunner) ExportBuiltImage(ctx context.Context, dstDir string) (string, error) {
+func (ib *ImageBuilderRunner) FetchStandardBuildInfoForProfile(ctx context.Context, profileName string) (*labapi.CrosOpenWrtImageBuildInfo_StandardBuildConfig, error) {
+	validProfileNameRegex := regexp.MustCompile(`[a-zA-Z-_\d]+`)
+	if !validProfileNameRegex.MatchString(profileName) {
+		return nil, fmt.Errorf("invalid image profile name %q, must match %s", profileName, validProfileNameRegex.String())
+	}
+	makeInfoOutput, err := ib.runMakeInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return ib.parseStandardBuildInfo(makeInfoOutput, profileName)
+}
+
+func (ib *ImageBuilderRunner) parseStandardBuildInfo(makeInfoOutput, profileName string) (*labapi.CrosOpenWrtImageBuildInfo_StandardBuildConfig, error) {
+	if !strings.Contains(makeInfoOutput, profileName) {
+		return nil, fmt.Errorf("unknown profile %q", profileName)
+	}
+	matchRegex, err := regexp.Compile(fmt.Sprintf(
+		`(?s)^\s*Current Target: "(?P<currentTarget>[^"]+)"\s+`+
+			`Current Revision: "(?P<currentRevision>[^"]+)"\s+`+
+			`Default Packages: (?P<defaultPackagesList>[^\n]*)\n`+
+			`Available Profiles:\s+`+
+			`.*%s:\n`+
+			`\s+(?P<deviceName>[^\n]+)\n`+
+			`\s*Packages: (?P<imagePackagesList>[^\n]*)\n`+
+			`\s*hasImageMetadata: \d+\n`+
+			`\s*SupportedDevices: (?P<supportedDevicesList>[^\n]*)\n`+
+			`.*$`,
+		profileName,
+	))
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile image info match regex: %w", err)
+	}
+	match := matchRegex.FindStringSubmatch(makeInfoOutput)
+	if match == nil {
+		return nil, fmt.Errorf("failed to parse image info from 'make info' output with regex %s", matchRegex.String())
+	}
+	namedMatchResults := make(map[string]string)
+	for i, name := range matchRegex.SubexpNames() {
+		if i != 0 && name != "" {
+			namedMatchResults[name] = match[matchRegex.SubexpIndex(name)]
+		}
+	}
+	return &labapi.CrosOpenWrtImageBuildInfo_StandardBuildConfig{
+		OpenwrtBuildTarget:  namedMatchResults["currentTarget"],
+		OpenwrtRevision:     namedMatchResults["currentRevision"],
+		BuildTargetPackages: splitAndTrimStringList(namedMatchResults["defaultPackagesList"]),
+		BuildProfile:        profileName,
+		DeviceName:          namedMatchResults["deviceName"],
+		ProfilePackages:     splitAndTrimStringList(namedMatchResults["imagePackagesList"]),
+		SupportedDevices:    splitAndTrimStringList(namedMatchResults["supportedDevicesList"]),
+	}, nil
+}
+
+// ExportBuiltImage exports the image files created by the OpenWrt image builder
+// to the specified directory. An archive of the files is also included for
+// easy distribution.
+//
+// Additional data may be saved to the export directory as additional files with
+// the extraFileNamesToContent param. These are also included in the archive.
+func (ib *ImageBuilderRunner) ExportBuiltImage(ctx context.Context, dstDir string, extraFileNamesToContent map[string][]byte) (string, error) {
 	binDirExists, err := fileutils.DirectoryExists(ib.binDirPath)
 	if err != nil {
 		return "", err
 	}
 	if !binDirExists {
-		return "", fmt.Errorf("image builder bin directory not found at %q")
+		return "", fmt.Errorf("image builder bin directory not found at %q", ib.binDirPath)
 	}
 
 	// Find directory of the image (i.e. the first directory with a *.manifest file).
@@ -187,11 +264,90 @@ func (ib *ImageBuilderRunner) ExportBuiltImage(ctx context.Context, dstDir strin
 		return "", err
 	}
 
+	// Save any extra files.
+	for filename, contents := range extraFileNamesToContent {
+		filePath := path.Join(exportImageDir, filename)
+		if err := fileutils.WriteBytesToFile(ctx, contents, filePath); err != nil {
+			return "", fmt.Errorf("failed to write %d bytes to new extra file %q", len(contents), filePath)
+		}
+	}
+
 	// Create and export an archive of the image (for distribution).
 	archivePath := path.Join(exportImageDir, path.Base(exportImageDir)+".tar.xz")
-	if err := fileutils.PackageTarXz(ctx, localImageDir, archivePath); err != nil {
+	if err := fileutils.PackageTarXz(ctx, exportImageDir, archivePath); err != nil {
 		return "", err
 	}
 
 	return exportImageDir, nil
+}
+
+func (ib *ImageBuilderRunner) FetchOSReleaseFromLastImageBuild() (*labapi.CrosOpenWrtImageBuildInfo_OSRelease, error) {
+	buildDirExists, err := fileutils.DirectoryExists(ib.buildDirPath)
+	if err != nil {
+		return nil, err
+	}
+	if !buildDirExists {
+		return nil, fmt.Errorf("image build dir %q not found", ib.buildDirPath)
+	}
+	matchingFiles, err := filepath.Glob(ib.buildDirPath + "/*/*/etc/os-release")
+	if err != nil {
+		return nil, fmt.Errorf("failed to search for an os-release file in image build dir %q", ib.buildDirPath)
+	}
+	if len(matchingFiles) == 0 {
+		return nil, fmt.Errorf("failed to find an os-release file in image build dir")
+	}
+	osReleaseFilePath := matchingFiles[0]
+	osReleaseFileContents, err := os.ReadFile(osReleaseFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read os-release file %q", osReleaseFilePath)
+	}
+	return ib.parseOSReleaseFile(string(osReleaseFileContents))
+}
+
+func (ib *ImageBuilderRunner) parseOSReleaseFile(osReleaseFileContents string) (*labapi.CrosOpenWrtImageBuildInfo_OSRelease, error) {
+	osReleaseEntries := make(map[string]string)
+	keyValueRegex := regexp.MustCompile(`(\w+)="([^"]+)"`)
+	for _, line := range strings.Split(osReleaseFileContents, "\n") {
+		line = strings.TrimSpace(line)
+		match := keyValueRegex.FindStringSubmatch(line)
+		if match == nil {
+			continue
+		}
+		osReleaseEntries[match[1]] = match[2]
+	}
+	osRelease := &labapi.CrosOpenWrtImageBuildInfo_OSRelease{}
+	var ok bool
+	osRelease.Version, ok = osReleaseEntries["VERSION"]
+	if !ok {
+		return nil, errors.New("missing os-release VERSION")
+	}
+	osRelease.BuildId, ok = osReleaseEntries["BUILD_ID"]
+	if !ok {
+		return nil, errors.New("missing os-release BUILD_ID")
+	}
+	osRelease.OpenwrtBoard, ok = osReleaseEntries["OPENWRT_BOARD"]
+	if !ok {
+		return nil, errors.New("missing os-release OPENWRT_BOARD")
+	}
+	osRelease.OpenwrtArch, ok = osReleaseEntries["OPENWRT_ARCH"]
+	if !ok {
+		return nil, errors.New("missing os-release OPENWRT_ARCH")
+	}
+	osRelease.OpenwrtRelease, ok = osReleaseEntries["OPENWRT_RELEASE"]
+	if !ok {
+		return nil, errors.New("missing os-release OPENWRT_RELEASE")
+	}
+	return osRelease, nil
+}
+
+func splitAndTrimStringList(s string) []string {
+	items := strings.Split(s, " ")
+	var result []string
+	for _, item := range items {
+		item := strings.TrimSpace(item)
+		if item != "" {
+			result = append(result, item)
+		}
+	}
+	return result
 }
