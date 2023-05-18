@@ -248,3 +248,12 @@ disp_overwrite[
 disp_overwrite[
     "5c2684ddd2cd"
 ] = "drop"  # CHROMIUM: ASoC: SOF: amd: Add support for Linear position registers for tdm DAI.
+disp_overwrite[
+    "ff52d46e7dbb"
+] = "drop"  # FROMLIST: i2c: designware: Switch from using MMIO access to SMN access
+disp_overwrite[
+    "31063ce71503"
+] = "drop"  # FROMLIST: i2c: designware: Add support for new SoCs in AMDPSP driver
+disp_overwrite[
+    "1b0ab83576a6"
+] = "drop"  # Revert "FIXUP: FROMLIST: drm/bridge: it6505: handle HDCP request"
