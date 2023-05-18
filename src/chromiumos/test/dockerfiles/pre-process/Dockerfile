@@ -3,4 +3,8 @@
 # found in the LICENSE file.
 
 FROM ubuntu:bionic
+
+RUN apt-get update \
+    && apt-get install -y curl
+
 COPY pre-process /usr/bin/
