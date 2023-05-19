@@ -11,21 +11,24 @@ import (
 )
 
 func TestDetermineSignalFromQuery(t *testing.T) {
-	qi := PassRatePolicy{requiredPassRate: 99.0}
+	qi := PassRatePolicy{requiredPassRate: 99.0, requiredRecentPassRate: 99.5, requiredRecentRuns: 20}
 	qi.forceMapEnable = listToMap([]string{"Test1"})
 	qi.forceMapDisable = listToMap([]string{"Test2"})
 
-	if !qi.determineSignalFromQuery("Test1", 98.0) {
+	if !qi.determineSignalFromQuery("Test1", 98.0, 98.0, 30, 20) {
 		t.Fatalf("ForceEnableCheck - Test marked as unstable when should be marked as stable.")
 	}
-	if qi.determineSignalFromQuery("Test2", 99.5) {
+	if qi.determineSignalFromQuery("Test2", 99.5, 99.0, 30, 20) {
 		t.Fatalf("ForceDisableCheck - Test marked as stable when should be marked as unstable.")
 	}
-	if qi.determineSignalFromQuery("Test3", 98.0) {
+	if qi.determineSignalFromQuery("Test3", 98.0, 99.9, 2, 5) {
 		t.Fatalf("PassRateCheckUnstable - Test marked as stable when should be marked as unstable.")
 	}
-	if !qi.determineSignalFromQuery("Test4", 99.0) {
+	if !qi.determineSignalFromQuery("Test4", 99.0, 97.0, 30, 30) {
 		t.Fatalf("PassRateCheckStable - Test marked as unstable when should be marked as stable.")
+	}
+	if !qi.determineSignalFromQuery("Test4", 94.0, 99.5, 30, 30) {
+		t.Fatalf("RecentStableCheck - Test marked as unstable when should be marked as stable.")
 	}
 
 }

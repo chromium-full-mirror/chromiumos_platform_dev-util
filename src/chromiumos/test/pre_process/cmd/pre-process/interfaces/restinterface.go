@@ -4,7 +4,9 @@
 
 package interfaces
 
-import "log"
+import (
+	"errors"
+)
 
 type SensorTestStats struct {
 	Stats          string
@@ -22,9 +24,7 @@ type SensorFormat struct {
 }
 
 // CallForStability return stability data in the SensorFormat from StabiitySensor rest endpoint
-func CallForStability() []SensorFormat {
+func CallForStability() ([]SensorFormat, error) {
 	// TODO IMPLEMENT
-	log.Printf("STABILITY SENSOR INTERFACE NOT IMPLEMENTED")
-	var data []SensorFormat
-	return data
+	return nil, errors.New("STABILITY SENSOR INTERFACE NOT IMPLEMENTED")
 }

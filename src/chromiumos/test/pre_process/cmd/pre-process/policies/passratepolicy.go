@@ -6,6 +6,7 @@ package policies
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strconv"
 
@@ -19,26 +20,31 @@ import (
 
 // PassRatePolicy is a helper struct for GetFile.
 type PassRatePolicy struct {
-	ctx              context.Context
-	req              *api.FilterFlakyRequest_PassRatePolicy
-	variant          string
-	milestone        string
-	forceMapEnable   map[string]struct{}
-	forceMapDisable  map[string]struct{}
-	requiredPassRate float64
-	numOfMilestones  int
-	missingTcList    map[string]struct{}
-	data             map[string]structs.SignalFormat
-	otherData        map[string]structs.SignalFormat
+	ctx                    context.Context
+	req                    *api.FilterFlakyRequest_PassRatePolicy
+	variant                string
+	milestone              string
+	forceMapEnable         map[string]struct{}
+	forceMapDisable        map[string]struct{}
+	requiredPassRate       float64
+	requiredRuns           int
+	numOfMilestones        int
+	missingTcList          map[string]struct{}
+	data                   map[string]structs.SignalFormat
+	otherData              map[string]structs.SignalFormat
+	requiredRecentPassRate float64
+	requiredRecentRuns     int
 }
 
 type resSchema struct {
-	Build            string
-	Normalized_test  string
-	Board            string
-	Success_permille float64
-	Total_runs       int
-	Fail_runs        int
+	Build                string
+	Normalized_test      string
+	Board                string
+	Success_permille     float64
+	Total_runs           int
+	Fail_runs            int
+	Rec_Success_Permille float64
+	Rec_Total_Runs       int
 }
 
 // Helper method to turn a list into a set. Because Go doesn't have built in sets. nice.
@@ -51,24 +57,31 @@ func listToMap(forced []string) map[string]struct{} {
 }
 
 // StabilityFromPolicy returns the stability information computed from the policy given. Uses BQ results directly for test history.
-func StabilityFromPolicy(req *api.FilterFlakyRequest_PassRatePolicy, variant string, milestone string, tcList map[string]struct{}) map[string]structs.SignalFormat {
+func StabilityFromPolicy(req *api.FilterFlakyRequest_PassRatePolicy, variant string, milestone string, tcList map[string]struct{}) (map[string]structs.SignalFormat, error) {
 	policy := PassRatePolicy{
-		req:              req,
-		variant:          variant,
-		milestone:        milestone,
-		forceMapEnable:   make(map[string]struct{}),
-		forceMapDisable:  make(map[string]struct{}),
-		requiredPassRate: float64(req.PassRatePolicy.PassRate),
-		numOfMilestones:  int(req.PassRatePolicy.NumOfMilestones),
-		missingTcList:    tcList,
-		data:             make(map[string]structs.SignalFormat),
-		otherData:        make(map[string]structs.SignalFormat),
+		req:                    req,
+		variant:                variant,
+		milestone:              milestone,
+		forceMapEnable:         make(map[string]struct{}),
+		forceMapDisable:        make(map[string]struct{}),
+		requiredPassRate:       float64(req.PassRatePolicy.PassRate),
+		numOfMilestones:        int(req.PassRatePolicy.NumOfMilestones),
+		requiredRuns:           int(req.PassRatePolicy.MinRuns),
+		requiredRecentPassRate: float64(req.PassRatePolicy.PassRateRecent),
+		requiredRecentRuns:     int(req.PassRatePolicy.MinRunsRecent),
+		missingTcList:          tcList,
+		data:                   make(map[string]structs.SignalFormat),
+		otherData:              make(map[string]structs.SignalFormat),
 	}
-	policy.stabilityFromPolicy()
-	return policy.data
+
+	err := policy.stabilityFromPolicy()
+	if err != nil {
+		return nil, err
+	}
+	return policy.data, nil
 }
 
-func (q *PassRatePolicy) determineSignalFromQuery(testname string, passRate float64) bool {
+func (q *PassRatePolicy) determineSignalFromQuery(testname string, passRate float64, recPassRate float64, recRuns int, minRuns int) bool {
 	// If the test is force_enabled, do this.
 	if _, found := q.forceMapEnable[testname]; found {
 		log.Printf("testname %s marked as forced disabled.", testname)
@@ -77,19 +90,26 @@ func (q *PassRatePolicy) determineSignalFromQuery(testname string, passRate floa
 		return false
 	} else if passRate >= float64(q.requiredPassRate) {
 		return true
+	} else if q.requiredPassRate != 0 && q.requiredRecentRuns != 0 {
+		if recPassRate >= q.requiredPassRate && recRuns >= q.requiredRecentRuns {
+			return true // Was bad, but recent signal is very strongly good.
+		}
 	}
 	log.Printf("testname %s < required PassRate %v with %v: MARKED UNSTABLE (might still run due to overrides).\n", testname, q.requiredPassRate, passRate)
 	return false
 }
 
-func (q *PassRatePolicy) stabilityFromPolicy() {
+func (q *PassRatePolicy) stabilityFromPolicy() error {
 	mileStone, _ := strconv.Atoi(q.milestone)
 	mileStroneRegex := mileStoneRegex(q.numOfMilestones, mileStone)
 	q.forceMapEnable = listToMap(q.req.PassRatePolicy.ForceEnabledTests)
 	q.forceMapDisable = listToMap(q.req.PassRatePolicy.ForceDisabledTests)
 
 	// Query using all possible milestones. We will only search for results in the current on the first iterations.
-	bqIter := interfaces.QueryForResults(q.variant, mileStroneRegex)
+	bqIter, err := interfaces.QueryForResults(q.variant, mileStroneRegex)
+	if err != nil {
+		return fmt.Errorf("unable to determine stabily: %s", err)
+	}
 
 	// Iterate through the results.
 	// TODO, consider combining results from different milestones.
@@ -99,6 +119,8 @@ func (q *PassRatePolicy) stabilityFromPolicy() {
 	if len(q.missingTcList) > 0 && q.numOfMilestones > 0 {
 		q.populateMissingTests()
 	}
+
+	return nil
 
 }
 
@@ -127,7 +149,7 @@ func (q *PassRatePolicy) iterThroughData(bqIter *bigquery.RowIterator, milestone
 			log.Printf("INFORMATIONAL ERR - could not decode error on loop: %s\n", err)
 		}
 
-		signal := q.determineSignalFromQuery(resp.Normalized_test, resp.Success_permille)
+		signal := q.determineSignalFromQuery(resp.Normalized_test, resp.Success_permille, resp.Rec_Success_Permille, resp.Rec_Total_Runs, int(q.req.PassRatePolicy.MinRuns))
 
 		// Not enough runs? skip!
 		if resp.Total_runs < int(q.req.PassRatePolicy.MinRuns) {

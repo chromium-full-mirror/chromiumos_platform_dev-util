@@ -7,6 +7,7 @@ package interfaces
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -18,22 +19,22 @@ import (
 )
 
 const dataset = "analytics"
-const resultsTable = "FlakeReportTest"
+const resultsTable = "FlakeReportTestv2"
 const saProject = "chromeos-bot"
 const tableProject = "chromeos-test-platform-data"
 const saFile = "/creds/service_accounts/service-account-chromeos.json"
 
 // QueryForResults will query the Flake  tables to find the history for tests.
-func QueryForResults(variant string, milestone string) *bigquery.RowIterator {
+func QueryForResults(variant string, milestone string) (*bigquery.RowIterator, error) {
 	ctx := context.Background()
 	c, err := bigquery.NewClient(ctx, saProject,
 		option.WithCredentialsFile(saFile))
 	defer c.Close()
 	if err != nil {
-		fmt.Printf("Query issues: %s\n", err)
+		return nil, fmt.Errorf("unable to make bq client %s", err)
 	}
-	fmt.Println("Good Query.")
-	cmd := fmt.Sprintf("SELECT * FROM chromeos-test-platform-data.analytics.FlakeCache WHERE total_runs > 0 AND board = \"%s\"  AND (REGEXP_CONTAINS(build, \"%s\"))", variant, milestone)
+
+	cmd := fmt.Sprintf("SELECT * FROM chromeos-test-platform-data.analytics.FlakeCacheTest WHERE total_runs > 0 AND board = \"%s\"  AND (REGEXP_CONTAINS(build, \"%s\"))", variant, milestone)
 	fmt.Println((cmd))
 	bqQ := c.Query(cmd)
 	// Execute the query.
@@ -41,7 +42,8 @@ func QueryForResults(variant string, milestone string) *bigquery.RowIterator {
 	if err != nil {
 		fmt.Printf("INFORMATIONAL: query error: %s", err)
 	}
-	return it
+
+	return it, nil
 }
 
 // insertRows demonstrates inserting data into a table using the streaming insert mechanism.
@@ -77,6 +79,8 @@ type Entry struct {
 	passrate3daysamples          int
 	passrate3daysamplesrequired  int
 	dryrun                       string
+	milestone                    int
+	build                        string
 }
 
 // Save implements the ValueSaver interface.
@@ -96,6 +100,8 @@ func (i *Entry) Save() (map[string]bigquery.Value, string, error) {
 		"passrate3daysamples":          i.passrate3daysamples,
 		"passrate3daysamplesrequired":  i.passrate3daysamplesrequired,
 		"dryrun":                       i.dryrun,
+		"milestone":                    i.milestone,
+		"build":                        i.build,
 	}, bigquery.NoDedupeID, nil
 }
 
@@ -138,6 +144,7 @@ func uploadData(filteredTests []string, req *api.FilterFlakyRequest, data map[st
 	if err != nil {
 		return err
 	}
+	mileStone, _ := strconv.Atoi(req.Milestone)
 
 	board, err := boardData(req)
 	if err != nil {
@@ -161,6 +168,8 @@ func uploadData(filteredTests []string, req *api.FilterFlakyRequest, data map[st
 			passrate3daysamples:          -1,
 			passrate3daysamplesrequired:  requiredSamples3Day,
 			dryrun:                       "False",
+			milestone:                    mileStone,
+			build:                        "NOT_PROVIDED",
 		}
 
 		_, ok := data[tc]

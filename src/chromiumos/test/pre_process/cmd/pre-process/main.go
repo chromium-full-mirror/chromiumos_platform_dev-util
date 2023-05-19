@@ -173,9 +173,9 @@ func getStabilityData(req *api.FilterFlakyRequest, tcList map[string]struct{}) (
 	// Currently 2 types of policies will be supported. This can be expanded if newer types are added.
 	switch op := req.Policy.(type) {
 	case *api.FilterFlakyRequest_PassRatePolicy:
-		data = policies.StabilityFromPolicy(op, variant, req.Milestone, tcList)
+		return policies.StabilityFromPolicy(op, variant, req.Milestone, tcList)
 	case *api.FilterFlakyRequest_StabilitySensorPolicy:
-		data = policies.StabilityFromStabilitySensor()
+		return policies.StabilityFromStabilitySensor()
 	}
 
 	return data, nil
@@ -203,6 +203,7 @@ func testCasesToSet(testcases []*api.TestCase) map[string]struct{} {
 
 func innerMain(req *api.FilterFlakyRequest) (*api.FilterFlakyResponse, error) {
 	filter := Filter{req: req}
+	var err error
 	var filteredSuites []*api.TestSuite
 	for _, md := range req.TestSuites {
 		// The input request, TestSuites, can be either TestCases OR TestCaseMetadata. Support both options.
@@ -212,14 +213,17 @@ func innerMain(req *api.FilterFlakyRequest) (*api.FilterFlakyResponse, error) {
 
 			// Generate a set of tests, these will be used when searching for signal on the tests.
 			testCases := op.TestCases.TestCases
-			// TODO, handle errors
-			filter.data, _ = getStabilityData(filter.req, testCasesToSet(testCases))
+			filter.data, err = getStabilityData(filter.req, testCasesToSet(testCases))
+			if err != nil {
+				fmt.Printf("err during stability fetching, will apply rules as possible %s,", err)
+			}
 			filteredSuite = filter.filterCases(testCases, md.Name)
 		case *api.TestSuite_TestCasesMetadata:
 			// Generate a set of tests, these will be used when searching for signal on the tests.
-
-			// TODO; handle the error.
-			filter.data, _ = getStabilityData(filter.req, testMDToSet(op))
+			filter.data, err = getStabilityData(filter.req, testMDToSet(op))
+			if err != nil {
+				fmt.Printf("err during stability fetching, will apply rules as possible %s,", err)
+			}
 			filteredSuite = filter.filterMetadata(op, md.Name)
 		}
 		filteredSuites = append(filteredSuites, filteredSuite)
@@ -233,7 +237,7 @@ func innerMain(req *api.FilterFlakyRequest) (*api.FilterFlakyResponse, error) {
 
 	log.Printf("The following tests are set to be removed from this scheduled attempt:\n %s\n", rspn.RemovedTests)
 
-	err := interfaces.WriteResults(rspn.RemovedTests, req, filter.data)
+	err = interfaces.WriteResults(rspn.RemovedTests, req, filter.data)
 	if err != nil {
 
 		log.Println("!!!")
@@ -270,7 +274,6 @@ func runCLI(ctx context.Context, d []string) int {
 		return 2
 	}
 	defer logFile.Close()
-	// logger := helpers.NewLogger(logFile)
 	mw := io.MultiWriter(logFile, os.Stderr)
 	log.SetOutput(mw)
 

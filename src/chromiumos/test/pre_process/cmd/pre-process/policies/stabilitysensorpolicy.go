@@ -10,13 +10,17 @@ import (
 	"log"
 )
 
-// StabilityFromStabilitySenosr wiill get Stability info from the StabilitySensor endpoint.
-func StabilityFromStabilitySensor() map[string]structs.SignalFormat {
-	data := interfaces.CallForStability()
+// StabilityFromStabilitySensor will get Stability info from the StabilitySensor endpoint.
+func StabilityFromStabilitySensor() (map[string]structs.SignalFormat, error) {
+	data, err := interfaces.CallForStability()
+	if err != nil {
+		return nil, err
+	}
+
 	return formatStabilityData(data)
 }
 
-func formatStabilityData(raw []interfaces.SensorFormat) map[string]structs.SignalFormat {
+func formatStabilityData(raw []interfaces.SensorFormat) (map[string]structs.SignalFormat, error) {
 	log.Println("STABILITY INTERFACE NOT IMPLEMENTED.")
 	data := make(map[string]structs.SignalFormat)
 	for _, item := range raw {
@@ -27,5 +31,5 @@ func formatStabilityData(raw []interfaces.SensorFormat) map[string]structs.Signa
 		}
 		data[item.Test_id] = structs.SignalFormat{Signal: status}
 	}
-	return data
+	return data, nil
 }
