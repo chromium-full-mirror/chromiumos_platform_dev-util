@@ -257,3 +257,6 @@ disp_overwrite[
 disp_overwrite[
     "1b0ab83576a6"
 ] = "drop"  # Revert "FIXUP: FROMLIST: drm/bridge: it6505: handle HDCP request"
+disp_overwrite[
+    "357c6e4b48a4"
+] = "drop"  # CHROMIUM: i2c: designware: Fix clobbered i2c request status
