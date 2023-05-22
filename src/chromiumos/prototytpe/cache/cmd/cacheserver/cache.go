@@ -97,7 +97,10 @@ func (c *Cache) fetchFromGS(gsPath, localPath string) error {
 
 	defer wf.Close()
 
-	if _, err := io.Copy(wf, rc); err != nil {
+	//Using half of the default buffer size for memory optimization
+	buf := make([]byte, 16*1024)
+
+	if _, err := io.CopyBuffer(wf, rc, buf); err != nil {
 		return fmt.Errorf("could not download gcs file, %w", err)
 	}
 

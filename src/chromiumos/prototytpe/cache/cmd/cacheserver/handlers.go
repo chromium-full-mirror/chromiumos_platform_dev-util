@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"runtime"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -28,6 +29,12 @@ const (
 	isStagedPrefix      = "/is_staged/"
 	stagePrefix         = "/stage/"
 	checkHealthPrefix   = "/check_health/"
+)
+
+// Maximum number of allowed concurrent cacheGSHandler executions
+var (
+	maxConcurrency          = runtime.NumCPU() * 4
+	gsHandlerConcurrencySem = make(chan struct{}, maxConcurrency) // Semaphore to control concurrency
 )
 
 // HTTPHandlers contains the cache server api endpoint logic
@@ -84,6 +91,9 @@ func InstantiateHandlers(port int, cacheLocation string) error {
 
 // cacheGSHandler handles the cache for GS
 func (h *HTTPHandlers) cacheGSHandler(w http.ResponseWriter, r *http.Request) {
+
+	gsHandlerConcurrencySem <- struct{}{}
+	defer func() { <-gsHandlerConcurrencySem }()
 	switch r.Method {
 	case http.MethodGet:
 		h.getCacheGSHandler(w, strings.TrimPrefix(r.URL.EscapedPath(), downloadPrefix))

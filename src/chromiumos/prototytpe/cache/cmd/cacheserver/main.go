@@ -54,6 +54,7 @@ func main() {
 
 		logger := newLogger(logFile)
 		logger.Println("Starting cacheservice")
+		log.SetOutput(logger.Writer())
 
 		if err := InstantiateHandlers(*port, *cacheLocation); err != nil {
 			log.Fatalln("failed to instantiate http handlers: ", err)
