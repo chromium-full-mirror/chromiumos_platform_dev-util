@@ -7,8 +7,10 @@
 import logging
 import time
 
-from . import _pac19xx
 import cs_types
+
+from . import _pac19xx
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +29,8 @@ class Pac19xxInst:
         p_polar=None,
         p_bit_shift=None,
         v_polar=None,
-        **kwargs
+        **kwargs,
     ):
-
         """Base PAC19XX class init.
 
         Args:
@@ -106,11 +107,19 @@ class Pac19xxInst:
         )
 
     def _read_voltage(self, ch=0):
-        val = self._read_val(_pac19xx.VBUS1_AVG + int(ch), 2)
+        val = self._read_val(
+            _pac19xx.VBUS1_AVG + int(ch),
+            2,
+            signed=(self.polarity == cs_types.Polarity.BIPOLAR),
+        )
         return float(val * (_pac19xx.FSV / self._v_polar[self.polarity]))
 
     def _read_current(self, ch=0):
-        val = self._read_val(_pac19xx.VSENSE1_AVG + int(ch), 2)
+        val = self._read_val(
+            _pac19xx.VSENSE1_AVG + int(ch),
+            2,
+            signed=(self.polarity == cs_types.Polarity.BIPOLAR),
+        )
         fsc = _pac19xx.FSR / float(self.ch_config[ch]["rsense"])
         return float(fsc / _pac19xx.V_POLAR[self.polarity]) * val
 
@@ -215,7 +224,7 @@ class Pac193xInst(Pac19xxInst):
         ch_config=None,
         polarity=cs_types.Polarity.UNIPOLAR,
         refresh_global=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             device,
@@ -277,9 +286,8 @@ class Pac195xInst(Pac19xxInst):
         ch_config=None,
         polarity=cs_types.Polarity.UNIPOLAR,
         refresh_global=False,
-        **kwargs
+        **kwargs,
     ):
-
         super().__init__(
             device,
             ch_config,
@@ -311,7 +319,6 @@ class Pac195xInst(Pac19xxInst):
         time.sleep(self._REFRESH_WAIT_TIME)
 
     def _dump_accumulator(self, ch=0):
-
         reg = self._read_val(
             _pac19xx.VACC1 + ch,
             7,
