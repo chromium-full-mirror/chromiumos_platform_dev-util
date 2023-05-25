@@ -436,6 +436,7 @@ type getTestableRun struct {
 	subcommands.CommandRunBase
 	planPaths             []string
 	builds                []*bbpb.Build
+	buildsPath            string
 	buildMetadataListPath string
 	dutAttributeListPath  string
 	configBundleListPath  string
@@ -443,12 +444,13 @@ type getTestableRun struct {
 }
 
 var cmdGetTestable = &subcommands.Command{
-	UsageLine: `get-testable -plan plan1.star [-plan plan2.star] -build BUILD1 [-build BUILD2] -dutattributes PATH -buildmetadata PATH -configbundlelist PATH -builderconfigs PATH`,
+	UsageLine: `get-testable -plan plan1.star [-plan plan2.star] -builds PATH -dutattributes PATH -buildmetadata PATH -configbundlelist PATH -builderconfigs PATH`,
 	ShortDesc: "get a list of builds that could possibly be tested by plans",
 	LongDesc: `Get a list of builds that could possibly be tested by plans.
 
-First compute a set of CoverageRules from plans, then compute which builds in
-GenerateTestPlanRequest could possibly be tested based off the CoverageRules.
+First compute a set of CoverageRules from plans, then compute which builds could
+possibly be tested based off the CoverageRules.
+
 This doesn't take the status, output test artifacts, etc. of builds into
 account, just whether their build target, variant, and profile could be included
 in one of the CoverageRules.
@@ -471,10 +473,19 @@ conveniences such as -crossrcroot that generate does.
 		r.Flags.Var(
 			luciflag.MessageSliceFlag(&r.builds),
 			"build",
-			"Buildbucket build protos to analyze, as JSON proto. Each proto must"+
-				"include the `builder.builder` field and the `build_target.name`"+
-				"input property, all other fields will be ignored",
+			"Deprecated, use `-builds` instead. Buildbucket build protos to "+
+				"analyze, as JSON proto. Each proto must include the "+
+				"`builder.builder` field and the `build_target.name` input "+
+				"property, all other fields will be ignored",
 		)
+		r.Flags.StringVar(
+			&r.buildsPath,
+			"builds",
+			"",
+			"Path to a file containing Buildbucket build protos to analyze, with"+
+				"one JSON proto per-line. Each proto must include the "+
+				"`builder.builder` field and the `build_target.name` input "+
+				"property, all other fields will be ignored")
 		r.Flags.StringVar(
 			&r.dutAttributeListPath,
 			"dutattributes",
@@ -519,6 +530,20 @@ func (r *getTestableRun) Run(a subcommands.Application, args []string, env subco
 func (r *getTestableRun) validateFlags() error {
 	if len(r.planPaths) == 0 {
 		return errors.New("at least one -plan is required")
+	}
+
+	if len(r.builds) > 0 && len(r.buildsPath) > 0 {
+		return errors.New("only one of -build and -builds can be set")
+	}
+
+	// If buildsPath was used, parse the builds into r.builds.
+	if len(r.buildsPath) > 0 {
+		parsedBuilds, err := protoio.ReadJsonl(r.buildsPath, func() *bbpb.Build { return &bbpb.Build{} })
+		if err != nil {
+			return err
+		}
+
+		r.builds = parsedBuilds
 	}
 
 	if len(r.builds) == 0 {

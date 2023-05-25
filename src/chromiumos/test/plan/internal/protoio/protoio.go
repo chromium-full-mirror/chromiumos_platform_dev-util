@@ -7,6 +7,7 @@
 package protoio
 
 import (
+	"bufio"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -55,6 +56,31 @@ func ReadBinaryOrJSONPb(path string, m protov1.Message) error {
 	glog.Warningf("Parsing %q as binarypb failed, attempting to parse as jsonpb", path)
 
 	return unmarshalOpts.Unmarshal(b, protov1.MessageV2(m))
+}
+
+// ReadJsonl parses the newline-delimited jsonprotos in inPath. ctor must return
+// a new empty proto to parse each line into.
+func ReadJsonl[M proto.Message](inPath string, ctor func() M) ([]M, error) {
+	f, err := os.Open(inPath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	messages := make([]M, 0)
+	scanner := bufio.NewScanner(f)
+	unmarshalOpts := protojson.UnmarshalOptions{DiscardUnknown: true}
+
+	for scanner.Scan() {
+		m := ctor()
+		if err := unmarshalOpts.Unmarshal(scanner.Bytes(), m); err != nil {
+			return nil, err
+		}
+
+		messages = append(messages, m)
+	}
+
+	return messages, nil
 }
 
 // WriteJsonl writes a newline-delimited json file containing messages to outPath.

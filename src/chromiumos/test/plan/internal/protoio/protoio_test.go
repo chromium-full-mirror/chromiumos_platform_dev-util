@@ -13,6 +13,7 @@ import (
 	protov1 "github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	test_api_v1 "go.chromium.org/chromiumos/config/go/test/api/v1"
+	bbpb "go.chromium.org/luci/buildbucket/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -77,6 +78,32 @@ func TestWriteJsonl(t *testing.T) {
 
 	expectedString := "{\"id\":{\"value\":\"testplan1\"}}\n{\"id\":{\"value\":\"testid2\"}}\n"
 	if diff := cmp.Diff(expectedString, string(readBytes), protocmp.Transform()); diff != "" {
+		t.Errorf("returned unexpected diff in read message (-want +got):\n%s", diff)
+	}
+}
+
+func TestReadJsonl(t *testing.T) {
+	inPath := filepath.Join(t.TempDir(), "in.jsonl")
+	buildsContent := `{"builder": {"builder": "builderA"}}
+{"builder": {"builder": "builderB"}}`
+	if err := os.WriteFile(inPath, []byte(buildsContent), os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
+
+	parsedBuilds, err := protoio.ReadJsonl(inPath, func() *bbpb.Build { return &bbpb.Build{} })
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedBuilds := []*bbpb.Build{
+		{
+			Builder: &bbpb.BuilderID{Builder: "builderA"},
+		},
+		{
+			Builder: &bbpb.BuilderID{Builder: "builderB"},
+		},
+	}
+	if diff := cmp.Diff(expectedBuilds, parsedBuilds, protocmp.Transform()); diff != "" {
 		t.Errorf("returned unexpected diff in read message (-want +got):\n%s", diff)
 	}
 }
