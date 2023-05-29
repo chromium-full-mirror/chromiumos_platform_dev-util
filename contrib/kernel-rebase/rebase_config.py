@@ -194,6 +194,10 @@ disp_overwrite["82e42e181cc2"] = [
     "move",
     "gpu/other",
 ]  # FROMGIT: accel/ivpu: PM: remove broken ivpu_dbg() statements
+disp_overwrite["cd6e65e89f5a"] = [
+    "move",
+    "mm",
+]  # FIXUP: CHROMIUM: mm: Fix staled "next" iterator
 disp_overwrite[
     "91a70c368104"
 ] = "drop"  # CHROMIUM: driver:  Support iwl7000 driver on v6.1
