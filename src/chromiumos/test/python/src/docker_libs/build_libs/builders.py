@@ -423,7 +423,11 @@ class LocalDockerBuilder(DockerBuilder):
         """Upload the build image to the repo. Must be called after build."""
         self.auth_gcloud()
         run(f"docker push --all-tags {self.image_path}")
-        sha = self.sha_from_docker_out(f"{self.image_path}:{self.tags[0]}")
+        sha = ""
+        try:
+            sha = self.sha_from_docker_out(f"{self.image_path}:{self.tags[0]}")
+        except Exception as e:
+            print(f'Error finding sha, will continue without: {e}')
         self.write_outfile(sha)
 
     def build(self):

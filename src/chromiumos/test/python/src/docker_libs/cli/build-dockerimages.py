@@ -84,7 +84,7 @@ REGISTERED_BUILDS = {
 # adding a retry/wait for this case.
 # TODO: b/237016355, mitigate this properly with a self-owned base container.
 BUILD_RETRIES = 1
-RETRIES_WAIT = 10
+RETRIES_WAIT = 31
 # callbox is not used (and a bit heavy) so do not build until its needed.
 DO_NOT_BUILD = set(["cros-callbox"])
 # NOTE: when promoting a service from DO_NOT_BUILD, it should be added to
