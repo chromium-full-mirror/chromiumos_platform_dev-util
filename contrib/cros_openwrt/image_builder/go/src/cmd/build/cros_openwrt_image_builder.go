@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package cmd
+package build
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/cmd/common"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/dirs"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/fileutils"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
@@ -22,7 +23,31 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const buildSummaryFilename = "cros_openwrt_image_build_info.json"
+const ImageBuildInfoFilename = "cros_openwrt_image_build_info.json"
+
+type CrosOpenWrtImageBuilderOptions struct {
+	BuilderVersion               string
+	ChromiumosDirPath            string
+	WorkingDirPath               string
+	SdkURL                       string
+	ImageBuilderURL              string
+	AutoURL                      string
+	UseExistingSdk               bool
+	UseExistingImageBuilder      bool
+	UseExisting                  bool
+	ImageProfile                 string
+	ImageDisabledServices        []string
+	IncludedCustomPackages       []string
+	IncludedOfficialPackages     []string
+	ImagePackageExcludes         []string
+	SdkSourcePackageMakefileDirs []string
+	ExtraImageName               string
+	AutoRetrySdkCompile          bool
+	SdkCompileMaxCPUs            int
+	SdkConfigOverrides           map[string]string
+	ImageFeatureNames            []string
+	ImageFeatures                []labapi.WifiRouterFeature
+}
 
 // CrosOpenWrtImageBuilder is a utility that can preform different steps related
 // to building OpenWrt OS images customized for ChromeOS testing.
@@ -31,24 +56,27 @@ type CrosOpenWrtImageBuilder struct {
 	wd      *dirs.WorkingDirectory
 	sdk     *openwrt.SdkRunner
 	builder *openwrt.ImageBuilderRunner
+	options *CrosOpenWrtImageBuilderOptions
 }
 
 // NewCrosOpenWrtImageBuilder initializes a CrosOpenWrtImageBuilder and prepares
 // its source and working directories for use.
-func NewCrosOpenWrtImageBuilder() (*CrosOpenWrtImageBuilder, error) {
-	ib := &CrosOpenWrtImageBuilder{}
+func NewCrosOpenWrtImageBuilder(options *CrosOpenWrtImageBuilderOptions) (*CrosOpenWrtImageBuilder, error) {
+	ib := &CrosOpenWrtImageBuilder{
+		options: options,
+	}
 
 	// Init src dir.
-	src, err := dirs.NewSrcDirectory(chromiumosDirPath)
+	src, err := dirs.NewSrcDirectory(ib.options.ChromiumosDirPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize src directory using chromiumos dir %q: %w", chromiumosDirPath, err)
+		return nil, fmt.Errorf("failed to initialize src directory using chromiumos dir %q: %w", ib.options.ChromiumosDirPath, err)
 	}
 	ib.src = src
 
 	// Init and clean working dir.
-	wd, err := dirs.NewWorkingDirectory(workingDirPath)
+	wd, err := dirs.NewWorkingDirectory(ib.options.WorkingDirPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize working directory at %q: %w", workingDirPath, err)
+		return nil, fmt.Errorf("failed to initialize working directory at %q: %w", ib.options.WorkingDirPath, err)
 	}
 	ib.wd = wd
 
@@ -58,7 +86,7 @@ func NewCrosOpenWrtImageBuilder() (*CrosOpenWrtImageBuilder, error) {
 func (ib *CrosOpenWrtImageBuilder) prepareSdk(ctx context.Context) error {
 	log.Logger.Println("Preparing OpenWrt SDK for packaging")
 
-	if useExistingSdk {
+	if ib.options.UseExistingSdk {
 		log.Logger.Printf("Using existing sdk at %q\n", ib.wd.SdkDirPath)
 	} else {
 		// Clean old sdk copy.
@@ -69,17 +97,17 @@ func (ib *CrosOpenWrtImageBuilder) prepareSdk(ctx context.Context) error {
 		// Get sdk archive.
 		var sdkArchivePath string
 		var err error
-		if sdkURL == "" {
+		if ib.options.SdkURL == "" {
 			log.Logger.Println("No OpenWrt SDK archive download url specified, checking for previously download archive")
 			sdkArchivePath, err = fileutils.GetLatestFilePathInDir(ib.wd.SdkDownloadsDirPath)
 			if err != nil {
 				return fmt.Errorf("failed to get latest sdk archive in download directory %q (Specify a new download URL with --sdk_url): %w", ib.wd.SdkDownloadsDirPath, err)
 			}
 		} else {
-			log.Logger.Printf("Downloading OpenWrt SDK archive from %q\n", sdkURL)
-			sdkArchivePath, err = fileutils.DownloadFileFromURL(ctx, sdkURL, ib.wd.SdkDownloadsDirPath)
+			log.Logger.Printf("Downloading OpenWrt SDK archive from %q\n", ib.options.SdkURL)
+			sdkArchivePath, err = fileutils.DownloadFileFromURL(ctx, ib.options.SdkURL, ib.wd.SdkDownloadsDirPath)
 			if err != nil {
-				return fmt.Errorf("failed to download sdk archive from %q: %w", sdkURL, err)
+				return fmt.Errorf("failed to download sdk archive from %q: %w", ib.options.SdkURL, err)
 			}
 		}
 		log.Logger.Printf("Using OpenWrt SDK archive at %q\n", sdkArchivePath)
@@ -106,23 +134,23 @@ func (ib *CrosOpenWrtImageBuilder) prepareSdk(ctx context.Context) error {
 func (ib *CrosOpenWrtImageBuilder) prepareBuilder(ctx context.Context) error {
 	log.Logger.Println("Preparing OpenWrt image builder")
 
-	if useExistingImageBuilder {
+	if ib.options.UseExistingImageBuilder {
 		log.Logger.Printf("Using existing image builder at %q\n", ib.wd.ImageBuilderDirPath)
 	} else {
 		// Get builder archive.
 		var builderArchivePath string
 		var err error
-		if imageBuilderURL == "" {
+		if ib.options.ImageBuilderURL == "" {
 			log.Logger.Println("No OpenWrt image builder archive download url specified, checking for previously download archive")
 			builderArchivePath, err = fileutils.GetLatestFilePathInDir(ib.wd.ImageBuilderDownloadsDirPath)
 			if err != nil {
 				return fmt.Errorf("failed to get latest image builder archive in download directory %q (Specify a new download URL with --image_builder_url): %w", ib.wd.ImageBuilderDownloadsDirPath, err)
 			}
 		} else {
-			log.Logger.Printf("Downloading OpenWrt image builder archive from %q\n", imageBuilderURL)
-			builderArchivePath, err = fileutils.DownloadFileFromURL(ctx, imageBuilderURL, ib.wd.ImageBuilderDownloadsDirPath)
+			log.Logger.Printf("Downloading OpenWrt image builder archive from %q\n", ib.options.ImageBuilderURL)
+			builderArchivePath, err = fileutils.DownloadFileFromURL(ctx, ib.options.ImageBuilderURL, ib.wd.ImageBuilderDownloadsDirPath)
 			if err != nil {
-				return fmt.Errorf("failed to download image builder archive from %q: %w", imageBuilderURL, err)
+				return fmt.Errorf("failed to download image builder archive from %q: %w", ib.options.ImageBuilderURL, err)
 			}
 		}
 		log.Logger.Printf("Using OpenWrt image builder archive at %q\n", builderArchivePath)
@@ -197,12 +225,12 @@ func (ib *CrosOpenWrtImageBuilder) CompileCustomPackages(ctx context.Context) er
 	}
 
 	log.Logger.Println("Compiling custom packages and their dependencies")
-	if err := ib.sdk.CompileCustomPackages(ctx, sdkConfigOverrides, sdkSourcePackageMakefileDirs, autoRetrySdkCompile, sdkCompileMaxCPUs); err != nil {
+	if err := ib.sdk.CompileCustomPackages(ctx, ib.options.SdkConfigOverrides, ib.options.SdkSourcePackageMakefileDirs, ib.options.AutoRetrySdkCompile, ib.options.SdkCompileMaxCPUs); err != nil {
 		return fmt.Errorf("failed to compile custom packages with sdk: %w", err)
 	}
 
 	log.Logger.Printf("Exporting compiled custom package IPKs to %q\n", ib.wd.PackagesOutputDirPath)
-	if err := ib.sdk.ExportCompiledCustomPackageIPKs(ctx, includedCustomPackages, ib.wd.PackagesOutputDirPath); err != nil {
+	if err := ib.sdk.ExportCompiledCustomPackageIPKs(ctx, ib.options.IncludedCustomPackages, ib.wd.PackagesOutputDirPath); err != nil {
 		return fmt.Errorf("failed to export built custom package IPKs from sdk to %q: %w", ib.wd.PackagesOutputDirPath, err)
 	}
 	return nil
@@ -236,15 +264,15 @@ func (ib *CrosOpenWrtImageBuilder) BuildCustomChromeOSTestImage(ctx context.Cont
 	// Prepare make image args.
 	log.Logger.Printf("Preparing image builder arguments")
 	makeImageArgs := &openwrt.MakeImageArgs{
-		Profile:          imageProfile,
-		IncludePackages:  append(includedCustomPackages, includedOfficialPackages...),
-		ExcludePackages:  imagePackageExcludes,
+		Profile:          ib.options.ImageProfile,
+		IncludePackages:  append(ib.options.IncludedCustomPackages, ib.options.IncludedOfficialPackages...),
+		ExcludePackages:  ib.options.ImagePackageExcludes,
 		Files:            ib.wd.ImageBuilderIncludedFilesDirPath,
-		DisabledServices: imageDisabledServices,
-		ExtraImageName:   "cros-" + rootCmd.Version,
+		DisabledServices: ib.options.ImageDisabledServices,
+		ExtraImageName:   "cros-" + ib.options.BuilderVersion,
 	}
-	if extraImageName != "" {
-		makeImageArgs.ExtraImageName += "-" + extraImageName
+	if ib.options.ExtraImageName != "" {
+		makeImageArgs.ExtraImageName += "-" + ib.options.ExtraImageName
 	}
 	if makeImageArgs.Profile == "" {
 		log.Logger.Println("Image builder profile not specified with --image_profile, prompting user for selection")
@@ -274,11 +302,11 @@ func (ib *CrosOpenWrtImageBuilder) BuildCustomChromeOSTestImage(ctx context.Cont
 	if err != nil {
 		return fmt.Errorf("failed to fetch OSRelease from preliminary image build files: %w", err)
 	}
-	buildSummary, err := ib.prepareBuildSummaryJSON(ctx, makeImageArgs, imageFeatures, osRelease, standardBuildInfo)
+	buildSummary, err := ib.prepareBuildSummaryJSON(ctx, makeImageArgs, ib.options.ImageFeatures, osRelease, standardBuildInfo)
 	if err != nil {
 		return fmt.Errorf("failed to prepare build summary: %w", err)
 	}
-	relativeImageBuildSummaryFilePath := "etc/cros/" + buildSummaryFilename
+	relativeImageBuildSummaryFilePath := "etc/cros/" + ImageBuildInfoFilename
 	log.Logger.Printf("Image build summary (available on image install at \"/%s\":\n%s\n", relativeImageBuildSummaryFilePath, buildSummary)
 	if err := fileutils.WriteStringToFile(ctx, buildSummary, path.Join(ib.wd.ImageBuilderIncludedFilesDirPath, relativeImageBuildSummaryFilePath)); err != nil {
 		return fmt.Errorf("failed to save build build summary in included image files: %w", err)
@@ -294,7 +322,7 @@ func (ib *CrosOpenWrtImageBuilder) BuildCustomChromeOSTestImage(ctx context.Cont
 	// Export image.
 	log.Logger.Println("Exporting built image")
 	imageDirPath, err := ib.builder.ExportBuiltImage(ctx, ib.wd.ImagesOutputDirPath, map[string][]byte{
-		buildSummaryFilename: []byte(buildSummary),
+		ImageBuildInfoFilename: []byte(buildSummary),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to export built image: %w", err)
@@ -312,7 +340,7 @@ func (ib *CrosOpenWrtImageBuilder) promptForImageProfile(ctx context.Context) (s
 		return "", fmt.Errorf("failed to retrieve available profiles: %w", err)
 	}
 	var availProfileNamesSorted []string
-	for name, _ := range availProfiles {
+	for name := range availProfiles {
 		availProfileNamesSorted = append(availProfileNamesSorted, name)
 	}
 	sort.Strings(availProfileNamesSorted)
@@ -330,7 +358,7 @@ func (ib *CrosOpenWrtImageBuilder) promptForImageProfile(ctx context.Context) (s
 	promptMsg += "\nPlease choose from one of the above available image builder profiles.\n"
 	fmt.Print(promptMsg)
 	for true {
-		selectedProfile, err = contextualPrompt(ctx, "Profile: ")
+		selectedProfile, err = common.ContextualPrompt(ctx, "Profile: ")
 		if err != nil {
 			return "", err
 		}
@@ -354,7 +382,7 @@ func (ib *CrosOpenWrtImageBuilder) prepareBuildSummaryJSON(ctx context.Context, 
 		StandardBuildConfig:            standardBuildConfig,
 		RouterFeatures:                 routerFeatures,
 		BuildTime:                      timestamppb.Now(),
-		CrosOpenwrtImageBuilderVersion: rootCmd.Version,
+		CrosOpenwrtImageBuilderVersion: ib.options.BuilderVersion,
 		ExtraIncludedPackages:          makeImageArgs.IncludePackages,
 		ExcludedPackages:               makeImageArgs.ExcludePackages,
 		DisabledServices:               makeImageArgs.DisabledServices,

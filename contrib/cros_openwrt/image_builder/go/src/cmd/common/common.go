@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package cmd
+package common
 
 import (
 	"bufio"
@@ -14,17 +14,13 @@ import (
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/fileutils"
 )
 
-func Execute(ctx context.Context) error {
-	return rootCmd.ExecuteContext(ctx)
-}
-
-func promptYesNo(ctx context.Context, message string, defaultAnswer bool) (bool, error) {
+func PromptYesNo(ctx context.Context, message string, defaultAnswer bool) (bool, error) {
 	if defaultAnswer {
 		message += " (Y/n):"
 	} else {
 		message += " (y/N):"
 	}
-	response, err := contextualPrompt(ctx, message)
+	response, err := ContextualPrompt(ctx, message)
 	if err != nil {
 		return defaultAnswer, err
 	}
@@ -36,7 +32,7 @@ func promptYesNo(ctx context.Context, message string, defaultAnswer bool) (bool,
 	return response == "y", nil
 }
 
-func contextualPrompt(ctx context.Context, message string) (string, error) {
+func ContextualPrompt(ctx context.Context, message string) (string, error) {
 	fmt.Printf("\n%s ", message)
 	inputReader := bufio.NewReader(fileutils.NewContextualReaderWrapper(ctx, os.Stdin))
 	input, err := inputReader.ReadString('\n')

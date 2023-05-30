@@ -6,7 +6,4 @@
 //
 // The cros_openwrt_image_builder CLI relies on the Cobra framework. See the
 // Cobra documentation for more details on how to configure a Cobra CLI.
-//
-// Most CLI arguments are global and most subcommands run varying build steps,
-// all defined in CrosOpenWrtImageBuilder.
 package cmd

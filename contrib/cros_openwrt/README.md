@@ -63,11 +63,11 @@ table (e.g. https://openwrt.org/toh/hwdata/ubiquiti/ubiquiti_unifi_6_lite).
 3. Make note of the "Firmware OpenWrt Upgrade URL" (e.g. `https://downloads.openwrt.org/releases/22.03.2/targets/ramips/mt7621/openwrt-22.03.2-ramips-mt7621-ubnt_unifi-6-lite-squashfs-sysupgrade.bin
    `).
 
-4. Run `cros_openwrt_image_builder build` and specify `--auto_url` as the
+4. Run `cros_openwrt_image_builder build all` and specify `--auto_url` as the
 "Firmware OpenWrt Upgrade URL":
 
 ```text
-$ cros_openwrt_image_builder build --auto_url <Firmware OpenWrt Upgrade URL>
+$ cros_openwrt_image_builder build all --auto_url <Firmware OpenWrt Upgrade URL>
 ```
 
 Note: This assumes your chroot is installed at `~/chromiumos`. If it isn't, you
@@ -107,9 +107,9 @@ If you want to test a different OpenWrt OS version, simply provide an
 By default, the working directory (`/tmp/cros_openwrt/` by default) is not
 deleted after the command is finished so that it may be used as a reference. To
 delete just the intermediary build files, you can run
-`cros_openwrt_image_builder clean`. To delete the whole
+`cros_openwrt_image_builder build clean`. To delete the whole
 working directory, including copies of previously built images, you can run
-`cros_openwrt_image_builder clean --all`.
+`cros_openwrt_image_builder build clean --all`.
 
 Example call for building an image with OpenWrt version `21.02.5` for a
 `Ubiquiti - UniFi 6 Lite` router:
@@ -259,12 +259,27 @@ Usage:
   cros_openwrt_image_builder [command]
 
 Available Commands:
-  build          Compiles custom OpenWrt packages and builds a custom OpenWrt image.
-  build:image    Builds a custom OpenWrt image.
-  build:packages Compiles custom OpenWrt packages.
-  clean          Deletes temporary files.
-  completion     Generate the autocompletion script for the specified shell
-  help           Help about any command
+  build       Compiles custom OpenWrt packages and builds a custom OpenWrt image.
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+
+Flags:
+  -h, --help   help for cros_openwrt_image_builder
+
+Use "cros_openwrt_image_builder [command] --help" for more information about a command.
+```
+```text
+cros_openwrt_image_builder build --help
+Commands for building custom OpenWrt images.
+
+Usage:
+  cros_openwrt_image_builder build [command]
+
+Available Commands:
+  all         Compiles custom OpenWrt packages and builds a custom OpenWrt image.
+  clean       Deletes temporary files.
+  image       Builds a custom OpenWrt image.
+  packages    Compiles custom OpenWrt packages.
 
 Flags:
       --auto_url string                        Download URL to use to auto resolve unset --sdk_url and --image_builder_url values from.
@@ -273,13 +288,14 @@ Flags:
       --disable_service stringArray            Services to disable in the built image. (default [wpad,dnsmasq])
       --exclude_package stringArray            Packages to exclude from the built image. (default [hostapd,hostapd-basic,hostapd-basic-openssl,hostapd-basic-wolfssl,hostapd-mini,hostapd-openssl,hostapd-wolfssl,wpad,wpad-mesh-openssl,wpad-mesh-wolfssl,wpad-basic,wpad-basic-openssl,wpad-basic-wolfssl,wpad-mini,wpad-wolfssl,wpa-supplicant,wpa-supplicant-mesh-openssl,wpa-supplicant-mesh-wolfssl,wpa-supplicant-basic,wpa-supplicant-mini,wpa-supplicant-openssl,wpa-supplicant-p2p,eapol-test,eapol-test-openssl,eapol-test-wolfssl])
       --extra_image_name string                A custom name to add to the image, added as a suffix to existing names.
-  -h, --help                                   help for cros_openwrt_image_builder
+  -h, --help                                   help for build
       --image_builder_url string               URL to download the image builder archive from. Leave unset to use the last downloaded image builder.
+      --image_feature stringArray              Wifi router features this image supports for testing (possible features: [WIFI_ROUTER_FEATURE_UNKNOWN, WIFI_ROUTER_FEATURE_INVALID, WIFI_ROUTER_FEATURE_IEEE_802_11_A, WIFI_ROUTER_FEATURE_IEEE_802_11_B, WIFI_ROUTER_FEATURE_IEEE_802_11_G, WIFI_ROUTER_FEATURE_IEEE_802_11_N, WIFI_ROUTER_FEATURE_IEEE_802_11_AC, WIFI_ROUTER_FEATURE_IEEE_802_11_AX, WIFI_ROUTER_FEATURE_IEEE_802_11_AX_E, WIFI_ROUTER_FEATURE_IEEE_802_11_BE])
       --image_profile string                   The profile to use with the image builder when making images. Leave unset to prompt for selection based off of available profiles.
       --include_custom_package stringArray     Names of packages that should be included in built images that are built using a local sdk and included in the image builder as custom IPKs. Only custom packages in this list are saved from sdk package compilation. (default [cros-send-management-frame,hostapd-common,hostapd-utils,wpad-openssl,wpa-cli])
-      --include_official_package stringArray   Names of packages that should be included in built images that are downloaded from official OpenWrt repositories. (default [kmod-veth,tcpdump,procps-ng-pkill,netperf,iperf,sudo])
+      --include_official_package stringArray   Names of packages that should be included in built images that are downloaded from official OpenWrt repositories. (default [iputils-ping,iputils-arping,kmod-veth,tcpdump,procps-ng-pkill,netperf,iperf,sudo,python3-email,python3-idna,python3-light,python3-urllib])
       --sdk_compile_max_cpus int               The maximum number of CPUs to use for custom package compilation. Values less than 1 indicate that all available CPUs may be used. (default -1)
-      --sdk_config stringToString              Config options to set for the sdk when compiling custom packages. (default [CONFIG_WPA_ENABLE_WEP=y,CONFIG_DRIVER_11N_SUPPORT=y,CONFIG_DRIVER_11AC_SUPPORT=y,CONFIG_DRIVER_11AX_SUPPORT=y,CONFIG_WPA_MBO_SUPPORT=y])
+      --sdk_config stringToString              Config options to set for the sdk when compiling custom packages. (default [CONFIG_WPA_MBO_SUPPORT=y,CONFIG_WPA_ENABLE_WEP=y,CONFIG_DRIVER_11N_SUPPORT=y,CONFIG_DRIVER_11AC_SUPPORT=y,CONFIG_DRIVER_11AX_SUPPORT=y])
       --sdk_make stringArray                   The sdk package makefile paths to use to compile custom IPKs. Making a package with the sdk will build all the IPKs that package depends upon, but only need to be included if they are expected to differ from official versions. (default [cros-send-management-frame,feeds/base/hostapd])
       --sdk_url string                         URL to download the sdk archive from. Leave unset to use the last downloaded sdk.
       --use_existing                           Shortcut to set both --use_existing_sdk and --use_existing_image_builder.
@@ -287,7 +303,7 @@ Flags:
       --use_existing_sdk                       Use sdk in working directory as-is (must exist).
       --working_dir string                     Path to working directory to store downloads, sdk, image builder, and built packages and images. (default "/tmp/cros_openwrt")
 
-Use "cros_openwrt_image_builder [command] --help" for more information about a command.
+Use "cros_openwrt_image_builder build [command] --help" for more information about a command.
 ```
 
 ## Project Structure

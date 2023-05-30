@@ -34,5 +34,11 @@ func main() {
 	}()
 
 	// Run the command.
-	_ = cmd.Execute(ctx)
+	rootCmd, err := cmd.RootCmd()
+	if err != nil {
+		log.Logger.Fatalf("Failed to build root command: %v", err)
+	}
+	if err = rootCmd.ExecuteContext(ctx); err != nil {
+		log.Logger.Fatalf("Execution failed: %v", err)
+	}
 }

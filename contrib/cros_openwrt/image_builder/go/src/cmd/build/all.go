@@ -1,8 +1,8 @@
-// Copyright 2022 The ChromiumOS Authors
+// Copyright 2023 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package cmd
+package build
 
 import (
 	"fmt"
@@ -10,16 +10,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	buildImageCmd = &cobra.Command{
-		Use:          "build:image",
-		Short:        "Builds a custom OpenWrt image.",
-		Args:         cobra.NoArgs,
-		SilenceUsage: true,
+func allCmd(builderOptions *CrosOpenWrtImageBuilderOptions) *cobra.Command {
+	return &cobra.Command{
+		Use:   "all",
+		Short: "Compiles custom OpenWrt packages and builds a custom OpenWrt image.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ib, err := NewCrosOpenWrtImageBuilder()
+			ib, err := NewCrosOpenWrtImageBuilder(builderOptions)
 			if err != nil {
 				return fmt.Errorf("failed to initilze CrosOpenWrtImageBuilder: %w", err)
+			}
+			if err := ib.CompileCustomPackages(cmd.Context()); err != nil {
+				return fmt.Errorf("failed to compile custom OpenWrt packages: %w", err)
 			}
 			if err := ib.BuildCustomChromeOSTestImage(cmd.Context()); err != nil {
 				return fmt.Errorf("failed to build custom OpenWrt image: %w", err)
@@ -27,8 +29,4 @@ var (
 			return nil
 		},
 	}
-)
-
-func init() {
-	rootCmd.AddCommand(buildImageCmd)
 }

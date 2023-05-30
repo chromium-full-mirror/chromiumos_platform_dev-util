@@ -40,22 +40,23 @@ cd "${OPENWRT_REPO_DIR}" && git checkout "${OPENWRT_SOURCE_REPO_REVISION}"
 
 # Build packages once without customizations to initialize sdk.
 echo "Building initial packages with standard sdk"
-cros_openwrt_image_builder --working_dir "${IMAGE_BUILDER_WORKING_DIR}" \
---sdk_url "${SDK_DOWNLOAD_URL}" \
-build:packages
+cros_openwrt_image_builder build packages \
+--working_dir "${IMAGE_BUILDER_WORKING_DIR}" \
+--sdk_url "${SDK_DOWNLOAD_URL}"
 
 # Customize hostapd package with repo version and rebuild packages.
 echo "Customizing hostapd package source in sdk"
 rm -r "${IMAGE_BUILDER_WORKING_DIR}/build/sdk/feeds/base/package/network/services/hostapd"
 cp -r "${OPENWRT_REPO_DIR}/package/network/services/hostapd" "${IMAGE_BUILDER_WORKING_DIR}/build/sdk/feeds/base/package/network/services"
 echo "Rebuilding packages with customized sdk"
-cros_openwrt_image_builder --working_dir "${IMAGE_BUILDER_WORKING_DIR}" \
---use_existing_sdk \
-build:packages
+cros_openwrt_image_builder build packages \
+--working_dir "${IMAGE_BUILDER_WORKING_DIR}" \
+--use_existing_sdk
 
 # Build final image.
 echo "Building image"
-cros_openwrt_image_builder --working_dir "${IMAGE_BUILDER_WORKING_DIR}" \
+cros_openwrt_image_builder build image \
+--working_dir "${IMAGE_BUILDER_WORKING_DIR}" \
 --image_builder_url "${IMAGE_BUILDER_DOWNLOAD_URL}" \
 --image_profile "${BUILD_PROFILE}" \
 --extra_image_name "${EXTRA_IMAGE_NAME}" \
@@ -64,5 +65,4 @@ cros_openwrt_image_builder --working_dir "${IMAGE_BUILDER_WORKING_DIR}" \
 --image_feature WIFI_ROUTER_FEATURE_IEEE_802_11_G \
 --image_feature WIFI_ROUTER_FEATURE_IEEE_802_11_N \
 --image_feature WIFI_ROUTER_FEATURE_IEEE_802_11_AC \
---image_feature WIFI_ROUTER_FEATURE_IEEE_802_11_AX \
-build:image
+--image_feature WIFI_ROUTER_FEATURE_IEEE_802_11_AX
