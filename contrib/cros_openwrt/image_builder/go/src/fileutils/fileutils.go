@@ -1,4 +1,4 @@
-// Copyright 2022 The ChromiumOS Authors
+// Copyright 2023 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const pendingDownloadFileSuffix = ".downloading"
@@ -281,7 +283,7 @@ func AssertDirectoriesExist(dirs ...string) error {
 		exists, err := DirectoryExists(dir)
 		if err != nil || !exists {
 			if err == nil {
-				err = fmt.Errorf("directory does not exist")
+				err = fmt.Errorf("directory %q does not exist", dir)
 			}
 			return fmt.Errorf("failed directory existence assertion for path %q: %w", dir, err)
 		}
@@ -318,6 +320,18 @@ func WriteBytesToFile(ctx context.Context, input []byte, outFilePath string) err
 		return fmt.Errorf("failed to write to file %q: %w", outFilePath, err)
 	}
 	return nil
+}
+
+func ReadFile(ctx context.Context, filePath string) ([]byte, error) {
+	inFile, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %q: %w", filePath, err)
+	}
+	defer func() {
+		_ = inFile.Close()
+	}()
+	inFileReader := NewContextualReaderWrapper(ctx, inFile)
+	return io.ReadAll(inFileReader)
 }
 
 // BuildFileChecksumSHA256 builds and returns SHA256 checksum of the contents of the
@@ -370,4 +384,14 @@ func CollectFileChecksums(ctx context.Context, dirPath string) (map[string]strin
 // timestamp of time.
 func BuildTimestampForFilePath(time time.Time) string {
 	return time.Format(pathTimestampTimeFormat)
+}
+
+// MarshalPrettyJSON marshals the proto message into pretty, human-readable JSON.
+func MarshalPrettyJSON(m proto.Message) ([]byte, error) {
+	marshaller := protojson.MarshalOptions{
+		Multiline:       true,
+		Indent:          "  ",
+		EmitUnpopulated: true,
+	}
+	return marshaller.Marshal(m)
 }

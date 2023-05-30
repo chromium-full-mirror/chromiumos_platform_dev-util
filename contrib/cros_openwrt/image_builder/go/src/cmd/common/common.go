@@ -32,6 +32,19 @@ func PromptYesNo(ctx context.Context, message string, defaultAnswer bool) (bool,
 	return response == "y", nil
 }
 
+func PromptForString(ctx context.Context, message string, defaultAnswer string) (string, error) {
+	message = fmt.Sprintf("%s (%q):", message, defaultAnswer)
+	response, err := ContextualPrompt(ctx, message)
+	if err != nil {
+		return "", err
+	}
+	response = strings.TrimSpace(response)
+	if response == "" {
+		return defaultAnswer, nil
+	}
+	return response, nil
+}
+
 func ContextualPrompt(ctx context.Context, message string) (string, error) {
 	fmt.Printf("\n%s ", message)
 	inputReader := bufio.NewReader(fileutils.NewContextualReaderWrapper(ctx, os.Stdin))

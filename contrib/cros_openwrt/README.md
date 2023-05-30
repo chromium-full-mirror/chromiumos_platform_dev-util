@@ -19,17 +19,20 @@ should at least be able to attempt to build the packages and images given
 that the provided target has an accessible official sdk and image builder.
 
 Tested with the following devices and OpenWrt versions:
+
 * [Ubiquiti - UniFi 6 Lite](https://openwrt.org/toh/hwdata/ubiquiti/ubiquiti_unifi_6_lite)
-  * [21.02.5](https://downloads.openwrt.org/releases/21.02.5/targets/ramips/mt7621/)
-  * [22.03.2](https://downloads.openwrt.org/releases/22.03.2/targets/ramips/mt7621/)
+    * [21.02.5](https://downloads.openwrt.org/releases/21.02.5/targets/ramips/mt7621/)
+    * [22.03.2](https://downloads.openwrt.org/releases/22.03.2/targets/ramips/mt7621/)
 
 ## Install system dependencies
+
 See https://openwrt.org/docs/guide-user/additional-software/imagebuilder#prerequisites
 for instructions.
 
 You will also need ~3GB of hard drive space for the build files.
 
 ## Build & Install cros_openwrt_image_builder
+
 Use the `./install.sh` bash script to build and install
 cros_openwrt_image_builder so that it may be run as a regular command,
 `cros_openwrt_image_builder`. The built copy will reside at
@@ -54,17 +57,20 @@ Options:
 ```
 
 ## Build the default custom image from a fresh install
-1. Find your router in the [list of supported devices](https://openwrt.org/supported_devices)
-([table lookup](https://openwrt.org/toh/start)).
+
+1. Find your router in
+   the [list of supported devices](https://openwrt.org/supported_devices)
+   ([table lookup](https://openwrt.org/toh/start)).
 
 2. Open the data page associated with your router from the supported devices
-table (e.g. https://openwrt.org/toh/hwdata/ubiquiti/ubiquiti_unifi_6_lite).
+   table (e.g. https://openwrt.org/toh/hwdata/ubiquiti/ubiquiti_unifi_6_lite).
 
-3. Make note of the "Firmware OpenWrt Upgrade URL" (e.g. `https://downloads.openwrt.org/releases/22.03.2/targets/ramips/mt7621/openwrt-22.03.2-ramips-mt7621-ubnt_unifi-6-lite-squashfs-sysupgrade.bin
+3. Make note of the "Firmware OpenWrt Upgrade URL" (
+   e.g. `https://downloads.openwrt.org/releases/22.03.2/targets/ramips/mt7621/openwrt-22.03.2-ramips-mt7621-ubnt_unifi-6-lite-squashfs-sysupgrade.bin
    `).
 
 4. Run `cros_openwrt_image_builder build all` and specify `--auto_url` as the
-"Firmware OpenWrt Upgrade URL":
+   "Firmware OpenWrt Upgrade URL":
 
 ```text
 $ cros_openwrt_image_builder build all --auto_url <Firmware OpenWrt Upgrade URL>
@@ -75,31 +81,36 @@ need to supply the path to this source directory (`cros_openwrt`) with the
 `--src_dir <path_to_cros_openwrt>` flag.
 
 5. When prompted, confirm that the resolved sdk and image builder archive URLs
-are for your desired build target, which was parsed from the `--auto_url` param.
+   are for your desired build target, which was parsed from the `--auto_url`
+   param.
 
 6. Wait for the sdk to be downloaded, extracted, and used to build all the
-custom packages and their dependencies. This will take a long time (~1hr) the
-first time this is run for the sdk. Note: In future runs for the same build
-target you can specify the `--use_existing_sdk` flag to not start from scratch,
-which is much faster.
+   custom packages and their dependencies. This will take a long time (~1hr) the
+   first time this is run for the sdk. Note: In future runs for the same build
+   target you can specify the `--use_existing_sdk` flag to not start from
+   scratch,
+   which is much faster.
 
 7. Once the sdk finishes building the custom packages, the official image
-builder is downloaded, extracted, and used to build the custom OpenWrt OS image.
-When prompted, choose the correct build profile based on your target device. You
-can find it in your devices "Firmware OpenWrt Upgrade URL" as well (e.g.
-`ubnt_unifi-6-lite`). You can skip this prompt in future runs if you know the
-profile already with the `--image_profile <profile>` flag.
+   builder is downloaded, extracted, and used to build the custom OpenWrt OS
+   image.
+   When prompted, choose the correct build profile based on your target device.
+   You
+   can find it in your devices "Firmware OpenWrt Upgrade URL" as well (e.g.
+   `ubnt_unifi-6-lite`). You can skip this prompt in future runs if you know the
+   profile already with the `--image_profile <profile>` flag.
 
 8. Wait for the image builder to build the image (<5m). This will download any
-needed official package IPKs. The custom package IPKs build by the local sdk are
-included as well, and override any official ones. Any dependency of a custom
-package is downloaded if it is not explicitly included (i.e. we only use the
-customized packages direct IPKs and not its dependencies which the sdk also
-builds).
+   needed official package IPKs. The custom package IPKs build by the local sdk
+   are
+   included as well, and override any official ones. Any dependency of a custom
+   package is downloaded if it is not explicitly included (i.e. we only use the
+   customized packages direct IPKs and not its dependencies which the sdk also
+   builds).
 
 9. Open the path to the image directory displayed. For convenience, the
-directory includes all related image files for local use as well as
-a timestamped *.tar.xz archive of these files for easy distribution.
+   directory includes all related image files for local use as well as
+   a timestamped *.tar.xz archive of these files for easy distribution.
 
 If you want to test a different OpenWrt OS version, simply provide an
 `--auto_url` for a different version and repeat the steps starting from step 4.
@@ -113,6 +124,7 @@ working directory, including copies of previously built images, you can run
 
 Example call for building an image with OpenWrt version `21.02.5` for a
 `Ubiquiti - UniFi 6 Lite` router:
+
 ```text
 $ cros_openwrt_image_builder build --auto_url=https://downloads.openwrt.org/releases/21.02.5/targets/ramips/mt7621/ --image_profile ubnt_unifi-6-lite
 ```
@@ -123,20 +135,23 @@ The built image includes a summary of the build which can be referenced on
 the device it is installed on at `/`
 
 ## Install the custom image
+
 Custom-built images are installed the same way as normal OpenWrt images
 ([offical docs](https://openwrt.org/docs/guide-quick-start/factory_installation)).
 
 ### On a device not yet running OpenWrt
+
 Follow the instructions on the device's info page on the OpenWrt wiki. Just be
 sure to use the corresponding custom image binary instead of one downloaded
 from the OpenWrt image repository.
 
 ### On a device already running OpenWrt
+
 Follow the instructions on the device's info page on the OpenWrt wiki, but in
 general it should be the following steps:
 
 1. Use `scp` to copy the custom image (should have the `.bin` file extension) to
-the router's `/tmp` directory:
+   the router's `/tmp` directory:
 
 ```text
 $ scp <path_to_image.bin> <host>:/tmp
@@ -153,41 +168,113 @@ $ scp -O <path_to_image.bin> <host>:/tmp
 3. Run `sysupgrade /tmp/your_custom_image.bin`
 
 4. Wait a few minutes for the image to be installed and for the device to
-reboot.
+   reboot.
 
 5. Upon reconnecting to the device, you can check the build info of the
-installed image at `/etc/cros/build_info.json`:
-```text
-BusyBox v1.35.0 (2022-10-21 07:56:04 UTC) built-in shell (ash)
+   installed image at `/etc/cros/cros_openwrt_image_build_info.json`
 
-  _______                     ________        __
- |       |.-----.-----.-----.|  |  |  |.----.|  |_
- |   -   ||  _  |  -__|     ||  |  |  ||   _||   _|
- |_______||   __|_____|__|__||________||__|  |____|
-          |__| W I R E L E S S   F R E E D O M
- -----------------------------------------------------
- OpenWrt 22.03.2, r19803-9a599fee93
- -----------------------------------------------------
-root@OpenWrt:~# cat /etc/cros/build_info.json
+### Example cros_openwrt_image_build_info.json
+```json
 {
-  "BUILD_DATETIME": "2022-10-24T23:14:40-07:00",
-  "CROS_IMAGE_BUILDER_VERSION": "1.0.0",
-  "CUSTOM_INCLUDED_FILES": {
-    "etc/dropbear/authorized_keys": "408f2b0c95706cbf38aa44469204ef87221a9beeb9fff2901b93cbebabf62b2c",
-    "etc/uci-defaults/99_cros_customizations.sh": "084d7279edf6267409163789d1637c8f7f23875589673263114371fed7c0239a"
+  "imageUuid": "4533ddf0-f255-4644-a17f-ab022b7f7ca5",
+  "customImageName": "cros-1.1.0-upreved-hostapd-v2.11-devel",
+  "osRelease": {
+    "version": "21.02.5",
+    "buildId": "r16688-fa9a932fdb",
+    "openwrtBoard": "ramips/mt7621",
+    "openwrtArch": "mipsel_24kc",
+    "openwrtRelease": "OpenWrt 21.02.5 r16688-fa9a932fdb"
   },
-  "CUSTOM_PACKAGES": {
-    "cros-send-management-frame_1.0.0-1_mipsel_24kc.ipk": "f658470e5f3da09169dabc0b4097dde6cad5ecccd0ffcda749b873efe2c9229a",
-    "hostapd-common_2022-01-16-cff80b4f-1.1_mipsel_24kc.ipk": "084c7c0d3b5a6b91e3a5efd141d4975e4d3497648ce05c52717f46eadeb2ffff",
-    "hostapd-utils_2022-01-16-cff80b4f-1.1_mipsel_24kc.ipk": "d2c4d04f857ed0abc81a2a49be1361c9dbb79eb001b4875b90361054e9af7880",
-    "wpa-cli_2022-01-16-cff80b4f-1.1_mipsel_24kc.ipk": "89130e15bcf9c87aa7d4b06b6a89e10b884302de692cb193c0d6087e18a45722",
-    "wpad-openssl_2022-01-16-cff80b4f-1.1_mipsel_24kc.ipk": "e3ee66e8759f382c78140846edeb62b090633a1b617285b2c5707ce9ca24b674"
+  "standardBuildConfig": {
+    "openwrtRevision": "r16688-fa9a932fdb",
+    "openwrtBuildTarget": "ramips/mt7621",
+    "buildProfile": "ubnt_unifi-6-lite",
+    "deviceName": "Ubiquiti UniFi 6 Lite",
+    "buildTargetPackages": [
+      "base-files",
+      "ca-bundle",
+      "dropbear",
+      "fstools",
+      "libc",
+      "libgcc",
+      "libustream-wolfssl",
+      "logd",
+      "mtd",
+      "netifd",
+      "opkg",
+      "uci",
+      "uclient-fetch",
+      "urandom-seed",
+      "urngd",
+      "busybox",
+      "procd",
+      "kmod-leds-gpio",
+      "kmod-gpio-button-hotplug",
+      "wpad-basic-wolfssl",
+      "dnsmasq",
+      "firewall",
+      "ip6tables",
+      "iptables",
+      "kmod-ipt-offload",
+      "odhcp6c",
+      "odhcpd-ipv6only",
+      "ppp",
+      "ppp-mod-pppoe"
+    ],
+    "profilePackages": [
+      "kmod-mt7603",
+      "kmod-mt7915e"
+    ],
+    "supportedDevices": [
+      "ubnt,unifi-6-lite"
+    ]
   },
-  "DISABLED_SERVICES": [
-    "wpad",
-    "dnsmasq"
+  "routerFeatures": [
+    "WIFI_ROUTER_FEATURE_IEEE_802_11_A",
+    "WIFI_ROUTER_FEATURE_IEEE_802_11_B",
+    "WIFI_ROUTER_FEATURE_IEEE_802_11_G",
+    "WIFI_ROUTER_FEATURE_IEEE_802_11_N",
+    "WIFI_ROUTER_FEATURE_IEEE_802_11_AC",
+    "WIFI_ROUTER_FEATURE_IEEE_802_11_AC",
+    "WIFI_ROUTER_FEATURE_IEEE_802_11_AX"
   ],
-  "EXCLUDED_PACKAGES": [
+  "buildTime": "2023-05-18T04:26:41.547679944Z",
+  "crosOpenwrtImageBuilderVersion": "1.1.0",
+  "customIncludedFiles": {
+    "etc/dropbear/authorized_keys": "408f2b0c95706cbf38aa44469204ef87221a9beeb9fff2901b93cbebabf62b2c",
+    "etc/init.d/z_cros_test.sh": "460e8689559c44731c078615f4dd2dd6c594310a29c5cfeca88c5448a340fd36",
+    "etc/uci-defaults/99_cros_customizations.sh": "70b49dcd8d73bad2f273545e1a95528c99bb8850dfe794551028c6a9184e9854"
+  },
+  "customPackages": {
+    "Packages": "1e567b34ecbef28a28e9e6187273dbb74fc91dff0cb9c4e3ae08caa1c0b7a90d",
+    "Packages.gz": "a003b67e975c918ad0b02807a2bb4d0b1f65462058340c5ae72d2b205af4e573",
+    "Packages.sig": "40c590ca2efcb36bf6814d41a30a3c97f97203bab1599034916f6e6ebbdd9c4c",
+    "cros-send-management-frame_1.0.0-1_mipsel_24kc.ipk": "3af053f501d09832f6145f5fd17b37582c5838ed3be6f866a412addf60e6a489",
+    "hostapd-common_2022-07-29-b704dc72-1.1_mipsel_24kc.ipk": "adb2ffb3d9e02e933933f25831237d93323d67d6037b6caf5f00063a37a1f8eb",
+    "hostapd-utils_2020-06-08-5a8b3662-41_mipsel_24kc.ipk": "eb9270f29f920d20de703f96b904615dec62d16637a11d575e039babfc105375",
+    "wpa-cli_2020-06-08-5a8b3662-41_mipsel_24kc.ipk": "2197f8be921c117f1d0fdb65c0b5d86e53a37ab01605c7a89cca44ad355cdd1f",
+    "wpad-openssl_2022-07-29-b704dc72-1.1_mipsel_24kc.ipk": "ca56c9bb773d1a57a1466ef5bfb073448631ded1976f6370788d7cf2e227ca8a"
+  },
+  "extraIncludedPackages": [
+    "cros-send-management-frame",
+    "hostapd-common",
+    "hostapd-utils",
+    "wpad-openssl",
+    "wpa-cli",
+    "iputils-ping",
+    "iputils-arping",
+    "kmod-veth",
+    "tcpdump",
+    "procps-ng-pkill",
+    "netperf",
+    "iperf",
+    "sudo",
+    "python3-email",
+    "python3-idna",
+    "python3-light",
+    "python3-urllib"
+  ],
+  "excludedPackages": [
     "hostapd",
     "hostapd-basic",
     "hostapd-basic-openssl",
@@ -214,26 +301,15 @@ root@OpenWrt:~# cat /etc/cros/build_info.json
     "eapol-test-openssl",
     "eapol-test-wolfssl"
   ],
-  "EXTRA_IMAGE_NAME": "cros-1.0.0",
-  "IMAGE_BUILDER_PROFILE": "ubnt_unifi-6-lite",
-  "INCLUDE_PACKAGES": [
-    "cros-send-management-frame",
-    "hostapd-common",
-    "hostapd-utils",
-    "wpad-openssl",
-    "wpa-cli",
-    "kmod-veth",
-    "tcpdump",
-    "procps-ng-pkill",
-    "netperf",
-    "iperf",
-    "sudo"
+  "disabledServices": [
+    "wpad",
+    "dnsmasq"
   ]
 }
 ```
 
-
 ## Accessing the router after installing the custom OpenWrt image
+
 The CROS customizations will disable the router's DHCP server and not turn on
 any wireless networks, but will configure the device to connect to act as a DHCP
 client and thus allow it to be accessed via ssh through other networks it is
@@ -241,7 +317,8 @@ physically connected to (such as a lab network).
 
 As long as you know the IP address of the router and can connect to the network
 the router is connected to, you can ssh into the router as the `root` user and
-the regular cros [testing_rsa](../../../../../chromeos-admin/puppet/modules/profiles/files/user-common/ssh/testing_rsa)
+the regular
+cros [testing_rsa](../../../../../chromeos-admin/puppet/modules/profiles/files/user-common/ssh/testing_rsa)
 private key. This is the same way DUTs and Gale routers are accessed.
 
 If you do not know the IP address of the router, you will need to obtain it by
@@ -249,25 +326,30 @@ checking the network the router is connected to and identify the router using
 its MAC address. It is recommended configure the parent network to statically
 assign the router a consistent IP based on its MAC address for long-term usage.
 
-
 ## `cros_openwrt_image_builder`
+
 ```text
-$ cros_openwrt_image_builder help
+$ cros_openwrt_image_builder --help
 Utility for building custom OpenWrt OS images with custom compiled packages
 
 Usage:
   cros_openwrt_image_builder [command]
 
 Available Commands:
-  build       Compiles custom OpenWrt packages and builds a custom OpenWrt image.
+  build       Commands for building custom OpenWrt images.
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
+  release     Commands for managing, releasing, and retrieving released custom OpenWrt images
 
 Flags:
-  -h, --help   help for cros_openwrt_image_builder
+  -h, --help      help for cros_openwrt_image_builder
+  -v, --version   version for cros_openwrt_image_builder
 
 Use "cros_openwrt_image_builder [command] --help" for more information about a command.
 ```
+
+### `build`
+
 ```text
 cros_openwrt_image_builder build --help
 Commands for building custom OpenWrt images.
@@ -304,6 +386,159 @@ Flags:
       --working_dir string                     Path to working directory to store downloads, sdk, image builder, and built packages and images. (default "/tmp/cros_openwrt")
 
 Use "cros_openwrt_image_builder build [command] --help" for more information about a command.
+```
+
+### `release`
+
+```text
+$ cros_openwrt_image_builder release --help
+Commands for managing, releasing, and retrieving released custom OpenWrt images
+
+Usage:
+  cros_openwrt_image_builder release [command]
+
+Available Commands:
+  config      Commands for reading and updating the release config
+  download    Downloads a released image
+  upload      Uploads a local image to GCS and adds it to the release config
+
+Flags:
+      --bucket string             GCS storage bucket to use (both prod and test use the same bucket) (default "chromeos-connectivity-test-artifacts")
+      --gcloud_cred_file string   The gcloud credential file to use with the GCS API (uses gcloud CLI application-default credentials when unset)
+  -h, --help                      help for release
+  -p, --prod                      Uses the production wifi router config when present, or the test config when not present
+
+Use "cros_openwrt_image_builder release [command] --help" for more information about a command.
+```
+
+### `release config`
+
+```text
+$ cros_openwrt_image_builder release config --help
+Commands for reading and updating the release config
+
+Usage:
+  cros_openwrt_image_builder release config [command]
+
+Available Commands:
+  get         Downloads the release config from storage
+  set         Updates the release config in storage
+
+Flags:
+  -h, --help   help for config
+
+Global Flags:
+      --bucket string             GCS storage bucket to use (both prod and test use the same bucket) (default "chromeos-connectivity-test-artifacts")
+      --gcloud_cred_file string   The gcloud credential file to use with the GCS API (uses gcloud CLI application-default credentials when unset)
+  -p, --prod                      Uses the production wifi router config when present, or the test config when not present
+
+Use "cros_openwrt_image_builder release config [command] --help" for more information about a command.
+```
+
+#### Example config file
+```json
+{
+  "openwrt": {
+    "Ubiquiti UniFi 6 Lite": {
+      "buildTargetPackages": [],
+      "currentImageUuid": "4533ddf0-f255-4644-a17f-ab022b7f7ca5",
+      "nextImageUuid": "",
+      "nextImageVerificationDutPool": [],
+      "images": [
+        {
+          "imageUuid": "4533ddf0-f255-4644-a17f-ab022b7f7ca5",
+          "archivePath": "gs://chromeos-connectivity-test-artifacts/wifi_router/openwrt_images/Ubiquiti_UniFi_6_Lite/4533ddf0-f255-4644-a17f-ab022b7f7ca5/openwrt-21.02.5-cros-1.1.0-upreved-hostapd-v2.11-devel-ramips-mt7621-ubnt_unifi-6-lite_20230517-212718.tar.xz",
+          "minDutReleaseVersion": "0"
+        }
+      ]
+    }
+  }
+}
+```
+
+### `release config set`
+
+```text
+$ cros_openwrt_image_builder release config set --help
+Updates the release config in storage
+
+Usage:
+  cros_openwrt_image_builder release config set [flags]
+
+Flags:
+      --force        Bypass config validation failures and forcefully update the config
+  -h, --help         help for set
+      --src string   Path to read new config from (default "./wifi_router_config_openwrt.json")
+
+Global Flags:
+      --bucket string             GCS storage bucket to use (both prod and test use the same bucket) (default "chromeos-connectivity-test-artifacts")
+      --gcloud_cred_file string   The gcloud credential file to use with the GCS API (uses gcloud CLI application-default credentials when unset)
+  -p, --prod                      Uses the production wifi router config when present, or the test config when not present
+```
+
+### `release config get`
+
+```text
+ $ cros_openwrt_image_builder release config get --help
+Downloads the release config from storage
+
+Usage:
+  cros_openwrt_image_builder release config get [flags]
+
+Flags:
+      --dst string   Path to save config to (default "./wifi_router_config_openwrt.json")
+  -h, --help         help for get
+      --print        Print the config rather than save it to a file
+
+Global Flags:
+      --bucket string             GCS storage bucket to use (both prod and test use the same bucket) (default "chromeos-connectivity-test-artifacts")
+      --gcloud_cred_file string   The gcloud credential file to use with the GCS API (uses gcloud CLI application-default credentials when unset)
+  -p, --prod                      Uses the production wifi router config when present, or the test config when not present
+```
+
+### `release download`
+
+```text
+$ cros_openwrt_image_builder release download --help
+Downloads a released image configured for the specified device. The current image is downloaded by default, but specific images may be downloaded by using the --uuid, --dut, ---cros_version, or --next flags.
+
+Usage:
+  cros_openwrt_image_builder release download <device_name> [flags]
+
+Flags:
+      --cros_version string   Download the image that has the highest MinDutCrosReleaseVersion that is equal to or less than this CHROMEOS_RELEASE_VERSION (compatible with --dut)
+      --dst string            Directory to download image archive file to (default ".")
+      --dut string            Download the next image if the dut is in the verification pool, or the current image otherwise
+  -h, --help                  help for download
+      --next                  Download the next image for this device
+      --uuid string           Download the image configured for this device with a matching ImageUUID (case-insensitive)
+
+Global Flags:
+      --bucket string             GCS storage bucket to use (both prod and test use the same bucket) (default "chromeos-connectivity-test-artifacts")
+      --gcloud_cred_file string   The gcloud credential file to use with the GCS API (uses gcloud CLI application-default credentials when unset)
+  -p, --prod                      Uses the production wifi router config when present, or the test config when not present
+```
+
+### `release upload`
+
+```text
+$ cros_openwrt_image_builder release upload --help
+Uploads a local image to GCS and adds it to the release config
+
+Usage:
+  cros_openwrt_image_builder release upload <min_cros_version> <path_to_builder_output_dir_with_image_archive_and_build_config> [flags]
+
+Flags:
+      --current                    Sets the current image to this new image (will be set as current if no other images are configured for device)
+  -h, --help                       help for upload
+      --next                       Sets the next image to this new image
+      --overwrite_cros_version     Allows for replacing other images in the image config with matching min_cros_version values
+      --overwrite_existing_image   Allows overwriting of an image that already exists with the same ImageUUID
+
+Global Flags:
+      --bucket string             GCS storage bucket to use (both prod and test use the same bucket) (default "chromeos-connectivity-test-artifacts")
+      --gcloud_cred_file string   The gcloud credential file to use with the GCS API (uses gcloud CLI application-default credentials when unset)
+  -p, --prod                      Uses the production wifi router config when present, or the test config when not present
 ```
 
 ## Project Structure

@@ -7,13 +7,14 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/cmd/build"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/cmd/release"
 )
 
 func RootCmd() (*cobra.Command, error) {
 
 	rootCmd := &cobra.Command{
 		Use:           "cros_openwrt_image_builder",
-		Version:       "1.2.0",
+		Version:       "1.3.0",
 		Short:         "Utility for building custom OpenWrt OS images with custom compiled packages",
 		SilenceErrors: true,
 		SilenceUsage:  true,
@@ -26,6 +27,7 @@ func RootCmd() (*cobra.Command, error) {
 	}
 	rootCmd.AddCommand(
 		buildCmd,
+		release.RootCmd(),
 	)
 
 	return rootCmd, nil
