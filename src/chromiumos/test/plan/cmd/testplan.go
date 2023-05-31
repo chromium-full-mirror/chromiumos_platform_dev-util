@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
 	buildpb "go.chromium.org/chromiumos/config/go/build/api"
 	"go.chromium.org/chromiumos/config/go/payload"
@@ -30,10 +29,10 @@ import (
 	"go.chromium.org/luci/common/data/text"
 	luciflag "go.chromium.org/luci/common/flag"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	testplan "chromiumos/test/plan/internal"
 	"chromiumos/test/plan/internal/compatibility"
-	"chromiumos/test/plan/internal/coveragerules"
 	"chromiumos/test/plan/internal/protoio"
 )
 
@@ -160,8 +159,6 @@ Evaluates Starlark files to generate CoverageRules as newline-delimited json pro
 `,
 	CommandRun: func() subcommands.CommandRun {
 		r := &generateRun{}
-		// TODO(b/182898188): Add more details on proto input / output for
-		// Starlark files once it is implemented.
 		r.Flags.Var(
 			luciflag.StringSlice(&r.planPaths),
 			"plan",
@@ -234,13 +231,6 @@ Evaluates Starlark files to generate CoverageRules as newline-delimited json pro
 			"",
 			"Path to the output CoverageRules (or GenerateTestPlanResponse if -ctpv1 is set).",
 		)
-		r.Flags.StringVar(
-			&r.textSummaryOut,
-			"textsummaryout",
-			"",
-			"Path to write a more easily human-readable summary of the "+
-				"CoverageRules to. If not set, no summary is written.",
-		)
 
 		r.templateParametersFlag.Register(&r.Flags)
 
@@ -264,7 +254,6 @@ type generateRun struct {
 	boardPriorityListPath    string
 	builderConfigsPath       string
 	out                      string
-	textSummaryOut           string
 }
 
 func (r *generateRun) Run(a subcommands.Application, args []string, env subcommands.Env) int {
@@ -299,9 +288,8 @@ func (r *generateRun) validateFlags() error {
 			return errors.New("-boardprioritylist or -crossrcroot must be set if -ctpv1 is set")
 		}
 
-		// TODO(b/237787418): Make this an error once Recipes pass -builderconfigs.
 		if r.ctpV1 && r.builderConfigsPath == "" {
-			glog.Warningf("-builderconfigs or -crossrcroot must be set if -ctpv1 is set (this will become an error in the future)")
+			return errors.New("-builderconfigs or -crossrcroot must be set if -ctpv1 is set")
 		}
 	} else {
 		if r.dutAttributeListPath != "" || r.buildMetadataListPath != "" || r.configBundleListPath != "" || r.boardPriorityListPath != "" || r.builderConfigsPath != "" {
@@ -403,13 +391,8 @@ func (r *generateRun) run() error {
 		}
 
 		builderConfigs := &chromiumos.BuilderConfigs{}
-		if r.builderConfigsPath != "" {
-			if err := protoio.ReadBinaryOrJSONPb(r.builderConfigsPath, builderConfigs); err != nil {
-				return err
-			}
-		} else {
-			// TODO(b/237787418): Make this an error once Recipes pass -builderconfigs.
-			glog.Warning("builderConfigsPath not set, continuing with empty BuilderConfigs.")
+		if err := protoio.ReadBinaryOrJSONPb(r.builderConfigsPath, builderConfigs); err != nil {
+			return err
 		}
 
 		resp, err := compatibility.ToCTP1(
@@ -426,6 +409,9 @@ func (r *generateRun) run() error {
 		}
 
 		outFile, err := os.Create(r.out)
+		if err != nil {
+			return err
+		}
 		defer outFile.Close()
 
 		respBytes, err := proto.Marshal(resp)
@@ -477,20 +463,6 @@ func (r *generateRun) run() error {
 		return err
 	}
 
-	if r.textSummaryOut != "" {
-		glog.Infof("Writing text summary file to %s", r.textSummaryOut)
-
-		textSummaryOutFile, err := os.Create(r.textSummaryOut)
-		if err != nil {
-			return err
-		}
-		defer textSummaryOutFile.Close()
-
-		if err = coveragerules.WriteTextSummary(textSummaryOutFile, allRules); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -533,14 +505,6 @@ conveniences such as -crossrcroot that generate does.
 			luciflag.StringSlice(&r.planPaths),
 			"plan",
 			"Starlark file to use. Must be specified at least once.",
-		)
-		r.Flags.Var(
-			luciflag.MessageSliceFlag(&r.builds),
-			"build",
-			"Deprecated, use `-builds` instead. Buildbucket build protos to "+
-				"analyze, as JSON proto. Each proto must include the "+
-				"`builder.builder` field and the `build_target.name` input "+
-				"property, all other fields will be ignored",
 		)
 		r.Flags.StringVar(
 			&r.buildsPath,
@@ -598,22 +562,20 @@ func (r *getTestableRun) validateFlags() error {
 		return errors.New("at least one -plan is required")
 	}
 
-	if len(r.builds) > 0 && len(r.buildsPath) > 0 {
-		return errors.New("only one of -build and -builds can be set")
+	if len(r.buildsPath) == 0 {
+		return errors.New("builds must be set")
 	}
 
-	// If buildsPath was used, parse the builds into r.builds.
-	if len(r.buildsPath) > 0 {
-		parsedBuilds, err := protoio.ReadJsonl(r.buildsPath, func() *bbpb.Build { return &bbpb.Build{} })
-		if err != nil {
-			return err
-		}
-
-		r.builds = parsedBuilds
+	// Parse the builds into r.builds.
+	parsedBuilds, err := protoio.ReadJsonl(r.buildsPath, func() *bbpb.Build { return &bbpb.Build{} })
+	if err != nil {
+		return err
 	}
+
+	r.builds = parsedBuilds
 
 	if len(r.builds) == 0 {
-		return errors.New("at least one -build is required")
+		return errors.New("at least one build is required")
 	}
 
 	for _, build := range r.builds {
