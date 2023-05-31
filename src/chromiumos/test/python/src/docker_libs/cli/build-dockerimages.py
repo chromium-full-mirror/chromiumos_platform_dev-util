@@ -27,6 +27,9 @@ from src.docker_libs.build_libs.builders import LocalDockerBuilder
 from src.docker_libs.build_libs.cros_callbox.cros_callbox_prep import (
     CrosCallBoxDockerPrepper,
 )
+from src.docker_libs.build_libs.cros_dut.cros_dut_prep import (
+    CrosDutDockerPrepper,
+)
 from src.docker_libs.build_libs.cros_fw_provision.cros_fw_provision_prep import (
     CrosFWProvisionDockerPrepper,
 )
@@ -42,15 +45,13 @@ from src.docker_libs.build_libs.cros_test.cros_test_prep import (
 from src.docker_libs.build_libs.cros_test_finder.cros_test_finder_prep import (
     CrosTestFinderDockerPrepper,
 )
-from src.docker_libs.build_libs.shared.common_service_prep import (
-    CommonServiceDockerPrepper,
-)
-from src.docker_libs.build_libs.cros_dut.cros_dut_prep import (
-    CrosDutDockerPrepper,
-)
 from src.docker_libs.build_libs.pre_process.pre_process_prep import (
     PreProcessDockerPrepper,
 )
+from src.docker_libs.build_libs.shared.common_service_prep import (
+    CommonServiceDockerPrepper,
+)
+
 
 # pylint: enable=import-error,wrong-import-position
 
@@ -78,6 +79,7 @@ REGISTERED_BUILDS = {
     "cros-servod": {"prepper": CrosServodDockerPrepper, "cloud": False},
     "cros-publish": {"prepper": CrosPublishDockerPrepper, "cloud": False},
     "pre-process": {"prepper": PreProcessDockerPrepper, "cloud": False},
+    "vm-provision": {"prepper": CommonServiceDockerPrepper, "cloud": False},
 }
 
 # There is a ~1 in 10000 err with the fetching of the base container
