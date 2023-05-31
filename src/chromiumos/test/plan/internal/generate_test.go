@@ -17,6 +17,7 @@ import (
 	"go.chromium.org/chromiumos/config/go/payload"
 	testpb "go.chromium.org/chromiumos/config/go/test/api"
 	test_api_v1 "go.chromium.org/chromiumos/config/go/test/api/v1"
+	"go.chromium.org/chromiumos/config/go/test/plan"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	testplan "chromiumos/test/plan/internal"
@@ -175,7 +176,7 @@ pointless_fn()
 	)
 
 	hwTestPlans, vmTestPlans, err := testplan.Generate(
-		ctx, []string{planFilename, noPlanFilename}, buildMetadataList, dutAttributeList, configBundleList,
+		ctx, []string{planFilename, noPlanFilename}, buildMetadataList, dutAttributeList, configBundleList, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -210,6 +211,119 @@ pointless_fn()
 	}
 }
 
+func TestGenerateWithTemplateParameters(t *testing.T) {
+	ctx := context.Background()
+
+	starlarkSource := `
+load("@proto//chromiumos/test/api/v1/plan.proto", plan_pb = "chromiumos.test.api.v1")
+load("@proto//chromiumos/test/api/coverage_rule.proto", coverage_rule_pb = "chromiumos.test.api")
+load("@proto//chromiumos/test/api/test_suite.proto", test_suite_pb = "chromiumos.test.api")
+
+coverage_rule_a = coverage_rule_pb.CoverageRule(
+	name='ruleA',
+	test_suites=[
+		test_suite_pb.TestSuite(
+			name=testplan.get_suite_name(),
+			test_case_tag_criteria=test_suite_pb.TestSuite.TestCaseTagCriteria(
+				tags=testplan.get_tag_criteria().tags
+			)
+		)
+	]
+)
+testplan.add_hw_test_plan(
+	plan_pb.HWTestPlan(
+		id=plan_pb.HWTestPlan.TestPlanId(value='plan1'),
+		coverage_rules=[coverage_rule_a],
+	),
+)
+`
+	planFilename := writeTempStarlarkFile(t, starlarkSource)
+	hwTestPlans, vmTestPlans, err := testplan.Generate(
+		ctx, []string{planFilename}, buildMetadataList, dutAttributeList,
+		configBundleList, map[string][]*plan.SourceTestPlan_TestPlanStarlarkFile_TemplateParameters{
+			planFilename: {
+				{
+					TagCriteria: &testpb.TestSuite_TestCaseTagCriteria{
+						Tags: []string{"group:customgroup1"},
+					},
+					SuiteName: "customsuite1",
+				},
+				{
+					TagCriteria: &testpb.TestSuite_TestCaseTagCriteria{
+						Tags: []string{"group:customgroup2"},
+					},
+					SuiteName: "customsuite2",
+				},
+			},
+		},
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedHwTestPlans := []*test_api_v1.HWTestPlan{
+		{
+			Id: &test_api_v1.HWTestPlan_TestPlanId{Value: "plan1"},
+			CoverageRules: []*testpb.CoverageRule{
+				{
+					Name: "ruleA",
+					TestSuites: []*testpb.TestSuite{
+						{
+							Name: "customsuite1",
+							Spec: &testpb.TestSuite_TestCaseTagCriteria_{
+								TestCaseTagCriteria: &testpb.TestSuite_TestCaseTagCriteria{
+									Tags: []string{"group:customgroup1"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Id: &test_api_v1.HWTestPlan_TestPlanId{Value: "plan1"},
+			CoverageRules: []*testpb.CoverageRule{
+				{
+					Name: "ruleA",
+					TestSuites: []*testpb.TestSuite{
+						{
+							Name: "customsuite2",
+							Spec: &testpb.TestSuite_TestCaseTagCriteria_{
+								TestCaseTagCriteria: &testpb.TestSuite_TestCaseTagCriteria{
+									Tags: []string{"group:customgroup2"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	expectedVmTestPlans := []*test_api_v1.VMTestPlan{}
+
+	if len(expectedHwTestPlans) != len(hwTestPlans) {
+		t.Errorf("expected %d test plans, got %d", len(expectedHwTestPlans), len(hwTestPlans))
+	}
+
+	for i, expected := range expectedHwTestPlans {
+		if diff := cmp.Diff(expected, hwTestPlans[i], protocmp.Transform()); diff != "" {
+			t.Errorf("returned unexpected diff in test plan %d (-want +got):\n%s", i, diff)
+		}
+	}
+
+	if len(expectedVmTestPlans) != len(vmTestPlans) {
+		t.Errorf("expected %d test plans, got %d", len(expectedVmTestPlans), len(vmTestPlans))
+	}
+
+	for i, expected := range expectedVmTestPlans {
+		if diff := cmp.Diff(expected, vmTestPlans[i], protocmp.Transform()); diff != "" {
+			t.Errorf("returned unexpected diff in test plan %d (-want +got):\n%s", i, diff)
+		}
+	}
+}
+
 func TestGenerateErrors(t *testing.T) {
 	ctx := context.Background()
 
@@ -217,53 +331,75 @@ func TestGenerateErrors(t *testing.T) {
 	badPlanFilename := writeTempStarlarkFile(t, badStarlarkFile)
 
 	tests := []struct {
-		name              string
-		planFilenames     []string
-		buildMetadataList *buildpb.SystemImage_BuildMetadataList
-		dutAttributeList  *testpb.DutAttributeList
-		configBundleList  *payload.ConfigBundleList
+		name               string
+		planFilenames      []string
+		buildMetadataList  *buildpb.SystemImage_BuildMetadataList
+		dutAttributeList   *testpb.DutAttributeList
+		configBundleList   *payload.ConfigBundleList
+		templateParameters map[string][]*plan.SourceTestPlan_TestPlanStarlarkFile_TemplateParameters
 	}{
 		{
-			name:              "empty planFilenames",
-			planFilenames:     []string{},
-			buildMetadataList: buildMetadataList,
-			dutAttributeList:  dutAttributeList,
-			configBundleList:  configBundleList,
+			name:               "empty planFilenames",
+			planFilenames:      []string{},
+			buildMetadataList:  buildMetadataList,
+			dutAttributeList:   dutAttributeList,
+			configBundleList:   configBundleList,
+			templateParameters: nil,
 		},
 		{
-			name:              "nil buildMetadataList",
+			name:               "nil buildMetadataList",
+			planFilenames:      []string{"plan1.star"},
+			buildMetadataList:  nil,
+			dutAttributeList:   dutAttributeList,
+			configBundleList:   configBundleList,
+			templateParameters: nil,
+		},
+		{
+			name:               "nil dutAttributeList",
+			planFilenames:      []string{"plan1.star"},
+			buildMetadataList:  buildMetadataList,
+			dutAttributeList:   nil,
+			configBundleList:   configBundleList,
+			templateParameters: nil,
+		},
+		{
+			name:               "nil ConfigBundleList",
+			planFilenames:      []string{"plan1.star"},
+			buildMetadataList:  buildMetadataList,
+			dutAttributeList:   dutAttributeList,
+			configBundleList:   nil,
+			templateParameters: nil,
+		},
+		{
+			name:               "bad Starlark file",
+			planFilenames:      []string{badPlanFilename},
+			buildMetadataList:  buildMetadataList,
+			dutAttributeList:   dutAttributeList,
+			configBundleList:   configBundleList,
+			templateParameters: nil,
+		},
+		{
+			name:              "invalid template parameters",
 			planFilenames:     []string{"plan1.star"},
-			buildMetadataList: nil,
-			dutAttributeList:  dutAttributeList,
-			configBundleList:  configBundleList,
-		},
-		{
-			name:              "nil dutAttributeList",
-			planFilenames:     []string{"plan1.star"},
-			buildMetadataList: buildMetadataList,
-			dutAttributeList:  nil,
-			configBundleList:  configBundleList,
-		},
-		{
-			name:              "nil ConfigBundleList",
-			planFilenames:     []string{"plan1.star"},
-			buildMetadataList: buildMetadataList,
-			dutAttributeList:  dutAttributeList,
-			configBundleList:  nil,
-		},
-		{
-			name:              "bad Starlark file",
-			planFilenames:     []string{badPlanFilename},
 			buildMetadataList: buildMetadataList,
 			dutAttributeList:  dutAttributeList,
 			configBundleList:  configBundleList,
+			templateParameters: map[string][]*plan.SourceTestPlan_TestPlanStarlarkFile_TemplateParameters{
+				"otherplan.star": {
+					{
+						TagCriteria: &testpb.TestSuite_TestCaseTagCriteria{
+							Tags: []string{"group:customgroup"},
+						},
+					},
+				},
+			},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if _, _, err := testplan.Generate(
-				ctx, test.planFilenames, test.buildMetadataList, test.dutAttributeList, test.configBundleList,
+				ctx, test.planFilenames, test.buildMetadataList, test.dutAttributeList, test.configBundleList, test.templateParameters,
 			); err == nil {
 				t.Error("Expected error from Generate")
 			}
