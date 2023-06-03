@@ -216,6 +216,7 @@ func RootCmd(rootCmdVersion string) (*cobra.Command, error) {
 			"python3-idna",
 			"python3-light",
 			"python3-urllib",
+			"tar",
 		},
 		"Names of packages that should be included in built images that are downloaded from official OpenWrt repositories.",
 	)
