@@ -24,9 +24,10 @@ type Cache struct {
 	location    string
 	pathToLocal *LRU
 	gcsClient   *storage.Client
+	timeout     time.Duration
 }
 
-func MakeCache(location string) (*Cache, error) {
+func MakeCache(location string, timeout time.Duration) (*Cache, error) {
 	log.Printf("creating cache on location %s", location)
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
@@ -40,6 +41,7 @@ func MakeCache(location string) (*Cache, error) {
 		location:    location,
 		pathToLocal: lru,
 		gcsClient:   client,
+		timeout:     timeout,
 	}, nil
 }
 
@@ -80,7 +82,7 @@ func (c *Cache) fetchFromGS(gsPath, localPath string) error {
 	}
 
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, time.Second*300)
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
 	log.Printf("Fetching object %s from bucket %s", object, bucket)

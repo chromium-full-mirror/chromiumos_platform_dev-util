@@ -44,6 +44,7 @@ func main() {
 
 		port := flag.Int("port", 8080, "Port Caching Server will listen to.")
 		cacheLocation := flag.String("location", "/tmp/cacheserver", "Path to cache.")
+		timeout := flag.Int("timeout", 300, "The timeout (in seconds) used when downloading artifacts from GCS.")
 		flag.Parse()
 
 		logFile, err := createLogFile()
@@ -56,7 +57,7 @@ func main() {
 		logger.Println("Starting cacheservice")
 		log.SetOutput(logger.Writer())
 
-		if err := InstantiateHandlers(*port, *cacheLocation); err != nil {
+		if err := InstantiateHandlers(*port, *cacheLocation, time.Second*time.Duration(*timeout)); err != nil {
 			log.Fatalln("failed to instantiate http handlers: ", err)
 		}
 

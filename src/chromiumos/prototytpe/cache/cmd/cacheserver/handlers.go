@@ -16,6 +16,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -44,8 +45,8 @@ type HTTPHandlers struct {
 
 // InstantiateHandlers creates the caching layer, sets up the HTTP handlers,
 // and sets it so the cache gets destroyed on sigterm (i.e.: deletes files)
-func InstantiateHandlers(port int, cacheLocation string) error {
-	cache, err := MakeCache(cacheLocation)
+func InstantiateHandlers(port int, cacheLocation string, timeout time.Duration) error {
+	cache, err := MakeCache(cacheLocation, timeout)
 	if err != nil {
 		return fmt.Errorf("could not create cache, %w", err)
 	}
