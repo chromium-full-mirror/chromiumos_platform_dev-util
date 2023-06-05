@@ -1,0 +1,9 @@
+[package]
+name = "file_server"
+authors = ["The ChromiumOS Authors"]
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tiny_http = "0.11.0"
+rand = "0.8.4"
