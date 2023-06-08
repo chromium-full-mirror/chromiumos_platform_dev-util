@@ -1,0 +1,13 @@
+[Unit]
+Description=CROS cellular callbox test file server
+After=lte.service
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+ExecStart=/root/file_server/target/release/file_server
+
+[Install]
+WantedBy=multi-user.target

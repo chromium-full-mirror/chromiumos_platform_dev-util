@@ -22,4 +22,5 @@ service lte restart
 
 cd "${dir}"
 source setupCrosServer.sh
+source setupFileServer.sh
 source setupDNS.sh
