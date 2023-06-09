@@ -18,14 +18,14 @@ import (
 
 // CrOSService inherits ServiceInterface
 type CrOSService struct {
-	Connection        common_utils.ServiceAdapterInterface
-	MachineMetadata   metadata.MachineMetadata
-	ImagePath         *conf.StoragePath
-	OverwritePayload  *conf.StoragePath
-	PreserverStateful bool
-	DlcSpecs          []*api.CrOSProvisionMetadata_DLCSpec
-	UpdateFirmware    bool
-	UpdateCros        bool
+	Connection       common_utils.ServiceAdapterInterface
+	MachineMetadata  metadata.MachineMetadata
+	ImagePath        *conf.StoragePath
+	OverwritePayload *conf.StoragePath
+	PreserveStateful bool
+	DlcSpecs         []*api.CrOSProvisionMetadata_DLCSpec
+	UpdateFirmware   bool
+	UpdateCros       bool
 }
 
 func NewCrOSService(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (*CrOSService, error) {
@@ -34,14 +34,14 @@ func NewCrOSService(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.I
 		return nil, err
 	}
 	return &CrOSService{
-		Connection:        common_utils.NewServiceAdapter(dutClient, req.GetPreventReboot()),
-		ImagePath:         req.ImagePath,
-		OverwritePayload:  req.OverwritePayload,
-		PreserverStateful: m.PreserveStateful,
-		DlcSpecs:          m.DlcSpecs,
-		MachineMetadata:   metadata.MachineMetadata{},
-		UpdateFirmware:    m.UpdateFirmware,
-		UpdateCros:        true, // Force this true by default
+		Connection:       common_utils.NewServiceAdapter(dutClient, req.GetPreventReboot()),
+		ImagePath:        req.ImagePath,
+		OverwritePayload: req.OverwritePayload,
+		PreserveStateful: m.PreserveStateful,
+		DlcSpecs:         m.DlcSpecs,
+		MachineMetadata:  metadata.MachineMetadata{},
+		UpdateFirmware:   m.UpdateFirmware,
+		UpdateCros:       true, // Force this true by default
 	}, nil
 }
 
@@ -54,14 +54,14 @@ func NewCrOSServiceFromCrOSProvisionRequest(dutClient api.DutServiceClient, req 
 		dlcSpecs = append(dlcSpecs, dlcSpec)
 	}
 	return &CrOSService{
-		Connection:        common_utils.NewServiceAdapter(dutClient, req.GetProvisionState().GetPreventReboot()),
-		ImagePath:         req.GetProvisionState().SystemImage.SystemImagePath,
-		OverwritePayload:  req.GetProvisionState().GetSystemImage().GetOverwritePayload(),
-		PreserverStateful: false,
-		DlcSpecs:          dlcSpecs,
-		MachineMetadata:   metadata.MachineMetadata{},
-		UpdateFirmware:    req.GetProvisionState().UpdateFirmware,
-		UpdateCros:        true, // Force this true by default
+		Connection:       common_utils.NewServiceAdapter(dutClient, req.GetProvisionState().GetPreventReboot()),
+		ImagePath:        req.GetProvisionState().SystemImage.SystemImagePath,
+		OverwritePayload: req.GetProvisionState().GetSystemImage().GetOverwritePayload(),
+		PreserveStateful: false,
+		DlcSpecs:         dlcSpecs,
+		MachineMetadata:  metadata.MachineMetadata{},
+		UpdateFirmware:   req.GetProvisionState().UpdateFirmware,
+		UpdateCros:       true, // Force this true by default
 
 	}
 }
@@ -70,14 +70,14 @@ func NewCrOSServiceFromCrOSProvisionRequest(dutClient api.DutServiceClient, req 
 // but recycles a ServiceAdapter. Generally useful for tests.
 func NewCrOSServiceFromExistingConnection(conn common_utils.ServiceAdapterInterface, imagePath *conf.StoragePath, overwritePayload *conf.StoragePath, preserverStateful bool, dlcSpecs []*api.CrOSProvisionMetadata_DLCSpec, updateFirmware bool) CrOSService {
 	return CrOSService{
-		Connection:        conn,
-		ImagePath:         imagePath,
-		OverwritePayload:  overwritePayload,
-		PreserverStateful: preserverStateful,
-		DlcSpecs:          dlcSpecs,
-		MachineMetadata:   metadata.MachineMetadata{},
-		UpdateFirmware:    updateFirmware,
-		UpdateCros:        true, // Force this true by default
+		Connection:       conn,
+		ImagePath:        imagePath,
+		OverwritePayload: overwritePayload,
+		PreserveStateful: preserverStateful,
+		DlcSpecs:         dlcSpecs,
+		MachineMetadata:  metadata.MachineMetadata{},
+		UpdateFirmware:   updateFirmware,
+		UpdateCros:       true, // Force this true by default
 
 	}
 }

@@ -28,7 +28,7 @@ func NewWipeStatefulCommand(ctx context.Context, cs *service.CrOSService) *WipeS
 func (c *WipeStatefulCommand) Execute(log *log.Logger) error {
 	log.Printf("Start WipeStatefulCommand Execute")
 
-	if !c.cs.PreserverStateful {
+	if !c.cs.PreserveStateful {
 		if _, err := c.cs.Connection.RunCmd(c.ctx, "echo", []string{"'fast keepimg'", ">", "/mnt/stateful_partition/factory_install_reset"}); err != nil {
 			return fmt.Errorf("failed to to write to factory reset file, %s", err)
 		}
