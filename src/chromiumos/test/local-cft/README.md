@@ -11,6 +11,7 @@ A tool for running CFT services locally using CTRv2, as well as for testing unme
     * go/dut-lease
     * If using a lab DUT, get ssh access
         + go/chromeos-lab-duts-ssh
+- Run `sudo emerge local-cft` within CrOS SDK
 - Head to the chroot/usr/bin folder to run the binary of local-cft
     * Outside of the chroot however, no cros_sdk yet
 
