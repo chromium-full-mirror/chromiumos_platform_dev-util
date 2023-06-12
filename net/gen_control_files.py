@@ -216,11 +216,23 @@ for carrier in [
     )
 
     tests = single_test_template.format(
-        test_exprs="['cellular.*SuspendResume*']"
+        test_exprs='[\'("group:cellular" && "cellular_sim_active" && "cellular_unstable" && "cellular_suspend")\']'
     )
     write_control_file(
         out_dir,
         ["cellular_ota_flaky", "cellular_repair"],
+        carrier,
+        extra_dependencies,
+        "suspend_resume",
+        tests,
+    )
+
+    tests = single_test_template.format(
+        test_exprs='[\'("group:cellular" && "cellular_sim_active" && !"cellular_unstable" && "cellular_suspend")\']'
+    )
+    write_control_file(
+        out_dir,
+        ["cellular_ota", "cellular_repair"],
         carrier,
         extra_dependencies,
         "suspend_resume",
