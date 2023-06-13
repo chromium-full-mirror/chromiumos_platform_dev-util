@@ -11,11 +11,15 @@ Systems will include: Cloud Scheduler, CloudSQL, and Compute Engine
 """
 
 
+import collections
+import datetime
+import operator
 import sys
 
 import cloudsql_interface
 import common
 import gerrit_interface
+import git_interface
 import missing
 import synchronize
 import util
@@ -142,18 +146,119 @@ def status_fix_cl(
     fixes_table, sha_list, reason, force
 ):  # pylint: disable=unused-argument
     """Lists status for a fix CL."""
+    commit = collections.namedtuple(
+        "Commit", ["sha", "title", "committer_date"]
+    )
     with common.connect_db() as db:
-        rows = []
         # Remove duplicate SHAs
         sha_list = list(set(sha_list))
-        rows = get_fixes_rows(db, fixes_table, sha_list, False)
-        if not rows:
-            print(
-                'No patches identified by "%s" found in fixes table(s)'
-                % sha_list
-            )
-        else:
-            print_rows(rows)
+
+        for sha in sha_list:
+            if len(sha) != 12:
+                print('Ignore "%s" as it is not 12-char SHA' % sha)
+                continue
+
+            rows = get_fixes_rows(db, None, [sha], False)
+            if not rows:
+                print(
+                    'No patches identified by "%s" found in fixes table(s)'
+                    % sha
+                )
+                continue
+
+            for row in rows:
+                if row["fixedby_upstream_sha"] == sha:
+                    where = "upstream"
+                else:
+                    where = "ChromeOS"
+
+                if row["table"] == "chrome_fixes":
+                    table = "linux_chrome"
+                else:
+                    table = "linux_stable"
+                title = cloudsql_interface.get_commit_title(
+                    db, table, row["kernel_sha"], row["branch"]
+                )
+                date = git_interface.get_committer_date(
+                    row["kernel_sha"], row["branch"]
+                )
+                ft = commit(row["kernel_sha"], title, date)
+
+                title = cloudsql_interface.get_commit_title(
+                    db, "linux_upstream", row["fixedby_upstream_sha"]
+                )
+                date = git_interface.get_committer_date(
+                    row["fixedby_upstream_sha"]
+                )
+                fb = commit(row["fixedby_upstream_sha"], title, date)
+
+                # They are actually UTC stored in DB.
+                row["entry_time"] = row["entry_time"].replace(
+                    tzinfo=datetime.timezone.utc
+                )
+
+                journals = [
+                    (
+                        row["entry_time"],
+                        f"Seen the fix with initial status \"{row['initial_status']}\"",
+                    ),
+                ]
+
+                if ft.committer_date:
+                    journals.append(
+                        (
+                            ft.committer_date,
+                            f"Fix target {row['kernel_sha']} committed in ChromeOS kernel",
+                        )
+                    )
+                if fb.committer_date:
+                    journals.append(
+                        (
+                            fb.committer_date,
+                            f"Fix {row['fixedby_upstream_sha']} committed in upstream kernel",
+                        )
+                    )
+                if row["status"] == common.Status.OPEN.name:
+                    if row["fix_change_id"]:
+                        journals.append(
+                            (
+                                row["entry_time"],
+                                f"Created CL {row['fix_change_id']}",
+                            )
+                        )
+                    else:
+                        journals.append(
+                            (row["entry_time"], "Failed to create CL")
+                        )
+                if row["close_time"]:
+                    # They are actually UTC stored in DB.
+                    row["close_time"] = row["close_time"].replace(
+                        tzinfo=datetime.timezone.utc
+                    )
+                    journals.append(
+                        (
+                            row["close_time"],
+                            f"Closed the fix with reason \"{row['reason']}\"",
+                        )
+                    )
+
+                journals.sort(key=operator.itemgetter(0))
+
+                print(
+                    f"""
+{sha} is identified as a(n) {where} kernel SHA:
+Fix ChromeOS kernel @ {row['branch']}:
+  {ft.sha} ("{ft.title}")
+Fixed by:
+  {fb.sha} ("{fb.title}")"""
+                )
+
+                print("Journals:")
+                for t, e in journals:
+                    print(f"  - {t}  {e}")
+
+                if row["close_time"] is None:
+                    print(f"  - Current status \"{row['status']}\"")
 
 
 @util.cloud_sql_proxy_decorator

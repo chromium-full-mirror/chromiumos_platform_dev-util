@@ -10,6 +10,7 @@
 i.e Parsing git logs for change-id, full commit sha's, etc.
 """
 
+import datetime
 import logging
 import re
 import subprocess
@@ -115,6 +116,23 @@ def get_merge_sha(branch, sha):
         )
 
     return None
+
+
+def get_committer_date(kernel_sha, branch=None):
+    """Gets committer_date in git repository."""
+    if branch is None:
+        absolute_path = common.get_kernel_absolute_path(common.UPSTREAM_PATH)
+    else:
+        absolute_path = common.get_kernel_absolute_path(common.CHROMEOS_PATH)
+        cmd = ["checkout", common.chromeos_branch(branch)]
+        _git_check_output(absolute_path, cmd)
+
+    try:
+        cmd = ["log", "--format=%ct", "-n", "1", kernel_sha]
+        ts = int(_git_check_output(absolute_path, cmd))
+        return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc)
+    except subprocess.CalledProcessError:
+        return None
 
 
 def get_commit_changeid_linux_chrome(kernel_sha):

@@ -52,7 +52,7 @@ def get_fix_status_and_changeid(db, fixes_tables, sha_list, strict):
         strict = False
 
     pre_q = """SELECT '{fixes_table}' AS 'table', branch, kernel_sha, fixedby_upstream_sha,
-                      fix_change_id, initial_status, status
+                      fix_change_id, initial_status, status, reason, entry_time, close_time
                FROM {fixes_table}
                WHERE """
 
@@ -70,6 +70,20 @@ def get_fix_status_and_changeid(db, fixes_tables, sha_list, strict):
     with db.cursor(MySQLdb.cursors.DictCursor) as c:
         c.execute(q)
         return c.fetchall()
+
+
+def get_commit_title(db, table, sha, branch=None):
+    """Get commit title in given table, branch, and sha."""
+    q = f"""SELECT description
+            FROM {table}
+            WHERE sha = %s"""
+
+    if branch:
+        q += f" AND branch = {branch}"
+
+    with db.cursor() as c:
+        c.execute(q, [sha])
+        return c.fetchone()[0]
 
 
 def update_change_abandoned(
