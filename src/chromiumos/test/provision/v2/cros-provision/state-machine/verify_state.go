@@ -26,6 +26,7 @@ func (s CrOSVerifyState) Execute(ctx context.Context, log *log.Logger) (*anypb.A
 	comms := []common_utils.CommandInterface{
 		commands.NewGetVersionCommand(ctx, s.service),
 		commands.NewCheckVersionMatches(ctx, s.service),
+		commands.NewEnableChargeLimitCommand(ctx, s.service),
 	}
 
 	for _, comm := range comms {

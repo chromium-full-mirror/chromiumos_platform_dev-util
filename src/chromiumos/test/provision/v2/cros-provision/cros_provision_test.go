@@ -95,6 +95,9 @@ var (
 	getCrosid                 = RunCommandStructure{Command: "crosid", Args: []string{}}
 	getCurrentFirmware        = RunCommandStructure{Command: "crossystem", Args: []string{"fwid"}}
 	hwsecId                   = RunCommandStructure{Command: "hwsec-ownership-id", Args: []string{"id"}}
+	chargeLimitEnabled        = RunCommandStructure{Command: "echo", Args: []string{"\"1\"", ">", "/var/lib/power_manager/charge_limit_enabled"}}
+	chargePercentHold         = RunCommandStructure{Command: "echo", Args: []string{"\"3\"", ">", "/var/lib/power_manager/adaptive_charging_hold_delta_percent"}}
+	restartPowerd             = RunCommandStructure{Command: "restart", Args: []string{"powerd"}}
 )
 
 // REVERT COMMANDS
@@ -217,11 +220,14 @@ func TestStateTransitions(t *testing.T) {
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed post-install state: %v", err)
 	}
-
 	// VERIFY
 	st = st.Next()
 	gomock.InOrder(
-		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=path/to/image", nil))
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=path/to/image", nil),
+		getRunCmdCommand(sam, chargeLimitEnabled).Return("", nil),
+		getRunCmdCommand(sam, chargePercentHold).Return("", nil),
+		getRunCmdCommand(sam, restartPowerd).Return("", nil),
+	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed verify state: %v", err)
@@ -382,8 +388,8 @@ func TestMismatchPostInstall(t *testing.T) {
 	// VERIFY
 	st = st.Next()
 	gomock.InOrder(
-		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=a/differentto/image", nil))
-
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=a/differentto/image", nil),
+	)
 	if _, _, err := st.Execute(ctx, log); err.Error() != "image could not be validated as correct post install, post install version does not match taregt image" {
 		t.Fatalf("expected specific error, instead got: %v", err)
 	}
