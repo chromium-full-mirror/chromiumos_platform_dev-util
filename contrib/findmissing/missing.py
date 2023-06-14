@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-"
-#
 # Copyright 2020 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -208,10 +206,7 @@ def update_duplicate_by_patch_id(db, branch, fixed_sha, fixedby_upstream_sha):
     # (meaning both have the same patch ID).
     # The entry we need to add to the fixes table is for fixed_sha, not for
     # kernel_sha (because kernel_sha is already in the database).
-    reason = (
-        "Already merged/queued into linux_chrome [upstream sha %s]"
-        % recorded_upstream_sha
-    )
+    reason = f"Already merged/queued into linux_chrome [upstream sha {recorded_upstream_sha}]"
 
     # Status must be OPEN, MERGED or ABANDONED since we don't have
     # entries with CONFLICT in the fixes table.
@@ -301,10 +296,7 @@ def update_duplicate_by_patch_id2(db, branch, fixedby_upstream_sha):
     if chrome_shas:
         entry_time = common.get_current_time()
         cl_status = common.Status.MERGED.name
-        reason = (
-            "Already merged into linux_chrome [upstream sha %s]"
-            % fixedby_upstream_sha
-        )
+        reason = f"Already merged into linux_chrome [upstream sha {fixedby_upstream_sha}]"
         q = """INSERT INTO chrome_fixes
                 (kernel_sha, fixedby_upstream_sha, branch, entry_time,
                 close_time, initial_status, status, reason)
