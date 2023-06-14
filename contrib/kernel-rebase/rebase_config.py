@@ -71,6 +71,7 @@ topic_patches["mm"] = [
 topic_patches["drivers"] = [
     "fixups/FROMGIT: xhci: check for a pending command completion during command timeout.patch",
     "fixups/CHROMIUM: PCI: Allowlist for drivers allowed to bind to untrusted devices.patch",
+    "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: configfs: Add Uevent to notify userspace.patch",
 ]
 
 topic_patches["power-thermal"] = [
@@ -79,6 +80,7 @@ topic_patches["power-thermal"] = [
 
 topic_patches["tpm-virtio"] = [
     "fixups/FROMLIST: tpm: add sysfs attributes for tpm2.patch",
+    "fixups/FIXUP: CHROMIUM: tpm: Use TPM_CHIP_FLAG_SUSPENDED instead of is_suspended.patch",
 ]
 
 topic_patches["chromeos"] = [
