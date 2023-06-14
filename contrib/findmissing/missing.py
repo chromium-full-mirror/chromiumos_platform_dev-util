@@ -273,13 +273,18 @@ def update_duplicate_by_patch_id2(db, branch, fixedby_upstream_sha):
 
     Otherwise, False.
     """
+    # luf and lcf are joined to restrict to only fixes that have landed
     q = """SELECT lc.sha
             FROM linux_chrome AS lc
             JOIN linux_upstream AS lu
             ON lc.patch_id = lu.patch_id
             JOIN upstream_fixes as uf
-            ON lc.upstream_sha = uf.upstream_sha
-            WHERE uf.fixedby_upstream_sha = %s AND branch = %s
+            ON lu.sha = uf.upstream_sha
+            JOIN linux_upstream AS luf
+            ON luf.sha = uf.fixedby_upstream_sha
+            JOIN linux_chrome AS lcf
+            ON lcf.patch_id = luf.patch_id
+            WHERE uf.fixedby_upstream_sha = %s AND lc.branch = %s AND lcf.branch = %s
             AND (lc.sha, uf.fixedby_upstream_sha)
             NOT IN (
                 SELECT kernel_sha, fixedby_upstream_sha
@@ -288,7 +293,7 @@ def update_duplicate_by_patch_id2(db, branch, fixedby_upstream_sha):
             )"""
 
     with db.cursor() as c:
-        c.execute(q, [fixedby_upstream_sha, branch, branch])
+        c.execute(q, [fixedby_upstream_sha, branch, branch, branch])
         chrome_shas = c.fetchall()
 
     # fixedby_upstream_sha has already been merged into linux_chrome
