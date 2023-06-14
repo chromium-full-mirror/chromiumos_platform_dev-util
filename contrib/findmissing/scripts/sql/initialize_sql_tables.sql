@@ -112,3 +112,12 @@ CREATE TABLE IF NOT EXISTS chrome_fixes (
   FOREIGN KEY (fixedby_upstream_sha) REFERENCES linux_upstream(sha),
   PRIMARY KEY (kernel_sha, fixedby_upstream_sha)
 );
+
+
+/* journals table stores journal about chrome sha or stable sha */
+CREATE TABLE IF NOT EXISTS journals (
+  sha VARCHAR(40), /*chrome sha or stable sha*/
+  branch VARCHAR(5) NOT NULL,
+  time DATETIME NOT NULL,
+  description VARCHAR(120) NOT NULL
+);

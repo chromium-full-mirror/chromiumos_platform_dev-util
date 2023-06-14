@@ -14,6 +14,27 @@ import MySQLdb  # pylint: disable=import-error
 DEFAULT_MERGED_REASON = "Fix merged into linux chrome"
 
 
+def insert_journal(db, sha, branch, description, time=None):
+    """Inserts a journal record."""
+    q = f"""INSERT INTO journals (sha, branch, time, description)
+            values (%s, %s, %s, %s)"""
+
+    if time is None:
+        time = common.get_current_time()
+
+    with db.cursor() as c:
+        c.execute(q, [sha, branch, time, description])
+    db.commit()
+
+
+def get_branch(db, fixes_table, kernel_sha, fixedby_upstream_sha):
+    q = f"""SELECT branch FROM {fixes_table}
+            WHERE kernel_sha = %s AND fixedby_upstream_sha = %s"""
+    with db.cursor() as c:
+        c.execute(q, [kernel_sha, fixedby_upstream_sha])
+        return c.fetchone()[0]
+
+
 def upstream_fixes_for_shas(db, upstream_shas):
     """Returns list of fixer sha's for a given upstream sha.
 
@@ -104,6 +125,12 @@ def update_change_abandoned(
         c.execute(q, [close_time, reason, kernel_sha, fixedby_upstream_sha])
     db.commit()
 
+    branch = get_branch(db, fixes_table, kernel_sha, fixedby_upstream_sha)
+    journal = "Seen Gerrit CL abandoned"
+    if reason:
+        journal += f": \"{reason}\""
+    insert_journal(db, kernel_sha, branch, journal, close_time)
+
 
 def update_change_restored(
     db, fixes_table, kernel_sha, fixedby_upstream_sha, reason=None
@@ -124,6 +151,12 @@ def update_change_restored(
         c.execute(q, [status, None, reason, kernel_sha, fixedby_upstream_sha])
     db.commit()
 
+    branch = get_branch(db, fixes_table, kernel_sha, fixedby_upstream_sha)
+    journal = "Seen Gerrit CL reopened"
+    if reason:
+        journal += f": \"{reason}\""
+    insert_journal(db, kernel_sha, branch, journal)
+
 
 def update_change_merged(
     db,
@@ -142,6 +175,9 @@ def update_change_merged(
     with db.cursor() as c:
         c.execute(q, [close_time, reason, kernel_sha, fixedby_upstream_sha])
     db.commit()
+
+    branch = get_branch(db, fixes_table, kernel_sha, fixedby_upstream_sha)
+    insert_journal(db, kernel_sha, branch, "Seen Gerrit CL merged", close_time)
 
 
 def update_change_status(db, fixes_table, branch, fix_change_id, status):
@@ -180,3 +216,11 @@ def update_conflict_to_open(
     with db.cursor() as c:
         c.execute(q, [fix_change_id, reason, kernel_sha, fixedby_upstream_sha])
     db.commit()
+
+    branch = get_branch(db, fixes_table, kernel_sha, fixedby_upstream_sha)
+    insert_journal(
+        db,
+        kernel_sha,
+        branch,
+        "Seen patch applies cleanly after originally conflicting",
+    )

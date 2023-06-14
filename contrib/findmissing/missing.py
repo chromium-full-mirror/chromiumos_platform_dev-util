@@ -432,6 +432,10 @@ def create_fix(
                 )
                 return False
 
+            cloudsql_interface.insert_journal(
+                db, kernel_sha, branch, f"Created Gerrit CL {fix_change_id}"
+            )
+
             if not gerrit_interface.label_cq_plus1(branch, fix_change_id):
                 logging.info(
                     "Failed to CQ+1 for branch:%s %s", branch, fix_change_id
@@ -439,7 +443,9 @@ def create_fix(
     elif status == common.Status.CONFLICT:
         # Register conflict entry_time, do not create gerrit CL
         # Requires engineer to manually explore why CL doesn't apply cleanly
-        pass
+        cloudsql_interface.insert_journal(
+            db, kernel_sha, branch, "Detected conflicts"
+        )
 
     q = f"""INSERT INTO {chosen_fixes}
             (kernel_sha, fixedby_upstream_sha, branch, entry_time, close_time,
@@ -695,7 +701,13 @@ def create_new_fixes_in_branch(db, branch, kernel_metadata, limit):
     for kernel_sha, fixedby_upstream_sha in rows:
         # Treat it unlimited if `limit` is None.
         if limit is not None and limit <= 0:
-            break
+            cloudsql_interface.insert_journal(
+                db,
+                kernel_sha,
+                branch,
+                "Deferred to create CL due to rate limit",
+            )
+            continue
 
         created = create_fix(
             db,
