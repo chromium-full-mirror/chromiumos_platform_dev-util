@@ -1,17 +1,21 @@
-# Copyright 2022 The ChromiumOS Authors. All rights reserved.
+# Copyright 2022 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """Common artifact prepper."""
 
 import os
+from pathlib import Path
 import shutil
 import sys
 
+import setup_chromite  # pylint: disable=unused-import,import-error
 from src.common.exceptions import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
     ConfigError,
 )
 from src.common.exceptions import NotDirectoryException
+
+from chromite.lib import path_util
 
 
 # Point up a few directories to make the other python modules discoverable.
@@ -25,6 +29,7 @@ class CrosArtifactPrep:
         self,
         path: str,
         chroot: str,
+        out_path: str,
         sysroot: str,
         force_path: bool,
         service: str,
@@ -32,6 +37,7 @@ class CrosArtifactPrep:
         """@param args (ArgumentParser): .chroot, .sysroot, .path."""
         self.path = path
         self.chroot = chroot
+        self.out_path = Path(out_path) if out_path else None
         self.sysroot = sysroot
         self.force_path = force_path
         self.service = service
@@ -52,7 +58,11 @@ class CrosArtifactPrep:
 
     def config_paths(self):
         """Build up the paths needed in local mem."""
-        self.build_path = os.path.join(self.chroot, self.sysroot)
+        self.build_path = path_util.FromChrootPath(
+            os.path.join(os.path.sep, self.sysroot),
+            chroot_path=self.chroot,
+            out_path=self.out_path,
+        )
         self.full_autotest = os.path.join(
             self.build_path, "usr/local/build/autotest"
         )
@@ -170,12 +180,12 @@ class CrosArtifactPrep:
     def copy_private_key(self):
         """Copy private keys from src to docker context."""
         cwd = os.path.dirname(os.path.abspath(__file__))
-        src = os.path.join(cwd, '../../../../../../../../../../../')
-        ssh_keys = os.path.join(src, "sshkeys", 'partner_testing_rsa')
-        os.makedirs(os.path.join(self.full_out, 'ssh'), exist_ok=True)
+        src = os.path.join(cwd, "../../../../../../../../../../../")
+        ssh_keys = os.path.join(src, "sshkeys", "partner_testing_rsa")
+        os.makedirs(os.path.join(self.full_out, "ssh"), exist_ok=True)
         if not os.path.exists(ssh_keys):
             return
-        shutil.copy(ssh_keys, os.path.join(self.full_out, 'ssh'))
+        shutil.copy(ssh_keys, os.path.join(self.full_out, "ssh"))
 
 
 def FromSysrootPath(sysroot: str, file: str):

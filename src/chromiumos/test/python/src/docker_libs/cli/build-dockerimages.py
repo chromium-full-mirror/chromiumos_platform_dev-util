@@ -18,6 +18,10 @@ from typing import Any, Dict
 
 # Point up a few directories to make the other python modules discoverable.
 sys.path.insert(1, str(pathlib.Path(__file__).parent.resolve() / "../../../"))
+# For setup_chromite, in other modules.
+sys.path.append(
+    str(pathlib.Path(__file__).parent.resolve() / "../../../../../../../")
+)
 
 # pylint: disable=import-error,wrong-import-position
 from src.common.exceptions import ConfigError
@@ -106,6 +110,7 @@ def parse_local_arguments() -> argparse.Namespace:
     parser.add_argument(
         "sysroot", help=" sysroot (String): The sysroot path to use."
     )
+    parser.add_argument("--out-dir", help="The SDK output path")
     parser.add_argument(
         "--service",
         dest="service",
@@ -207,6 +212,7 @@ def build_image(args: argparse.Namespace, service: str, output: str) -> bool:
     prepperlib = info["prepper"]
     prepper = prepperlib(
         chroot=args.chroot,
+        out_path=args.out_dir,
         sysroot=args.sysroot,
         tags=args.tags,
         labels=args.labels,
@@ -258,7 +264,8 @@ def build_container(b: DockerBuilder, args: argparse.Namespace):
                 raise e
             else:
                 print(
-                    f"Build failed, will retry in {args.retry_wait} seconds:\n{e}"
+                    f"Build failed, will retry in {args.retry_wait} "
+                    "seconds:\n{e}"
                 )
                 time.sleep(args.retry_wait)
         retries -= 1
@@ -283,7 +290,8 @@ def build_all_images(args: argparse.Namespace):
                 os.remove(outfile)
             if service in NON_CRITICAL:
                 print(
-                    f"{service} is not marked as critical so builder will not fail."
+                    f"{service} is not marked as critical so builder will not "
+                    "fail."
                 )
             else:
                 # Mark a critical failure, but continue to build.

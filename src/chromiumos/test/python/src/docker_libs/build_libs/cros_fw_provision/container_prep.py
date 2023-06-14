@@ -17,11 +17,19 @@ from src.docker_libs.build_libs.shared.common_artifact_prep import (  # noqa: E4
 class CrosFWProvisionArtifactPrep(CrosArtifactPrep):
     """Prep Needed files for the cros-fw-provision Container Docker Build."""
 
-    def __init__(self, path: str, chroot: str, sysroot: str, force_path: bool):
+    def __init__(
+        self,
+        path: str,
+        chroot: str,
+        out_path: str,
+        sysroot: str,
+        force_path: bool,
+    ):
         """@param args (ArgumentParser): .chroot, .sysroot, .path."""
         super().__init__(
             path=path,
             chroot=chroot,
+            out_path=out_path,
             sysroot=sysroot,
             force_path=force_path,
             service="cros-fw-provision",

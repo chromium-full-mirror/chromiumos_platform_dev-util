@@ -1,4 +1,4 @@
-# Copyright 2022 The ChromiumOS Authors. All rights reserved.
+# Copyright 2022 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -22,11 +22,18 @@ class CrosPublishDockerPrepper(BaseDockerPrepper):
     """Prep Needed files for the Cros Publish Container Docker Build."""
 
     def __init__(
-        self, chroot: str, sysroot: str, tags: str, labels: str, service: str
+        self,
+        chroot: str,
+        out_path: str,
+        sysroot: str,
+        tags: str,
+        labels: str,
+        service: str,
     ):
         """@param args (ArgumentParser): .chroot, .sysroot, .path."""
         super().__init__(
             chroot=chroot,
+            out_path=out_path,
             sysroot=sysroot,
             tags=tags,
             labels=labels,
@@ -36,6 +43,7 @@ class CrosPublishDockerPrepper(BaseDockerPrepper):
     def prep_container(self):
         CrosPublishArtifactPrep(
             chroot=self.chroot,
+            out_path=self.out_path,
             sysroot=self.sysroot,
             path=self.full_out_dir,
             force_path=True,

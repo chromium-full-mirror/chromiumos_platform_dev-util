@@ -5,6 +5,12 @@
 """Base Prep for Docker Build context creation."""
 
 import os
+from pathlib import Path
+from typing import Optional
+
+import setup_chromite  # pylint: disable=unused-import,import-error
+
+from chromite.lib import path_util
 
 
 # The default yaml for all current CFT builders.
@@ -42,20 +48,29 @@ class BaseDockerPrepper:
     """Prep Needed files for the Test Execution Container Docker Build."""
 
     def __init__(
-        self, chroot: str, sysroot: str, tags: str, labels: str, service: str
+        self,
+        chroot: str,
+        out_path: Optional[str],
+        sysroot: str,
+        tags: str,
+        labels: str,
+        service: str,
     ):
         """@param args (ArgumentParser): .chroot, .sysroot, .path."""
         self.tags = tags.split(",") if tags else []
         self.labels = labels.split(",") if labels else []
         self.chroot = chroot
+        self.out_path = Path(out_path) if out_path else None
         self.sysroot = sysroot
         self.outputdir = f"tmp/docker/{service}"
         self.service = service
 
         if self.sysroot.startswith("/"):
             self.sysroot = self.sysroot[1:]
-        self.full_out_dir = os.path.join(
-            self.chroot, self.sysroot, self.outputdir
+        self.full_out_dir = path_util.FromChrootPath(
+            os.path.join(os.path.sep, self.sysroot, self.outputdir),
+            chroot_path=self.chroot,
+            out_path=self.out_path,
         )
 
     def prep_container(self):
@@ -85,7 +100,9 @@ class BaseDockerPrepper:
         )
 
         with open(
-            os.path.join(self.full_out_dir, "cloudbuild.yaml"), "w"
+            os.path.join(self.full_out_dir, "cloudbuild.yaml"),
+            "w",
+            encoding="utf-8",
         ) as wf:
             wf.write(cloudbuild_yaml)
             print(f"wrote yaml to {wf}")

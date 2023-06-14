@@ -22,11 +22,20 @@ from src.tools import (  # noqa: E402 pylint: disable=import-error,wrong-import-
 class CrosTestArtifactPrep(CrosArtifactPrep):
     """Prep Needed files for the Test Execution Container Docker Build."""
 
-    def __init__(self, path: str, chroot: str, sysroot: str, force_path: bool, service: str):
+    def __init__(
+        self,
+        path: str,
+        chroot: str,
+        out_path: str,
+        sysroot: str,
+        force_path: bool,
+        service: str,
+    ):
         """@param args (ArgumentParser): .chroot, .sysroot, .path."""
         super().__init__(
             path=path,
             chroot=chroot,
+            out_path=out_path,
             sysroot=sysroot,
             force_path=force_path,
             service=service,

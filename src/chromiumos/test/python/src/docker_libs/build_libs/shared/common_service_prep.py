@@ -19,11 +19,18 @@ class CommonServiceDockerPrepper(BaseDockerPrepper):
     """Prep Needed files for the Test Execution Container Docker Build."""
 
     def __init__(
-        self, chroot: str, sysroot: str, tags: str, labels: str, service: str
+        self,
+        chroot: str,
+        out_path: str,
+        sysroot: str,
+        tags: str,
+        labels: str,
+        service: str,
     ):
         """@param args (ArgumentParser): .chroot, .sysroot, .path."""
         super().__init__(
             chroot=chroot,
+            out_path=out_path,
             sysroot=sysroot,
             tags=tags,
             labels=labels,

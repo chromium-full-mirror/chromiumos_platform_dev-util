@@ -7,23 +7,34 @@
 
 import sys
 
-sys.path.append('../../../../')
 
-from src.docker_libs.build_libs.shared.common_artifact_prep\
-  import CrosArtifactPrep  # noqa: E402 pylint: disable=import-error,wrong-import-position
+sys.path.append("../../../../")
+
+from src.docker_libs.build_libs.shared.common_artifact_prep import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
+    CrosArtifactPrep,
+)
 
 
 class PreProcessArtifactPrep(CrosArtifactPrep):
     """Prep Needed files for the Test Execution Container Docker Build."""
 
-    def __init__(self,
-                 path: str,
-                 chroot: str,
-                 sysroot: str,
-                 force_path: bool):
+    def __init__(
+        self,
+        path: str,
+        chroot: str,
+        out_path: str,
+        sysroot: str,
+        force_path: bool,
+    ):
         """@param args (ArgumentParser): .chroot, .sysroot, .path."""
-        super().__init__(path=path, chroot=chroot, sysroot=sysroot,
-                         force_path=force_path, service='pre-process')
+        super().__init__(
+            path=path,
+            chroot=chroot,
+            out_path=out_path,
+            sysroot=sysroot,
+            force_path=force_path,
+            service="pre-process",
+        )
 
     def prep(self):
         """Run the steps needed to prep the container artifacts."""

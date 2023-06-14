@@ -22,11 +22,18 @@ class CrosServodDockerPrepper(BaseDockerPrepper):
     """Prep Needed files for the cros-servod Container Docker Build."""
 
     def __init__(
-        self, chroot: str, sysroot: str, tags: str, labels: str, service: str
+        self,
+        chroot: str,
+        out_path: str,
+        sysroot: str,
+        tags: str,
+        labels: str,
+        service: str,
     ):
         """@param args (ArgumentParser): .chroot, .sysroot, .path."""
         super().__init__(
             chroot=chroot,
+            out_path=out_path,
             sysroot=sysroot,
             tags=tags,
             labels=labels,
@@ -36,6 +43,7 @@ class CrosServodDockerPrepper(BaseDockerPrepper):
     def prep_container(self):
         CrosServodArtifactPrep(
             chroot=self.chroot,
+            out_path=self.out_path,
             sysroot=self.sysroot,
             path=self.full_out_dir,
             force_path=True,
