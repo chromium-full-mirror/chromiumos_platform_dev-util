@@ -218,18 +218,12 @@ def status_fix_cl(
                             f"Fix {row['fixedby_upstream_sha']} committed in upstream kernel",
                         )
                     )
-                if row["status"] == common.Status.OPEN.name:
-                    if row["fix_change_id"]:
-                        journals.append(
-                            (
-                                row["entry_time"],
-                                f"Created CL {row['fix_change_id']}",
-                            )
-                        )
-                    else:
-                        journals.append(
-                            (row["entry_time"], "Failed to create CL")
-                        )
+                for time, desc in cloudsql_interface.get_journals(
+                    db, row["kernel_sha"], row["branch"]
+                ):
+                    # They are actually UTC stored in DB.
+                    time = time.replace(tzinfo=datetime.timezone.utc)
+                    journals.append((time, desc))
                 if row["close_time"]:
                     # They are actually UTC stored in DB.
                     row["close_time"] = row["close_time"].replace(

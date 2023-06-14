@@ -27,6 +27,17 @@ def insert_journal(db, sha, branch, description, time=None):
     db.commit()
 
 
+def get_journals(db, sha, branch):
+    """Gets journal records."""
+    q = f"""SELECT time, description
+            FROM journals
+            WHERE sha = %s AND branch = %s"""
+
+    with db.cursor() as c:
+        c.execute(q, [sha, branch])
+        return c.fetchall()
+
+
 def get_branch(db, fixes_table, kernel_sha, fixedby_upstream_sha):
     q = f"""SELECT branch FROM {fixes_table}
             WHERE kernel_sha = %s AND fixedby_upstream_sha = %s"""
