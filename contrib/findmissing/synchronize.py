@@ -142,7 +142,7 @@ def synchronize_fixes_tables_with_gerrit():
         fixes_tables = ["stable_fixes", "chrome_fixes"]
 
         for fixes_table in fixes_tables:
-            q = f"""SELECT branch, fix_change_id
+            q = f"""SELECT branch, fix_change_id, status
                     FROM {fixes_table}
                     WHERE (status = 'OPEN' OR status = 'ABANDONED')
                     AND fix_change_id IS NOT NULL"""
@@ -153,14 +153,16 @@ def synchronize_fixes_tables_with_gerrit():
                 if not rows:
                     break
 
-                for branch, fix_change_id in rows:
+                for branch, fix_change_id, old_status in rows:
                     gerrit_status = gerrit_interface.get_status(
                         fix_change_id, branch
                     )
                     status = gerrit_to_db_status_map[gerrit_status]
-                    cloudsql_interface.update_change_status(
-                        db, fixes_table, branch, fix_change_id, status
-                    )
+
+                    if status.name != old_status:
+                        cloudsql_interface.update_change_status(
+                            db, fixes_table, branch, fix_change_id, status
+                        )
 
 
 if __name__ == "__main__":
