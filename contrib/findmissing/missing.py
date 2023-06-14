@@ -347,11 +347,7 @@ def check_merged_by_patch_id(db, branch, fixed_sha, fixedby_upstream_sha):
     if updated:
         return True
 
-    updated = update_duplicate_by_patch_id2(db, branch, fixedby_upstream_sha)
-    if updated:
-        return True
-
-    return False
+    return update_duplicate_by_patch_id2(db, branch, fixedby_upstream_sha)
 
 
 def create_fix(
