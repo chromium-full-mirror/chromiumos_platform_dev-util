@@ -22,6 +22,7 @@ func cliParse(args []string) (target string, opts Options, err error) {
 	)
 
 	app := kingpin.New("fflash", "")
+	app.HelpFlag.Short('h')
 	app.Arg("dut-host", "the ssh target of the dut").Required().StringVar(&target)
 	app.Flag("gs", "gs:// directory to flash. Use with caution!").StringVar(&opts.GS)
 	app.Flag("R", "release number. ex: 105 or 105-14989.0.0").Short('R').StringVar(&opts.VersionString)
