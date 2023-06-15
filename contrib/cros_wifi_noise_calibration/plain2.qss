@@ -1,0 +1,12 @@
+QWidget
+{
+  text-align: center;
+}
+QLabel
+{
+  font-size:40pt;
+}
+QFrame
+{
+ text-align: center;
+}

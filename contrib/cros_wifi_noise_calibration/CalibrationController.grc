@@ -1,0 +1,390 @@
+options:
+  parameters:
+    author: ''
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: ''
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: CalibrationController
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ./plain2.qss
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: New Calibration Controller
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 4.0]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: center_freq
+  id: variable
+  parameters:
+    comment: ''
+    value: vals.get_center_freq(frequency)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [672, 180.0]
+    rotation: 0
+    state: true
+- name: display
+  id: variable_qtgui_label
+  parameters:
+    comment: ''
+    formatter: None
+    gui_hint: 0,0,2,2
+    label: 'Output Power: '
+    type: string
+    value: '"{0} dBm".format(measured_power/10)'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 20.0]
+    rotation: 0
+    state: true
+- name: frequency
+  id: variable_qtgui_chooser
+  parameters:
+    comment: ''
+    gui_hint: 2,1,1,1
+    label: Frequency (MHz)
+    label0: '2442'
+    label1: '5150'
+    label2: '5350.0'
+    label3: '5945.0'
+    label4: ''
+    labels: '["2442","5150","5350","5945","6525","7125"]'
+    num_opts: '0'
+    option0: '0'
+    option1: '1'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[0,1,2,3,4,5]'
+    orient: Qt.QHBoxLayout
+    type: raw
+    value: '0'
+    widget: radio_buttons
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [488, 4.0]
+    rotation: 0
+    state: enabled
+- name: if_gain
+  id: variable
+  parameters:
+    comment: ''
+    value: vals.get_IF_gain(noise_source,frequency)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [600, 180.0]
+    rotation: 0
+    state: true
+- name: measured_power
+  id: variable
+  parameters:
+    comment: ''
+    value: vals.get_RF_Pout_x10(noise_source,frequency)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [864, 180.0]
+    rotation: 0
+    state: true
+- name: noise_source
+  id: variable_qtgui_chooser
+  parameters:
+    comment: ''
+    gui_hint: 2,0,1,1
+    label: Signal Source
+    label0: Nothing
+    label1: AWGN
+    label2: 1MHZ Cosine
+    label3: 5MHZ Cosine
+    label4: ''
+    labels: ''
+    num_opts: '4'
+    option0: '0'
+    option1: '1'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: ''
+    orient: Qt.QVBoxLayout
+    type: int
+    value: '0'
+    widget: radio_buttons
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [352, 4.0]
+    rotation: 0
+    state: enabled
+- name: rf_amplifier
+  id: variable
+  parameters:
+    comment: ''
+    value: vals.get_RF_gain(noise_source,frequency)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [768, 180.0]
+    rotation: 0
+    state: true
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: vals.get_samp_rate(noise_source,frequency)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [504, 180.0]
+    rotation: 0
+    state: true
+- name: analog_const_source_x_1
+  id: analog_const_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    const: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [72, 284.0]
+    rotation: 0
+    state: enabled
+- name: analog_noise_source_x_0
+  id: analog_noise_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    noise_type: analog.GR_GAUSSIAN
+    seed: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [80, 340.0]
+    rotation: 0
+    state: enabled
+- name: analog_sig_source_x_0
+  id: analog_sig_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: ''
+    freq: 1e6
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset: '0'
+    phase: '0'
+    samp_rate: samp_rate
+    type: complex
+    waveform: analog.GR_COS_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [64, 420.0]
+    rotation: 0
+    state: enabled
+- name: analog_sig_source_x_1
+  id: analog_sig_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: ''
+    freq: 5e6
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset: '0'
+    phase: '0'
+    samp_rate: samp_rate
+    type: complex
+    waveform: analog.GR_COS_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [56, 556.0]
+    rotation: 0
+    state: enabled
+- name: blocks_selector_0
+  id: blocks_selector
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    enabled: 'True'
+    input_index: noise_source
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_inputs: '4'
+    num_outputs: '1'
+    output_index: '0'
+    showports: 'True'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [344, 352.0]
+    rotation: 0
+    state: enabled
+- name: network_tcp_sink_0
+  id: network_tcp_sink
+  parameters:
+    addr: 127.0.0.1
+    affinity: ''
+    alias: ''
+    comment: ''
+    mode: '1'
+    port: '1234'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [608, 500.0]
+    rotation: 0
+    state: true
+- name: soapy_hackrf_sink_0
+  id: soapy_hackrf_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: True if rf_amplifier == 14 else 0
+    bandwidth: '0'
+    center_freq: center_freq
+    comment: ''
+    dev_args: ''
+    samp_rate: samp_rate
+    type: fc32
+    vga: if_gain
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [600, 368.0]
+    rotation: 0
+    state: enabled
+- name: vals
+  id: epy_module
+  parameters:
+    alias: ''
+    comment: ''
+    source_code: "# this module will be imported in the into your flowgraph\nfrom\
+      \ enum import Enum\n\nclass Noise(Enum):\n\tNOTHING=0\t# Carrier OFF\n\tAWGN=1\t\
+      \t# AWGN\n\tCOS1=2\t\t# +/-1MHz Modulated Sine waves\n\tCOS5=3\t\t# +/-5MHz\
+      \ Modulated Sine waves\n\t\n\tdef __int__(self):\n\t\treturn self.value\n\n\
+      center_freq_list_MHz = [2442.0,5150.0,5350.0,5945.0,6525.0,7125.0]\nsamp_rate_matrix_MHz\
+      \ = [1,15,2,10]\nIF_gain_matrix = \\\n\t\t[[0,\t0,\t0,\t0,\t0,\t0],\t# Carrier\
+      \ OFF\n\t\t[47,\t47,\t47,\t47,\t47,\t47],\t# AWGN\n\t\t[45,\t43,\t44,\t41,\t\
+      42,\t43],\t# +/-1MHz Modulated Sine waves\n\t\t[32,\t31,\t34,\t38,\t42,\t43]]\t\
+      # +/-5MHz Modulated Sine waves\n\t\t#2442.0\t5150.0\t5350.0\t5945.0\t6525.0\t\
+      7125.0\t# Frequency\nRF_gain_matrix = \\\n\t\t[[0,\t0,\t0,\t0,\t0,\t0],\t# Carrier\
+      \ OFF\n\t\t[14,\t14,\t14,\t14,\t14,\t14],\t# AWGN\n\t\t[0,\t14,\t14,\t14,\t\
+      14,\t14],\t# +/-1MHz Modulated Sine waves\n\t\t[14,\t14,\t14,\t14,\t14,\t14]]\t\
+      # +/-5MHz Modulated Sine waves\n\t\t#2442.0\t5150.0\t5350.0\t5945.0\t6525.0\t\
+      7125.0\t# Frequency\nRF_Pout_matrix_dBm_x10 = \\\n\t\t[[-1740,-1740,\t-1740,\t\
+      -1740,\t-1740,\t-1740],\t# Carrier OFF\n\t\t[126,\t-129,\t-127,\t-142,\t-267,\t\
+      -289],\t# AWGN\n\t\t[24,\t-135,\t-125,\t-165,\t-282,\t-296],\t# +/-1MHz Modulated\
+      \ Sine waves\n\t\t[12,\t-266,\t-237,\t-216,\t-304,\t-317]]\t# +/-5MHz Modulated\
+      \ Sine waves\n\t\t#2442.0\t5150.0\t5350.0\t5945.0\t6525.0\t7125.0\t# Frequency\n\
+      \t\t\ndef get_IF_gain(noise_type, frequency_index):\n\treturn IF_gain_matrix[int(noise_type)][frequency_index]\n\
+      \ndef get_RF_gain(noise_type, frequency_index):\n\treturn RF_gain_matrix[int(noise_type)][frequency_index]\n\
+      \t\ndef get_RF_Pout_x10(noise_type, frequency_index):\n\treturn RF_Pout_matrix_dBm_x10[int(noise_type)][frequency_index]\n\
+      \t\ndef get_samp_rate(noise_type, frequency_index):\n\treturn samp_rate_matrix_MHz[int(noise_type)]*1e6\n\
+      \ndef get_center_freq(center_freq_index):\n\treturn center_freq_list_MHz[center_freq_index]*1e6\n"
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [704, 4.0]
+    rotation: 0
+    state: true
+- name: xmlrpc_client_0
+  id: xmlrpc_client
+  parameters:
+    addr: localhost
+    alias: ''
+    callback: set_samp_rate
+    comment: ''
+    port: '8080'
+    variable: samp_rate
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [792, 252.0]
+    rotation: 0
+    state: enabled
+- name: xmlrpc_client_0_0
+  id: xmlrpc_client
+  parameters:
+    addr: localhost
+    alias: ''
+    callback: set_center_freq
+    comment: ''
+    port: '8080'
+    variable: center_freq
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [792, 348.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [analog_const_source_x_1, '0', blocks_selector_0, '0']
+- [analog_noise_source_x_0, '0', blocks_selector_0, '1']
+- [analog_sig_source_x_0, '0', blocks_selector_0, '2']
+- [analog_sig_source_x_1, '0', blocks_selector_0, '3']
+- [blocks_selector_0, '0', network_tcp_sink_0, '0']
+- [blocks_selector_0, '0', soapy_hackrf_sink_0, '0']
+
+metadata:
+  file_format: 1
