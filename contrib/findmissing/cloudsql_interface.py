@@ -9,6 +9,7 @@
 
 import common
 import MySQLdb  # pylint: disable=import-error
+import os
 
 
 DEFAULT_MERGED_REASON = "Fix merged into linux chrome"
@@ -149,6 +150,30 @@ def update_change_abandoned(
     if reason:
         journal += f': "{reason}"'
     insert_journal(db, kernel_sha, branch, journal, close_time)
+
+
+def update_change_reopen(
+    db, fixes_table, kernel_sha, fixedby_upstream_sha, reason=None
+):
+    """
+    Updates fixes_table unique fix row to indicate fix cl has been reopened.
+    Set database status to CONFLICT to trigger re-evaluation by the robot.
+    """
+    q = f"""UPDATE {fixes_table}
+            SET status = 'CONFLICT', close_time = NULL, reason = %s
+            WHERE kernel_sha = %s
+            AND fixedby_upstream_sha = %s
+            AND status = 'MERGED'"""
+
+    with db.cursor() as c:
+        c.execute(q, [reason, kernel_sha, fixedby_upstream_sha])
+    db.commit()
+
+    branch = get_branch(db, fixes_table, kernel_sha, fixedby_upstream_sha)
+    journal = f"Updated status to CONFLICT by {os.getlogin()}"
+    if reason:
+        journal += f': "{reason}"'
+    insert_journal(db, kernel_sha, branch, journal)
 
 
 def update_change_restored(

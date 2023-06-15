@@ -31,6 +31,7 @@ def findmissing():
     abandon_restore_function_map = {
         "abandon": main.abandon_fix_cl,
         "restore": main.restore_fix_cl,
+        "reopen": main.reopen_fix_cl,
         "status": main.status_fix_cl,
     }
     parser = argparse.ArgumentParser(
@@ -40,7 +41,7 @@ def findmissing():
         "command",
         type=str,
         choices=tuple(abandon_restore_function_map.keys()),
-        help="Function to either abandon/restore changes.",
+        help="Function to either abandon/restore/reopen changes.",
     )
     parser.add_argument(
         "-t",

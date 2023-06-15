@@ -316,3 +316,52 @@ def restore_fix_cl(fixes_table, sha_list, reason, force):
                 % (kernel_sha, fixedby_upstream_sha)
             )
             sys.exit(1)
+
+
+@util.cloud_sql_proxy_decorator
+@util.preliminary_check_decorator(False)
+def reopen_fix_cl(fixes_table, sha_list, reason, force):
+    """Restores a supposedly merged fixed table entry."""
+    with common.connect_db() as db:
+        try:
+            rows = get_fixes_rows(db, fixes_table, sha_list, True)
+            if not rows:
+                print(
+                    'Patch identified by "%s" not found in fixes table(s)'
+                    % sha_list
+                )
+                sys.exit(1)
+            if len(rows) > 1 and not force:
+                print(
+                    "More than one database entry. Force flag needed to continue."
+                )
+                print_rows(rows)
+                sys.exit(1)
+            for row in rows:
+                if row["status"] != common.Status.MERGED.name:
+                    print("Status for %s:%s in branch %s is %s, cannot reopen" %
+                          (row["kernel_sha"], row["fixedby_upstream_sha"],
+                           row['branch'], row["status"]))
+                    continue
+                fix_change_id = row["fix_change_id"]
+                branch = row["branch"]
+                fixedby_upstream_sha = row["fixedby_upstream_sha"]
+                kernel_sha = row["kernel_sha"]
+                if fix_change_id:
+                    print("Can not reopen: Existing Change ID.")
+                    continue
+                cloudsql_interface.update_change_reopen(
+                    db, row["table"], kernel_sha, fixedby_upstream_sha, reason
+                )
+                print(
+                    "Updated status to CONFLICT for patch %s in %s, fixed by %s"
+                    % (kernel_sha, branch, fixedby_upstream_sha)
+                )
+            sys.exit(0)
+        except KeyError:
+            print(
+                """Could not retrieve fix row with primary key kernel_sha %s
+                        and fixedby_upstream_sha %s"""
+                % (kernel_sha, fixedby_upstream_sha)
+            )
+            sys.exit(1)
