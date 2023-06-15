@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"runtime"
@@ -24,8 +25,10 @@ import (
 const (
 	gsBucketParam       = "gs_bucket"
 	sourceURLKey        = "source_url"
+	filePathKey         = "file"
 	downloadPrefix      = "/download/"
 	downloadLocalPrefix = "/download-local/"
+	extractPrefix       = "/extract/"
 	staticPrefix        = "/static/"
 	isStagedPrefix      = "/is_staged/"
 	stagePrefix         = "/stage/"
@@ -68,6 +71,7 @@ func InstantiateHandlers(port int, cacheLocation string, timeout time.Duration) 
 
 	http.HandleFunc(downloadPrefix, h.cacheGSHandler)
 	http.HandleFunc(downloadLocalPrefix, h.cacheLocalHandler)
+	http.HandleFunc(extractPrefix, h.extractHandler)
 	http.HandleFunc(staticPrefix, h.staticHandler)
 	http.HandleFunc(isStagedPrefix, h.isStagedHandler)
 	http.HandleFunc(stagePrefix, h.stageHandler)
@@ -191,4 +195,25 @@ func (h *HTTPHandlers) getCacheLocalHandler(w http.ResponseWriter, r *http.Reque
 	// Internal impl should stream here
 	io.Copy(w, fr)
 	log.Printf("sent file, %s", localPath)
+}
+
+// extractHandler downloads the given tar.xz file specified in the url path, and extracts the file provided in the url
+func (h *HTTPHandlers) extractHandler(w http.ResponseWriter, r *http.Request) {
+	fileToExtract := r.URL.Query().Get(filePathKey)
+	if fileToExtract == "" {
+		http.Error(w, fmt.Sprintf("URL must have a %s parameter", filePathKey), http.StatusBadRequest)
+		return
+	}
+	gcsPath := strings.TrimPrefix(r.URL.Path, extractPrefix)
+	localTarFilePath, err := h.cache.Get(gcsPath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Unable to cache %s, %v", r.URL.Path, err), http.StatusBadRequest)
+		return
+	}
+	log.Printf("extracting %v from %v", fileToExtract, localTarFilePath)
+	extractCmd := exec.Command("tar", "-xf", localTarFilePath, fileToExtract)
+	extractCmd.Stdout = w
+	if err := extractCmd.Run(); err != nil {
+		http.Error(w, fmt.Sprintf("error when extracting %v from %v", fileToExtract, localTarFilePath), http.StatusInternalServerError)
+	}
 }
