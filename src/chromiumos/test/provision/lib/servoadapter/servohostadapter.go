@@ -163,6 +163,10 @@ func (s ServoHostAdapter) CreateDirectories(ctx context.Context, dirs []string) 
 	return nil
 }
 
+func (s ServoHostAdapter) ForceReconnectWithBackoff(ctx context.Context) error {
+	return ErrNotImplemented
+}
+
 func (s *ServoHostAdapter) GetBoard(ctx context.Context) string {
 	return s.board
 }
