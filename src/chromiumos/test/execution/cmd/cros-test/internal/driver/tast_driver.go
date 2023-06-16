@@ -150,6 +150,7 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 
 // Command name and flag names.
 const (
+	httpPrefix                 = "http://"
 	runSubcommand              = "run"
 	verboseFlag                = "-verbose"
 	logTimeFlag                = "-logtime"
@@ -238,20 +239,26 @@ func genArgList(args *runArgs) (argList []string) {
 		argList = append(argList, fmt.Sprintf("%v=servers.servo=%s", varFlag, servoStrs))
 	}
 
-	// Fill in DUT server var flags.
-	dutServerStrs := ""
-	if args.primary.DutServer != "" {
-		// Fill in the servo var flag
-		dutServerStrs = fmt.Sprintf(":%s", args.primary.DutServer)
-	}
-	for _, c := range args.companions {
-		if c.DutServer != "" {
-			dutServerStrs = fmt.Sprintf("%s,%s:%s", dutServerStrs, c.Role, c.DutServer)
-		}
-	}
-	if dutServerStrs != "" {
+	if args.primary.CacheServer != "" {
 		// example: var=servers.dut=:d1:22,cd1:d2:22,cd3:d3:22
-		argList = append(argList, fmt.Sprintf("%v=servers.dut=%s", varFlag, dutServerStrs))
+		argList = append(argList, fmt.Sprintf("%v=%s", devServerFlag, httpPrefix+args.primary.CacheServer))
+	} else {
+
+		// Fill in DUT server var flags.
+		dutServerStrs := ""
+		if args.primary.DutServer != "" {
+			// Fill in the servo var flag
+			dutServerStrs = fmt.Sprintf(":%s", args.primary.DutServer)
+		}
+		for _, c := range args.companions {
+			if c.DutServer != "" {
+				dutServerStrs = fmt.Sprintf("%s,%s:%s", dutServerStrs, c.Role, c.DutServer)
+			}
+		}
+		if dutServerStrs != "" {
+			// example: var=servers.dut=:d1:22,cd1:d2:22,cd3:d3:22
+			argList = append(argList, fmt.Sprintf("%v=servers.dut=%s", varFlag, dutServerStrs))
+		}
 	}
 
 	// Fill in libs server var flag.

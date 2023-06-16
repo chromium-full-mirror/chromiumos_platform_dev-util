@@ -72,6 +72,7 @@ REGISTERED_BUILDS = {
         "cloud": False,
     },
     "cros-test": {"prepper": CrosTestDockerPrepper, "cloud": True},
+    "cros-test-cq-light": {"prepper": CrosTestDockerPrepper, "cloud": True},
     "cros-test-finder": {
         "prepper": CrosTestFinderDockerPrepper,
         "cloud": False,

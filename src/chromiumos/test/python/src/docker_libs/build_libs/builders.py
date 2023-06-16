@@ -439,8 +439,9 @@ class LocalDockerBuilder(DockerBuilder):
         tags = self.formatted_tags()
         labels = self.formatted_labels()
 
+        # DOCKER_BUILDKIT=1 is required for --chown --chmod=755 in cros-test-cq-light Dockerfile
         docker_build_cmd = (
-            f"docker build -f {self.dockerfile} {tags} {labels}"
+            f"DOCKER_BUILDKIT=1 docker build -f {self.dockerfile} {tags} {labels}"
             f" {self.build_context}"
         )
 

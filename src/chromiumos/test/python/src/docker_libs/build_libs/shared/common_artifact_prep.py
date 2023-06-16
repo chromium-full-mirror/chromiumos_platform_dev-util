@@ -95,7 +95,10 @@ class CrosArtifactPrep:
 
     def copy_service(self):
         """Copy service needed for Docker."""
-        shutil.copy(os.path.join(self.chroot_bin, self.service), self.full_out)
+        if self.service == "cros-test-cq-light":
+            shutil.copy(os.path.join(self.chroot_bin, "cros-test"), self.full_out)
+        else:
+            shutil.copy(os.path.join(self.chroot_bin, self.service), self.full_out)
 
     def copy_custom_service(self, service_name):
         """Copy custom service needed for Docker."""

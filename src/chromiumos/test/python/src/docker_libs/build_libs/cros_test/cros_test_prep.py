@@ -39,4 +39,5 @@ class CrosTestDockerPrepper(BaseDockerPrepper):
             sysroot=self.sysroot,
             path=self.full_out_dir,
             force_path=True,
+            service=self.service
         ).prep()
