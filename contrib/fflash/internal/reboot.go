@@ -37,10 +37,11 @@ func WaitReboot(ctx context.Context, dialer *ssh.Dialer, host string, oldBootID 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
-	for ctx.Err() == nil {
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-		for range ticker.C {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
 			BootID, err := GetRebootingBootId(ctx, dialer, host)
 			if err != nil {
 				continue
@@ -48,9 +49,10 @@ func WaitReboot(ctx context.Context, dialer *ssh.Dialer, host string, oldBootID 
 			if BootID != oldBootID {
 				return nil
 			}
+		case <-ctx.Done():
+			return fmt.Errorf("failed to out wait for DUT reboot: %s", ctx.Err())
 		}
 	}
-	return fmt.Errorf("failed to out wait for DUT reboot: %s", ctx.Err())
 }
 
 // Reboot the device connected with client and wait for the host to be online
