@@ -41,6 +41,8 @@ type ServiceAdapterInterface interface {
 	// As this uses "-p" option, subdirs are created regardless of whether parents
 	// exist or not.
 	CreateDirectories(ctx context.Context, dirs []string) error
+	// ForceReconnectWithBackoff waits for the DUT to come back up/reconnect.
+	ForceReconnectWithBackoff(ctx context.Context) error
 }
 
 type ServiceAdapter struct {
@@ -214,5 +216,59 @@ func (s ServiceAdapter) CreateDirectories(ctx context.Context, dirs []string) er
 	if _, err := s.RunCmd(ctx, "mkdir", append([]string{"-p"}, dirs...)); err != nil {
 		return fmt.Errorf("could not create directory, %w", err)
 	}
+	return nil
+}
+
+// ForceReconnectWithBackoff is a thin wrapper around DUT service's ForceReconnectWithBackoff.
+func (s ServiceAdapter) ForceReconnectWithBackoff(ctx context.Context) error {
+	fmt.Printf("ForceReconnectWithBackoff Start")
+
+	ctx, cancel := context.WithTimeout(ctx, 500*time.Second)
+	defer cancel()
+
+	expDelay := 1
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("could not force reconnect with backoff")
+		default:
+			f := func() error {
+				op, err := s.dutClient.ForceReconnect(ctx, &api.ForceReconnectRequest{})
+				if err != nil {
+					fmt.Printf("ForceReconnectWithBackoff ERROR %s", err)
+					return err
+				}
+
+				for !op.Done {
+					fmt.Printf("ForceReconnectWithBackoff !op.Done")
+					time.Sleep(1 * time.Second)
+				}
+
+				switch x := op.Result.(type) {
+				case *longrunning.Operation_Error:
+					fmt.Printf("ForceReconnectWithBackoff ignoring LRO ERROR %s", x.Error.Message)
+					return fmt.Errorf(x.Error.Message)
+				case *longrunning.Operation_Response:
+					fmt.Printf("ForceReconnectWithBackoff LRO RESPONSE")
+					return nil
+				default:
+					return fmt.Errorf("unknown longrunniong operation")
+				}
+			}
+			if err := f(); err == nil {
+				// Break out the loop now.
+				break loop
+			}
+		}
+		delay := expDelay
+		if delay < 16 {
+			expDelay = expDelay * 2
+		}
+		time.Sleep(time.Duration(delay) * time.Second)
+	}
+
+	fmt.Printf("ForceReconnectWithBackoff Success")
+
 	return nil
 }

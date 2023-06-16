@@ -29,8 +29,9 @@ func (s CrOSInstallState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		commands.NewInstallPartitionsCommand(ctx, s.service),
 		commands.NewPostInstallCommand(ctx, s.service),
 		commands.NewClearTPMCommand(ctx, s.service),
+		commands.NewSwapStatefulPartitionCommand(ctx, s.service),
 		// Install reboot may take longer, so we issue a longer timeout
-		commands.NewRebootWithTimeoutCommand(500*time.Second, ctx, s.service),
+		commands.NewRebootWithTimeoutCommand(500*time.Second, ctx, s.service, commands.OptionalRebootArgs{Force: true}),
 	}
 
 	for i, comm := range comms {
