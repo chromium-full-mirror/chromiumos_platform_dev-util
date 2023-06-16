@@ -444,7 +444,10 @@ def create_fix(
         # Register conflict entry_time, do not create gerrit CL
         # Requires engineer to manually explore why CL doesn't apply cleanly
         cloudsql_interface.insert_journal(
-            db, kernel_sha, branch, "Detected conflicts"
+            db,
+            kernel_sha,
+            branch,
+            f"Detected patch fixed by {fixedby_upstream_sha} conflicts",
         )
 
     q = f"""INSERT INTO {chosen_fixes}
@@ -705,7 +708,7 @@ def create_new_fixes_in_branch(db, branch, kernel_metadata, limit):
                 db,
                 kernel_sha,
                 branch,
-                "Deferred to create CL due to rate limit",
+                f"Deferred to create CL for {fixedby_upstream_sha} due to rate limit",
             )
             continue
 

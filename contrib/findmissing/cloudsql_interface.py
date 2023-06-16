@@ -236,5 +236,5 @@ def update_conflict_to_open(
         db,
         kernel_sha,
         branch,
-        "Seen patch applies cleanly after originally conflicting",
+        f"Seen patch fixed by {fixedby_upstream_sha} applies cleanly after originally conflicting",
     )
