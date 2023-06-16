@@ -46,6 +46,14 @@ def get_branch(db, fixes_table, kernel_sha, fixedby_upstream_sha):
         return c.fetchone()[0]
 
 
+def get_fixedby_upstream_shas(db, fixes_table, kernel_sha, branch):
+    q = f"""SELECT fixedby_upstream_sha FROM {fixes_table}
+            WHERE kernel_sha = %s AND branch = %s"""
+    with db.cursor() as c:
+        c.execute(q, [kernel_sha, branch])
+        return c.fetchall()
+
+
 def upstream_fixes_for_shas(db, upstream_shas):
     """Returns list of fixer sha's for a given upstream sha.
 

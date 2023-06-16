@@ -166,7 +166,13 @@ def status_fix_cl(
                 )
                 continue
 
+            handled = set()
             for row in rows:
+                # Correlate from row["kernel_sha"]'s POV
+                if row["kernel_sha"] in handled:
+                    continue
+                handled.add(row["kernel_sha"])
+
                 if row["fixedby_upstream_sha"] == sha:
                     where = "upstream"
                 else:
@@ -184,13 +190,16 @@ def status_fix_cl(
                 )
                 ft = commit(row["kernel_sha"], title, date)
 
-                title = cloudsql_interface.get_commit_title(
-                    db, "linux_upstream", row["fixedby_upstream_sha"]
-                )
-                date = git_interface.get_committer_date(
-                    row["fixedby_upstream_sha"]
-                )
-                fb = commit(row["fixedby_upstream_sha"], title, date)
+                fbs = []
+                for s, in cloudsql_interface.get_fixedby_upstream_shas(
+                    db, row["table"], row["kernel_sha"], row["branch"]
+                ):
+                    print(s)
+                    title = cloudsql_interface.get_commit_title(
+                        db, "linux_upstream", s
+                    )
+                    date = git_interface.get_committer_date(s)
+                    fbs.append(commit(s, title, date))
 
                 # They are actually UTC stored in DB.
                 row["entry_time"] = row["entry_time"].replace(
@@ -211,13 +220,14 @@ def status_fix_cl(
                             f"Fix target {row['kernel_sha']} committed in ChromeOS kernel",
                         )
                     )
-                if fb.committer_date:
-                    journals.append(
-                        (
-                            fb.committer_date,
-                            f"Fix {row['fixedby_upstream_sha']} committed in upstream kernel",
+                for fb in fbs:
+                    if fb.committer_date:
+                        journals.append(
+                            (
+                                fb.committer_date,
+                                f"Fix {row['fixedby_upstream_sha']} committed in upstream kernel",
+                            )
                         )
-                    )
                 for time, desc in cloudsql_interface.get_journals(
                     db, row["kernel_sha"], row["branch"]
                 ):
@@ -242,10 +252,12 @@ def status_fix_cl(
                     f"""
 {sha} is identified as a(n) {where} kernel SHA:
 Fix ChromeOS kernel @ {row['branch']}:
-  {ft.sha} ("{ft.title}")
-Fixed by:
-  {fb.sha} ("{fb.title}")"""
+  {ft.sha} ("{ft.title}")"""
                 )
+
+                print("Fixed by:")
+                for fb in fbs:
+                    print(f'  {fb.sha} ("{fb.title}")')
 
                 print("Journals:")
                 for t, e in journals:
