@@ -1,0 +1,88 @@
+#!/bin/bash
+# Copyright 2023 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# shellcheck disable=SC1091
+CONTRIB_DIR="$(dirname "$(readlink -f "$0")")/.."
+. "${CONTRIB_DIR}/common.sh" || exit 1
+
+FLAGS_HELP="
+Repack the official firmware tarball (such as ChromeOS-firmware-R109-15194.10.0-corsola.tar.bz2)
+for uploading to Binary Component Server (BCS).
+
+Usage: $0 [flags] tarball
+
+tarball: The firmware tarball to be repacked"
+
+# Flags.
+DEFINE_string model "" "Comma-separated list of models (variants)" m
+DEFINE_string output "." "Output directory" o
+
+# Parse command line.
+FLAGS "$@" || exit 1
+eval set -- "${FLAGS_ARGV}"
+
+# Only after this point should you enable `set -e` as shflags does not work
+# when that is turned on first.
+set -e
+
+make_tar() {
+  local file=$1
+  local tar=$2
+  tar -cjvf "${tar}" -C "$(dirname "${file}")" "$(basename "${file}")"
+}
+
+make_fw_tar() {
+  local fw_dir=$1
+  local model=$2
+  info "Packing ${model} firmware..."
+  local output=$3
+  local ap="${fw_dir}/image-${model}.bin"
+  local ec="${fw_dir}/${model}/ec.bin"
+  local model_uc="${model^}"
+  local version
+  version="$(futility update --manifest -i "${ap}" | jq -r -c .default.host.versions.ro)"
+  version="$(cut -d "." -f2- <<< "${version}")"
+  local ap_tar="${output}/${model_uc}.${version}.tbz2"
+  local ec_tar="${output}/${model_uc}_EC.${version}.tbz2"
+  make_tar "${ap}" "${ap_tar}"
+  make_tar "${ec}" "${ec_tar}"
+}
+
+main() {
+  assert_inside_chroot
+
+  if [ $# -eq 0 ]; then
+    flags_help
+    die "tarball missing"
+  fi
+
+  local tarball
+  tarball=$(readlink -f "$1")
+  if [[ -z "${FLAGS_model}" ]]; then
+    flags_help
+    die "-m or --model required"
+  fi
+  IFS=',' read -ra models <<< "${FLAGS_model}"
+
+  # Extract from tarball
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  info "Extracting images from tarball to ${temp_dir}..."
+
+  local files=()
+  for model in "${models[@]}"; do
+    files+=("image-${model}.bin" "${model}/ec.bin")
+  done
+  (cd "${temp_dir}" && tar -xjf "${tarball}" "${files[@]}")
+
+  for model in "${models[@]}"; do
+    make_fw_tar "${temp_dir}" "${model}" "${FLAGS_output}"
+  done
+
+  info "Output files saved to ${FLAGS_output}/"
+  info "Done"
+}
+
+main "$@"
