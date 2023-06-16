@@ -137,9 +137,9 @@ def update_change_abandoned(
     db.commit()
 
     branch = get_branch(db, fixes_table, kernel_sha, fixedby_upstream_sha)
-    journal = "Seen Gerrit CL abandoned"
+    journal = "Updated status to ABANDONED"
     if reason:
-        journal += f": \"{reason}\""
+        journal += f': "{reason}"'
     insert_journal(db, kernel_sha, branch, journal, close_time)
 
 
@@ -163,9 +163,9 @@ def update_change_restored(
     db.commit()
 
     branch = get_branch(db, fixes_table, kernel_sha, fixedby_upstream_sha)
-    journal = "Seen Gerrit CL reopened"
+    journal = f"Updated status to {status}"
     if reason:
-        journal += f": \"{reason}\""
+        journal += f': "{reason}"'
     insert_journal(db, kernel_sha, branch, journal)
 
 
@@ -188,7 +188,10 @@ def update_change_merged(
     db.commit()
 
     branch = get_branch(db, fixes_table, kernel_sha, fixedby_upstream_sha)
-    insert_journal(db, kernel_sha, branch, "Seen Gerrit CL merged", close_time)
+    journal = "Updated status to MERGED"
+    if reason:
+        journal += f': "{reason}"'
+    insert_journal(db, kernel_sha, branch, journal, close_time)
 
 
 def update_change_status(db, fixes_table, branch, fix_change_id, status):
