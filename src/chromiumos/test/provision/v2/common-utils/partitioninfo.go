@@ -16,12 +16,13 @@ const (
 )
 
 const (
-	PartitionNumKernelA = "2"
-	PartitionNumKernelB = "4"
-	PartitionNumRootA   = "3"
-	PartitionNumRootB   = "5"
-	PartitionNumMiniOSA = "9"
-	PartitionNumMiniOSB = "10"
+	PartitionNumStateful = "1"
+	PartitionNumKernelA  = "2"
+	PartitionNumKernelB  = "4"
+	PartitionNumRootA    = "3"
+	PartitionNumRootB    = "5"
+	PartitionNumMiniOSA  = "9"
+	PartitionNumMiniOSB  = "10"
 )
 
 const (
@@ -52,6 +53,8 @@ type PartitionInfo struct {
 	// The A + B miniOS device partitions.
 	MiniOSA string
 	MiniOSB string
+	// The stateful partition path.
+	Stateful string
 }
 
 // GetPartitionInfo retrieves relevant kernel and root info for a specific root
@@ -68,6 +71,7 @@ func GetPartitionInfo(root string, rootDisk string, rootPartNum string) Partitio
 			InactiveRoot:    rootDiskPartDelim + PartitionNumRootB,
 			MiniOSA:         rootDiskPartDelim + PartitionNumMiniOSA,
 			MiniOSB:         rootDiskPartDelim + PartitionNumMiniOSB,
+			Stateful:        rootDiskPartDelim + PartitionNumStateful,
 		}
 	case PartitionNumRootB:
 		return PartitionInfo{
@@ -78,6 +82,7 @@ func GetPartitionInfo(root string, rootDisk string, rootPartNum string) Partitio
 			InactiveRoot:    rootDiskPartDelim + PartitionNumRootA,
 			MiniOSA:         rootDiskPartDelim + PartitionNumMiniOSB,
 			MiniOSB:         rootDiskPartDelim + PartitionNumMiniOSA,
+			Stateful:        rootDiskPartDelim + PartitionNumStateful,
 		}
 	default:
 		panic(fmt.Sprintf("Unexpected root partition number of %s", rootPartNum))

@@ -23,6 +23,7 @@ import (
 const (
 	deviceDisk                        = "/dev/nvme0n1"
 	deviceDiskPartition               = deviceDisk + "p"
+	deviceDiskStateful                = deviceDiskPartition + common_utils.PartitionNumStateful
 	deviceDiskKernelB                 = deviceDiskPartition + common_utils.PartitionNumKernelB
 	deviceDiskRootA                   = deviceDiskPartition + common_utils.PartitionNumRootA
 	deviceDiskRootB                   = deviceDiskPartition + common_utils.PartitionNumRootB
@@ -82,7 +83,6 @@ var (
 	deleteTemp                = RunCommandStructure{Command: "rmdir", Args: []string{"temporary_dir"}}
 	crosSystem                = RunCommandStructure{Command: "crossystem", Args: []string{"clear_tpm_owner_request=1"}}
 	waitforStabilize          = RunCommandStructure{Command: "status", Args: []string{"system-services"}}
-	echoFastKeepImg           = RunCommandStructure{Command: "echo", Args: []string{"'fast keepimg'", ">", "/mnt/stateful_partition/factory_install_reset"}}
 	cleanPostInstall          = RunCommandStructure{Command: "rm", Args: []string{"-rf", "/mnt/stateful_partition/.update_available", "/mnt/stateful_partition/var_new", "/mnt/stateful_partition/dev_image_new"}}
 	copyStateful              = PipeCommandStructure{Source: "gs://path/to/image/stateful.tgz", Command: "tar --ignore-command-error --overwrite --directory=/mnt/stateful_partition --selinux -xzf -"}
 	createUpdateAvailableFile = RunCommandStructure{Command: "echo", Args: []string{"-n", "clobber", ">", "/mnt/stateful_partition/.update_available"}}
@@ -107,6 +107,25 @@ var (
 	chargePercentHold         = RunCommandStructure{Command: "echo", Args: []string{"\"3\"", ">", "/var/lib/power_manager/adaptive_charging_hold_delta_percent"}}
 	restartPowerd             = RunCommandStructure{Command: "restart", Args: []string{"powerd"}}
 	getForceProvisionMarker   = PathExistsCommandStructure{Path: "/mnt/stateful_partition/.force_provision"}
+	bootIdCheck               = RunCommandStructure{Command: "/bin/cat", Args: []string{"/proc/sys/kernel/random/boot_id"}}
+	sysrqTrigger              = RunCommandStructure{Command: "/bin/echo", Args: []string{"\"b\"", ">", "/proc/sysrq-trigger"}}
+)
+
+// WIPE STATEFUL CONSTANTS + COMMANDS
+const (
+	wsTmp = "ws_temporary_dir"
+)
+
+var (
+	absMkTemp        = RunCommandStructure{Command: "/usr/bin/mktemp", Args: []string{"-d"}}
+	create512MibZero = RunCommandStructure{Command: "/bin/dd", Args: []string{"if=/dev/zero", fmt.Sprintf("of=%s/fs", wsTmp), "bs=512M", "count=1"}}
+	mkfsExt4         = RunCommandStructure{Command: "/sbin/mkfs.ext4", Args: []string{"-O", "none,has_journal", wsTmp + "/fs"}}
+	mkMnt            = RunCommandStructure{Command: "/bin/mkdir", Args: []string{wsTmp + "/mnt"}}
+	mountFsToMnt     = RunCommandStructure{Command: "/bin/mount", Args: []string{wsTmp + "/fs", wsTmp + "/mnt"}}
+	markFsFastWipe   = RunCommandStructure{Command: "/bin/echo", Args: []string{"-n", "\"fast safe keepimg\"", ">", wsTmp + "/mnt/factory_install_reset"}}
+	umountMnt        = RunCommandStructure{Command: "/bin/umount", Args: []string{wsTmp + "/mnt"}}
+	freezeStateful   = RunCommandStructure{Command: "/sbin/fsfreeze", Args: []string{"-f", "/mnt/stateful_partition"}}
+	hackStateful     = RunCommandStructure{Command: "/bin/dd", Args: []string{fmt.Sprintf("if=%s/fs", wsTmp), fmt.Sprintf("of=%s", deviceDiskStateful), "bs=1M", "conv=fsync"}}
 )
 
 // REVERT COMMANDS
@@ -181,7 +200,19 @@ func TestStateTransitions(t *testing.T) {
 		getRunCmdCommand(sam, umountTemp).Return("", nil),
 		getRunCmdCommand(sam, deleteTemp).Return("", nil),
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
-		getRestartCommand(sam).Return(nil),
+		getRunCmdCommand(sam, absMkTemp).Return(wsTmp, nil),
+		getRunCmdCommand(sam, create512MibZero).Return("", nil),
+		getRunCmdCommand(sam, mkfsExt4).Return("", nil),
+		getRunCmdCommand(sam, mkMnt).Return("", nil),
+		getRunCmdCommand(sam, mountFsToMnt).Return("", nil),
+		getRunCmdCommand(sam, markFsFastWipe).Return("", nil),
+		getRunCmdCommand(sam, umountMnt).Return("", nil),
+		getRunCmdCommand(sam, freezeStateful).Return("", nil),
+		getRunCmdCommand(sam, hackStateful).Return("", nil),
+		getRunCmdCommand(sam, bootIdCheck).Return("rand-foo", nil),
+		getRunCmdCommand(sam, sysrqTrigger).Return("", nil),
+		getForceReconnectWithBackoffCommand(sam).Return(nil),
+		getRunCmdCommand(sam, bootIdCheck).Return("rand-bar", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -215,8 +246,6 @@ func TestStateTransitions(t *testing.T) {
 		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
 		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getRunCmdCommand(sam, cgptStickyCheck).Return("1", nil),
-		getRunCmdCommand(sam, echoFastKeepImg).Return("", nil),
-		getRestartCommand(sam).Return(nil),
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
 		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
@@ -347,7 +376,19 @@ func TestMismatchPostInstall(t *testing.T) {
 		getRunCmdCommand(sam, umountTemp).Return("", nil),
 		getRunCmdCommand(sam, deleteTemp).Return("", nil),
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
-		getRestartCommand(sam).Return(nil),
+		getRunCmdCommand(sam, absMkTemp).Return(wsTmp, nil),
+		getRunCmdCommand(sam, create512MibZero).Return("", nil),
+		getRunCmdCommand(sam, mkfsExt4).Return("", nil),
+		getRunCmdCommand(sam, mkMnt).Return("", nil),
+		getRunCmdCommand(sam, mountFsToMnt).Return("", nil),
+		getRunCmdCommand(sam, markFsFastWipe).Return("", nil),
+		getRunCmdCommand(sam, umountMnt).Return("", nil),
+		getRunCmdCommand(sam, freezeStateful).Return("", nil),
+		getRunCmdCommand(sam, hackStateful).Return("", nil),
+		getRunCmdCommand(sam, bootIdCheck).Return("rand-foo", nil),
+		getRunCmdCommand(sam, sysrqTrigger).Return("", nil),
+		getForceReconnectWithBackoffCommand(sam).Return(nil),
+		getRunCmdCommand(sam, bootIdCheck).Return("rand-bar", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -381,8 +422,6 @@ func TestMismatchPostInstall(t *testing.T) {
 		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
 		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getRunCmdCommand(sam, cgptStickyCheck).Return("1", nil),
-		getRunCmdCommand(sam, echoFastKeepImg).Return("", nil),
-		getRestartCommand(sam).Return(nil),
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
 		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
@@ -1252,8 +1291,6 @@ func TestPostInstallOverwriteWhenSpecified(t *testing.T) {
 		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
 		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getRunCmdCommand(sam, cgptStickyCheck).Return("1", nil),
-		getRunCmdCommand(sam, echoFastKeepImg).Return("", nil),
-		getRestartCommand(sam).Return(nil),
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
 		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
@@ -1392,6 +1429,10 @@ func getPipeDataCommand(sam *mock_common_utils.MockServiceAdapterInterface, s Pi
 
 func getRunCmdCommand(sam *mock_common_utils.MockServiceAdapterInterface, s RunCommandStructure) *gomock.Call {
 	return sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq(s.Command), gomock.Eq(s.Args))
+}
+
+func getForceReconnectWithBackoffCommand(sam *mock_common_utils.MockServiceAdapterInterface) *gomock.Call {
+	return sam.EXPECT().ForceReconnectWithBackoff(gomock.Any())
 }
 
 func getRestartCommand(sam *mock_common_utils.MockServiceAdapterInterface) *gomock.Call {

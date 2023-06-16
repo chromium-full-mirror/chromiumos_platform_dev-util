@@ -154,3 +154,17 @@ func (mr *MockServiceAdapterInterfaceMockRecorder) RunCmd(ctx, cmd, args interfa
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunCmd", reflect.TypeOf((*MockServiceAdapterInterface)(nil).RunCmd), ctx, cmd, args)
 }
+
+// ForceReconnectWithBackoff mocks base method.
+func (m *MockServiceAdapterInterface) ForceReconnectWithBackoff(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ForceReconnectWithBackoff", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ForceReconnectWithBackoff indicates an expected call of ForceReconnectWithBackoff.
+func (mr *MockServiceAdapterInterfaceMockRecorder) ForceReconnectWithBackoff(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ForceReconnectWithBackoff", reflect.TypeOf((*MockServiceAdapterInterface)(nil).ForceReconnectWithBackoff), ctx)
+}

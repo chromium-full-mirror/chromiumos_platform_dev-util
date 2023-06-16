@@ -53,6 +53,8 @@ type ServiceAdapterInterface interface {
 	CreateDirectories(ctx context.Context, dirs []string) error
 	// FetchFile downloads a file from the DUT.
 	FetchFile(ctx context.Context, path string) (io.ReadCloser, error)
+	// ForceReconnectWithBackoff waits for the DUT to come back up/reconnect.
+	ForceReconnectWithBackoff(ctx context.Context) error
 }
 
 type execCmdResult struct {
@@ -289,5 +291,59 @@ func (s ServiceAdapter) CreateDirectories(ctx context.Context, dirs []string) er
 	if _, err := s.RunCmd(ctx, "mkdir", append([]string{"-p"}, dirs...)); err != nil {
 		return fmt.Errorf("could not create directory, %w", err)
 	}
+	return nil
+}
+
+// ForceReconnectWithBackoff is a thin wrapper around DUT service's ForceReconnectWithBackoff.
+func (s ServiceAdapter) ForceReconnectWithBackoff(ctx context.Context) error {
+	log.Printf("<cros-provision>: ServiceAdaptor: ForceReconnectWithBackoff Start")
+
+	ctx, cancel := context.WithTimeout(ctx, 500*time.Second)
+	defer cancel()
+
+	expDelay := 1
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("could not force reconnect with backoff")
+		default:
+			f := func() error {
+				op, err := s.dutClient.ForceReconnect(ctx, &api.ForceReconnectRequest{})
+				if err != nil {
+					log.Printf("<cros-provision>: ServiceAdaptor: ForceReconnectWithBackoff ERROR %s", err)
+					return err
+				}
+
+				for !op.Done {
+					log.Printf("<cros-provision>: ServiceAdaptor: ForceReconnectWithBackoff !op.Done")
+					time.Sleep(1 * time.Second)
+				}
+
+				switch x := op.Result.(type) {
+				case *longrunning.Operation_Error:
+					log.Printf("<cros-provision>: ServiceAdaptor: ForceReconnectWithBackoff ignoring LRO ERROR %s", x.Error.Message)
+					return fmt.Errorf(x.Error.Message)
+				case *longrunning.Operation_Response:
+					log.Printf("<cros-provision>: ServiceAdaptor: ForceReconnectWithBackoff LRO RESPONSE")
+					return nil
+				default:
+					return fmt.Errorf("unknown longrunniong operation")
+				}
+			}
+			if err := f(); err == nil {
+				// Break out the loop now.
+				break loop
+			}
+		}
+		delay := expDelay
+		if delay < 16 {
+			expDelay = expDelay * 2
+		}
+		time.Sleep(time.Duration(delay) * time.Second)
+	}
+
+	log.Printf("<cros-provision>: ServiceAdaptor: ForceReconnectWithBackoff Success")
+
 	return nil
 }

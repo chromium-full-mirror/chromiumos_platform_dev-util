@@ -179,6 +179,10 @@ func (s LocalDutServiceAdapter) DeleteDirectory(ctx context.Context, dir string)
 	return nil
 }
 
+func (s LocalDutServiceAdapter) ForceReconnectWithBackoff(ctx context.Context) error {
+	return errors.New("not implemented")
+}
+
 // downloadFile downloads a GCP object.
 func downloadFile(ctx context.Context, object string, destFileName string) error {
 	client, err := storage.NewClient(ctx)
