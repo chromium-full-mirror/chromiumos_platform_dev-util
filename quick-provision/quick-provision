@@ -58,6 +58,13 @@ info() {
   echo "$(date --rfc-3339=seconds) INFO: ${line}"
 }
 
+# Log a warning line.
+warning() {
+  local line="$*"
+
+  echo "$(date --rfc-3339=seconds) WARNING: ${line}" >&2
+}
+
 # Log an error line.
 error() {
   local line="$*"
@@ -358,6 +365,7 @@ main() {
   ) 9>"${LOCKFILE}"
 }
 
+warning "This script is deprecated and will be removed. (b/266866912)"
 main "$@" |& tee -a "${FLAGS_logfile}"
 
 # Return the exit status of the main function.
