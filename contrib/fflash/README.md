@@ -66,6 +66,10 @@ fflash ${dut_host} -R104  # flash latest R104
 fflash ${dut_host} -R104-14911.0.0  # flash 104-14911.0.0
 fflash ${dut_host} --board=cherry64 -R104  # flash latest R104 for board cherry64
 fflash ${dut_host} --gs=gs://chromeos-image-archive/cherry-release/R104-14911.0.0  # flash specified gs:// directory
+fflash ${dut_host} --postsubmit  # flash a recent postsubmit build
+fflash ${dut_host} --postsubmit -R115  # flash a R115 postsubmit build
+fflash ${dut_host} --postsubmit -R115-15474.0.0-82578-  # flash the snapshot 82578
+fflash ${dut_host} --dry-run  # print what would be flashed without actually flashing
 fflash --help
 ```
 

@@ -6,9 +6,11 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"net/url"
 	"path"
 	"regexp"
@@ -239,6 +241,108 @@ func GetLatestVersion(ctx context.Context, c *storage.Client, board string) (str
 	return getLatestVersionForLATEST(ctx, c, board, "LATEST-main", false)
 }
 
+type postsubmitID struct {
+	milestone   int
+	build       int
+	snapshot    int
+	buildbucket *big.Int
+}
+
+var postsubmitIDRegexp = regexp.MustCompile(`^R(\d+)-(\d+).0.0-(\d+)-(\d+)$`)
+
+func parsePostsubmitID(s string) (postsubmitID, error) {
+	m := postsubmitIDRegexp.FindStringSubmatch(s)
+	if m == nil {
+		return postsubmitID{}, errors.New("bad format")
+	}
+	var id postsubmitID
+	var err error
+	if id.milestone, err = strconv.Atoi(m[1]); err != nil {
+		return postsubmitID{}, fmt.Errorf("bad milestone %q", m[1])
+	}
+	if id.build, err = strconv.Atoi(m[2]); err != nil {
+		return postsubmitID{}, fmt.Errorf("bad build %q", m[2])
+	}
+	if id.snapshot, err = strconv.Atoi(m[3]); err != nil {
+		return postsubmitID{}, fmt.Errorf("bad snapshot %q", m[3])
+	}
+	if val, ok := new(big.Int).SetString(m[4], 10); !ok {
+		return postsubmitID{}, fmt.Errorf("bad buildbucket %q", m[4])
+	} else {
+		id.buildbucket = val
+	}
+	return id, nil
+}
+
+func (a postsubmitID) less(b postsubmitID) bool {
+	if a.milestone != b.milestone {
+		return a.milestone < b.milestone
+	}
+	if a.build != b.build {
+		return a.build < b.build
+	}
+	if a.snapshot != b.snapshot {
+		return a.snapshot < b.snapshot
+	}
+	return a.buildbucket.Cmp(b.buildbucket) == -1
+}
+
+func (pid postsubmitID) String() string {
+	return fmt.Sprintf("R%d-%d.0.0-%d-%s", pid.milestone, pid.build, pid.snapshot, pid.buildbucket)
+}
+
+// Given a version hint, try to find a postsubmit build.
+// For postsubmit images, see also:
+// https://docs.google.com/presentation/d/1IynhrQMDtH3dAjXJD3Aheb4ZTYveVwBAEPgf6TgKzUs/edit?resourcekey=0-epY9CwLiU9zLv4E3dDs0FA#slide=id.g150f95639fd_0_70
+func findPostsubmitAroundVersion(ctx context.Context, c *storage.Client, board string, versionOrPrefix string) (targetBucket string, targetDirectory string, err error) {
+	var tryVersions []string
+	if v, err := parseVersion(versionOrPrefix); err != nil {
+		log.Println("Looking for postsubmit builds with prefix", versionOrPrefix)
+		tryVersions = []string{versionOrPrefix}
+	} else {
+		log.Println("Looking for postsubmit builds around", v)
+		tryVersions = []string{
+			version{v.r, v.x, 0, 0}.String(),
+			// Also try one release build before.
+			version{v.r, v.x - 1, 0, 0}.String(),
+		}
+	}
+
+	for _, v := range tryVersions {
+		q := &storage.Query{
+			Delimiter: "/",
+			Prefix:    fmt.Sprintf("%s-postsubmit/%s", board, v),
+		}
+		objects, err := queryPrefix(ctx, c, q)
+		if err != nil {
+			return "", "", fmt.Errorf("cannot get snapshots available for %s: %w", v, err)
+		}
+		var postsubmits []postsubmitID
+		for _, obj := range objects {
+			basename := path.Base(obj.Prefix)
+			pid, err := parsePostsubmitID(basename)
+			if err != nil {
+				return "", "", fmt.Errorf("cannot parse %q as postsubmit ID: %w", basename, err)
+			}
+			postsubmits = append(postsubmits, pid)
+		}
+		slices.SortFunc(postsubmits, func(a, b postsubmitID) bool { return b.less(a) })
+		for _, pid := range postsubmits {
+			// Verify that the flash payload actually exist.
+			req := dut.Request{
+				Bucket:    "chromeos-image-archive",
+				Directory: fmt.Sprintf("%s-postsubmit/%s", board, pid),
+			}
+			if err := req.Check(ctx, c); err != nil {
+				log.Printf("%s not valid: %s", pid, err)
+				continue
+			}
+			return req.Bucket, req.Directory, nil
+		}
+	}
+	return "", "", errors.New("no valid postsubmit build found")
+}
+
 func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *Options) (targetBucket string, targetDirectory string, err error) {
 	if opts.GS != "" {
 		url, err := url.Parse(opts.GS)
@@ -250,11 +354,23 @@ func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *
 
 	var gsVersion string
 	if opts.VersionString != "" {
-		gsVersion, err = GetLatestVersionWithPrefix(ctx, c, board, opts.VersionString)
+		if opts.Postsubmit {
+			// Don't resolve the version and let findPostsubmitAroundVersion() handle it.
+			gsVersion = opts.VersionString
+		} else {
+			gsVersion, err = GetLatestVersionWithPrefix(ctx, c, board, opts.VersionString)
+		}
 	} else if opts.MilestoneNum != 0 {
 		gsVersion, err = GetLatestVersionForMilestone(ctx, c, board, opts.MilestoneNum)
 	} else {
 		gsVersion, err = GetLatestVersion(ctx, c, board)
+	}
+	if err != nil {
+		return "", "", err
+	}
+
+	if opts.Postsubmit {
+		return findPostsubmitAroundVersion(ctx, c, board, gsVersion)
 	}
 
 	return "chromeos-image-archive", fmt.Sprintf("%s-release/%s", board, gsVersion), err
