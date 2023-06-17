@@ -34,6 +34,7 @@ Options:
 ```
 
 ## Key Directories
+
 `btpeer_manager` relies on your chromiumos source directory to identify its
 source directory and the chameleond source directory. It assumes your
 chromiumos source directory is located at `~/chromiumos`, but you can use a
@@ -52,3 +53,96 @@ different directory by passing it with the `--chromiumos_src_dir` flag.
        * `/bin` - Stores the CLI executable (generated once built)
        * `/pkg` - Download golang package dependencies (generated on build)
        * `/src` - CLI source code
+
+## Usage
+
+Below are different usage examples highlighting how `btpeer_manager` is meant
+to be used. All usage is meant to be preformed outside your chroot on your main
+system and probably will not all work from within it. Logs are printed to
+stdout in most cases to highlight important actions and decisions made by the tool.
+
+For ease of reference, copies of CLI help text is included for the different
+command sections.
+
+Note: The help and log output may differ in your usage since they are contextual
+and the README may be slightly out of sync with the latest changes, but it should
+match for the most part. You can always check what commands and flags are
+available to your installed version with the `--help` flag.
+
+```text
+$ btpeer_manager --help
+Utility for managing btpeers
+
+Usage:
+  btpeer_manager [command]
+
+Available Commands:
+  chameleond  Commands related to managing chameleond on btpeers
+  clean       Deletes temporary/build files created by btpeer_manager.
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+
+Flags:
+      --chromiumos_src_dir string   Path to local chromiumos source directory (default "/usr/local/google/home/jaredbennett/chromiumos")
+  -h, --help                        help for btpeer_manager
+  -v, --version                     version for btpeer_manager
+      --working_dir string          Path to base working directory create build directory (defaults to btpeer_manager source dir)
+
+Use "btpeer_manager [command] --help" for more information about a command.
+```
+
+### `btpeer_manager chameleond`
+
+```text
+$ btpeer_manager chameleond --help
+Commands related to managing chameleond on btpeers
+
+Usage:
+  btpeer_manager chameleond [command]
+
+Available Commands:
+  make        Builds chameleond in your chroot and prepares bundle for btpeer distribution
+
+Flags:
+  -h, --help   help for chameleond
+
+Global Flags:
+      --chromiumos_src_dir string   Path to local chromiumos source directory (default "/usr/local/google/home/jaredbennett/chromiumos")
+      --working_dir string          Path to base working directory create build directory (defaults to btpeer_manager source dir)
+
+Use "btpeer_manager chameleond [command] --help" for more information about a command.
+```
+
+#### `btpeer_manager chameleond make`
+
+```text
+$ btpeer_manager chameleond make
+16:59:54.388707 Running "make clean" from within chroot in chameleon source dir "/usr/local/google/home/jaredbennett/chromiumos/src/platform/chameleon"
+cat: /etc/hostname: No such file or directory
+cat: /etc/hostname: No such file or directory
+16:59:55.644385 Running "make" from within chroot in chameleon source dir "/usr/local/google/home/jaredbennett/chromiumos/src/platform/chameleon"
+cat: /etc/hostname: No such file or directory
+cat: /etc/hostname: No such file or directory
+armv7a-cros-linux-gnueabihf-gcc -g -Wall -O2 -static -Iinclude -c src/histogram.c -o bin/histogram.o
+armv7a-cros-linux-gnueabihf-gcc -g -Wall -O2 -static -Iinclude -o bin/histogram bin/histogram.o
+armv7a-cros-linux-gnueabihf-gcc -g -Wall -O2 -static -Iinclude -c src/hpd_control.c -o bin/hpd_control.o
+...(many lines of logs from chameleond make)...
+copying v3/v4l-mjpeg-server/server.c -> chameleond-0.0.2/v3/v4l-mjpeg-server
+Writing chameleond-0.0.2/setup.cfg
+Creating tar archive
+removing 'chameleond-0.0.2' (and everything under it)
+rm bin/pixeldump.o bin/printer.o bin/avsync.o bin/hpd_control.o bin/histogram.o
+17:00:09.568961 Searching for built bundle files in "/usr/local/google/home/jaredbennett/chromiumos/src/platform/chameleon/dist"
+17:00:09.569076 Found chameleond bundle archive "/usr/local/google/home/jaredbennett/chromiumos/src/platform/chameleon/dist/chameleond-0.0.2.tar.gz"
+17:00:09.569089 Found chameleond commit file "/usr/local/google/home/jaredbennett/chromiumos/src/platform/chameleon/dist/commit"
+17:00:09.569094 Reading chameleond commit from chameleond commit file "/usr/local/google/home/jaredbennett/chromiumos/src/platform/chameleon/dist/commit"
+17:00:09.569138 Read chameleond commit as "cf50534"
+17:00:09.569142 Preparing bundle archive for distribution
+17:00:09.616519 New btpeer chameleond bundle archive "chameleond-0.0.2-cf50534.tar.gz" ready for distribution at "/usr/local/google/home/jaredbennett/chromiumos/src/platform/dev/contrib/btpeer_manager/build/bundles/chameleond-0.0.2-cf50534.tar.gz"
+```
+
+Note: If you haven't entered your chroot recently (or more specifically,
+used `sudo` recently), it will prompt your for your sudo password. This isn't
+done by `btpeer_manager`, but by `cros_sdk` like usual since it uses that to
+preform the operations in your chroot. Your stdin is piped `cros_sdk` to allow
+this you to still enter it.

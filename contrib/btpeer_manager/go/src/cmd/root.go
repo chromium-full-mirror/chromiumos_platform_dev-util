@@ -10,6 +10,7 @@ import (
 	"path"
 
 	"github.com/spf13/cobra"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/cmd/chameleond"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/dirs"
 )
 
@@ -61,7 +62,10 @@ func RootCmd() (*cobra.Command, error) {
 		"Path to base working directory create build directory (defaults to btpeer_manager source dir)",
 	)
 
-	cmd.AddCommand(cleanCmd(dirContext))
+	cmd.AddCommand(
+		cleanCmd(dirContext),
+		chameleond.RootCmd(dirContext),
+	)
 
 	return cmd, nil
 }
