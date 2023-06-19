@@ -194,7 +194,6 @@ def status_fix_cl(
                 for s, in cloudsql_interface.get_fixedby_upstream_shas(
                     db, row["table"], row["kernel_sha"], row["branch"]
                 ):
-                    print(s)
                     title = cloudsql_interface.get_commit_title(
                         db, "linux_upstream", s
                     )
