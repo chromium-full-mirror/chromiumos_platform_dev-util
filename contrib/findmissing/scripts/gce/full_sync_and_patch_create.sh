@@ -8,6 +8,7 @@
 FINDMISSING_DIR="${HOME}/findmissing_workspace/findmissing"
 LOG_FILE="/var/log/findmissing/findmissing.log"
 LAST_RUN="/tmp/synchronize-lastrun"
+RUNNING="/tmp/synchronize-running"
 
 cd "${FINDMISSING_DIR}" || exit
 
@@ -34,6 +35,8 @@ echo "${day}" > "${LAST_RUN}"
 
 {
     echo "Triggered full synchronization at $(date)"
+    touch "${RUNNING}"
     env/bin/python3 -c "import main; main.synchronize_and_create_patches(${create})"
+    rm "${RUNNING}"
     echo "End of full synchronization at $(date)"
 } >> "${LOG_FILE}" 2>&1

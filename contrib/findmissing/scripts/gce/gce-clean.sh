@@ -8,8 +8,14 @@
 KERNEL_REPOS_DIR="${HOME}/findmissing_workspace/kernel_repositories"
 LINUX_CHROME="${KERNEL_REPOS_DIR}/linux_chrome"
 LOG_FILE="/var/log/findmissing/findmissing.log"
+RUNNING="/tmp/synchronize-running"
 
 {
+    if [ -e "${RUNNING}" ]; then
+        echo "Synchronization is running, abort clean"
+        exit 0
+    fi
+
     echo "Triggered clean at $(date)"
     git -C "${LINUX_CHROME}" reflog expire --all --stale-fix
     git -C "${LINUX_CHROME}" prune --expire=now --progress
