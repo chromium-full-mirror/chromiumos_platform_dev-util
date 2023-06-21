@@ -10,6 +10,11 @@ class GCloudBuildException(Exception):
 
     pass  # pylint: disable=unnecessary-pass
 
+class BuildNotValidatedException(Exception):
+    """Raised when the build can not be validated as completed."""
+
+    pass  # pylint: disable=unnecessary-pass
+
 
 class NotDirectoryException(Exception):
     """Raised when a file is found but is not a directory."""

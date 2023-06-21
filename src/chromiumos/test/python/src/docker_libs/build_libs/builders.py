@@ -407,27 +407,24 @@ class LocalDockerBuilder(DockerBuilder):
 
     def sha_from_docker_out(self, tag: str):
         """Get the sha from the built docker image."""
-        full_sha = getoutput(
+        output = getoutput(
             f'docker inspect --format="{{{{index .RepoDigests 0}}}}" {tag}'
         )
-        if "@sha256" not in full_sha:
-            raise Exception(f"sha not found from repo digest {full_sha}")
+        if "@sha256" not in output:
+            raise BuildNotValidatedException(
+                f"sha not found from repo digest: {output}")
 
         # If the @sha256 sign is found, split on the @, return just the sha.
-        # Example: full_sha = image_path@sha256:<some_long_sha>
+        # Example: output = image_path@sha256:<some_long_sha>
         # splits into ['image_path', 'sha256:<some_long_sha>'],
         # return just the "sha256 section"
-        return full_sha.split("@")[-1]
+        return output.split("@")[-1]
 
     def upload_image(self):
         """Upload the build image to the repo. Must be called after build."""
         self.auth_gcloud()
         run(f"docker push --all-tags {self.image_path}")
-        sha = ""
-        try:
-            sha = self.sha_from_docker_out(f"{self.image_path}:{self.tags[0]}")
-        except Exception as e:
-            print(f'Error finding sha, will continue without: {e}')
+        sha = self.sha_from_docker_out(f"{self.image_path}:{self.tags[0]}")
         self.write_outfile(sha)
 
     def build(self):
