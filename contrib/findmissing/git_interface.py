@@ -233,9 +233,12 @@ class commitHandler:
             self.commit_list[kernel] = {}
 
         current_branch_cmd = ["symbolic-ref", "-q", "--short", "HEAD"]
-        self.current_branch = self.__git_check_output(
-            current_branch_cmd
-        ).rstrip()
+        try:
+            self.current_branch = self.__git_check_output(
+                current_branch_cmd
+            ).rstrip()
+        except subprocess.CalledProcessError:
+            self.__reset_head()
 
     def __base_tag(self):
         """Return base tag for selected branch
@@ -268,11 +271,26 @@ class commitHandler:
 
     def __reset_hard_head(self):
         """Force hard reset to git head in checked out branch"""
-        self.__reset_hard_ref("HEAD")
+        try:
+            self.__reset_hard_ref("HEAD")
+        except subprocess.CalledProcessError:
+            self.__reset_head()
 
     def __reset_hard_origin(self):
         """Force hard reset to head of remote branch"""
         self.__reset_hard_ref("origin/%s" % self.branchname)
+
+    def __reset_head(self):
+        """Reset HEAD to one of the known good states."""
+        branch = ["branch", "-q", "-f", self.branchname, "origin/%s" % self.branchname]
+        checkout = ["checkout", "-q", "-f", self.branchname]
+        clean_untracked = ["clean", "-d", "-x", "-f", "-q"]
+
+        self.__git_run(branch)
+        self.__git_run(checkout)
+        self.__git_run(clean_untracked)
+
+        self.current_branch = self.branchname
 
     def __checkout_and_clean(self):
         """Clean up uncommitted files in branch and checkout to be up to date with origin."""
