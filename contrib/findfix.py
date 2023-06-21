@@ -34,9 +34,8 @@ CHROMEOS_URLS = [
 
 BRANCHES = ('6.1', '5.15', '5.10', '5.4', '4.19', '4.14')
 
-CHROMEOS_RELEASE_BRANCHES = ('R108-15183.B', 'R112-15359.B',
-                             'R113-15393.B', 'R114-15437.B',
-                             'R115-15474.B')
+CHROMEOS_RELEASE_BRANCHES = ('R108-15183.B', 'R114-15437.B',
+                             'R115-15474.B', 'R116-15509.B')
 
 def _git(args, stdin=None, encoding='utf-8'):
     """Calls a git subcommand.
