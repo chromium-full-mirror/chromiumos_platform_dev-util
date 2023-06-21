@@ -7,6 +7,7 @@
 package dirs
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -21,6 +22,14 @@ const defaultWorkingDirPath = "/tmp/btpeer_manager"
 type DirContext struct {
 	Working *WorkingDirectory
 	Src     *SrcDirectory
+}
+
+func (dc *DirContext) String() string {
+	dcJSON, err := json.MarshalIndent(dc, "", "  ")
+	if err != nil {
+		panic("failed to marshal DirContext to JSON: " + err.Error())
+	}
+	return string(dcJSON)
 }
 
 // WorkingDirectory defines related working directories and provides functions

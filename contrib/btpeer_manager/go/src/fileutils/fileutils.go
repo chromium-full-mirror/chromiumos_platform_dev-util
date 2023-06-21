@@ -11,6 +11,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // CopyFile copies the file or directory at srcFilePath to dstPath. If dstPath
@@ -36,4 +40,38 @@ func ReadFile(ctx context.Context, filePath string) ([]byte, error) {
 	}()
 	inFileReader := NewContextualReaderWrapper(ctx, inFile)
 	return io.ReadAll(inFileReader)
+}
+
+// MarshalPrettyJSON marshals the proto message into pretty, human-readable JSON.
+func MarshalPrettyJSON(m proto.Message) ([]byte, error) {
+	marshaller := protojson.MarshalOptions{
+		Multiline:       true,
+		Indent:          "  ",
+		EmitUnpopulated: true,
+	}
+	return marshaller.Marshal(m)
+}
+
+// WriteBytesToFile writes input bytes to file.
+// Directories in path are created if they do not exist.
+// Existing file contents are overwritten.
+func WriteBytesToFile(ctx context.Context, input []byte, outFilePath string) error {
+	outFileDir := path.Dir(outFilePath)
+	if outFileDir != "" {
+		if err := os.MkdirAll(outFileDir, os.FileMode(0777)); err != nil {
+			return fmt.Errorf("failed to make dirs for file %q: %w", outFilePath, err)
+		}
+	}
+	outFile, err := os.Create(outFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %q: %w", outFilePath, err)
+	}
+	defer func() {
+		_ = outFile.Close()
+	}()
+	outFileWriter := NewContextualWriterWrapper(ctx, outFile)
+	if _, err := outFileWriter.Write(input); err != nil {
+		return fmt.Errorf("failed to write to file %q: %w", outFilePath, err)
+	}
+	return nil
 }

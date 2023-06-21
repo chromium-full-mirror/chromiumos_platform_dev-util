@@ -6,10 +6,11 @@ package chameleond
 
 import (
 	"github.com/spf13/cobra"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/cmd/chameleond/release"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/dirs"
 )
 
-func RootCmd(dirContext *dirs.DirContext) *cobra.Command {
+func RootCmd(dirContext *dirs.DirContext, initDirContext func() error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "chameleond",
 		Short: "Commands related to managing chameleond on btpeers",
@@ -17,6 +18,8 @@ func RootCmd(dirContext *dirs.DirContext) *cobra.Command {
 	}
 	cmd.AddCommand(
 		makeCmd(dirContext),
+		release.RootCmd(dirContext, initDirContext),
 	)
+
 	return cmd
 }
