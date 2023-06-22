@@ -8,9 +8,6 @@ import os
 import shutil
 import sys
 
-from src.common.utils import (
-    run,  # pylint: disable=import-error,wrong-import-position
-)
 from src.docker_libs.build_libs.shared.common_artifact_prep import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
     CrosArtifactPrep,
 )
@@ -63,8 +60,16 @@ class CrosPublishArtifactPrep(CrosArtifactPrep):
         # Download the required packages
         self.install_cipd_package()
         self.cipd_init()
-        self.install_result_adapter_package()
-        self.install_rdb_package()
+        self.cipd_install(
+            package="infra/tools/result_adapter/linux-amd64",
+            ref="prod",
+            json_output_file="result_adapter_cipd_metadata.json",
+        )
+        self.cipd_install(
+            package="infra/tools/rdb/linux-amd64",
+            ref="latest",
+            json_output_file="rdb_cipd_metadata.json",
+        )
 
     def untar(self):
         """Untar the package prior to depl."""
@@ -100,75 +105,6 @@ class CrosPublishArtifactPrep(CrosArtifactPrep):
     def remove_tarball(self):
         """Remove the autotest tarball post untaring."""
         os.system(f"rm -r {self.full_out}/autotest_server_package.tar.bz2")
-
-    def install_cipd_package(self):
-        """Install and unzip cipd package."""
-        cipd_package_loc = "https://chrome-infra-packages.appspot.com/dl/infra/tools/cipd/linux-amd64/+/latest"
-        downloaded_zip_name = "cipdzip.zip"
-        out, err, code = run(
-            f"wget -O {self.full_out}/{downloaded_zip_name} {cipd_package_loc}"
-        )
-        if out != "":
-            print(out)
-        if err != "":
-            print(err)
-        if code != 0:
-            print("downloading cipd package failed")
-
-        out, err, code = run(
-            f"unzip -o {self.full_out}/{downloaded_zip_name} -d {self.full_out}/"
-        )
-        if out != "":
-            print(out)
-        if err != "":
-            print(err)
-        if code != 0:
-            print("unzipping cipd package failed")
-
-    def cipd_init(self):
-        """Initialize Cipd."""
-
-        out, err, code = run(
-            f"{self.full_out}/cipd init -verbose -force {self.full_out}"
-        )
-        if out != "":
-            print(out)
-        if err != "":
-            print(err)
-        if code != 0:
-            print("Initializing cipd failed")
-
-    def install_result_adapter_package(self):
-        """Install result_adapter package using cipd."""
-        result_adapter_package = "infra/tools/result_adapter/linux-amd64"
-        result_adapter_version = "prod"
-        output_loc = f"{self.full_out}/result_adapter_cipd_metadata.json"
-
-        out, err, code = run(
-            f"{self.full_out}/cipd install {result_adapter_package} {result_adapter_version} -root {self.full_out} -json-output {output_loc}"
-        )
-        if out != "":
-            print(out)
-        if err != "":
-            print(err)
-        if code != 0:
-            print("downloading result_adapter package failed")
-
-    def install_rdb_package(self):
-        """Install rdb package using cipd."""
-        result_adapter_package = "infra/tools/rdb/linux-amd64"
-        result_adapter_version = "latest"
-        output_loc = f"{self.full_out}/rdb_cipd_metadata.json"
-
-        out, err, code = run(
-            f"{self.full_out}/cipd install {result_adapter_package} {result_adapter_version} -root {self.full_out} -json-output {output_loc}"
-        )
-        if out != "":
-            print(out)
-        if err != "":
-            print(err)
-        if code != 0:
-            print("downloading rdb package failed")
 
     def copy_cpcon_upload(self):
         """Copy upload_results for CPCon upload"""

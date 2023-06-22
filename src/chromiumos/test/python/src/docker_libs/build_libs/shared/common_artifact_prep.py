@@ -14,6 +14,9 @@ from src.common.exceptions import (  # noqa: E402 pylint: disable=import-error,w
     ConfigError,
 )
 from src.common.exceptions import NotDirectoryException
+from src.common.utils import (
+    run,  # pylint: disable=import-error,wrong-import-position
+)
 
 from chromite.lib import path_util
 
@@ -106,9 +109,13 @@ class CrosArtifactPrep:
     def copy_service(self):
         """Copy service needed for Docker."""
         if self.service == "cros-test-cq-light":
-            shutil.copy(os.path.join(self.chroot_bin, "cros-test"), self.full_out)
+            shutil.copy(
+                os.path.join(self.chroot_bin, "cros-test"), self.full_out
+            )
         else:
-            shutil.copy(os.path.join(self.chroot_bin, self.service), self.full_out)
+            shutil.copy(
+                os.path.join(self.chroot_bin, self.service), self.full_out
+            )
 
     def copy_custom_service(self, service_name):
         """Copy custom service needed for Docker."""
@@ -124,10 +131,11 @@ class CrosArtifactPrep:
         )
 
     def copy_dockercontext(self):
-        """Copy Docker Context needed to build the container to the output dir."""
+        """Copy Docker Context to the output dir."""
 
         # TODO, dbeckett@: this is a hardcode back up to the execution dir
-        # I need to figure out a better way to do this, but nothing comes to mind.
+        # I need to figure out a better way to do this, but nothing comes
+        # to mind.
         cwd = os.path.dirname(os.path.abspath(__file__))
         src = os.path.join(
             cwd, "../../../../../", f"dockerfiles/{self.service}/"
@@ -186,6 +194,66 @@ class CrosArtifactPrep:
         if not os.path.exists(ssh_keys):
             return
         shutil.copy(ssh_keys, os.path.join(self.full_out, "ssh"))
+
+    def install_cipd_package(self):
+        """Install and unzip cipd package."""
+        cipd_package_loc = (
+            "https://chrome-infra-packages.appspot.com"
+            "/dl/infra/tools/cipd/linux-amd64/+/latest"
+        )
+        downloaded_zip_name = "cipdzip.zip"
+        out, err, code = run(
+            f"wget -O {self.full_out}/{downloaded_zip_name} {cipd_package_loc}"
+        )
+        if out != "":
+            print(out)
+        if err != "":
+            print(err)
+        if code != 0:
+            print("downloading cipd package failed")
+
+        unzip_cmd = (
+            f"unzip -o {self.full_out}/{downloaded_zip_name}"
+            f" -d {self.full_out}/"
+        )
+        out, err, code = run(unzip_cmd)
+        if out != "":
+            print(out)
+        if err != "":
+            print(err)
+        if code != 0:
+            print("unzipping cipd package failed")
+
+    def cipd_init(self):
+        """Initialize Cipd."""
+
+        out, err, code = run(
+            f"{self.full_out}/cipd init -verbose -force {self.full_out}"
+        )
+        if out != "":
+            print(out)
+        if err != "":
+            print(err)
+        if code != 0:
+            print("Initializing cipd failed")
+
+    def cipd_install(self, package, ref, json_output_file=None):
+        """Install package using cipd."""
+        install_cmd = (
+            f"{self.full_out}/cipd install {package} {ref}"
+            f" -root {self.full_out}"
+        )
+        if json_output_file:
+            output_loc = f"{self.full_out}/{json_output_file}"
+            install_cmd = f"{install_cmd} -json-output {output_loc}"
+
+        out, err, code = run(install_cmd)
+        if out != "":
+            print(out)
+        if err != "":
+            print(err)
+        if code != 0:
+            print(f"downloading {package} package failed")
 
 
 def FromSysrootPath(sysroot: str, file: str):
