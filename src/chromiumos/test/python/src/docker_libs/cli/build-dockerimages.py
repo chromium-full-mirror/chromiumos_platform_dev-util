@@ -40,6 +40,9 @@ from src.docker_libs.build_libs.cros_fw_provision.cros_fw_provision_prep import 
 from src.docker_libs.build_libs.cros_publish.cros_publish_prep import (
     CrosPublishDockerPrepper,
 )
+from src.docker_libs.build_libs.cros_pvs.cros_pvs_prep import (
+    CrosPvsDockerPrepper,
+)
 from src.docker_libs.build_libs.cros_servod.cros_servod_prep import (
     CrosServodDockerPrepper,
 )
@@ -83,6 +86,7 @@ REGISTERED_BUILDS = {
     },
     "cros-servod": {"prepper": CrosServodDockerPrepper, "cloud": False},
     "cros-publish": {"prepper": CrosPublishDockerPrepper, "cloud": False},
+    "cros-pvs": {"prepper": CrosPvsDockerPrepper, "cloud": True},
     "pre-process": {"prepper": PreProcessDockerPrepper, "cloud": False},
     "vm-provision": {"prepper": CommonServiceDockerPrepper, "cloud": False},
 }
@@ -96,7 +100,9 @@ RETRIES_WAIT = 31
 DO_NOT_BUILD = set(["cros-callbox", "cros-servod", "cros-fw-provision"])
 # NOTE: when promoting a service from DO_NOT_BUILD, it should be added to
 # NON_CRITICAL for atleast a short time to verify health.
-NON_CRITICAL = set(["cros-servod", "cros-publish", "android-provision"])
+NON_CRITICAL = set(
+    ["cros-servod", "cros-publish", "android-provision", "cros-pvs"]
+)
 
 
 def parse_local_arguments() -> argparse.Namespace:
@@ -209,24 +215,24 @@ def build_image(args: argparse.Namespace, service: str, output: str) -> bool:
         )
         sys.exit(1)
 
-    prepperlib = info["prepper"]
-    prepper = prepperlib(
-        chroot=args.chroot,
-        out_path=args.out_dir,
-        sysroot=args.sysroot,
-        tags=args.tags,
-        labels=args.labels,
-        service=service,
-    )
-
-    prepper.prep_container()
-    gcloud_build = isCloudBuild(args, info)
-    if gcloud_build:
-        prepper.build_yaml()
-
-    builder = GcloudDockerBuilder if gcloud_build else LocalDockerBuilder
-    err = False
     try:
+        prepperlib = info["prepper"]
+        prepper = prepperlib(
+            chroot=args.chroot,
+            out_path=args.out_dir,
+            sysroot=args.sysroot,
+            tags=args.tags,
+            labels=args.labels,
+            service=service,
+        )
+
+        prepper.prep_container()
+        gcloud_build = isCloudBuild(args, info)
+        if gcloud_build:
+            prepper.build_yaml()
+
+        builder = GcloudDockerBuilder if gcloud_build else LocalDockerBuilder
+        err = False
         b = builder(
             service=service,
             dockerfile=f"{prepper.full_out_dir}/Dockerfile",
