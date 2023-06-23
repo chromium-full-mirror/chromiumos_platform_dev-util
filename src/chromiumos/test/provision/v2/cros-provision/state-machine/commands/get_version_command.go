@@ -39,6 +39,7 @@ func (c *GetVersionCommand) Execute(log *log.Logger) error {
 		return fmt.Errorf("failed to get board, %s", err)
 	}
 
+	log.Printf("Retrieved version=%s", version)
 	c.cs.MachineMetadata.Version = version
 	log.Printf("RUNNING GetVersionCommand Success")
 
