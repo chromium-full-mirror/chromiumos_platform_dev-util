@@ -103,11 +103,13 @@ func (s ServiceAdapter) execCmd(ctx context.Context, cmd string, args []string, 
 	if err != nil {
 		log.Printf("<cros-provision> Run cmd FAILED: %s\n", err)
 		ch <- execCmdResult{response: "", err: fmt.Errorf("execution fail: %w", err)}
+		return
 	}
 	// Expecting single stream result
 	execCmdResponse, err := stream.Recv()
 	if err != nil {
 		ch <- execCmdResult{response: "", err: fmt.Errorf("execution single stream result: %w", err)}
+		return
 	}
 	log.Printf("Run cmd response: %s\n", execCmdResponse)
 	if execCmdResponse.ExitInfo.Status != 0 {
