@@ -138,6 +138,11 @@ class DockerBuilder:
         )
         print(out)
 
+        out = (getoutput(f'docker login -u oauth2accesstoken -p {token} '
+                        'us-docker.pkg.dev/cros-registry/test-services', log=False))
+        print(f"Docker Login step output: {out}")
+
+
     def write_outfile(self, digest: str):
         """Write the outfile with build info if outfile is given.
 
@@ -423,7 +428,11 @@ class LocalDockerBuilder(DockerBuilder):
     def upload_image(self):
         """Upload the build image to the repo. Must be called after build."""
         self.auth_gcloud()
-        run(f"docker push --all-tags {self.image_path}")
+        print(self.formatted_tags())
+        for t in self.tags:
+
+            print(f"docker push {self.image_path}:{t}")
+            run(f"docker push {self.image_path}:{t}")
         sha = self.sha_from_docker_out(f"{self.image_path}:{self.tags[0]}")
         self.write_outfile(sha)
 
