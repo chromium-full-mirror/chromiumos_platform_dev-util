@@ -11,6 +11,7 @@ LOG_FILE="/var/log/findmissing/findmissing.log"
 
 {
     echo "Triggered clean at $(date)"
+    git -C "${LINUX_CHROME}" reflog expire --all --stale-fix
     git -C "${LINUX_CHROME}" prune --expire=now --progress
     rm -f "${LINUX_CHROME}/.git/gc.log"
     echo "End of clean at $(date)"
