@@ -76,7 +76,7 @@ REGISTERED_BUILDS = {
         "cloud": False,
     },
     "cros-test": {"prepper": CrosTestDockerPrepper, "cloud": True},
-    "cros-test-cq-light": {"prepper": CrosTestDockerPrepper, "cloud": True},
+    "cros-test-cq-light": {"prepper": CrosTestDockerPrepper, "cloud": False},
     "cros-test-finder": {
         "prepper": CrosTestFinderDockerPrepper,
         "cloud": False,
@@ -93,7 +93,7 @@ REGISTERED_BUILDS = {
 BUILD_RETRIES = 1
 RETRIES_WAIT = 31
 # callbox is not used (and a bit heavy) so do not build until its needed.
-DO_NOT_BUILD = set(["cros-callbox"])
+DO_NOT_BUILD = set(["cros-callbox", "cros-servod", "cros-fw-provision"])
 # NOTE: when promoting a service from DO_NOT_BUILD, it should be added to
 # NON_CRITICAL for atleast a short time to verify health.
 NON_CRITICAL = set(["cros-servod", "cros-publish", "android-provision"])
