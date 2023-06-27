@@ -14,6 +14,7 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -43,9 +44,10 @@ func NewServer(vmleaserClient api.VMLeaserServiceClient, logger *log.Logger) (*g
 		}
 		conns = nil
 	}
-
 	api.RegisterGenericProvisionServiceServer(server, s)
 	longrunning.RegisterOperationsServer(server, s.manager)
+	reflection.Register(server)
+
 	return server, closer
 }
 

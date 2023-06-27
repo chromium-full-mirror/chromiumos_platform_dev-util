@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	common_utils "chromiumos/test/provision/v2/common-utils"
+	"chromiumos/test/util/portdiscovery"
 )
 
 const (
@@ -76,17 +77,24 @@ func startServer(d []string) int {
 
 	server, closer := NewServer(client, logger)
 	defer closer()
+
+	// Write port number to ~/.cftmeta for go/cft-port-discovery
+	err = portdiscovery.WriteServiceMetadata("vm-provision", l.Addr().String(), logger)
+	if err != nil {
+		logger.Println("Warning: error when writing to metadata file: ", err)
+	}
 	err = server.Serve(l)
 	if err != nil {
 		logger.Fatalln("Failed to initialize server: ", err)
 		return 2
 	}
+
 	return 0
 }
 
 func mainInternal(ctx context.Context) int {
 
-	return startServer(os.Args[2:])
+	return startServer(os.Args[1:])
 }
 
 func main() {
