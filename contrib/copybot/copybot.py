@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env vpython3
 # Copyright 2022 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -10,6 +10,30 @@ This script copies commits from one repo (the "upstream") to another
 
 Usage: copybot.py [options...] upstream_repo:branch downstream_repo:branch
 """
+
+# [VPYTHON:BEGIN]
+# python_version: "3.8"
+# wheel: <
+#   name: "infra/python/wheels/requests-py3"
+#   version: "version:2.31.0"
+# >
+# wheel: <
+#   name: "infra/python/wheels/certifi-py2_py3"
+#   version: "version:2020.11.8"
+# >
+# wheel: <
+#   name: "infra/python/wheels/idna-py2_py3"
+#   version: "version:2.8"
+# >
+# wheel: <
+#   name: "infra/python/wheels/charset_normalizer-py3"
+#   version: "version:2.0.4"
+# >
+# wheel: <
+#   name: "infra/python/wheels/urllib3-py2_py3"
+#   version: "version:1.26.6"
+# >
+# [VPYTHON:END]
 
 import argparse
 import contextlib
