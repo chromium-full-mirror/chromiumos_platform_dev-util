@@ -6,6 +6,7 @@ package main
 
 import (
 	"chromiumos/test/util/portdiscovery"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -17,6 +18,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -48,7 +50,7 @@ type HTTPHandlers struct {
 
 // InstantiateHandlers creates the caching layer, sets up the HTTP handlers,
 // and sets it so the cache gets destroyed on sigterm (i.e.: deletes files)
-func InstantiateHandlers(port int, cacheLocation string, timeout time.Duration) error {
+func InstantiateHandlers(ctx context.Context, port int, cacheLocation string, timeout time.Duration) error {
 	cache, err := MakeCache(cacheLocation, timeout)
 	if err != nil {
 		return fmt.Errorf("could not create cache, %w", err)
@@ -77,7 +79,8 @@ func InstantiateHandlers(port int, cacheLocation string, timeout time.Duration) 
 	http.HandleFunc(stagePrefix, h.stageHandler)
 	http.HandleFunc(checkHealthPrefix, h.checkHealthHandler)
 
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	config := &net.ListenConfig{Control: reusePort}
+	l, err := config.Listen(ctx, "tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return err
 	}
@@ -92,6 +95,12 @@ func InstantiateHandlers(port int, cacheLocation string, timeout time.Duration) 
 	}
 
 	return nil
+}
+
+func reusePort(network, address string, conn syscall.RawConn) error {
+	return conn.Control(func(descriptor uintptr) {
+		syscall.SetsockoptInt(int(descriptor), syscall.SOL_SOCKET, unix.SO_REUSEPORT, 1)
+	})
 }
 
 // cacheGSHandler handles the cache for GS

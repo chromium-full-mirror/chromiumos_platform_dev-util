@@ -5,6 +5,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -40,6 +41,7 @@ func newLogger(logFile *os.File) *log.Logger {
 
 func main() {
 	os.Exit(func() int {
+		ctx := context.Background()
 		flag.NewFlagSet("version", flag.ExitOnError)
 
 		port := flag.Int("port", 8080, "Port Caching Server will listen to.")
@@ -57,7 +59,7 @@ func main() {
 		logger.Println("Starting cacheservice")
 		log.SetOutput(logger.Writer())
 
-		if err := InstantiateHandlers(*port, *cacheLocation, time.Second*time.Duration(*timeout)); err != nil {
+		if err := InstantiateHandlers(ctx, *port, *cacheLocation, time.Second*time.Duration(*timeout)); err != nil {
 			log.Fatalln("failed to instantiate http handlers: ", err)
 		}
 
