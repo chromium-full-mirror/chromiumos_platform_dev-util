@@ -111,7 +111,7 @@ main() {
   if [[ "${FLAGS_kdmx}" -eq "${FLAGS_TRUE}" ]]; then
     if ! hash kdmx; then
       echo "Please build and put kdmx in your PATH first." >&2
-      echo "See https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/kernel-faq" >&2
+      echo "See https://chromium.googlesource.com/chromiumos/docs/+/HEAD/kernel_development.md" >&2
       exit 1
     fi
 
