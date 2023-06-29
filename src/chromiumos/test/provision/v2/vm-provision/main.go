@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	defaultRootPath  = "/tmp/test/vm-provision"
-	vmLeaserEndPoint = "staging.vmleaser.api.cr.dev:443"
+	defaultRootPath          = "/tmp/vm-provision"
+	vmLeaserEndPoint         = "staging.vmleaser.api.cr.dev:443"
+	defaultAuthTokenFilePath = "/tmp/vm-provision/authToken.txt"
 )
 
 // Version is the version info of this command. It is filled in during emerge.
@@ -33,9 +34,10 @@ var defaultPort = 8010
 
 type args struct {
 	// Common input params.
-	logPath string
-	version bool
-	port    int
+	logPath      string
+	version      bool
+	port         int
+	authFilePath string
 }
 
 // startServer is the entry point for running vm-provision in server mode.
@@ -46,17 +48,32 @@ func startServer(d []string) int {
 	fs := flag.NewFlagSet("Run vm-provision", flag.ExitOnError)
 	fs.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
 	fs.IntVar(&a.port, "port", defaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", defaultPort))
-
+	fs.StringVar(&a.authFilePath, "authFilePath", defaultAuthTokenFilePath, fmt.Sprintf("Path to auth token file. Default is %s", defaultAuthTokenFilePath))
 	fs.Parse(d)
 
+	// Configure log file
 	logFile, err := common_utils.CreateLogFile(a.logPath)
 	if err != nil {
 		log.Fatalln("Failed to create log file", err)
 		return 2
 	}
 	defer logFile.Close()
-
 	logger := common_utils.NewLogger(logFile)
+
+	// Read and validate auth token required by vm-provision
+	authTokenFilePath := defaultAuthTokenFilePath
+	if a.authFilePath != "" {
+		authTokenFilePath = a.authFilePath
+	}
+	token, err := readAuthToken(authTokenFilePath)
+	if err != nil {
+		logger.Fatalln("Failed to read auth token: ", err)
+		return 2
+	}
+	if token == "" {
+		logger.Fatalln("Aborting initialization as token is empty")
+		return 2
+	}
 
 	// Set up gRPC connection
 	conn, err := grpc.Dial(vmLeaserEndPoint, grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")))
@@ -73,9 +90,10 @@ func startServer(d []string) int {
 		logger.Fatalln("Failed to create a net listener: ", err)
 		return 2
 	}
+
 	logger.Println("Starting Service on port ", a.port)
 
-	server, closer := NewServer(client, logger)
+	server, closer := NewServer(client, logger, token)
 	defer closer()
 
 	// Write port number to ~/.cftmeta for go/cft-port-discovery

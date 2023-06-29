@@ -9,6 +9,7 @@ import (
 	"context"
 	"io/ioutil"
 	"log"
+	"strings"
 
 	"go.chromium.org/chromiumos/config/go/longrunning"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -18,23 +19,21 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-const (
-	authTokenFilePath = "./authToken.txt"
-)
-
 // VMLeaserServiceServer is implementation of vm_leaser.proto
 type VMLeaserServiceServer struct {
 	logger         *log.Logger
 	vmleaserClient api.VMLeaserServiceClient
 	manager        *lro.Manager
+	token          string
 }
 
 // NewServer creates an execution server
-func NewServer(vmleaserClient api.VMLeaserServiceClient, logger *log.Logger) (*grpc.Server, func()) {
+func NewServer(vmleaserClient api.VMLeaserServiceClient, logger *log.Logger, token string) (*grpc.Server, func()) {
 	s := &VMLeaserServiceServer{
 		logger:         logger,
 		vmleaserClient: vmleaserClient,
 		manager:        lro.New(),
+		token:          token,
 	}
 	server := grpc.NewServer()
 	var conns []*grpc.ClientConn
@@ -55,12 +54,7 @@ func NewServer(vmleaserClient api.VMLeaserServiceClient, logger *log.Logger) (*g
 func (s *VMLeaserServiceServer) Install(ctc context.Context, req *api.InstallRequest) (*longrunning.Operation, error) {
 
 	op := s.manager.NewOperation()
-	token, err := readAuthToken()
-	if err != nil {
-		s.logger.Printf("Failed to read auth token required for calling vm leaser service, %s", err)
-		return nil, err
-	}
-	authorization := "Bearer " + token
+	authorization := "Bearer " + s.token
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("Authorization", authorization))
 
 	leaseVMreq := &api.LeaseVMRequest{}
@@ -95,11 +89,12 @@ func (s *VMLeaserServiceServer) Install(ctc context.Context, req *api.InstallReq
 }
 
 // readAuthToken reads the authorization token required for calling vm leaser service
-func readAuthToken() (string, error) {
+func readAuthToken(authTokenFilePath string) (string, error) {
 	content, err := ioutil.ReadFile(authTokenFilePath)
 	if err != nil {
 		return "", err
 	}
-	token := string(content)
+	token := strings.TrimSpace(string(content))
+
 	return token, nil
 }
