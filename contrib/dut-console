@@ -122,7 +122,7 @@ main() {
     if [[ -n "${FLAGS_port}" ]]; then
       spath_in="${spath_in}_${FLAGS_port}"
     fi
-    local spath="${CROS_SDK}/chroot${spath_in}"
+    local spath="${CROS_SDK}/out${spath_in}"
     local spath_pty="${spath}_trm"
     local spath_log="${spath}_log"
 
