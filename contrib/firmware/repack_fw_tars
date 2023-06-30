@@ -15,9 +15,12 @@ Usage: $0 [flags] tarball
 
 tarball: The firmware tarball to be repacked"
 
+SWAP_EC_RW="$(dirname "$0")/swap_ec_rw"
+
 # Flags.
 DEFINE_string model "" "Comma-separated list of models (variants)" m
 DEFINE_string output "." "Output directory" o
+DEFINE_string ecrw "" "The EC firmware tarball to be swapped into AP firmware"
 
 # Parse command line.
 FLAGS "$@" || exit 1
@@ -35,15 +38,28 @@ make_tar() {
 
 make_fw_tar() {
   local fw_dir=$1
-  local model=$2
+  local ecrw_dir=$2
+  local model=$3
   info "Packing ${model} firmware..."
-  local output=$3
+  local output=$4
   local ap="${fw_dir}/image-${model}.bin"
   local ec="${fw_dir}/${model}/ec.bin"
+  local ecrw="${ecrw_dir}/${model}/ec.bin"
   local model_uc="${model^}"
   local version
-  version="$(futility update --manifest -i "${ap}" | jq -r -c .default.host.versions.ro)"
+  version="$(futility update --manifest -i "${ap}" |
+    jq -r -c .default.host.versions.ro)"
   version="$(cut -d "." -f2- <<< "${version}")"
+
+  # Swap ecrw in AP
+  if [[ -n "${ecrw_dir}" ]]; then
+    local ecrw_version
+    ecrw_version="$(futility update --manifest -e "${ecrw}" |
+      jq -r -c .default.ec.versions.rw)"
+    info "Swapping ecrw with version ${ecrw_version}"
+    "${SWAP_EC_RW}" --image "${ap}" --ec "${ecrw}" > /dev/null
+  fi
+
   local ap_tar="${output}/${model_uc}.${version}.tbz2"
   local ec_tar="${output}/${model_uc}_EC.${version}.tbz2"
   make_tar "${ap}" "${ap_tar}"
@@ -69,16 +85,33 @@ main() {
   # Extract from tarball
   local temp_dir
   temp_dir=$(mktemp -d)
-  info "Extracting images from tarball to ${temp_dir}..."
+  local ap_temp_dir="${temp_dir}/ap"
 
-  local files=()
+  local ap_files=()
+  local ec_files=()
   for model in "${models[@]}"; do
-    files+=("image-${model}.bin" "${model}/ec.bin")
+    ap_files+=("image-${model}.bin")
+    ec_files+=("${model}/ec.bin")
   done
-  (cd "${temp_dir}" && tar -xjf "${tarball}" "${files[@]}")
+
+  info "Extracting images to ${ap_temp_dir}..."
+  mkdir "${ap_temp_dir}"
+  (cd "${ap_temp_dir}" &&
+    tar -xjf "${tarball}" "${ap_files[@]}" "${ec_files[@]}")
+
+  # Extract from EC tarball
+  local ecrw_temp_dir
+  local ecrw_tarball
+  if [[ -n "${FLAGS_ecrw}" ]]; then
+    ecrw_temp_dir="${temp_dir}/ecrw"
+    info "Extracting EC images to ${ecrw_temp_dir}..."
+    mkdir "${ecrw_temp_dir}"
+    ecrw_tarball=$(readlink -f "${FLAGS_ecrw}")
+    (cd "${ecrw_temp_dir}" && tar -xjf "${ecrw_tarball}" "${ec_files[@]}")
+  fi
 
   for model in "${models[@]}"; do
-    make_fw_tar "${temp_dir}" "${model}" "${FLAGS_output}"
+    make_fw_tar "${ap_temp_dir}" "${ecrw_temp_dir}" "${model}" "${FLAGS_output}"
   done
 
   info "Output files saved to ${FLAGS_output}/"
