@@ -32,6 +32,7 @@ class CellularTechnology(Enum):
     LTE = "LTE"
     WCDMA = "WCDMA"
     NR5G_NSA = "NR5G_NSA"
+    NR5G_SA = "NR5G_SA"
 
 
 class IPAddressType(Enum):
@@ -311,7 +312,6 @@ class CMX500Configuration(CallboxConfiguration):
         self.simulator = cmx.CMX500CellularSimulator(
             host, port, config_mode=None
         )
-
         self.handover = None
         self._set_technology(technology)
 
@@ -347,6 +347,9 @@ class CMX500Configuration(CallboxConfiguration):
         # no need to stop cmx before configuring like cmw, it's already
         # handled by cmx controller
         self.simulation.configure(parameters)
+        # if SA, keep rrc otherwise will fall back to RRC_IDLE
+        if self.technology == CellularTechnology.NR5G_SA:
+            self.simulator.cmx.set_keep_rrc(True)
         self.simulator.wait_until_quiet()
 
     def start(self):
@@ -373,7 +376,10 @@ class CMX500Configuration(CallboxConfiguration):
                     power_mode=CrOSLteSimulation.PowerMode.Total,
                 )
             self.simulation = self._lte_simulation
-        elif technology == CellularTechnology.NR5G_NSA:
+        elif technology in (
+            CellularTechnology.NR5G_NSA,
+            CellularTechnology.NR5G_SA,
+        ):
             if not self._nr5g_nsa_simulation:
                 self._nr5g_nsa_simulation = CrOSLteSimulation.CrOSLteSimulation(
                     self.simulator,
