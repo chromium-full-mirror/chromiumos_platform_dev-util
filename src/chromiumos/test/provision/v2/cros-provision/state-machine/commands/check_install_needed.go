@@ -53,13 +53,38 @@ func (c *CheckInstallNeeded) Execute(log *log.Logger) error {
 	} else {
 		c.cs.UpdateCros = true
 	}
+
+	if c.cs.UpdateCros == false && c.canClearTPM(c.ctx) {
+		oid, err := c.cs.Connection.RunCmd(c.ctx, "hwsec-ownership-id", []string{"id"})
+		oid = strings.TrimSpace(oid)
+		if err != nil {
+			// We need to reinstall the stateful image for the missing utils.
+			log.Printf("Missing test utils.")
+			c.cs.QuickResetDevice = true
+		} else if !isHexDigest(oid) {
+			// The device is not in a correct state, we should clear the TPM.
+			log.Printf("Need to clear the TPM: %v", oid)
+			c.cs.QuickResetDevice = true
+		}
+	}
+
 	log.Printf("RUNNING CheckInstallNeeded Success")
 
 	return nil
 }
 
+// CanClearTPM determines whether the current board can clear TPM
+func (c *CheckInstallNeeded) canClearTPM(ctx context.Context) bool {
+	return !strings.HasPrefix(c.cs.MachineMetadata.Board, "reven")
+}
+
 func isCQImage(imageName string) (bool, error) {
 	return regexp.MatchString(`.*-cq/.*`, imageName)
+}
+
+func isHexDigest(data string) bool {
+	isHex, err := regexp.MatchString(`^[0-9a-fA-F]+$`, data)
+	return err != nil || isHex
 }
 
 // Revert interface command. None needed as nothing has happened yet.

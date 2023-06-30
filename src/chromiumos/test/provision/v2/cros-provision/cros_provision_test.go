@@ -94,6 +94,7 @@ var (
 	firmwareManifest          = RunCommandStructure{Command: common_utils.FirmwareUpdaterPath, Args: []string{"--manifest"}}
 	getCrosid                 = RunCommandStructure{Command: "crosid", Args: []string{}}
 	getCurrentFirmware        = RunCommandStructure{Command: "crossystem", Args: []string{"fwid"}}
+	hwsecId                   = RunCommandStructure{Command: "hwsec-ownership-id", Args: []string{"id"}}
 )
 
 // REVERT COMMANDS
@@ -413,6 +414,7 @@ func TestSkipInstall(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getRunCmdCommand(sam, hwsecId).Return("53EB5A855F8E57624F3F6803B13E4592BCEC0DB7F0D3785617E46A80AF70B902", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -422,6 +424,62 @@ func TestSkipInstall(t *testing.T) {
 	// Check state completion
 	if st.Next() != nil {
 		t.Fatalf("pre_init_state should be the last step")
+	}
+}
+
+func TestSkipInstallAndResetDeviceState(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sam := mock_common_utils.NewMockServiceAdapterInterface(ctrl)
+	log, _ := cli.SetUpLog(constants.DefaultLogDirectory)
+	cs := service.NewCrOSServiceFromExistingConnection(
+		sam,
+		&conf.StoragePath{
+			HostType: conf.StoragePath_GS,
+			Path:     "gs://chromeos-image-archive/drallion-release/R110-15278.35.0/",
+		},
+		nil,
+		false,
+		[]*api.CrOSProvisionMetadata_DLCSpec{{Id: "1"}},
+		true, // FirmwareUpdate enabled.
+	)
+
+	ctx := context.Background()
+
+	// INIT STATE
+	st := state_machine.NewCrOSPreInitState(&cs)
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getRunCmdCommand(sam, hwsecId).Return("NO_LOCKOUT_PASSWORD", nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed init state: %v", err)
+	}
+
+	// RESET DEVICE
+	st = st.Next()
+
+	drallionCopyStateful := PipeCommandStructure{Source: "gs://chromeos-image-archive/drallion-release/R110-15278.35.0/stateful.tgz", Command: "tar --ignore-command-error --overwrite --directory=/mnt/stateful_partition --selinux -xzf -"}
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, stopUI).Return("", nil),
+		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
+		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
+		getPipeDataCommand(sam, drallionCopyStateful).Return(nil),
+		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
+		getRunCmdCommand(sam, crosSystem).Return("", nil),
+		getRestartCommand(sam).Return(nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed reset device state: %v", err)
+	}
+
+	if st.Next() != nil {
+		t.Fatalf("reset_device should be the last step")
 	}
 }
 

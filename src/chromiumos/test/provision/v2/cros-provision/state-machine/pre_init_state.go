@@ -56,6 +56,10 @@ func (s CrOSPreInitState) Next() common_utils.ServiceState {
 		return CrOSInitState{
 			service: s.service,
 		}
+	} else if s.service.QuickResetDevice == true {
+		return CrOSResetDeviceState{
+			service: s.service,
+		}
 	}
 	return nil
 

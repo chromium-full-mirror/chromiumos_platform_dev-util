@@ -26,6 +26,7 @@ type CrOSService struct {
 	DlcSpecs         []*api.CrOSProvisionMetadata_DLCSpec
 	UpdateFirmware   bool
 	UpdateCros       bool
+	QuickResetDevice bool
 }
 
 func NewCrOSService(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (*CrOSService, error) {
