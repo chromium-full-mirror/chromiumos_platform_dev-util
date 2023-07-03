@@ -7,6 +7,7 @@ package main
 import (
 	"chromiumos/lro"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"strings"
@@ -50,36 +51,69 @@ func NewServer(vmleaserClient api.VMLeaserServiceClient, logger *log.Logger, tok
 	return server, closer
 }
 
-// Install calls the VMLeaser service
+// Install calls the VMLeaser service endpoints
 func (s *VMLeaserServiceServer) Install(ctc context.Context, req *api.InstallRequest) (*longrunning.Operation, error) {
+	if req == nil || req.Metadata == nil || req.Metadata.TypeUrl == "" {
+		return nil, fmt.Errorf("nnvalid request: empty request or missing metadata type url")
+	}
 
 	op := s.manager.NewOperation()
 	authorization := "Bearer " + s.token
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("Authorization", authorization))
+	metadataType := req.Metadata.TypeUrl
 
-	leaseVMreq := &api.LeaseVMRequest{}
-	if err := req.Metadata.UnmarshalTo(leaseVMreq); err != nil {
-		s.logger.Printf("Invalid request, %s", err)
+	switch metadataType {
+	case "type.googleapis.com/chromiumos.test.api.LeaseVMRequest":
+		return s.handleLeaseVMRequest(ctx, op, req)
+	case "type.googleapis.com/chromiumos.test.api.ReleaseVMRequest":
+		return s.handleReleaseVMRequest(ctx, op, req)
+	default:
+		return nil, fmt.Errorf("Invalid metadata type: %s in request", metadataType)
+	}
+}
+
+func (s *VMLeaserServiceServer) handleLeaseVMRequest(ctx context.Context, op *longrunning.Operation, req *api.InstallRequest) (*longrunning.Operation, error) {
+	var leaseVMReq api.LeaseVMRequest
+	if err := req.Metadata.UnmarshalTo(&leaseVMReq); err != nil {
+		s.logger.Printf("Invalid request: %s", err)
 		return nil, err
 	}
-
-	// Make the gRPC request
-	s.logger.Printf("Making grpc call")
-	resp, err := s.vmleaserClient.LeaseVM(ctx, leaseVMreq)
+	s.logger.Printf("Making lease gRPC call")
+	resp, err := s.vmleaserClient.LeaseVM(ctx, &leaseVMReq)
 	if err != nil {
-		s.logger.Printf("Failed to make grpc request, %s", err)
+		s.logger.Printf("Failed to make gRPC request: %s", err)
 		return nil, err
 	}
-	// Create an empty anypb.Any
 	anyResp := &anypb.Any{}
-
-	// Marshal the LeaseVMResponse to the anypb.Any
 	if err := anyResp.MarshalFrom(resp); err != nil {
-		s.logger.Printf("Failed to marshal response, %s", err)
+		s.logger.Printf("Failed to marshal response: %s", err)
 		return nil, err
 	}
+	provisionResp := &api.InstallResponse{
+		Metadata: anyResp,
+	}
+	s.logger.Printf("gRPC request succeeded")
+	s.manager.SetResult(op.Name, provisionResp)
+	return op, nil
+}
 
-	// Create the InstallResponse with the Metadata field set to anypb.Any
+func (s *VMLeaserServiceServer) handleReleaseVMRequest(ctx context.Context, op *longrunning.Operation, req *api.InstallRequest) (*longrunning.Operation, error) {
+	var releaseVMReq api.ReleaseVMRequest
+	if err := req.Metadata.UnmarshalTo(&releaseVMReq); err != nil {
+		s.logger.Printf("Invalid request: %s", err)
+		return nil, err
+	}
+	s.logger.Printf("Making release gRPC call")
+	resp, err := s.vmleaserClient.ReleaseVM(ctx, &releaseVMReq)
+	if err != nil {
+		s.logger.Printf("Failed to make gRPC request: %s", err)
+		return nil, err
+	}
+	anyResp := &anypb.Any{}
+	if err := anyResp.MarshalFrom(resp); err != nil {
+		s.logger.Printf("Failed to marshal response: %s", err)
+		return nil, err
+	}
 	provisionResp := &api.InstallResponse{
 		Metadata: anyResp,
 	}

@@ -3,4 +3,10 @@
 # found in the LICENSE file.
 
 FROM ubuntu:bionic
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libssl-dev \
+        && \
+    rm -rf /var/lib/apt/lists/*
 COPY vm-provision /usr/bin/vm-provision

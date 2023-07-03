@@ -24,7 +24,7 @@ import (
 
 const (
 	defaultRootPath          = "/tmp/vm-provision"
-	vmLeaserEndPoint         = "staging.vmleaser.api.cr.dev:443"
+	vmLeaserEndPoint         = "vmleaser.api.cr.dev:443"
 	defaultAuthTokenFilePath = "/tmp/vm-provision/authToken.txt"
 )
 
