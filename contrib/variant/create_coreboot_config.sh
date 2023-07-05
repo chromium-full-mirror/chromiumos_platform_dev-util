@@ -116,6 +116,7 @@ sed -e "s/${REFERENCE_UPPER}/${VARIANT_UPPER}/" \
     -e "s/me_rw-${REFERENCE}\.bin/me_rw-${VARIANT}.bin/" \
     -e "s/ucode-${BASE}\.bin/ucode-${VARIANT}\.bin/" \
     -e "s/ucode-${REFERENCE}\.bin/ucode-${VARIANT}\.bin/" \
+    -e "s/vbt-${REFERENCE}\.bin/vbt-${VARIANT}\.bin/" \
     "config.${REFERENCE}" > "config.${VARIANT}"
 git add "config.${VARIANT}"
 
