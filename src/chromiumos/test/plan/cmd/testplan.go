@@ -21,17 +21,15 @@ import (
 	buildpb "go.chromium.org/chromiumos/config/go/build/api"
 	"go.chromium.org/chromiumos/config/go/payload"
 	testpb "go.chromium.org/chromiumos/config/go/test/api"
-	"go.chromium.org/chromiumos/config/go/test/plan"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbpb "go.chromium.org/luci/buildbucket/proto"
-	"go.chromium.org/luci/common/data/strpair"
-	"go.chromium.org/luci/common/data/text"
 	luciflag "go.chromium.org/luci/common/flag"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	testplan "chromiumos/test/plan/internal"
+	"chromiumos/test/plan/internal/cli"
 	"chromiumos/test/plan/internal/compatibility"
 	"chromiumos/test/plan/internal/protoio"
 )
@@ -63,56 +61,6 @@ func addExistingFlags(c subcommands.CommandRun) {
 	flag.VisitAll(func(f *flag.Flag) {
 		c.GetFlags().Var(f.Value, f.Name, f.Usage)
 	})
-}
-
-// templateParametersFlag encapsulates logic to parse lists of
-// TemplateParameters from the command line.
-type templateParametersFlag struct {
-	pathToRawTemplateParametersList strpair.Map
-}
-
-// Register creates a templateparameter flag in fs.
-func (t *templateParametersFlag) Register(fs *flag.FlagSet) {
-	t.pathToRawTemplateParametersList = strpair.Map{}
-	fs.Var(
-		luciflag.StringPairs(t.pathToRawTemplateParametersList),
-		"templateparameter",
-		text.Doc(`
-			Colon-separated map from plan to TemplateParameter jsonproto. Can be
-			specified multiple times, either for the same plan or different
-			plans.
-
-			The keys must be exactly the same as an argument to -plan.
-
-			Example:
-				-plan custom.star \
-				-templateparameter 'custom.star:{"tag_criteria": {"tags": ["group:mycustom1"]}}, "suite_name": "mycustom1"' \
-				-templateparameter 'custom.star:{"tag_criteria": {"tags": ["group:mycustom2"]}}, "suite_name": "mycustom2"'
-		`),
-	)
-}
-
-// Parse parses the raw strings given in the command line into
-// TemplateParameters.
-func (t *templateParametersFlag) Parse() (map[string][]*plan.SourceTestPlan_TestPlanStarlarkFile_TemplateParameters, error) {
-	pathToTemplateParametersList := make(map[string][]*plan.SourceTestPlan_TestPlanStarlarkFile_TemplateParameters)
-	unmarshalOpts := protojson.UnmarshalOptions{DiscardUnknown: true}
-
-	for path, rawTemplateParametersList := range t.pathToRawTemplateParametersList {
-		pathToTemplateParametersList[path] = make(
-			[]*plan.SourceTestPlan_TestPlanStarlarkFile_TemplateParameters, 0, len(rawTemplateParametersList),
-		)
-		for _, rawTemplateParameters := range rawTemplateParametersList {
-			templateParameters := &plan.SourceTestPlan_TestPlanStarlarkFile_TemplateParameters{}
-			if err := unmarshalOpts.Unmarshal([]byte(rawTemplateParameters), templateParameters); err != nil {
-				return nil, err
-			}
-
-			pathToTemplateParametersList[path] = append(pathToTemplateParametersList[path], templateParameters)
-		}
-	}
-
-	return pathToTemplateParametersList, nil
 }
 
 var application = &subcommands.DefaultApplication{
@@ -242,7 +190,6 @@ Evaluates Starlark files to generate CoverageRules as newline-delimited json pro
 
 type generateRun struct {
 	subcommands.CommandRunBase
-	templateParametersFlag
 
 	planPaths                []string
 	buildMetadataListPath    string
@@ -253,6 +200,7 @@ type generateRun struct {
 	generateTestPlanReqPath  string
 	boardPriorityListPath    string
 	builderConfigsPath       string
+	templateParametersFlag   cli.TemplateParametersFlag
 	out                      string
 }
 
@@ -468,15 +416,15 @@ func (r *generateRun) run() error {
 
 type getTestableRun struct {
 	subcommands.CommandRunBase
-	templateParametersFlag
 
-	planPaths             []string
-	builds                []*bbpb.Build
-	buildsPath            string
-	buildMetadataListPath string
-	dutAttributeListPath  string
-	configBundleListPath  string
-	builderConfigsPath    string
+	planPaths              []string
+	builds                 []*bbpb.Build
+	buildsPath             string
+	buildMetadataListPath  string
+	dutAttributeListPath   string
+	configBundleListPath   string
+	builderConfigsPath     string
+	templateParametersFlag cli.TemplateParametersFlag
 }
 
 var cmdGetTestable = &subcommands.Command{
