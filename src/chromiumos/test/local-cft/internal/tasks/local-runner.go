@@ -200,6 +200,9 @@ func (c *localCftCmd) validateArgs() error {
 	if c.board == "" {
 		return fmt.Errorf("-board must be provided.")
 	}
+	if c.build == "" {
+		return fmt.Errorf("-build must be provided.")
+	}
 	if (c.fullRun || c.test || c.provision) && c.dutHost == "" {
 		return fmt.Errorf("-host must be provided.")
 	}
