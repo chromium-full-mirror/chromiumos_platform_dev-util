@@ -5,7 +5,9 @@
 """Provides ChromeOS-specific LTE simulation implementations."""
 
 from enum import Enum
+import time
 
+from acts.controllers import cellular_simulator
 from acts.controllers.cellular_lib.BaseCellConfig import BaseCellConfig
 from acts.controllers.cellular_lib.LteSimulation import LteSimulation
 
@@ -76,13 +78,29 @@ class CrOSLteSimulation(LteSimulation):
 
         # set rx power to final value.
         self.set_uplink_tx_power(self.sim_ul_power)
-        self.simulator.wait_until_attached(timeout=self.attach_timeout)
-        return True
+        for i in range(self.attach_retries):
+            try:
+                self.simulator.wait_until_attached(timeout=self.attach_timeout)
+                self.log.info("UE attached to the callbox")
+                time.sleep(self.SETTLING_TIME)
+                return True
+            except cellular_simulator.CellularSimulatorError:
+                # Restart network on CB.
+                self.log.info(
+                    f"attempt {i + 1} failed, toggling callbox network"
+                )
+                self.simulator.stop()
+                self.simulator.wait_until_quiet()
+                self.setup_simulator()
+                self.simulator.wait_until_quiet()
+
+        self.log.info("UE failed to attach to the callbox")
+        return False
 
     def start(self):
-        """Start the simulation by attaching the phone and setting the required DL and UL power.
+        """Attach the device and set initial DL and UL power.
 
-        CrOSLteSimulation overrides this to set different values from those in ACTS
+        CrOSLteSimulation overrides this to set different values from ACTS.
         """
         if not self.attach():
             raise RuntimeError("Could not attach to base station.")
@@ -94,7 +112,7 @@ class CrOSLteSimulation(LteSimulation):
             new_config.output_power = self.calibrated_downlink_rx_power(
                 self.cell_configs[bts_idx], self.sim_dl_power
             )
-            self.simulator.configure_bts(new_config)
+            self.simulator.configure_bts(new_config, bts_idx)
             self.cell_configs[bts_idx].incorporate(new_config)
 
         if self.num_carriers > 1:

@@ -11,6 +11,7 @@ from acts.controllers import handover_simulator as hs
 from acts.controllers.cellular_lib.LteSimulation import (
     IPAddressType as _ACTSIPType,
 )
+from acts.controllers.rohdeschwarz_lib import cmw500
 from acts.controllers.rohdeschwarz_lib import cmw500_cellular_simulator as cmw
 from acts.controllers.rohdeschwarz_lib import cmx500_cellular_simulator as cmx
 from acts.controllers.rohdeschwarz_lib.cmw500_handover_simulator import (
@@ -20,6 +21,9 @@ from cellular.callbox_utils.cmw500_iperf_measurement import (
     Cmw500IperfMeasurement,
 )
 from cellular.simulation_utils import CrOSLteSimulation
+
+
+cmw500.STATE_CHANGE_TIMEOUT = 45
 
 
 class CellularTechnology(Enum):
@@ -267,7 +271,7 @@ class CMW500Configuration(CallboxConfiguration):
                     self.simulator,
                     self.logger,
                     self.dut,
-                    {"attach_retries": 1, "attach_timeout": 120},
+                    {"attach_retries": 3, "attach_timeout": 60},
                     None,
                     power_mode=CrOSLteSimulation.PowerMode.RSRP,
                 )
