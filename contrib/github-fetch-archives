@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+# Copyright 2023 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+"""Generate tarballs from GH projects.
+
+This will also process submodules.
+"""
+
+import logging
+from pathlib import Path
+import re
+import sys
+from typing import List, NamedTuple, Optional
+
+
+THIS_DIR = Path(__file__).resolve().parent
+SOURCE_ROOT = THIS_DIR.parent.parent.parent.parent
+sys.path.insert(0, str(SOURCE_ROOT))
+
+# pylint: disable=wrong-import-position
+from chromite.lib import commandline
+from chromite.lib import git
+from chromite.lib import retry_util
+
+
+class GitModule(NamedTuple):
+    """A single known gitmodule."""
+
+    root: Path
+    subpath: Path
+    uri: str
+    commit: str
+
+
+def read_gitmodules(gitmodules: Path) -> List[GitModule]:
+    # Read current statuses.
+    known_modules = {}
+    result = git.RunGit(gitmodules.parent, ["submodule", "status"])
+    # Lines will look like:
+    # -63e59ed312ba7a946779596e86124c1633f67607 thirdparty/ade
+    for line in result.stdout.splitlines():
+        commit, path = line.split()
+        known_modules[path] = commit.lstrip("-")
+
+    result = git.RunGit(
+        None, ["config", "--file", gitmodules, "--null", "--list"]
+    )
+    # Lines will look like:
+    # submodule.thirdparty/ade.path=thirdparty/ade
+    # submodule.thirdparty/ade.url=https://github.com/opencv/ade.git
+    # submodule.thirdparty/ade.ignore=dirty
+    lines = result.stdout.split("\0")
+    listed_modules = {}
+    for line in (x for x in lines if x):
+        key, value = line.split("\n", 1)
+        components = key.split(".")
+        if components[0] == "submodule":
+            assert (
+                len(components) == 3
+            ), f"unable to handle {key} ({components})"
+            module = listed_modules.setdefault(components[1], {})
+            module[components[2]] = value
+
+    for path, commit in known_modules.items():
+        for module in listed_modules.values():
+            if module["path"] == path:
+                yield GitModule(gitmodules.parent, path, module["url"], commit)
+                break
+        else:
+            raise RuntimeError(f"Unable to find {path} in {gitmodules}")
+
+
+def process(output: Path, uri: str, commit: Optional[str] = None) -> None:
+    uri = uri.rstrip("/")
+    if uri.endswith(".git"):
+        uri = uri[:-4]
+    gitname = re.sub(r"[:/]", "_", uri.split("://", 1)[1])
+    logging.info("Cloning %s into %s", uri, gitname)
+    gitdir = output / "git" / gitname
+    if not gitdir.is_dir():
+        gitdir.mkdir(parents=True, exist_ok=True)
+        git.ShallowFetch(gitdir, uri, commit=commit)
+
+    if commit is None:
+        commit = git.GetGitRepoRevision(gitdir)
+    pn = uri.rsplit("/", 1)[1]
+    tarball = output / f"{pn}-{commit}.tar.gz"
+    archive_uri = f"{uri}/archive/{commit}.tar.gz"
+    if not tarball.is_file():
+        retry_util.RunCurl(["--location", "--output", tarball, archive_uri])
+
+    gitmodules = gitdir / ".gitmodules"
+    if not gitmodules.is_file():
+        return
+
+    entries = list(read_gitmodules(gitmodules))
+    logging.info("Project has %s submodules", len(entries))
+    for module in entries:
+        process(output, module.uri, commit=module.commit)
+
+
+def get_parser() -> commandline.ArgumentParser:
+    parser = commandline.ArgumentParser(description=__doc__)
+    parser.add_argument("--commit", help="Commit to use (defaults to HEAD)")
+    parser.add_argument(
+        "--output",
+        type="path",
+        default=Path.cwd(),
+        help="Directory to write tarballs to",
+    )
+    parser.add_argument("github_uri")
+    return parser
+
+
+def main(argv: Optional[List[str]] = None) -> Optional[int]:
+    parser = get_parser()
+    opts = parser.parse_args(argv)
+    opts.output = Path(opts.output).resolve()
+    opts.Freeze()
+
+    process(opts.output, opts.github_uri, commit=opts.commit)
+
+
+if __name__ == "__main__":
+    commandline.ScriptWrapperMain(lambda x: main)
