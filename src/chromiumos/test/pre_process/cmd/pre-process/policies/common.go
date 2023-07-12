@@ -6,14 +6,6 @@ package policies
 
 import "fmt"
 
-// SignalFormat is the common format all policies/interface must return for the main filter service to use.
-type SignalFormat struct {
-	Runs     int
-	Failruns int
-	Passrate float64
-	Signal   bool
-}
-
 // Convert the milestone + num into a useful regex for query.
 func mileStoneRegex(numMileStones int, mileStone int) string {
 	baseStr := fmt.Sprintf("%d", mileStone)

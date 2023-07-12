@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"chromiumos/test/pre_process/cmd/pre-process/interfaces"
+	"chromiumos/test/pre_process/cmd/pre-process/structs"
 
 	"cloud.google.com/go/bigquery"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -27,8 +28,8 @@ type PassRatePolicy struct {
 	requiredPassRate float64
 	numOfMilestones  int
 	missingTcList    map[string]struct{}
-	data             map[string]SignalFormat
-	otherData        map[string]SignalFormat
+	data             map[string]structs.SignalFormat
+	otherData        map[string]structs.SignalFormat
 }
 
 type resSchema struct {
@@ -50,7 +51,7 @@ func listToMap(forced []string) map[string]struct{} {
 }
 
 // StabilityFromPolicy returns the stability information computed from the policy given. Uses BQ results directly for test history.
-func StabilityFromPolicy(req *api.FilterFlakyRequest_PassRatePolicy, variant string, milestone string, tcList map[string]struct{}) map[string]SignalFormat {
+func StabilityFromPolicy(req *api.FilterFlakyRequest_PassRatePolicy, variant string, milestone string, tcList map[string]struct{}) map[string]structs.SignalFormat {
 	policy := PassRatePolicy{
 		req:              req,
 		variant:          variant,
@@ -60,8 +61,8 @@ func StabilityFromPolicy(req *api.FilterFlakyRequest_PassRatePolicy, variant str
 		requiredPassRate: float64(req.PassRatePolicy.PassRate),
 		numOfMilestones:  int(req.PassRatePolicy.NumOfMilestones),
 		missingTcList:    tcList,
-		data:             make(map[string]SignalFormat),
-		otherData:        make(map[string]SignalFormat),
+		data:             make(map[string]structs.SignalFormat),
+		otherData:        make(map[string]structs.SignalFormat),
 	}
 	policy.stabilityFromPolicy()
 	return policy.data
@@ -111,8 +112,8 @@ func (q *PassRatePolicy) populateMissingTests() {
 	}
 }
 
-func (q *PassRatePolicy) iterThroughData(bqIter *bigquery.RowIterator, milestone string) map[string]SignalFormat {
-	data := make(map[string]SignalFormat)
+func (q *PassRatePolicy) iterThroughData(bqIter *bigquery.RowIterator, milestone string) map[string]structs.SignalFormat {
+	data := make(map[string]structs.SignalFormat)
 	for {
 		var resp resSchema
 		err := bqIter.Next(&resp)
@@ -133,7 +134,7 @@ func (q *PassRatePolicy) iterThroughData(bqIter *bigquery.RowIterator, milestone
 			continue
 		}
 
-		fmted := SignalFormat{
+		fmted := structs.SignalFormat{
 			Runs:     resp.Total_runs,
 			Failruns: resp.Fail_runs,
 			Passrate: resp.Success_permille,

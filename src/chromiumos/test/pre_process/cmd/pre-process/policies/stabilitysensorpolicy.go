@@ -6,25 +6,26 @@ package policies
 
 import (
 	"chromiumos/test/pre_process/cmd/pre-process/interfaces"
+	"chromiumos/test/pre_process/cmd/pre-process/structs"
 	"log"
 )
 
 // StabilityFromStabilitySenosr wiill get Stability info from the StabilitySensor endpoint.
-func StabilityFromStabilitySensor() map[string]SignalFormat {
+func StabilityFromStabilitySensor() map[string]structs.SignalFormat {
 	data := interfaces.CallForStability()
 	return formatStabilityData(data)
 }
 
-func formatStabilityData(raw []interfaces.SensorFormat) map[string]SignalFormat {
+func formatStabilityData(raw []interfaces.SensorFormat) map[string]structs.SignalFormat {
 	log.Println("STABILITY INTERFACE NOT IMPLEMENTED.")
-	data := make(map[string]SignalFormat)
+	data := make(map[string]structs.SignalFormat)
 	for _, item := range raw {
 
 		status := false
 		if item.Test_stats.Stats == "STABLE" {
 			status = true
 		}
-		data[item.Test_id] = SignalFormat{Signal: status}
+		data[item.Test_id] = structs.SignalFormat{Signal: status}
 	}
 	return data
 }

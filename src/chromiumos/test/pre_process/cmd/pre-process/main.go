@@ -19,7 +19,10 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 
 	"chromiumos/test/execution/errors"
+	"chromiumos/test/pre_process/cmd/pre-process/interfaces"
 	"chromiumos/test/pre_process/cmd/pre-process/policies"
+	"chromiumos/test/pre_process/cmd/pre-process/structs"
+
 	"chromiumos/test/util/helpers"
 )
 
@@ -31,7 +34,7 @@ const (
 
 // Filter struct shows what was removed, notfound etc
 type Filter struct {
-	data     map[string]policies.SignalFormat
+	data     map[string]structs.SignalFormat
 	removed  []string
 	notFound []string
 	req      *api.FilterFlakyRequest
@@ -153,8 +156,8 @@ func (f *Filter) testEligible(value string) bool {
 	return false
 }
 
-func getStabilityData(req *api.FilterFlakyRequest, tcList map[string]struct{}) (map[string]policies.SignalFormat, error) {
-	var data map[string]policies.SignalFormat
+func getStabilityData(req *api.FilterFlakyRequest, tcList map[string]struct{}) (map[string]structs.SignalFormat, error) {
+	var data map[string]structs.SignalFormat
 
 	// TODO: this datatype will need to evolve from a board string to something more complex.
 	var variant string
@@ -229,6 +232,13 @@ func innerMain(req *api.FilterFlakyRequest) (*api.FilterFlakyResponse, error) {
 	}
 
 	log.Printf("The following tests are set to be removed from this scheduled attempt:\n %s\n", rspn.RemovedTests)
+
+	err := interfaces.WriteResults(rspn.RemovedTests, req, filter.data)
+	if err != nil {
+
+		log.Println("!!!")
+		log.Println(err)
+	}
 	return rspn, nil
 
 }

@@ -6,6 +6,8 @@ package policies
 
 import (
 	"testing"
+
+	"chromiumos/test/pre_process/cmd/pre-process/structs"
 )
 
 func TestDetermineSignalFromQuery(t *testing.T) {
@@ -30,11 +32,11 @@ func TestDetermineSignalFromQuery(t *testing.T) {
 
 func TestPopulateMissingTests(t *testing.T) {
 	qi := PassRatePolicy{
-		data:          make(map[string]SignalFormat),
-		otherData:     make(map[string]SignalFormat),
+		data:          make(map[string]structs.SignalFormat),
+		otherData:     make(map[string]structs.SignalFormat),
 		missingTcList: listToMap([]string{"missing1", "missing2"})}
 
-	sigData := SignalFormat{Signal: true}
+	sigData := structs.SignalFormat{Signal: true}
 
 	qi.otherData["missing2"] = sigData
 	qi.populateMissingTests()

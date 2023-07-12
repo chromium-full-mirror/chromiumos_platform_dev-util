@@ -5,11 +5,12 @@
 package main
 
 import (
-	"chromiumos/test/pre_process/cmd/pre-process/policies"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"chromiumos/test/pre_process/cmd/pre-process/structs"
 
 	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -170,11 +171,11 @@ func TestWriteOutput(t *testing.T) {
 }
 
 func TestIsEligible(t *testing.T) {
-	tdata := make(map[string]policies.SignalFormat)
-	tdata["example.Pass"] = policies.SignalFormat{
+	tdata := make(map[string]structs.SignalFormat)
+	tdata["example.Pass"] = structs.SignalFormat{
 		Signal: true,
 	}
-	tdata["example.Fail"] = policies.SignalFormat{
+	tdata["example.Fail"] = structs.SignalFormat{
 		Signal: false,
 	}
 
@@ -207,11 +208,11 @@ func TestIsEligible(t *testing.T) {
 }
 
 func TestFilterCases(t *testing.T) {
-	tdata := make(map[string]policies.SignalFormat)
-	tdata["example.Pass"] = policies.SignalFormat{
+	tdata := make(map[string]structs.SignalFormat)
+	tdata["example.Pass"] = structs.SignalFormat{
 		Signal: true,
 	}
-	tdata["example.Fail"] = policies.SignalFormat{
+	tdata["example.Fail"] = structs.SignalFormat{
 		Signal: false,
 	}
 
@@ -249,11 +250,11 @@ func TestFilterCases(t *testing.T) {
 }
 
 func TestFilterMetadata(t *testing.T) {
-	tdata := make(map[string]policies.SignalFormat)
-	tdata["example.Pass"] = policies.SignalFormat{
+	tdata := make(map[string]structs.SignalFormat)
+	tdata["example.Pass"] = structs.SignalFormat{
 		Signal: true,
 	}
-	tdata["example.Fail"] = policies.SignalFormat{
+	tdata["example.Fail"] = structs.SignalFormat{
 		Signal: false,
 	}
 
