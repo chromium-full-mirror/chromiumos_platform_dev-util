@@ -76,7 +76,7 @@ func parseAndRunCmds(req *api.RunActivityRequest, log *log.Logger, dutClient api
 
 }
 
-// startServer is the entry point for running post-process (TestFinderService) in server mode.
+// startServer is the entry point for running post-process (PostTestService) in server mode.
 func startServer(d []string) int {
 	a := args{}
 	t := time.Now()
@@ -112,7 +112,7 @@ func startServer(d []string) int {
 		logger.Fatalln("Failed to create a net listener: ", err)
 		return 2
 	}
-	logger.Println("Starting TestFinderService on port ", a.port)
+	logger.Println("Starting PostTestService on port ", a.port)
 
 	if err != nil {
 		log.Printf("DutConn Failed!")
