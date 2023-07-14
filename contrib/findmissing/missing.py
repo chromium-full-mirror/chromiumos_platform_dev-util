@@ -523,7 +523,7 @@ def create_fix(
     return created_new_change
 
 
-def fixup_unmerged_patches(db, branch, kernel_metadata):
+def fixup_unmerged_patches(db, branch, kernel_metadata, limit):
     """Fixup script that attempts to reapply unmerged fixes to get latest status.
 
     2 main actions performed by script include:
@@ -563,6 +563,16 @@ def fixup_unmerged_patches(db, branch, kernel_metadata):
                     db, fixes_table, kernel_sha, fixedby_upstream_sha, reason
                 )
             else:
+                # Treat it unlimited if `limit` is None.
+                if limit is not None and limit <= 0:
+                    cloudsql_interface.insert_journal(
+                        db,
+                        kernel_sha,
+                        branch,
+                        f"Deferred to create CL for {fixedby_upstream_sha} due to rate limit",
+                    )
+                    continue
+
                 fix_change_id = gerrit_interface.create_change(
                     kernel_sha,
                     fixedby_upstream_sha,
@@ -589,6 +599,9 @@ def fixup_unmerged_patches(db, branch, kernel_metadata):
                             branch,
                             fix_change_id,
                         )
+
+                    if limit:
+                        limit -= 1
         elif new_status == "MERGED":
             # This specifically includes situations where a patch marked ABANDONED
             # in the database was merged at some point anyway.
@@ -602,8 +615,6 @@ def fixup_unmerged_patches(db, branch, kernel_metadata):
 
 def update_fixes_in_branch(db, branch, kernel_metadata, limit):
     """Updates fix patch table row by determining if CL merged into linux_chrome."""
-    del limit  # unused here
-
     chosen_fixes = kernel_metadata.kernel_fixes_table
 
     # Old rows to Update
@@ -641,7 +652,7 @@ def update_fixes_in_branch(db, branch, kernel_metadata, limit):
     db.commit()
 
     # Sync status of unmerged patches in a branch
-    fixup_unmerged_patches(db, branch, kernel_metadata)
+    fixup_unmerged_patches(db, branch, kernel_metadata, limit)
 
 
 def create_new_fixes_in_branch(db, branch, kernel_metadata, limit):
@@ -765,7 +776,17 @@ def update_missing_patches():
     """Updates fixes table entries on regular basis."""
     with common.connect_db() as db:
         kernel_metadata = common.get_kernel_metadata(common.Kernel.linux_stable)
-        missing_patches_sync(db, kernel_metadata, update_fixes_in_branch)
+        missing_patches_sync(
+            db,
+            kernel_metadata,
+            update_fixes_in_branch,
+            NEW_CL_DAILY_LIMIT_PER_STABLE_BRANCH,
+        )
 
         kernel_metadata = common.get_kernel_metadata(common.Kernel.linux_chrome)
-        missing_patches_sync(db, kernel_metadata, update_fixes_in_branch)
+        missing_patches_sync(
+            db,
+            kernel_metadata,
+            update_fixes_in_branch,
+            NEW_CL_DAILY_LIMIT_PER_BRANCH,
+        )
