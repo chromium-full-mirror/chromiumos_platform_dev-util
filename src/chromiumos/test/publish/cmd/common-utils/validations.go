@@ -7,12 +7,15 @@ package common_utils
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/config/go/test/api/metadata"
 )
+
+var sourcesPathRE = regexp.MustCompile(`gs://[a-z0-9-_.]+/.+/metadata/sources.jsonpb`)
 
 // ValidateGCSPublishRequest validates gcs publish request
 func ValidateGCSPublishRequest(req *api.PublishRequest, metadata *api.PublishGcsMetadata) error {
@@ -87,11 +90,17 @@ func ValidateTKORequestMetadata(metadata *api.PublishTkoMetadata) error {
 // ValidateRDBRequestMetadata validates rdb request metadata
 func ValidateRDBRequestMetadata(metadata *metadata.PublishRdbMetadata) error {
 	if metadata.GetCurrentInvocationId() == "" {
-		return fmt.Errorf("Current invocation id is required in metadata for rdb publish")
+		return fmt.Errorf("current invocation id is required in metadata for rdb publish")
 	} else if metadata.GetTestResult() == nil || metadata.GetTestResult().GetTestRuns() == nil || len(metadata.GetTestResult().GetTestRuns()) == 0 {
 		return fmt.Errorf("TestResult is required in metadata for rdb publish")
 	} else if metadata.StainlessUrl != "" && !strings.HasPrefix(metadata.StainlessUrl, "https://stainless.corp.google.com/browse/") {
-		return fmt.Errorf("Stainless url must start with `https://stainless.corp.google.com/browse/`. Found %q instead", metadata.StainlessUrl)
+		return fmt.Errorf("stainless url must start with `https://stainless.corp.google.com/browse/`. Found %q instead", metadata.StainlessUrl)
+	}
+	if metadata.GetSources() != nil {
+		sources := metadata.Sources
+		if !sourcesPathRE.MatchString(sources.GsPath) {
+			return fmt.Errorf("sources: gsPath must match %s", sourcesPathRE)
+		}
 	}
 
 	return nil

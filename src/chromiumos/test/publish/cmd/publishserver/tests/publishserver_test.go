@@ -74,6 +74,25 @@ func TestGSUploadOneFile(t *testing.T) {
 	client.Upload(context.Background(), path.Join(root, "file1"), "gs://some_bucket/one_file")
 }
 
+func TestGSDownloadFile(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sci := mock_storage.NewMockStorageClientInterface(ctrl)
+	client := storage.NewGSTestClient(sci)
+
+	destPath := "/tmp/some_path/file1"
+
+	object := storage.GSObject{
+		Bucket: "some_bucket",
+		Object: "one_file",
+	}
+
+	sci.EXPECT().Read(gomock.Any(), object, destPath).Return(nil)
+
+	client.DownloadFile(context.Background(), "gs://some_bucket/one_file", destPath)
+}
+
 // createTempUploadDir creates fake files to "upload"
 func createTempUploadDir() (string, error) {
 	root, err := ioutil.TempDir("/tmp", "upload_unit_test_dir")

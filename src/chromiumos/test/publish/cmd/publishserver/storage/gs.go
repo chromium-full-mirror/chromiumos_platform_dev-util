@@ -47,7 +47,7 @@ type GSObject struct {
 }
 
 // Extend adds addendum to the end of object for a GSObject
-func (o *GSObject) Extend(addendum string) GSObject {
+func (o GSObject) Extend(addendum string) GSObject {
 	return GSObject{
 		Bucket: o.Bucket,
 		Object: path.Join(o.Object, addendum),
@@ -143,22 +143,46 @@ func (c *GSClient) Upload(ctx context.Context, localFolder string, gsUrl string)
 	return err
 }
 
+// DownloadFile downloads a file from a designated gsURL to a given
+// path on the local file system. If the bucket does not exist,
+// returns ErrBucketNotExist. If the object does not exist,
+// returns ErrObjectNotExist.
+func (c *GSClient) DownloadFile(ctx context.Context, gsUrl, destLocalPath string) error {
+	log.Printf("Starting download of %s to %s", gsUrl, destLocalPath)
+	object, err := c.parseGSURL(gsUrl)
+	if err != nil {
+		return fmt.Errorf("unable to parse gs url, %w", err)
+	}
+	log.Printf("Parsed URL: %s", object)
+	err = c.client.Read(ctx, object, destLocalPath)
+	if err == ErrBucketNotExist {
+		return ErrBucketNotExist
+	}
+	if err == ErrObjectNotExist {
+		return ErrObjectNotExist
+	}
+	if err != nil {
+		return fmt.Errorf("reading file: %w", err)
+	}
+	return nil
+}
+
 // parseGSURL retrieves the bucket and object from a GS URL.
 // URL expectation is of the form: "gs://bucket/object"
 // This method does not exists in the GS client, so creating bespoke.
-func (c *GSClient) parseGSURL(gsUrl string) (*GSObject, error) {
+func (c *GSClient) parseGSURL(gsUrl string) (GSObject, error) {
 	if !strings.HasPrefix(gsUrl, "gs://") {
-		return nil, fmt.Errorf("gs url must begin with 'gs://', instead have, %s", gsUrl)
+		return GSObject{}, fmt.Errorf("gs url must begin with 'gs://', instead have, %s", gsUrl)
 	}
 
 	u, err := url.Parse(gsUrl)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse url, %w", err)
+		return GSObject{}, fmt.Errorf("unable to parse url, %w", err)
 	}
 
 	// Host corresponds to bucket
 	// Path corresponds to object (though we need to remove prepending '/')
-	return &GSObject{
+	return GSObject{
 		Bucket: u.Host,
 		Object: cleanObjectPath(u.Path),
 	}, nil

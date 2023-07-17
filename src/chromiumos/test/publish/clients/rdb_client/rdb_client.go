@@ -81,6 +81,7 @@ type RdbStreamConfig struct {
 	LocationTagsFile        string
 	ResultFormat            string
 	ResultFile              string
+	SourcesFile             string
 	ArtifactDir             string
 	Realm                   string
 	RequireBuildInvocation  bool
@@ -104,6 +105,10 @@ func (rdbClient *RdbClient) StreamCommand(ctx context.Context, rdbStreamConfig *
 
 	if strings.TrimSpace(rdbStreamConfig.LocationTagsFile) != "" {
 		streamArgs = append(streamArgs, "-location-tags-file", rdbStreamConfig.LocationTagsFile)
+	}
+
+	if strings.TrimSpace(rdbStreamConfig.SourcesFile) != "" {
+		streamArgs = append(streamArgs, "-sources-file", rdbStreamConfig.SourcesFile)
 	}
 
 	if rdbStreamConfig.Include {

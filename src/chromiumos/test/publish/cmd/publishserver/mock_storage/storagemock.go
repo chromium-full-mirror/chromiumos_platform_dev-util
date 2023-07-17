@@ -59,8 +59,22 @@ func (m *MockStorageClientInterface) Write(ctx context.Context, filePath string,
 	return ret0
 }
 
+// Read mocks base method.
+func (m *MockStorageClientInterface) Read(ctx context.Context, gsObject storage.GSObject, destFilePath string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Read", ctx, gsObject, destFilePath)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
 // Write indicates an expected call of Write.
 func (mr *MockStorageClientInterfaceMockRecorder) Write(ctx, filePath, gsObject interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockStorageClientInterface)(nil).Write), ctx, filePath, gsObject)
+}
+
+// Read indicates an expected call of Read.
+func (mr *MockStorageClientInterfaceMockRecorder) Read(ctx, gsObject, destFilePath interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockStorageClientInterface)(nil).Read), ctx, gsObject, destFilePath)
 }

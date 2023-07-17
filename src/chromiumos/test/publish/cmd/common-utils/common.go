@@ -7,6 +7,7 @@ package common_utils
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -49,30 +50,62 @@ func MakeTempDir(ctx context.Context, parentDirPath string, newDirName string) (
 }
 
 // WriteProtoToJsonFile writes the provided proto to a json file
-func WriteProtoToJsonFile(ctx context.Context, dirPath string, fileName string, inputProto proto.Message) (string, error) {
-	protoFilePath := path.Join(dirPath, fileName)
-	f, err := os.Create(protoFilePath)
+func WriteProtoJsonFile(ctx context.Context, filePath string, inputProto proto.Message) error {
+	_, fileName := path.Split(filePath)
+
+	f, err := os.Create(filePath)
 	if err != nil {
-		return "", fmt.Errorf("error during creating file %q: %s", fileName, err.Error())
+		return fmt.Errorf("creating file %q: %w", fileName, err)
 	}
 	defer f.Close()
 
 	bytes, err := protojson.Marshal(inputProto)
 	if err != nil {
-		return "", fmt.Errorf("error during marshalling proto for %q: %s", fileName, err.Error())
+		return fmt.Errorf("marshalling proto for %q: %w", fileName, err)
 	}
 
 	_, err = f.Write(bytes)
 	if err != nil {
-		return "", fmt.Errorf("error during writing proto to file %q: %s", fileName, err.Error())
+		return fmt.Errorf("writing proto to file %q: %w", fileName, err)
 	}
 
-	log.Printf("proto successfully written to file: %s", bytes)
+	log.Printf("proto successfully written to file: %s", string(bytes))
 
 	err = f.Close()
 	if err != nil {
-		return "", fmt.Errorf("error during closing file %q: %s", fileName, err.Error())
+		return fmt.Errorf("closing file %q: %w", fileName, err)
 	}
 
-	return protoFilePath, nil
+	return nil
+}
+
+// ReadProtoJsonFile reads a protocol buffer from the given file.
+func ReadProtoJsonFile(ctx context.Context, filePath string, outputProto proto.Message) (retErr error) {
+	_, fileName := path.Split(filePath)
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("opening file %q: %w", fileName, err)
+	}
+	defer func() {
+		err := f.Close()
+		if err != nil && retErr == nil {
+			retErr = fmt.Errorf("error closing file %q: %w", fileName, err)
+		}
+	}()
+
+	bytes, err := io.ReadAll(f)
+	if err != nil {
+		return fmt.Errorf("reading file %q: %w", fileName, err)
+	}
+
+	log.Printf("proto successfully read from file: %s", string(bytes))
+
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	err = opts.Unmarshal(bytes, outputProto)
+	if err != nil {
+		return fmt.Errorf("unmarshalling proto for %q: %w", fileName, err)
+	}
+
+	return nil
 }
