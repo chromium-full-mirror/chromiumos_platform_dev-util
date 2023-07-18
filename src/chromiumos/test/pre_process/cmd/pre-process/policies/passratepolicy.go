@@ -157,10 +157,12 @@ func (q *PassRatePolicy) iterThroughData(bqIter *bigquery.RowIterator, milestone
 		}
 
 		fmted := structs.SignalFormat{
-			Runs:     resp.Total_runs,
-			Failruns: resp.Fail_runs,
-			Passrate: resp.Success_permille,
-			Signal:   signal,
+			Runs:           resp.Total_runs,
+			Failruns:       resp.Fail_runs,
+			Passrate:       resp.Success_permille,
+			Signal:         signal,
+			PassrateRecent: resp.Rec_Success_Permille,
+			RunsRecent:     resp.Rec_Total_Runs,
 		}
 		// Not in milestone save in memory for later use!
 		if resp.Build != milestone {

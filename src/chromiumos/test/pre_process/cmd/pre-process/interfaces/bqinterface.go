@@ -118,8 +118,9 @@ func policyData(req *api.FilterFlakyRequest) (int, int, int, int, error) {
 		requiredSamples14Day = int(op.PassRatePolicy.MinRuns)
 
 		// Not yet set in the prod policy.
-		requiredSamples3Day = -1
-		requiredPassRate3Day = -1
+
+		requiredSamples3Day = int(op.PassRatePolicy.PassRateRecent)
+		requiredPassRate3Day = int(op.PassRatePolicy.MinRunsRecent)
 	case *api.FilterFlakyRequest_StabilitySensorPolicy:
 		return 0, 0, 0, 0, fmt.Errorf("stabilitySensor policy cannot upload results")
 	}
@@ -156,7 +157,7 @@ func uploadData(filteredTests []string, req *api.FilterFlakyRequest, data map[st
 		// Initialize the Entry with default values.
 		entry := &Entry{
 			test:                         tc,
-			bbid:                         "NOT_PROVIDED",
+			bbid:                         req.Bbid,
 			board:                        board,
 			date:                         timeFmt,
 			passrate14day:                float32(-1),
@@ -167,7 +168,7 @@ func uploadData(filteredTests []string, req *api.FilterFlakyRequest, data map[st
 			passrate3dayrequired:         float32(requiredPassRate3Day),
 			passrate3daysamples:          -1,
 			passrate3daysamplesrequired:  requiredSamples3Day,
-			dryrun:                       "False",
+			dryrun:                       strconv.FormatBool(req.GetPassRatePolicy().Dryrun),
 			milestone:                    mileStone,
 			build:                        "NOT_PROVIDED",
 		}
@@ -179,7 +180,8 @@ func uploadData(filteredTests []string, req *api.FilterFlakyRequest, data map[st
 			fmt.Println(data[tc].Runs)
 			entry.passrate14daysamples = data[tc].Runs
 			entry.passrate14day = float32(data[tc].Passrate)
-
+			entry.passrate3daysamples = data[tc].RunsRecent
+			entry.passrate3day = float32(data[tc].PassrateRecent)
 		}
 		upload = append(upload, entry)
 
