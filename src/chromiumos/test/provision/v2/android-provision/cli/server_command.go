@@ -1,4 +1,4 @@
-// Copyright 2022 The ChromiumOS Authors.
+// Copyright 2022 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -52,25 +52,28 @@ func (sc *ServerCommand) Init(args []string) error {
 		return err
 	}
 
-	if err = sc.validateCLIInputs(); err != nil {
-		return err
-	}
-
 	sc.metadata.Log, err = common.SetUpLog(sc.logFileName)
 	if err != nil {
 		return fmt.Errorf("unable to set up logs: %s", err)
 	}
 
-	apr, err := common_utils.ParseAndroidProvisionRequest(sc.metadataFile)
-	if err != nil {
-		return fmt.Errorf("unable to parse CrosProvisionRequest proto: %s", err)
-	}
-
-	if err = sc.validateProtoInputs(apr); err != nil {
+	if err = sc.validateCLIInputs(); err != nil {
 		return err
 	}
-	sc.metadata.Dut = apr.GetDut()
-	sc.metadata.DutAddress = fmt.Sprintf("%s:%d", apr.GetDutServer().GetAddress(), apr.GetDutServer().GetPort())
+
+	if sc.metadataFile != "" {
+		sc.metadata.Log.Println("warning: CLI arg 'metadata' is deprecated, please use the StartUp RPC instead.")
+		apr, err := common_utils.ParseAndroidProvisionRequest(sc.metadataFile)
+		if err != nil {
+			return fmt.Errorf("unable to parse AndroidProvisionRequest proto: %s", err)
+		}
+
+		if err = sc.validateProtoInputs(apr); err != nil {
+			return err
+		}
+		sc.metadata.Dut = apr.GetDut()
+		sc.metadata.DutAddress = fmt.Sprintf("%s:%d", apr.GetDutServer().GetAddress(), apr.GetDutServer().GetPort())
+	}
 
 	return nil
 }
@@ -81,9 +84,6 @@ func (sc *ServerCommand) Usage() {
 
 // validateCLIInputs ensures the CLI input values are valid
 func (sc *ServerCommand) validateCLIInputs() error {
-	if sc.metadataFile == "" {
-		return errors.New("input file not specified")
-	}
 	return nil
 }
 

@@ -9,6 +9,7 @@ package executor
 
 import (
 	common_utils "chromiumos/test/provision/v2/common-utils"
+	"errors"
 
 	"chromiumos/test/provision/v2/cros-provision/service"
 	state_machine "chromiumos/test/provision/v2/cros-provision/state-machine"
@@ -26,4 +27,15 @@ func (c *CrOSProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 		return nil, err
 	}
 	return state_machine.NewCrOSPreInitState(cs), nil
+}
+
+// Validate ensures the ProvisionStartupRequest meets specified requirements.
+func (c *CrOSProvisionExecutor) Validate(req *api.ProvisionStartupRequest) error {
+	if req.GetDut() == nil || req.GetDut().GetId().GetValue() == "" {
+		return errors.New("dut id is not specified in input file")
+	}
+	if req.GetDutServer() == nil || req.DutServer.GetAddress() == "" || req.DutServer.GetPort() <= 0 {
+		return errors.New("dut server address is no specified or incorrect in input file")
+	}
+	return nil
 }

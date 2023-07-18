@@ -51,6 +51,13 @@ func NewServer(vmleaserClient api.VMLeaserServiceClient, logger *log.Logger, tok
 	return server, closer
 }
 
+func (s *VMLeaserServiceServer) StartUp(ctx context.Context, req *api.ProvisionStartupRequest) (*api.ProvisionStartupResponse, error) {
+	s.logger.Println("Received api.ProvisionStartupRequest: ", req)
+	response := api.ProvisionStartupResponse{}
+	response.Status = api.ProvisionStartupResponse_STATUS_SUCCESS
+	return &response, nil
+}
+
 // Install calls the VMLeaser service endpoints
 func (s *VMLeaserServiceServer) Install(ctc context.Context, req *api.InstallRequest) (*longrunning.Operation, error) {
 	if req == nil || req.Metadata == nil || req.Metadata.TypeUrl == "" {

@@ -7,6 +7,7 @@ package executor
 import (
 	"chromiumos/test/provision/v2/ash-provision/service"
 	common_utils "chromiumos/test/provision/v2/common-utils"
+	"errors"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
@@ -23,4 +24,15 @@ func (c *AShProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Dut
 		return nil, err
 	}
 	return state_machine.NewAShInitState(cs), nil
+}
+
+// Validate ensures the ProvisionStartupRequest meets specified requirements.
+func (c *AShProvisionExecutor) Validate(req *api.ProvisionStartupRequest) error {
+	if req.GetDut() == nil || req.GetDut().GetId().GetValue() == "" {
+		return errors.New("dut id is not specified in input file")
+	}
+	if req.GetDutServer() == nil || req.DutServer.GetAddress() == "" || req.DutServer.GetPort() <= 0 {
+		return errors.New("dut server address is no specified or incorrect in input file")
+	}
+	return nil
 }

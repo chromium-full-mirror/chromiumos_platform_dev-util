@@ -10,6 +10,7 @@ import (
 	common_utils "chromiumos/test/provision/v2/common-utils"
 	"chromiumos/test/provision/v2/common-utils/metadata"
 	"chromiumos/test/util/portdiscovery"
+	"errors"
 
 	"context"
 	"fmt"
@@ -27,27 +28,33 @@ type ProvisionServer struct {
 	dutClient api.DutServiceClient
 	manager   *lro.Manager
 	executor  ProvisionExecutor
+	conns     []*grpc.ClientConn
 }
 
 func NewProvisionServer(options *metadata.ServerMetadata, executor ProvisionExecutor) (*ProvisionServer, func(), error) {
-	var conns []*grpc.ClientConn
-	closer := func() {
-		for _, conn := range conns {
-			conn.Close()
-		}
-		conns = nil
+	ps := &ProvisionServer{
+		options:  options,
+		executor: executor,
+		conns:    []*grpc.ClientConn{},
 	}
-	dutConn, err := grpc.Dial(options.DutAddress, grpc.WithInsecure())
-	if err != nil {
-		return nil, closer, fmt.Errorf("failed to connect to dut-service, %s", err)
-	}
-	conns = append(conns, dutConn)
 
-	return &ProvisionServer{
-		options:   options,
-		dutClient: api.NewDutServiceClient(dutConn),
-		executor:  executor,
-	}, closer, nil
+	if options.DutAddress != "" {
+		dutConn, err := grpc.Dial(options.DutAddress, grpc.WithInsecure())
+		if err != nil {
+			return nil, ps.closeProvisionServer, fmt.Errorf("failed to connect to dut-service, %s", err)
+		}
+		ps.conns = append(ps.conns, dutConn)
+		ps.dutClient = api.NewDutServiceClient(dutConn)
+	}
+
+	return ps, ps.closeProvisionServer, nil
+}
+
+func (ps *ProvisionServer) closeProvisionServer() {
+	for _, conn := range ps.conns {
+		conn.Close()
+	}
+	ps.conns = nil
 }
 
 func (ps *ProvisionServer) Start() error {
@@ -69,6 +76,29 @@ func (ps *ProvisionServer) Start() error {
 	longrunning.RegisterOperationsServer(server, ps.manager)
 	ps.options.Log.Println("provisionservice listen to request at ", l.Addr().String())
 	return server.Serve(l)
+}
+
+// StartUp handles the initialization of the GenericProvisionService by passing in parameters through the ProvisionStartupRequest.
+func (ps *ProvisionServer) StartUp(ctx context.Context, req *api.ProvisionStartupRequest) (*api.ProvisionStartupResponse, error) {
+	ps.options.Log.Println("Received api.ProvisionStartupRequest: ", req)
+	response := api.ProvisionStartupResponse{}
+
+	if err := ps.executor.Validate(req); err != nil {
+		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
+		return &response, err
+	}
+	ps.options.Dut = req.Dut
+	ps.options.DutAddress = fmt.Sprintf("%s:%d", req.GetDutServer().GetAddress(), req.GetDutServer().GetPort())
+
+	dutConn, err := grpc.Dial(ps.options.DutAddress, grpc.WithInsecure())
+	if err != nil {
+		response.Status = api.ProvisionStartupResponse_STATUS_STARTUP_FAILED
+		return &response, fmt.Errorf("failed to connect to dut-service, %s", err)
+	}
+	ps.conns = append(ps.conns, dutConn)
+	ps.dutClient = api.NewDutServiceClient(dutConn)
+
+	return &response, nil
 }
 
 func (ps *ProvisionServer) Install(ctx context.Context, req *api.InstallRequest) (*longrunning.Operation, error) {
@@ -93,6 +123,11 @@ func (ps *ProvisionServer) Install(ctx context.Context, req *api.InstallRequest)
 // with any specified DLCs.
 func (ps *ProvisionServer) installTarget(ctx context.Context, req *api.InstallRequest) (api.InstallResponse_Status, *anypb.Any, error) {
 	ps.options.Log.Println("Received api.InstallRequest: ", req)
+
+	if ps.dutClient == nil {
+		return api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, nil, errors.New("error: no dut client found")
+	}
+
 	fs, err := ps.executor.GetFirstState(ps.options.Dut, ps.dutClient, req)
 	if err != nil {
 		return api.InstallResponse_STATUS_INVALID_REQUEST, nil, err

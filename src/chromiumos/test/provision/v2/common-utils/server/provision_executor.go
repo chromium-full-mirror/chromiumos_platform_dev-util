@@ -16,4 +16,5 @@ import (
 
 type ProvisionExecutor interface {
 	GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (common_utils.ServiceState, error)
+	Validate(req *api.ProvisionStartupRequest) error
 }

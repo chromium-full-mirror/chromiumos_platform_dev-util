@@ -66,14 +66,15 @@ func (sc *ServerCommand) Init(args []string) error {
 		return err
 	}
 
-	if err = sc.validateCLIInputs(); err != nil {
-		return err
-	}
-
 	sc.log, err = SetUpLog(sc.logFilename)
 	if err != nil {
 		return fmt.Errorf("unable to set up logs: %s", err)
 	}
+
+	if err = sc.validateCLIInputs(); err != nil {
+		return err
+	}
+
 	if len(sc.inputFilename) > 0 {
 		req, err := common_utils.ParseProvisionFirmwareRequest(sc.inputFilename)
 		if err != nil {
