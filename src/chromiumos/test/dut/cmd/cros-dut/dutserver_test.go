@@ -14,7 +14,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -894,7 +893,7 @@ func TestCache(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/swarming/none/bbid/none/download/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("curl output"))
 				se.Write([]byte(""))
@@ -904,90 +903,6 @@ func TestCache(t *testing.T) {
 		msi.EXPECT().Close(),
 		mci.EXPECT().Close(),
 	)
-
-	var logBuf bytes.Buffer
-	l, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal("Failed to create a net listener: ", err)
-	}
-
-	ctx := context.Background()
-	srv, destructor := newDutServiceServer(l, log.New(&logBuf, "", log.LstdFlags|log.LUTC), mci, "serializer_path", 0, "dutname", "wiringaddress", "cacheaddress")
-	defer destructor()
-	if err != nil {
-		t.Fatalf("Failed to start DutServiceServer: %v", err)
-	}
-	go srv.Serve(l)
-	defer srv.Stop()
-
-	conn, err := grpc.Dial(l.Addr().String(), grpc.WithInsecure())
-	if err != nil {
-		t.Fatalf("Failed to dial: %v", err)
-	}
-	defer conn.Close()
-
-	cl := api.NewDutServiceClient(conn)
-	_, err = cl.Cache(ctx, &api.CacheRequest{
-		Destination: &api.CacheRequest_File{
-			File: &api.CacheRequest_LocalFile{
-				Path: "/dest/path",
-			},
-		},
-		Source: &api.CacheRequest_GsFile{
-			GsFile: &api.CacheRequest_GSFile{
-				SourcePath: "gs://source/path"},
-		},
-	})
-
-	if err != nil {
-		t.Fatalf("Failed at api.Cache: %v", err)
-	}
-}
-
-// TestCache tests that the regular Cache command works with environment values
-func TestCacheWithEnv(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mci := mock_dutssh.NewMockClientInterface(ctrl)
-	msi := mock_dutssh.NewMockSessionInterface(ctrl)
-
-	var so io.Writer
-	var se io.Writer
-
-	gomock.InOrder(
-		mci.EXPECT().IsAlive().Return(true),
-		mci.EXPECT().NewSession().Return(msi, nil),
-		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
-		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("mkdir -p /dest")).DoAndReturn(
-			func(arg string) error {
-				so.Write([]byte("worked"))
-				se.Write([]byte(""))
-				return nil
-			},
-		),
-		msi.EXPECT().Close(),
-		mci.EXPECT().IsAlive().Return(true),
-		mci.EXPECT().NewSession().Return(msi, nil),
-		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
-		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/swarming/swarming-foobar/bbid/bbid-foobar/download/source/path")).DoAndReturn(
-			func(arg string) error {
-				so.Write([]byte("curl output"))
-				se.Write([]byte(""))
-				return nil
-			},
-		),
-		msi.EXPECT().Close(),
-		mci.EXPECT().Close(),
-	)
-	os.Setenv("SWARMING_TASK_ID", "swarming-foobar")
-	os.Setenv("BUILD_BUCKET_ID", "bbid-foobar")
-	defer func() {
-		os.Unsetenv("SWARMING_TASK_ID")
-		os.Unsetenv("BUILD_BUCKET_ID")
-	}()
 
 	var logBuf bytes.Buffer
 	l, err := net.Listen("tcp", ":0")
@@ -1144,7 +1059,7 @@ func TestCachePipeRetriesAllTimes(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/swarming/none/bbid/none/download/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("failed!"))
 				se.Write([]byte("failed!"))
@@ -1156,7 +1071,7 @@ func TestCachePipeRetriesAllTimes(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/swarming/none/bbid/none/download/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("failed!"))
 				se.Write([]byte("failed!"))
@@ -1168,7 +1083,7 @@ func TestCachePipeRetriesAllTimes(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/swarming/none/bbid/none/download/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("failed!"))
 				se.Write([]byte("failed!"))
@@ -1239,7 +1154,7 @@ func TestCachePipe(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 cacheaddress/swarming/none/bbid/none/download/source/path | piped commands")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 cacheaddress/download/source/path | piped commands")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("curl output"))
 				se.Write([]byte(""))
@@ -1318,7 +1233,7 @@ func TestUntarCache(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/swarming/none/bbid/none/extract/source/path?file=somefile")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/extract/source/path?file=somefile")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("curl output"))
 				se.Write([]byte(""))
@@ -1399,7 +1314,7 @@ func TestUnzipCache(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/swarming/none/bbid/none/decompress/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/decompress/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("curl output"))
 				se.Write([]byte(""))
@@ -1529,7 +1444,7 @@ func TestCacheFailsCommandFails(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/swarming/none/bbid/none/download/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte(""))
 				se.Write([]byte("failed download"))

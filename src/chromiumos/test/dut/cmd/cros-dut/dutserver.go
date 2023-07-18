@@ -16,7 +16,6 @@ import (
 	"log"
 	"net"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -40,11 +39,6 @@ const cacheDownloadURI = "/download/%s"
 const cacheUntarAndDownloadURI = "/extract/%s?file=%s"
 const cacheExtraAndDownloadURI = "/decompress/%s"
 const streamchunksize = 1024
-
-type TaskValues struct {
-	swarming_task_id string
-	build_bucket_id  string
-}
 
 // DutServiceServer implementation of dut_service.proto
 type DutServiceServer struct {
@@ -422,47 +416,28 @@ func (s *DutServiceServer) parseDestination(req *api.CacheRequest) (string, erro
 	}
 }
 
-// getTaskValues return lab relevant values such as:
-// - swarming task ID
-// - build bucket ID
-func (s *DutServiceServer) getTaskValues() TaskValues {
-	getEnvWithPrefix := func(prefix, variable string) string {
-		env_variable := os.Getenv(variable)
-		if len(env_variable) == 0 {
-			return prefix + "none"
-		}
-		return prefix + env_variable
-	}
-
-	return TaskValues{
-		swarming_task_id: getEnvWithPrefix("swarming/", "SWARMING_TASK_ID"),
-		build_bucket_id:  getEnvWithPrefix("bbid/", "BUILD_BUCKET_ID"),
-	}
-}
-
 // getCacheURL returns a constructed URL to the caching service given a specific
 // Source request type
 func (s *DutServiceServer) getCacheURL(req *api.CacheRequest) (string, error) {
-	tv := s.getTaskValues()
 	switch op := req.Source.(type) {
 	case *api.CacheRequest_GsFile:
 		parsedPath, err := parseGSURL(op.GsFile.SourcePath)
 		if err != nil {
 			return "", err
 		}
-		return path.Join(s.cacheAddress, tv.swarming_task_id, tv.build_bucket_id, fmt.Sprintf(cacheDownloadURI, parsedPath)), nil
+		return path.Join(s.cacheAddress, fmt.Sprintf(cacheDownloadURI, parsedPath)), nil
 	case *api.CacheRequest_GsTarFile:
 		parsedPath, err := parseGSURL(op.GsTarFile.SourcePath)
 		if err != nil {
 			return "", err
 		}
-		return path.Join(s.cacheAddress, tv.swarming_task_id, tv.build_bucket_id, fmt.Sprintf(cacheUntarAndDownloadURI, parsedPath, op.GsTarFile.SourceFile)), nil
+		return path.Join(s.cacheAddress, fmt.Sprintf(cacheUntarAndDownloadURI, parsedPath, op.GsTarFile.SourceFile)), nil
 	case *api.CacheRequest_GsZipFile:
 		parsedPath, err := parseGSURL(op.GsZipFile.SourcePath)
 		if err != nil {
 			return "", err
 		}
-		return path.Join(s.cacheAddress, tv.swarming_task_id, tv.build_bucket_id, fmt.Sprintf(cacheExtraAndDownloadURI, parsedPath)), nil
+		return path.Join(s.cacheAddress, fmt.Sprintf(cacheExtraAndDownloadURI, parsedPath)), nil
 	default:
 		return "", fmt.Errorf("type can only be one of GsFile, GsTarFile or GSZipFile")
 	}
