@@ -16,11 +16,11 @@ import (
 // GenericFilterServiceServer ...
 type GenericFilterServiceServer struct {
 	logger   *log.Logger
-	executor func(req *api.InternalTestplan) (*api.InternalTestplan, error)
+	executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error)
 }
 
 // NewServer creates an execution server.
-func NewServer(logger *log.Logger, executor func(req *api.InternalTestplan) (*api.InternalTestplan, error)) (*grpc.Server, func()) {
+func NewServer(logger *log.Logger, executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error)) (*grpc.Server, func()) {
 	s := &GenericFilterServiceServer{
 		logger:   logger,
 		executor: executor,
@@ -44,7 +44,7 @@ func NewServer(logger *log.Logger, executor func(req *api.InternalTestplan) (*ap
 func (s *GenericFilterServiceServer) Execute(ctx context.Context, req *api.InternalTestplan) (*api.InternalTestplan, error) {
 	s.logger.Printf("Received Request: %s", req)
 
-	rspn, err := s.executor(req)
+	rspn, err := s.executor(req, s.logger)
 	if err != nil {
 		return nil, errors.Annotate(err, "Executor: failed to run").Err()
 	}

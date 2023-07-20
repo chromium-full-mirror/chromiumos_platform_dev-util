@@ -8,6 +8,7 @@ package server
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -40,7 +41,7 @@ type args struct {
 }
 
 // startServer is the entry point for running post-process (TestFinderService) in server mode.
-func startServer(d []string, executor func(req *api.InternalTestplan) (*api.InternalTestplan, error)) error {
+func startServer(d []string, executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error), name string) error {
 	a := args{}
 	t := time.Now()
 	defaultLogPath := filepath.Join(defaultRootPath, t.Format("20060102-150405"))
@@ -63,7 +64,7 @@ func startServer(d []string, executor func(req *api.InternalTestplan) (*api.Inte
 		return fmt.Errorf("failed to create a net listener: %s", err)
 	}
 	// Write port number to ~/.cftmeta for go/cft-port-discovery
-	err = portdiscovery.WriteServiceMetadata("provision_filter", l.Addr().String(), logger)
+	err = portdiscovery.WriteServiceMetadata(name, l.Addr().String(), logger)
 	if err != nil {
 		return fmt.Errorf("failed to write metadata port: %s", err)
 	}
@@ -80,6 +81,6 @@ func startServer(d []string, executor func(req *api.InternalTestplan) (*api.Inte
 }
 
 // Server starts the generic filter server.
-func Server(executor func(req *api.InternalTestplan) (*api.InternalTestplan, error)) error {
-	return startServer(os.Args[2:], executor)
+func Server(executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error), name string) error {
+	return startServer(os.Args[2:], executor, name)
 }

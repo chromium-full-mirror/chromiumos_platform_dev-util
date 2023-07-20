@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -16,7 +17,7 @@ import (
 	conf "go.chromium.org/chromiumos/config/go"
 )
 
-func executor(req *api.InternalTestplan) (*api.InternalTestplan, error) {
+func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
 	for _, target := range req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements() {
 		var swBuild string
 		var gcsPath string
@@ -63,7 +64,7 @@ func generateProvisionInfo(current []*api.ProvisionInfo, build string, path stri
 
 }
 func main() {
-	err := server.Server(executor)
+	err := server.Server(executor, "provision_filter")
 	if err != nil {
 		os.Exit(2)
 	}
