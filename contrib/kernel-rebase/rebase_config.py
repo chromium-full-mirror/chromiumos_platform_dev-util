@@ -269,3 +269,6 @@ disp_overwrite[
 disp_overwrite[
     "3b0603c1a246"
 ] = "drop"  # CHROMIUM: hardlockup: detect hard lockups without NMIs using secondary cpus
+disp_overwrite[
+    "5108ae240a15"
+] = "drop"  # FROMLIST: overlayfs: override_creds=off option bypass creator_cred
