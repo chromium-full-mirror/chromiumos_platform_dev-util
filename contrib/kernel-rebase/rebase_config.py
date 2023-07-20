@@ -266,3 +266,6 @@ disp_overwrite[
 disp_overwrite[
     "357c6e4b48a4"
 ] = "drop"  # CHROMIUM: i2c: designware: Fix clobbered i2c request status
+disp_overwrite[
+    "3b0603c1a246"
+] = "drop"  # CHROMIUM: hardlockup: detect hard lockups without NMIs using secondary cpus
