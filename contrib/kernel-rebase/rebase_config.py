@@ -272,3 +272,21 @@ disp_overwrite[
 disp_overwrite[
     "5108ae240a15"
 ] = "drop"  # FROMLIST: overlayfs: override_creds=off option bypass creator_cred
+disp_overwrite[
+    "43a5cc007f36"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add display device nodes
+disp_overwrite[
+    "43a5cc007f36"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add display device nodes
+disp_overwrite[
+    "eaec438390d1"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add GPU device nodes
+disp_overwrite[
+    "ed0162f08a9c"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add spmi node
+disp_overwrite[
+    "acaf611a5e57"
+] = "drop"  # Reland "FROMLIST: arm64: dts: mt8173: Fix elm panel DT node"
+disp_overwrite[
+    "a628d2567f86"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Initialize mt8186 ADSP clocks
