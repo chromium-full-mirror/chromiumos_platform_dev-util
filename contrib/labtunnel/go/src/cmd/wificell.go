@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"chromiumos/platform/dev/contrib/labtunnel/ssh"
 	"github.com/spf13/cobra"
 
 	"chromiumos/platform/dev/contrib/labtunnel/log"
@@ -43,6 +44,7 @@ see "labtunnel btpeers --help" for details.
 `,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			tunnelRegistry := ssh.NewTunnelRegistry()
 			sshManager := buildSshManager()
 
 			// Tunnel to dut.
@@ -50,29 +52,30 @@ see "labtunnel btpeers --help" for details.
 			if err != nil {
 				return fmt.Errorf("could not determine hostname: %w", err)
 			}
-			localDut, err := tunnelToDut(cmd.Context(), sshManager, 1, hostDut)
+			localDut, err := tunnelToDut(cmd.Context(), tunnelRegistry, sshManager, 1, hostDut)
 			if err != nil {
 				return err
 			}
 
 			// Tunnel to routers.
-			localRouters, err := tunnelToRoutersUsingDutHost(cmd.Context(), sshManager, hostDut, routerCount)
+			localRouters, err := tunnelToRoutersUsingDutHost(cmd.Context(), tunnelRegistry, sshManager, hostDut, routerCount)
 			if err != nil {
 				return err
 			}
 
 			// Tunnel to pcaps.
-			localPcaps, err := tunnelToPcapsUsingDutHost(cmd.Context(), sshManager, hostDut, pcapCount)
+			localPcaps, err := tunnelToPcapsUsingDutHost(cmd.Context(), tunnelRegistry, sshManager, hostDut, pcapCount)
 			if err != nil {
 				return err
 			}
 
 			// Tunnel to btpeers.
-			if _, err := tunnelToBtpeersUsingDutHost(cmd.Context(), sshManager, hostDut, wificellCmdBtpeerCount); err != nil {
+			if _, err := tunnelToBtpeersUsingDutHost(cmd.Context(), tunnelRegistry, sshManager, hostDut, wificellCmdBtpeerCount); err != nil {
 				return err
 			}
 
 			time.Sleep(time.Second)
+			tunnelRegistry.PrintToLog()
 			log.Logger.Printf(
 				"Example Tast call (in chroot): tast run -var=router=%s -var=pcap=%s %s <test>",
 				strings.Join(localRouters, ","),

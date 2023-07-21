@@ -41,6 +41,7 @@ localhost:5900 with your preferred VNC client.
 `,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			tunnelRegistry := ssh.NewTunnelRegistry()
 			sshManager := buildSshManager()
 			hostDut, leased, err := resolveDutHostname(cmd.Context(), args[0])
 			if err != nil {
@@ -56,11 +57,12 @@ localhost:5900 with your preferred VNC client.
 			})
 
 			// Tunnel to kmsvnc port on dut.
-			localVnc, err := tunnelLocalPortToRemotePort(cmd.Context(), sshManager, "DUT-VNC", "", remotePortVnc, hostDut)
+			localVnc, err := tunnelLocalPortToRemotePort(cmd.Context(), tunnelRegistry, sshManager, "DUT-VNC", "", remotePortVnc, hostDut)
 			if err != nil {
 				return err
 			}
 
+			tunnelRegistry.PrintToLog()
 			log.Logger.Println("DUT VNC available at", localVnc)
 
 			if !doNotOpenVnc {

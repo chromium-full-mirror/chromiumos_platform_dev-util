@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	"chromiumos/platform/dev/contrib/labtunnel/ssh"
 	"github.com/spf13/cobra"
 )
 
@@ -45,48 +46,49 @@ $ labtunnel hosts --chameleond <host>
 `,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			tunnelRegistry := ssh.NewTunnelRegistry()
 			sshManager := buildSshManager()
 
 			// Tunnel to the specified hosts.
 			tunnelCount := 0
 			for i, host := range hostsDut {
-				if _, err := tunnelToDut(cmd.Context(), sshManager, i+1, host); err != nil {
+				if _, err := tunnelToDut(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
 					return err
 				}
 				tunnelCount++
 			}
 			for i, host := range hostsRouter {
-				if _, err := tunnelToRouter(cmd.Context(), sshManager, i+1, host); err != nil {
+				if _, err := tunnelToRouter(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
 					return err
 				}
 				tunnelCount++
 			}
 			for i, host := range hostsPcap {
-				if _, err := tunnelToPcap(cmd.Context(), sshManager, i+1, host); err != nil {
+				if _, err := tunnelToPcap(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
 					return err
 				}
 				tunnelCount++
 			}
 			for i, host := range hostsBtpeer {
-				if _, err := tunnelToBtpeer(cmd.Context(), sshManager, i+1, host); err != nil {
+				if _, err := tunnelToBtpeer(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
 					return err
 				}
 				tunnelCount++
 			}
 			for i, host := range hostsChameleon {
-				if _, err := tunnelToChameleon(cmd.Context(), sshManager, i+1, host); err != nil {
+				if _, err := tunnelToChameleon(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
 					return err
 				}
 				tunnelCount++
 			}
 			for i, host := range hostsSsh {
-				if _, err := genericTunnelToSshPort(cmd.Context(), sshManager, i+1, host); err != nil {
+				if _, err := genericTunnelToSshPort(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
 					return err
 				}
 				tunnelCount++
 			}
 			for i, host := range hostsChameleond {
-				if _, err := genericTunnelToChameleondPort(cmd.Context(), sshManager, i+1, host); err != nil {
+				if _, err := genericTunnelToChameleondPort(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
 					return err
 				}
 				tunnelCount++
@@ -97,6 +99,7 @@ $ labtunnel hosts --chameleond <host>
 			}
 
 			time.Sleep(time.Second)
+			tunnelRegistry.PrintToLog()
 			sshManager.WaitUntilAllSshCompleted(cmd.Context())
 			return nil
 		},

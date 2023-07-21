@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"chromiumos/platform/dev/contrib/labtunnel/log"
+	"chromiumos/platform/dev/contrib/labtunnel/ssh"
 
 	"github.com/spf13/cobra"
 )
@@ -38,6 +39,7 @@ on the proxy host, as the callboxes do not support SSH.
 `,
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			tunnelRegistry := ssh.NewTunnelRegistry()
 			sshManager := buildSshManager()
 
 			// Tunnel to dut.
@@ -45,26 +47,27 @@ on the proxy host, as the callboxes do not support SSH.
 			if err != nil {
 				return fmt.Errorf("could not determine hostname: %w", err)
 			}
-			localDut, err := tunnelToDut(cmd.Context(), sshManager, 1, hostDut)
+			localDut, err := tunnelToDut(cmd.Context(), tunnelRegistry, sshManager, 1, hostDut)
 			if err != nil {
 				return err
 			}
 
 			// Tunnel to Callbox Manager service on callbox proxy.
 			hostProxy := args[1]
-			localCallboxManager, err := tunnelLocalPortToRemotePort(cmd.Context(), sshManager, "CALLBOX_MANAGER", "", remotePortCallboxManager, hostProxy)
+			localCallboxManager, err := tunnelLocalPortToRemotePort(cmd.Context(), tunnelRegistry, sshManager, "CALLBOX_MANAGER", "", remotePortCallboxManager, hostProxy)
 			if err != nil {
 				return err
 			}
 
 			// Tunnel to callbox through proxy.
 			hostCallbox := args[2]
-			localCallbox, err := tunnelLocalPortToRemotePort(cmd.Context(), sshManager, "CALLBOX", hostCallbox, remotePortCallbox, hostProxy)
+			localCallbox, err := tunnelLocalPortToRemotePort(cmd.Context(), tunnelRegistry, sshManager, "CALLBOX", hostCallbox, remotePortCallbox, hostProxy)
 			if err != nil {
 				return err
 			}
 
 			time.Sleep(time.Second)
+			tunnelRegistry.PrintToLog()
 			log.Logger.Printf(
 				"Example Tast call (in chroot): tast run -var=callbox=%s -var=callboxManager=%s %s <test>",
 				localCallbox,

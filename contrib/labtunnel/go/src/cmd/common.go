@@ -121,7 +121,7 @@ func nextLocalPort(ctx context.Context) int {
 	return -1
 }
 
-func tunnelLocalPortToRemotePort(ctx context.Context, sshManager *ssh.ConcurrentSshManager, tunnelName string, remoteHost string, remotePort int, sshHost string) (string, error) {
+func tunnelLocalPortToRemotePort(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelName string, remoteHost string, remotePort int, sshHost string) (string, error) {
 	localPort := nextLocalPort(ctx)
 	listenHost := fmt.Sprintf("localhost:%d", localPort)
 	if remoteHost == "" {
@@ -151,6 +151,11 @@ func tunnelLocalPortToRemotePort(ctx context.Context, sshManager *ssh.Concurrent
 	sshManager.Ssh(ctx, true, description, func(ctx context.Context, r *ssh.Runner) error {
 		return r.TunnelLocalPortToRemotePort(ctx, localPort, remoteHost, remotePort, sshHost)
 	})
+	if remoteHost != "localhost" {
+		tunnelRegistry.Set(remoteHost, listenHost)
+	} else {
+		tunnelRegistry.Set(sshHost, listenHost)
+	}
 	return listenHost, nil
 }
 
@@ -231,48 +236,48 @@ func runContextualCommand(ctx context.Context, logPrefix string, command string,
 	}
 }
 
-func tunnelToDut(ctx context.Context, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, sshManager, fmt.Sprint("DUT-", tunnelID), "", remotePortSsh, hostname)
+func tunnelToDut(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("DUT-", tunnelID), "", remotePortSsh, hostname)
 }
 
-func tunnelToRouter(ctx context.Context, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, sshManager, fmt.Sprint("ROUTER-", tunnelID), "", remotePortSsh, hostname)
+func tunnelToRouter(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("ROUTER-", tunnelID), "", remotePortSsh, hostname)
 }
 
-func tunnelToPcap(ctx context.Context, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, sshManager, fmt.Sprint("PCAP-", tunnelID), "", remotePortSsh, hostname)
+func tunnelToPcap(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("PCAP-", tunnelID), "", remotePortSsh, hostname)
 }
 
-func tunnelToBtpeer(ctx context.Context, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, sshManager, fmt.Sprint("BTPEER-", tunnelID), "", remotePortSsh, hostname)
+func tunnelToBtpeer(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("BTPEER-", tunnelID), "", remotePortSsh, hostname)
 }
 
-func tunnelToChameleon(ctx context.Context, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, sshManager, fmt.Sprint("CHAMELEON-", tunnelID), "", remotePortChameleond, hostname)
+func tunnelToChameleon(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("CHAMELEON-", tunnelID), "", remotePortChameleond, hostname)
 }
 
-func genericTunnelToSshPort(ctx context.Context, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, sshManager, fmt.Sprint("SSH-", tunnelID), "", remotePortSsh, hostname)
+func genericTunnelToSshPort(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("SSH-", tunnelID), "", remotePortSsh, hostname)
 }
 
-func genericTunnelToChameleondPort(ctx context.Context, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, sshManager, fmt.Sprint("CHAMELEOND-", tunnelID), "", remotePortChameleond, hostname)
+func genericTunnelToChameleondPort(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("CHAMELEOND-", tunnelID), "", remotePortChameleond, hostname)
 }
 
-func tunnelToRoutersUsingDutHost(ctx context.Context, sshManager *ssh.ConcurrentSshManager, hostDut string, routerCount int) ([]string, error) {
+func tunnelToRoutersUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, hostDut string, routerCount int) ([]string, error) {
 	if routerCount < 1 {
 		return nil, nil
 	}
 	var localHostnames []string
 	var localHostname string
 	var err error
-	localHostname, err = tunnelToRouter(ctx, sshManager, 1, resolveHostname(hostDut, "-router"))
+	localHostname, err = tunnelToRouter(ctx, tunnelRegistry, sshManager, 1, resolveHostname(hostDut, "-router"))
 	if err != nil {
 		return nil, err
 	}
 	localHostnames = append(localHostnames, localHostname)
 	for i := 2; i <= routerCount; i++ {
-		localHostname, err = tunnelToRouter(ctx, sshManager, i, resolveHostname(hostDut, fmt.Sprintf("-router%d", i)))
+		localHostname, err = tunnelToRouter(ctx, tunnelRegistry, sshManager, i, resolveHostname(hostDut, fmt.Sprintf("-router%d", i)))
 		if err != nil {
 			return nil, err
 		}
@@ -281,20 +286,20 @@ func tunnelToRoutersUsingDutHost(ctx context.Context, sshManager *ssh.Concurrent
 	return localHostnames, err
 }
 
-func tunnelToPcapsUsingDutHost(ctx context.Context, sshManager *ssh.ConcurrentSshManager, hostDut string, pcapCount int) ([]string, error) {
+func tunnelToPcapsUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, hostDut string, pcapCount int) ([]string, error) {
 	if pcapCount < 1 {
 		return nil, nil
 	}
 	var localHostnames []string
 	var localHostname string
 	var err error
-	localHostname, err = tunnelToPcap(ctx, sshManager, 1, resolveHostname(hostDut, "-pcap"))
+	localHostname, err = tunnelToPcap(ctx, tunnelRegistry, sshManager, 1, resolveHostname(hostDut, "-pcap"))
 	if err != nil {
 		return nil, err
 	}
 	localHostnames = append(localHostnames, localHostname)
 	for i := 2; i <= pcapCount; i++ {
-		localHostname, err = tunnelToPcap(ctx, sshManager, i, resolveHostname(hostDut, fmt.Sprintf("-pcap%d", i)))
+		localHostname, err = tunnelToPcap(ctx, tunnelRegistry, sshManager, i, resolveHostname(hostDut, fmt.Sprintf("-pcap%d", i)))
 		if err != nil {
 			return nil, err
 		}
@@ -303,7 +308,7 @@ func tunnelToPcapsUsingDutHost(ctx context.Context, sshManager *ssh.ConcurrentSs
 	return localHostnames, nil
 }
 
-func tunnelToBtpeersUsingDutHost(ctx context.Context, sshManager *ssh.ConcurrentSshManager, hostDut string, btPeerCount int) ([]string, error) {
+func tunnelToBtpeersUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, hostDut string, btPeerCount int) ([]string, error) {
 	if btPeerCount < 1 {
 		return nil, nil
 	}
@@ -311,7 +316,7 @@ func tunnelToBtpeersUsingDutHost(ctx context.Context, sshManager *ssh.Concurrent
 	var localHostname string
 	var err error
 	for i := 1; i <= btPeerCount; i++ {
-		localHostname, err = tunnelToBtpeer(ctx, sshManager, i, resolveHostname(hostDut, fmt.Sprintf("-btpeer%d", i)))
+		localHostname, err = tunnelToBtpeer(ctx, tunnelRegistry, sshManager, i, resolveHostname(hostDut, fmt.Sprintf("-btpeer%d", i)))
 		if err != nil {
 			return nil, err
 		}
@@ -320,8 +325,8 @@ func tunnelToBtpeersUsingDutHost(ctx context.Context, sshManager *ssh.Concurrent
 	return localHostnames, nil
 }
 
-func tunnelToChameleonUsingDutHost(ctx context.Context, sshManager *ssh.ConcurrentSshManager, hostDut string, tunnelID int) (string, error) {
-	return tunnelToChameleon(ctx, sshManager, tunnelID, resolveHostname(hostDut, "-chameleon"))
+func tunnelToChameleonUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, hostDut string, tunnelID int) (string, error) {
+	return tunnelToChameleon(ctx, tunnelRegistry, sshManager, tunnelID, resolveHostname(hostDut, "-chameleon"))
 }
 
 func pollDUTLease(ctx context.Context, hostDut string) context.Context {

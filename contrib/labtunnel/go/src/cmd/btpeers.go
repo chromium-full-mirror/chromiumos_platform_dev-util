@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"chromiumos/platform/dev/contrib/labtunnel/ssh"
 	"github.com/spf13/cobra"
 )
 
@@ -48,6 +49,7 @@ starting at 1.
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			tunnelRegistry := ssh.NewTunnelRegistry()
 			sshManager := buildSshManager()
 
 			// Tunnel to dut.
@@ -55,16 +57,17 @@ starting at 1.
 			if err != nil {
 				return fmt.Errorf("could not determine hostname: %w", err)
 			}
-			if _, err := tunnelToDut(cmd.Context(), sshManager, 1, hostDut); err != nil {
+			if _, err := tunnelToDut(cmd.Context(), tunnelRegistry, sshManager, 1, hostDut); err != nil {
 				return err
 			}
 
 			// Tunnel to btpeers.
-			if _, err := tunnelToBtpeersUsingDutHost(cmd.Context(), sshManager, hostDut, btpeersCmdBtpeerCount); err != nil {
+			if _, err := tunnelToBtpeersUsingDutHost(cmd.Context(), tunnelRegistry, sshManager, hostDut, btpeersCmdBtpeerCount); err != nil {
 				return nil
 			}
 
 			time.Sleep(time.Second)
+			tunnelRegistry.PrintToLog()
 			ctx := cmd.Context()
 			if leased {
 				ctx = pollDUTLease(ctx, hostDut)

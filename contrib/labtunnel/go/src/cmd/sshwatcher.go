@@ -7,6 +7,7 @@ package cmd
 import (
 	"time"
 
+	"chromiumos/platform/dev/contrib/labtunnel/ssh"
 	"github.com/spf13/cobra"
 )
 
@@ -26,16 +27,22 @@ to be specified and is selected like it is for other tunnels in labtunnel. See
 "labtunnel --help" for more details on port selection.
 `,
 		Args: cobra.MinimumNArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			tunnelRegistry := ssh.NewTunnelRegistry()
 			sshManager := buildSshManager()
 
 			// Tunnel to the specified hosts.
 			for i, host := range args {
-				genericTunnelToSshPort(cmd.Context(), sshManager, i+1, host)
+
+				if _, err := genericTunnelToSshPort(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
+					return err
+				}
 			}
 
 			time.Sleep(time.Second)
+			tunnelRegistry.PrintToLog()
 			sshManager.WaitUntilAllSshCompleted(cmd.Context())
+			return nil
 		},
 	}
 )

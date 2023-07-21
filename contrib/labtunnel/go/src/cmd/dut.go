@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"chromiumos/platform/dev/contrib/labtunnel/log"
+	"chromiumos/platform/dev/contrib/labtunnel/ssh"
 
 	"github.com/spf13/cobra"
 )
@@ -29,6 +30,7 @@ The dut hostname is resolved from <dut_hostname> by removing the prefix
 `,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			tunnelRegistry := ssh.NewTunnelRegistry()
 			sshManager := buildSshManager()
 
 			// Tunnel to dut.
@@ -36,12 +38,13 @@ The dut hostname is resolved from <dut_hostname> by removing the prefix
 			if err != nil {
 				return fmt.Errorf("could not determine hostname: %w", err)
 			}
-			localDut, err := tunnelToDut(cmd.Context(), sshManager, 1, hostDut)
+			localDut, err := tunnelToDut(cmd.Context(), tunnelRegistry, sshManager, 1, hostDut)
 			if err != nil {
 				return err
 			}
 
 			time.Sleep(time.Second)
+			tunnelRegistry.PrintToLog()
 			log.Logger.Printf("Example Tast call (in chroot): tast run %s <test>", localDut)
 			ctx := cmd.Context()
 			if leased {

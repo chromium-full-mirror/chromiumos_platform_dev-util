@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"chromiumos/platform/dev/contrib/labtunnel/ssh"
 	"github.com/spf13/cobra"
 )
 
@@ -28,6 +29,7 @@ The formula for the chameleon device hostname is "<dut>-chameleon".
 `,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			tunnelRegistry := ssh.NewTunnelRegistry()
 			sshManager := buildSshManager()
 
 			// Tunnel to dut.
@@ -35,16 +37,17 @@ The formula for the chameleon device hostname is "<dut>-chameleon".
 			if err != nil {
 				return fmt.Errorf("could not determine hostname: %w", err)
 			}
-			if _, err := tunnelToDut(cmd.Context(), sshManager, 1, hostDut); err != nil {
+			if _, err := tunnelToDut(cmd.Context(), tunnelRegistry, sshManager, 1, hostDut); err != nil {
 				return err
 			}
 
 			// Tunnel to chameleon.
-			if _, err := tunnelToChameleonUsingDutHost(cmd.Context(), sshManager, hostDut, 1); err != nil {
+			if _, err := tunnelToChameleonUsingDutHost(cmd.Context(), tunnelRegistry, sshManager, hostDut, 1); err != nil {
 				return err
 			}
 
 			time.Sleep(time.Second)
+			tunnelRegistry.PrintToLog()
 			ctx := cmd.Context()
 			if leased {
 				ctx = pollDUTLease(ctx, hostDut)
