@@ -201,6 +201,14 @@ disp_overwrite["cd6e65e89f5a"] = [
     "move",
     "mm",
 ]  # FIXUP: CHROMIUM: mm: Fix staled "next" iterator
+disp_overwrite["c213e05d210a"] = [
+    "move",
+    "chromeos",
+]  # FIXUP: CHROMIUM: ARM64: Add alt-syscall support
+disp_overwrite["7c658167be6b"] = [
+    "move",
+    "chromeos",
+]  # FIXUP: CHROMIUM: create alt-syscall infrastructure
 disp_overwrite[
     "91a70c368104"
 ] = "drop"  # CHROMIUM: driver:  Support iwl7000 driver on v6.1
