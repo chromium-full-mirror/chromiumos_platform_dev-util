@@ -98,6 +98,7 @@ func (ps *ProvisionServer) StartUp(ctx context.Context, req *api.ProvisionStartu
 	ps.conns = append(ps.conns, dutConn)
 	ps.dutClient = api.NewDutServiceClient(dutConn)
 
+	response.Status = api.ProvisionStartupResponse_STATUS_SUCCESS
 	return &response, nil
 }
 
