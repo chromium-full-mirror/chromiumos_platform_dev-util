@@ -34,7 +34,7 @@ func QueryForResults(variant string, milestone string) (*bigquery.RowIterator, e
 		return nil, fmt.Errorf("unable to make bq client %s", err)
 	}
 
-	cmd := fmt.Sprintf("SELECT * FROM chromeos-test-platform-data.analytics.FlakeCacheTest WHERE total_runs > 0 AND board = \"%s\"  AND (REGEXP_CONTAINS(build, \"%s\"))", variant, milestone)
+	cmd := fmt.Sprintf("SELECT * FROM chromeos-test-platform-data.analytics.FlakeCacheTest WHERE total_runs > 0 AND board = \"%s\"  AND (REGEXP_CONTAINS(build, \"%s\")) ORDER BY success_permille", variant, milestone)
 	fmt.Println((cmd))
 	bqQ := c.Query(cmd)
 	// Execute the query.

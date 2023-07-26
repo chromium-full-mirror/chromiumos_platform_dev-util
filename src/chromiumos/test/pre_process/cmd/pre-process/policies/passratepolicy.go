@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"strconv"
 
 	"chromiumos/test/pre_process/cmd/pre-process/interfaces"
@@ -15,6 +16,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"golang.org/x/exp/slices"
 	"google.golang.org/api/iterator"
 )
 
@@ -56,6 +58,25 @@ func listToMap(forced []string) map[string]struct{} {
 	return listMap
 }
 
+// Helper method to turn the policy FilterTestConfigs into a set.
+func policyFilterTestConfigsToMap(cfgs []*api.FilterTestConfig, board string) (map[string]struct{}, map[string]struct{}) {
+	enabled := make(map[string]struct{})
+	disabled := make(map[string]struct{})
+
+	for _, filterconfig := range cfgs {
+		if filterconfig.GetSetting() == api.FilterTestConfig_ENABLED {
+			if slices.Contains(filterconfig.GetBoard(), board) {
+				enabled[filterconfig.GetTest()] = struct{}{}
+			}
+		} else if filterconfig.GetSetting() == api.FilterTestConfig_DISABLED {
+			if slices.Contains(filterconfig.GetBoard(), board) {
+				disabled[filterconfig.GetTest()] = struct{}{}
+			}
+		}
+	}
+	return enabled, disabled
+}
+
 // StabilityFromPolicy returns the stability information computed from the policy given. Uses BQ results directly for test history.
 func StabilityFromPolicy(req *api.FilterFlakyRequest_PassRatePolicy, variant string, milestone string, tcList map[string]struct{}) (map[string]structs.SignalFormat, error) {
 	policy := PassRatePolicy{
@@ -81,29 +102,35 @@ func StabilityFromPolicy(req *api.FilterFlakyRequest_PassRatePolicy, variant str
 	return policy.data, nil
 }
 
-func (q *PassRatePolicy) determineSignalFromQuery(testname string, passRate float64, recPassRate float64, recRuns int, minRuns int) bool {
+func (q *PassRatePolicy) determineSignalFromQuery(testname string, passRate float64, recPassRate float64, recRuns int, minRuns int, filterRemaining int) (bool, int) {
 	// If the test is force_enabled, do this.
 	if _, found := q.forceMapEnable[testname]; found {
 		log.Printf("testname %s marked as forced disabled.", testname)
-		return true
+		return true, filterRemaining
 	} else if _, found := q.forceMapDisable[testname]; found {
-		return false
+		return false, filterRemaining
 	} else if passRate >= float64(q.requiredPassRate) {
-		return true
+		return true, filterRemaining
 	} else if q.requiredPassRate != 0 && q.requiredRecentRuns != 0 {
 		if recPassRate >= q.requiredPassRate && recRuns >= q.requiredRecentRuns {
-			return true // Was bad, but recent signal is very strongly good.
+			return true, filterRemaining // Was bad, but recent signal is very strongly good.
 		}
 	}
+	// reduce the filter remaining by one, and if there is <=0 remaining, allow it.
+	if filterRemaining <= 0 {
+		log.Printf("testname %s < required PassRate %v with %v: IS UNSTABLE BUT ALLOWED DUE TO MAX FILTER # REACHED.\n", testname, q.requiredPassRate, passRate)
+		return true, filterRemaining
+	}
 	log.Printf("testname %s < required PassRate %v with %v: MARKED UNSTABLE (might still run due to overrides).\n", testname, q.requiredPassRate, passRate)
-	return false
+
+	filterRemaining--
+	return false, filterRemaining
 }
 
 func (q *PassRatePolicy) stabilityFromPolicy() error {
 	mileStone, _ := strconv.Atoi(q.milestone)
 	mileStroneRegex := mileStoneRegex(q.numOfMilestones, mileStone)
-	q.forceMapEnable = listToMap(q.req.PassRatePolicy.ForceEnabledTests)
-	q.forceMapDisable = listToMap(q.req.PassRatePolicy.ForceDisabledTests)
+	q.forceMapEnable, q.forceMapDisable = policyFilterTestConfigsToMap(q.req.PassRatePolicy.Testconfigs, q.variant)
 
 	// Query using all possible milestones. We will only search for results in the current on the first iterations.
 	bqIter, err := interfaces.QueryForResults(q.variant, mileStroneRegex)
@@ -134,8 +161,18 @@ func (q *PassRatePolicy) populateMissingTests() {
 	}
 }
 
+func maxAllowedToBeFiltered(req *api.PassRatePolicy, totalTests int) int {
+	maxI := req.MaxFilteredInt
+	maxP := req.MaxFilteredPercent
+	percentAsInt := math.Round(float64(totalTests * int(maxP) / 100))
+	return int(math.Min(float64(maxI), percentAsInt))
+}
+
 func (q *PassRatePolicy) iterThroughData(bqIter *bigquery.RowIterator, milestone string) map[string]structs.SignalFormat {
 	data := make(map[string]structs.SignalFormat)
+	totalTC := len(q.missingTcList)
+	filtersRemaining := maxAllowedToBeFiltered(q.req.PassRatePolicy, totalTC)
+
 	for {
 		var resp resSchema
 		err := bqIter.Next(&resp)
@@ -148,8 +185,11 @@ func (q *PassRatePolicy) iterThroughData(bqIter *bigquery.RowIterator, milestone
 			// this is where its going to be raised. For now, lets log && continue to not break every test.
 			log.Printf("INFORMATIONAL ERR - could not decode error on loop: %s\n", err)
 		}
-
-		signal := q.determineSignalFromQuery(resp.Normalized_test, resp.Success_permille, resp.Rec_Success_Permille, resp.Rec_Total_Runs, int(q.req.PassRatePolicy.MinRuns))
+		var signal bool
+		signal, filtersRemaining = q.determineSignalFromQuery(
+			resp.Normalized_test, resp.Success_permille, resp.Rec_Success_Permille,
+			resp.Rec_Total_Runs, int(q.req.PassRatePolicy.MinRuns),
+			filtersRemaining)
 
 		// Not enough runs? skip!
 		if resp.Total_runs < int(q.req.PassRatePolicy.MinRuns) {

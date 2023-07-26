@@ -5,9 +5,12 @@
 package policies
 
 import (
+	"reflect"
 	"testing"
 
 	"chromiumos/test/pre_process/cmd/pre-process/structs"
+
+	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
 func TestDetermineSignalFromQuery(t *testing.T) {
@@ -15,20 +18,48 @@ func TestDetermineSignalFromQuery(t *testing.T) {
 	qi.forceMapEnable = listToMap([]string{"Test1"})
 	qi.forceMapDisable = listToMap([]string{"Test2"})
 
-	if !qi.determineSignalFromQuery("Test1", 98.0, 98.0, 30, 20) {
+	signal, _ := qi.determineSignalFromQuery("Test1", 98.0, 98.0, 30, 20, 5)
+	if !signal {
 		t.Fatalf("ForceEnableCheck - Test marked as unstable when should be marked as stable.")
 	}
-	if qi.determineSignalFromQuery("Test2", 99.5, 99.0, 30, 20) {
+
+	signal, _ = qi.determineSignalFromQuery("Test2", 99.5, 99.0, 30, 20, 1)
+	if signal {
 		t.Fatalf("ForceDisableCheck - Test marked as stable when should be marked as unstable.")
 	}
-	if qi.determineSignalFromQuery("Test3", 98.0, 99.9, 2, 5) {
+
+	signal, _ = qi.determineSignalFromQuery("Test3", 98.0, 99.9, 2, 5, 1)
+	if signal {
 		t.Fatalf("PassRateCheckUnstable - Test marked as stable when should be marked as unstable.")
 	}
-	if !qi.determineSignalFromQuery("Test4", 99.0, 97.0, 30, 30) {
+
+	signal, _ = qi.determineSignalFromQuery("Test4", 99.0, 97.0, 30, 30, 1)
+	if !signal {
 		t.Fatalf("PassRateCheckStable - Test marked as unstable when should be marked as stable.")
 	}
-	if !qi.determineSignalFromQuery("Test4", 94.0, 99.5, 30, 30) {
+
+	signal, _ = qi.determineSignalFromQuery("Test4", 94.0, 99.5, 30, 30, 1)
+	if !signal {
 		t.Fatalf("RecentStableCheck - Test marked as unstable when should be marked as stable.")
+	}
+
+	// Test max # of filtered reached cases:
+	// 1.) Stable Signal, no filters remaining, with a force override to stable.
+	signal, _ = qi.determineSignalFromQuery("Test1", 98.0, 98.0, 30, 20, 0)
+	if !signal {
+		t.Fatalf("ForceEnableCheck - Test marked as unstable when should be marked as stable.")
+	}
+
+	// 2.) unstable signal, no filters remaining, should be "stable".
+	signal, _ = qi.determineSignalFromQuery("Test3", 99.5, 99.0, 30, 20, 0)
+	if !signal {
+		t.Fatalf("MaxFilterCheck - Test marked as unstable when should be marked as stable.")
+	}
+
+	// 3.) unstable signal, no filters remaining, forcedDisabled, should be "unstable".
+	signal, _ = qi.determineSignalFromQuery("Test2", 99.5, 99.0, 30, 20, 0)
+	if signal {
+		t.Fatalf("MaxFilterForceDisableCheck - Test marked as stable when should be marked as unstable.")
 	}
 
 }
@@ -55,5 +86,56 @@ func TestPopulateMissingTests(t *testing.T) {
 	_, ok = qi.data["missing"]
 	if ok {
 		t.Fatalf("MissingDataCheck - Missing data got backfilled (how??)")
+	}
+}
+
+func TestPolicyFilterTestConfigsToMap(t *testing.T) {
+	enabledTest := &api.FilterTestConfig{
+		Test:    "test1",
+		Board:   []string{"hana"},
+		Setting: api.FilterTestConfig_ENABLED,
+	}
+	disabledTest := &api.FilterTestConfig{
+		Test:    "test2",
+		Board:   []string{"hana"},
+		Setting: api.FilterTestConfig_DISABLED,
+	}
+
+	enabled, disabled := policyFilterTestConfigsToMap([]*api.FilterTestConfig{enabledTest, disabledTest}, "hana")
+	enabledExpected := listToMap([]string{"test1"})
+	disabledExpected := listToMap([]string{"test2"})
+
+	eq := reflect.DeepEqual(enabled, enabledExpected)
+	if !eq {
+		t.Fatalf("got: %s did not match expected: %s", enabled, enabledExpected)
+	}
+	eq = reflect.DeepEqual(disabled, disabledExpected)
+	if !eq {
+		t.Fatalf("got: %s did not match expected: %s", disabled, disabledExpected)
+	}
+}
+
+func TestPolicyFilterTestConfigsToMapNoBoardMatch(t *testing.T) {
+	enabledTest := &api.FilterTestConfig{
+		Test:    "test1",
+		Board:   []string{"hana"},
+		Setting: api.FilterTestConfig_ENABLED,
+	}
+	disabledTest := &api.FilterTestConfig{
+		Test:    "test2",
+		Board:   []string{"hana"},
+		Setting: api.FilterTestConfig_DISABLED,
+	}
+
+	enabled, disabled := policyFilterTestConfigsToMap([]*api.FilterTestConfig{enabledTest, disabledTest}, "other")
+	expected := make(map[string]struct{})
+
+	eq := reflect.DeepEqual(enabled, expected)
+	if !eq {
+		t.Fatalf("got: %s did not match expected: %s", enabled, expected)
+	}
+	eq = reflect.DeepEqual(disabled, expected)
+	if !eq {
+		t.Fatalf("got: %s did not match expected: %s", disabled, expected)
 	}
 }
