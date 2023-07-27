@@ -10,8 +10,8 @@ set -e
 
 BUILD_PROFILE="ubnt_unifi-6-lite"
 EXTRA_IMAGE_NAME="upreved-hostapd-v2.11-devel"
-SDK_DOWNLOAD_URL="https://downloads.openwrt.org/releases/21.02.5/targets/ramips/mt7621/openwrt-sdk-21.02.5-ramips-mt7621_gcc-8.4.0_musl.Linux-x86_64.tar.xz"
-IMAGE_BUILDER_DOWNLOAD_URL="https://downloads.openwrt.org/releases/21.02.5/targets/ramips/mt7621/openwrt-imagebuilder-21.02.5-ramips-mt7621.Linux-x86_64.tar.xz"
+SDK_DOWNLOAD_URL="https://downloads.openwrt.org/releases/21.02.7/targets/ramips/mt7621/openwrt-sdk-21.02.7-ramips-mt7621_gcc-8.4.0_musl.Linux-x86_64.tar.xz"
+IMAGE_BUILDER_DOWNLOAD_URL="https://downloads.openwrt.org/releases/21.02.7/targets/ramips/mt7621/openwrt-imagebuilder-21.02.7-ramips-mt7621.Linux-x86_64.tar.xz"
 OPENWRT_SOURCE_REPO="https://github.com/openwrt/openwrt.git"
 OPENWRT_SOURCE_REPO_REVISION="6198eb3e6448e9a43a32d3f46b7d0543424f455b"
 
