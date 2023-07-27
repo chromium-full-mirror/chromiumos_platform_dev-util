@@ -303,3 +303,6 @@ disp_overwrite[
 disp_overwrite[
     "a628d2567f86"
 ] = "drop"  # CHROMIUM: arm64: dts: mt8186: Initialize mt8186 ADSP clocks
+disp_overwrite[
+    "85d4080fdfca"
+] = "drop"  # CHROMIUM: Bluetooth: hci_sync: Use safe loop when adding accept list
