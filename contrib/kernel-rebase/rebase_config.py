@@ -209,6 +209,10 @@ disp_overwrite["7c658167be6b"] = [
     "move",
     "chromeos",
 ]  # FIXUP: CHROMIUM: create alt-syscall infrastructure
+disp_overwrite["a321498835c4"] = [
+    "move",
+    "chromeos",
+]  # FIXUP: CHROMIUM: ARM64: Add alt-syscall support
 disp_overwrite[
     "91a70c368104"
 ] = "drop"  # CHROMIUM: driver:  Support iwl7000 driver on v6.1
