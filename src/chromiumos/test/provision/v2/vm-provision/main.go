@@ -65,15 +65,6 @@ func startServer(d []string) int {
 	if a.authFilePath != "" {
 		authTokenFilePath = a.authFilePath
 	}
-	token, err := readAuthToken(authTokenFilePath)
-	if err != nil {
-		logger.Fatalln("Failed to read auth token: ", err)
-		return 2
-	}
-	if token == "" {
-		logger.Fatalln("Aborting initialization as token is empty")
-		return 2
-	}
 
 	// Set up gRPC connection
 	conn, err := grpc.Dial(vmLeaserEndPoint, grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")))
@@ -93,7 +84,7 @@ func startServer(d []string) int {
 
 	logger.Println("Starting Service on port ", a.port)
 
-	server, closer := NewServer(client, logger, token)
+	server, closer := NewServer(client, logger, authTokenFilePath)
 	defer closer()
 
 	// Write port number to ~/.cftmeta for go/cft-port-discovery

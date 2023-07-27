@@ -22,19 +22,19 @@ import (
 
 // VMLeaserServiceServer is implementation of vm_leaser.proto
 type VMLeaserServiceServer struct {
-	logger         *log.Logger
-	vmleaserClient api.VMLeaserServiceClient
-	manager        *lro.Manager
-	token          string
+	logger            *log.Logger
+	vmleaserClient    api.VMLeaserServiceClient
+	manager           *lro.Manager
+	authTokenFilePath string
 }
 
 // NewServer creates an execution server
-func NewServer(vmleaserClient api.VMLeaserServiceClient, logger *log.Logger, token string) (*grpc.Server, func()) {
+func NewServer(vmleaserClient api.VMLeaserServiceClient, logger *log.Logger, authTokenFilePath string) (*grpc.Server, func()) {
 	s := &VMLeaserServiceServer{
-		logger:         logger,
-		vmleaserClient: vmleaserClient,
-		manager:        lro.New(),
-		token:          token,
+		logger:            logger,
+		vmleaserClient:    vmleaserClient,
+		manager:           lro.New(),
+		authTokenFilePath: authTokenFilePath,
 	}
 	server := grpc.NewServer()
 	var conns []*grpc.ClientConn
@@ -59,14 +59,12 @@ func (s *VMLeaserServiceServer) StartUp(ctx context.Context, req *api.ProvisionS
 }
 
 // Install calls the VMLeaser service endpoints
-func (s *VMLeaserServiceServer) Install(ctc context.Context, req *api.InstallRequest) (*longrunning.Operation, error) {
+func (s *VMLeaserServiceServer) Install(ctx context.Context, req *api.InstallRequest) (*longrunning.Operation, error) {
 	if req == nil || req.Metadata == nil || req.Metadata.TypeUrl == "" {
 		return nil, fmt.Errorf("nnvalid request: empty request or missing metadata type url")
 	}
 
 	op := s.manager.NewOperation()
-	authorization := "Bearer " + s.token
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("Authorization", authorization))
 	metadataType := req.Metadata.TypeUrl
 
 	switch metadataType {
@@ -86,6 +84,17 @@ func (s *VMLeaserServiceServer) handleLeaseVMRequest(ctx context.Context, op *lo
 		return nil, err
 	}
 	s.logger.Printf("Making lease gRPC call")
+	token, err := readAuthToken(s.authTokenFilePath)
+	if err != nil {
+		s.logger.Fatalln("Failed to read auth token: ", err)
+		return nil, err
+	}
+	if token == "" {
+		s.logger.Fatalln("Aborting initialization as token is empty")
+		return nil, err
+	}
+	authorization := "Bearer " + token
+	ctx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("Authorization", authorization))
 	resp, err := s.vmleaserClient.LeaseVM(ctx, &leaseVMReq)
 	if err != nil {
 		s.logger.Printf("Failed to make gRPC request: %s", err)
@@ -111,6 +120,17 @@ func (s *VMLeaserServiceServer) handleReleaseVMRequest(ctx context.Context, op *
 		return nil, err
 	}
 	s.logger.Printf("Making release gRPC call")
+	token, err := readAuthToken(s.authTokenFilePath)
+	if err != nil {
+		s.logger.Fatalln("Failed to read auth token: ", err)
+		return nil, err
+	}
+	if token == "" {
+		s.logger.Fatalln("Aborting initialization as token is empty")
+		return nil, err
+	}
+	authorization := "Bearer " + token
+	ctx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("Authorization", authorization))
 	resp, err := s.vmleaserClient.ReleaseVM(ctx, &releaseVMReq)
 	if err != nil {
 		s.logger.Printf("Failed to make gRPC request: %s", err)
