@@ -5,6 +5,7 @@
 FROM python:3.8-slim-buster AS build
 
 # unzip, openjdk are for CTS specifically.
+# squashfs-tools is for Uprev specifically.
 RUN apt-get update \
     && apt-get install -y \
       ca-certificates \
@@ -13,6 +14,7 @@ RUN apt-get update \
       iputils-ping \
       python-pip \
       rsync \
+      squashfs-tools \
       ssh \
       sudo \
       unzip \
