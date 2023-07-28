@@ -5,6 +5,10 @@
 
 # Simple script to update a batch of OpenWrt APs with a new image bin.
 #
+# Note: This only works with hosts that are directly ssh-able. For hosts that need
+# ssh tunnels to access, such as satlab hosts, use the sysupgrade_openwrt_ap_through_tunnel.sh
+# script instead.
+#
 # Usage: bash ./sysupgrade_openwrt_ap.sh <path_to_openwrt_image_bin> <host1> [<host2>...]
 #
 # The hostnames provided should be the hostnames of the APs themselves, not the
