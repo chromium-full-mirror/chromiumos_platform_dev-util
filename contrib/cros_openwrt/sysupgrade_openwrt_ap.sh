@@ -21,6 +21,6 @@ shift
 for HOST in "$@"; do
   echo "Updating ${HOST}"
   scp -O "${BIN_PATH}" "${HOST}":/tmp/openwrt_update.bin
-  ssh "${HOST}" "sysupgrade \"/tmp/openwrt_update.bin\""
+  ssh "${HOST}" "sysupgrade -n \"/tmp/openwrt_update.bin\""
   echo -e "Updated ${HOST}\n"
 done
