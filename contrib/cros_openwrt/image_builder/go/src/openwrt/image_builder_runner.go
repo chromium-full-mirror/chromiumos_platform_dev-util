@@ -181,6 +181,7 @@ func (ib *ImageBuilderRunner) parseStandardBuildInfo(makeInfoOutput, profileName
 	}
 	matchRegex, err := regexp.Compile(fmt.Sprintf(
 		`(?s)^\s*Current Target: "(?P<currentTarget>[^"]+)"\s+`+
+			`(Current Architecture: "(?P<currentArchitecture>[^"]+)"\s+)?`+
 			`Current Revision: "(?P<currentRevision>[^"]+)"\s+`+
 			`Default Packages: (?P<defaultPackagesList>[^\n]*)\n`+
 			`Available Profiles:\s+`+

@@ -14,7 +14,7 @@ func RootCmd() (*cobra.Command, error) {
 
 	rootCmd := &cobra.Command{
 		Use:           "cros_openwrt_image_builder",
-		Version:       "1.3.3",
+		Version:       "1.3.4",
 		Short:         "Utility for building custom OpenWrt OS images with custom compiled packages",
 		SilenceErrors: true,
 		SilenceUsage:  true,

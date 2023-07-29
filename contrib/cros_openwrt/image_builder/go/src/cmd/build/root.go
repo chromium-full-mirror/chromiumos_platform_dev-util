@@ -237,6 +237,7 @@ func RootCmd(rootCmdVersion string) (*cobra.Command, error) {
 			"wpad-mesh-openssl",
 			"wpad-mesh-wolfssl",
 			"wpad-basic",
+			"wpad-basic-mbedtls",
 			"wpad-basic-openssl",
 			"wpad-basic-wolfssl",
 			"wpad-mini",
