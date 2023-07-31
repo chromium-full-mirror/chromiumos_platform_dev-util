@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	defaultRootPath = "/tmp/test/provision-cmd"
+	defaultRootPath = "/tmp/filters/%s"
 )
 
 // Version is the version info of this command. It is filled in during emerge.
@@ -44,7 +44,7 @@ type args struct {
 func startServer(d []string, executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error), name string) error {
 	a := args{}
 	t := time.Now()
-	defaultLogPath := filepath.Join(defaultRootPath, t.Format("20060102-150405"))
+	defaultLogPath := filepath.Join(fmt.Sprintf(defaultRootPath, name), t.Format("20060102-150405"))
 	fs := flag.NewFlagSet("Run cros-provision-request-generator", flag.ExitOnError)
 	fs.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
 	fs.IntVar(&a.port, "port", defaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", defaultPort))
