@@ -295,9 +295,6 @@ disp_overwrite[
     "eaec438390d1"
 ] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add GPU device nodes
 disp_overwrite[
-    "ed0162f08a9c"
-] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add spmi node
-disp_overwrite[
     "acaf611a5e57"
 ] = "drop"  # Reland "FROMLIST: arm64: dts: mt8173: Fix elm panel DT node"
 disp_overwrite[
