@@ -48,7 +48,7 @@ COMMIT_MSG_BRANCH="${NEW_VARIANT_BRANCH:-None}"
 
 # All of the necessary files are in platform/ec/zephyr/program
 WORKDIR="${HOME}/trunk/src/platform/ec/zephyr/program"
-cd ${WORKDIR}
+cd "${WORKDIR}"
 
 # Make sure that the reference board exists.
 BUILD_PY="${BASE}/BUILD.py"
@@ -82,7 +82,13 @@ mkdir -p "${BASE}"/"${VARIANT}"
 cp -r "${BASE}"/"${REF}"/* "${BASE}"/"${VARIANT}"
 
 # Add the new variant to BUILD.py
-echo "${VARIANT} = register_${REF}_project(project_name=\"${VARIANT}\",)" >> ${BUILD_PY}
+echo "${VARIANT} = register_${REF}_project(project_name=\"${VARIANT}\",)" >> "${BUILD_PY}"
+
+# Regenarte for bazel targets.
+EC_DIR="${HOME}/trunk/src/platform/ec"
+pushd "${EC_DIR}"
+./util/gen_bazel_targets.py
+popd
 
 # Format the code
 black "${BUILD_PY}"
@@ -93,6 +99,7 @@ zmake build "${VARIANT}"
 # Add the changed file
 git add "${BUILD_PY}"
 git add "${BASE}"/"${VARIANT}"
+git add "${EC_DIR}/bazel/all_targets.generated.bzl"
 
 # Now commit the files. Use fmt to word-wrap the main commit message.
 MSG=$(echo "Create the initial Zephyr EC image for the ${VARIANT} variant
