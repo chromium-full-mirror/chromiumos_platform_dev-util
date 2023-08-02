@@ -30,7 +30,11 @@ def autotest_checksum_dirs():
     of autotest directories.
     """
 
-    return { "/usr/local/autotest": "/usr/local/autotest" }
+    return {
+        "/usr/local/autotest": "/usr/local/autotest",
+        # Test images for modlab builds have different autotest path.
+        "/usr/local/autodir": "/usr/local/autodir",
+    }
 
 
 def default_checksum_files():
@@ -41,9 +45,20 @@ def default_checksum_files():
     """
 
     return {
+        # Autotest related files in regular test images.
         "/usr/local/autotest/bin/autotest":
         "/usr/local/autotest/bin/autotest",
 
+        "/usr/local/autotest/tools/autotest":
+        "/usr/local/autotest/tools/autotest",
+        # Test images for modlab builds have different autotest path.
+        "/usr/local/autodir/bin/autotest":
+        "/usr/local/autodir/bin/autotest",
+
+        "/usr/local/autodir/tools/autotest":
+        "/usr/local/autodir/tools/autotest",
+
+        # Tast related files.
         "/usr/libexec/tast/bundles/local/cros":
         "/usr/local/libexec/tast/bundles/local/cros",
 
@@ -107,14 +122,11 @@ def serialize_autotest_checksum_from_dir(src_dir, dest_dir):
                 src_file_path = os.path.join(root, filename)
                 dest_file_path = src_file_path.replace(src_dir, dest_dir)
                 results.append(
-                    serialize_checksum_from_file(
-                        src_file_path, dest_file_path
-                    )
+                    serialize_checksum_from_file(src_file_path, dest_file_path)
                 )
     except Exception as e:
         raise Exception(
-            "Failed to calculate checksum for files under %s: %s"
-            % (src_dir, e)
+            "Failed to calculate checksum for files under %s: %s" % (src_dir, e)
         )
     return results
 
@@ -124,13 +136,19 @@ def serialize_checksum(src_root):
     checksums = []
     filenames = default_checksum_files()
     for src, dest in filenames.items():
-        checksums.append(serialize_checksum_from_file(
-            src_root + src, dest))
+        src_path = src_root + src
+        if not os.path.exists(src_path):
+            continue
+        checksums.append(serialize_checksum_from_file(src_path, dest))
     # Calculate checksum for python files under autotest directories.
     dirs = autotest_checksum_dirs()
     for src_dir, dest_dir in dirs.items():
+        src_path = src_root + src_dir
+        if not os.path.exists(src_path):
+            continue
         checksums_for_dir = serialize_autotest_checksum_from_dir(
-            src_root + src_dir, dest_dir)
+            src_path, dest_dir
+        )
         checksums = checksums + checksums_for_dir
     return test_ready_pb.CrosTestReadyConfig(checksums=checksums)
 
