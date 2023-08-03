@@ -150,8 +150,21 @@ for carrier in [
         )  # other carriers are sparsely deployed in the lab, thus CQ may fail to find DUTs
 
     extra_dependencies = ", cellular_modem_state:NORMAL"
+    dut_check_test_names = [
+        f"'cellular.Identifiers.{carrier}'",
+        f"'cellular.IsConnected.{carrier}'",
+        f"'cellular.Smoke.{carrier}'",
+        f"'cellular.SmokeIPConnectivity.{carrier}'",
+        "'cellular.IsModemUp'",
+    ]
+    hotspot_test_names = [
+        f"'network.HotspotUpdateConfiguration.{carrier}'",
+        f"'network.HotspotUpdateConfigurationWhenHotspotOn.{carrier}'",
+    ]
+    if carrier in ["tmobile", "docomo"]:
+        dut_check_test_names += hotspot_test_names
     tests = single_test_template.format(
-        test_exprs=f"['cellular.Identifiers.{carrier}','cellular.IsConnected.{carrier}','cellular.Smoke.{carrier}', 'cellular.SmokeIPConnectivity.{carrier}', 'cellular.IsModemUp']"
+        test_exprs=f"[{', '.join(dut_check_test_names)}]"
     )
     write_control_file(
         out_dir,
