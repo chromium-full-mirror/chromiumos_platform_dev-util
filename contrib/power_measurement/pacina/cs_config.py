@@ -10,6 +10,7 @@ import os
 import time
 
 import cs_types
+from pyftdi.i2c import I2cNackError  # pylint: disable=import-error
 
 
 logger = logging.getLogger(__name__)
@@ -91,13 +92,13 @@ class BusConfig:
             logger.debug("Could not find [inas] in the config file")
 
         try:
-            for (rail, parent) in input_config.RAILS:
+            for rail, parent in input_config.RAILS:
                 self.rails.append({"Rail": rail, "Parent": parent})
         except AttributeError:
             logger.debug("Could not find [RAILS] in the config file")
 
         try:
-            for (addr, rail) in input_config.GPIOS:
+            for addr, rail in input_config.GPIOS:
                 # Assumes that this only applies to PAC1954
                 self.gpios[addr] = rail
         except AttributeError:
@@ -123,17 +124,28 @@ class BusConfig:
             self.sensors[addr] = CurrentSensor(addr, "pac1954")
 
         # Create Current Sensor FTDI Buses
+        unreachable_addrs = []
         for addr, sensor in self.sensors.items():
-            sensor.cs = drvs[sensor.drv](
-                ftdi_inst.get_port(addr),
-                sensor.get_ch_info(),
-                polarity=polarity,
-                refresh_global=self.en_refresh_g,
-                sample_time=sample_time,
-            )
-            if sensor.gpio:
-                sensor.cs.set_gpio_name(sensor.gpio)
-                self.gpio_vals = []
+            try:
+                sensor.cs = drvs[sensor.drv](
+                    ftdi_inst.get_port(addr),
+                    sensor.get_ch_info(),
+                    polarity=polarity,
+                    refresh_global=self.en_refresh_g,
+                    sample_time=sample_time,
+                )
+                if sensor.gpio:
+                    sensor.cs.set_gpio_name(sensor.gpio)
+                    self.gpio_vals = []
+            except I2cNackError:
+                unreachable_addrs.append(addr)
+                logger.warning(
+                    "Couldn't connect to address: %s; Skipping", hex(addr)
+                )
+
+        # Removes unreachable addresses from the sensors list to prevent errors
+        for addr in unreachable_addrs:
+            del self.sensors[addr]
 
     def load_current_sensor_config(self, drv, addr_ch, name, rsense, nom):
         if ":" not in addr_ch:
