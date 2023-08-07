@@ -121,7 +121,6 @@ func (q *PassRatePolicy) determineSignalFromQuery(testname string, passRate floa
 		log.Printf("testname %s < required PassRate %v with %v: IS UNSTABLE BUT ALLOWED DUE TO MAX FILTER # REACHED.\n", testname, q.requiredPassRate, passRate)
 		return true, filterRemaining
 	}
-	log.Printf("testname %s < required PassRate %v with %v: MARKED UNSTABLE (might still run due to overrides).\n", testname, q.requiredPassRate, passRate)
 
 	filterRemaining--
 	return false, filterRemaining
@@ -163,7 +162,13 @@ func (q *PassRatePolicy) populateMissingTests() {
 
 func maxAllowedToBeFiltered(req *api.PassRatePolicy, totalTests int) int {
 	maxI := req.MaxFilteredInt
+	if maxI == 0 {
+		maxI = math.MaxInt32
+	}
 	maxP := req.MaxFilteredPercent
+	if maxP == 0 {
+		maxP = 100
+	}
 	percentAsInt := math.Round(float64(totalTests * int(maxP) / 100))
 	return int(math.Min(float64(maxI), percentAsInt))
 }
@@ -194,6 +199,11 @@ func (q *PassRatePolicy) iterThroughData(bqIter *bigquery.RowIterator, milestone
 		// Not enough runs? skip!
 		if resp.Total_runs < int(q.req.PassRatePolicy.MinRuns) {
 			continue
+		}
+
+		if !signal {
+			log.Printf("testname %s < required PassRate %v with %v: MARKED UNSTABLE (might still run due to overrides).\n", resp.Normalized_test, q.requiredPassRate, resp.Success_permille)
+
 		}
 
 		fmted := structs.SignalFormat{
