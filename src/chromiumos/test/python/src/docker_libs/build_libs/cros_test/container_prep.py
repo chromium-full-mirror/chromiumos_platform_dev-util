@@ -52,6 +52,7 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
         self.remove_unused_deps()
         self.remove_tarball()
         self.copy_private_key()
+        self.copy_tast_tools()
 
     def create_tarball(self):
         """Copy the Stuff."""

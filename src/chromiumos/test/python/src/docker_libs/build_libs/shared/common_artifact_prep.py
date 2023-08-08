@@ -195,6 +195,22 @@ class CrosArtifactPrep:
             return
         shutil.copy(ssh_keys, os.path.join(self.full_out, "ssh"))
 
+    def copy_tast_tools(self):
+        """Copy tools used by tast."""
+        os.makedirs(os.path.join(self.full_out, "tast-tools"), exist_ok=True)
+        _FILES = [
+            "usr/bin/fsck.erofs",
+        ]
+        for f in _FILES:
+            src_path = FromSysrootPath(self.chroot, f)
+            if not os.path.exists(src_path):
+                print("Path %s does not exist, skipping" % src_path)
+                continue
+            dst_path = os.path.join(
+                self.full_out, "tast-tools", os.path.basename(src_path)
+            )
+            shutil.copyfile(src_path, dst_path)
+
     def install_cipd_package(self):
         """Install and unzip cipd package."""
         cipd_package_loc = (
