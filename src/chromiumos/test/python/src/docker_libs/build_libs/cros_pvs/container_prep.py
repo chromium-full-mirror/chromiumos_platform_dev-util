@@ -12,13 +12,19 @@ from src.docker_libs.build_libs.shared.common_artifact_prep import (  # noqa: E4
     CrosArtifactPrep,
 )
 
+
 sys.path.append("../../../../")
 
-PVS_CIPD_REF="PVS_CIPD_REF"
-CACHE_SERVER_CIPD_REF="CACHE_SERVER_CIPD_REF"
-CTRR_CIPD_REF="CTRR_CIPD_REF"
-CTR_CIPD_REF="CTR_CIPD_REF"
-PROD_REF="prod"
+PVS_CIPD_REF = "PVS_CIPD_REF"
+CACHE_SERVER_CIPD_REF = "CACHE_SERVER_CIPD_REF"
+CTRR_CIPD_REF = "CTRR_CIPD_REF"
+CTR_CIPD_REF = "CTR_CIPD_REF"
+PVS_LOCAL_PKG_PATH = "git"
+CTRR_LOCAL_PKG_PATH = "CTRR_LOCAL_PKG_PATH"
+CTR_LOCAL_PKG_PATH = "CTR_LOCAL_PKG_PATH"
+DEFAULT_PVS_CIPD_REF = "latest"
+PROD_REF = "prod"
+
 
 class CrosPvsArtifactPrep(CrosArtifactPrep):
     """Prep Needed files for the PVS Container Docker Build."""
@@ -46,7 +52,6 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
         self.copy_dockercontext()
         self.setup_cipd()
         self.download_pvs_bin()
-        self.download_pvs_completion()
         self.download_cft_binaries()
         self.copy_pass_criteria()
         self.copy_ssh_keys()
@@ -58,24 +63,12 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
 
     def download_pvs_bin(self):
         self.download_cipd_artifact(
-            package="chromiumos/infra/pvs/linux-amd64",
-            # TODO: change the default to "prod" instead of
-            # "continuous-integration" once this is being used in production
-            ref=os.getenv(PVS_CIPD_REF, "continuous-integration"),
+            package="infra_internal/tools/pvs/pvs/linux-amd64",
+            ref=os.getenv(PVS_CIPD_REF, DEFAULT_PVS_CIPD_REF),
+            local_path=os.getenv(PVS_LOCAL_PKG_PATH),
             artifact="pvs",
             artifact_dest=os.path.join(self.full_out, "pvs_bin"),
             artifact_perm=0o755,
-        )
-
-    def download_pvs_completion(self):
-        self.download_cipd_artifact(
-            package="chromiumos/infra/pvs/linux-amd64",
-            # TODO: change the default to "prod" instead of
-            # "continuous-integration" once this is being used in production
-            ref=os.getenv(PVS_CIPD_REF, "continuous-integration"),
-            artifact="pvs_completion",
-            artifact_dest=os.path.join(self.full_out, "pvs_completion_bin"),
-            artifact_perm=0o644,
         )
 
     def copy_pass_criteria(self):
@@ -94,7 +87,7 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
             dest,
             dirs_exist_ok=True,
         )
-        os.chmod(os.path.join(dest, 'testing_rsa'), 0o600)
+        os.chmod(os.path.join(dest, "testing_rsa"), 0o600)
 
     def download_cft_binaries(self):
         """Download the cft binaries and their respective cipd manifests"""
@@ -109,6 +102,7 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
         self.download_cipd_artifact(
             package="chromiumos/infra/cros-tool-runner/linux-amd64",
             ref=os.getenv(CTR_CIPD_REF, PROD_REF),
+            local_path=os.getenv(CTR_LOCAL_PKG_PATH),
             artifact="cros-tool-runner",
             artifact_dest=os.path.join(artifact_dest_dir, "cros-tool-runner"),
             artifact_perm=0o755,
@@ -117,6 +111,7 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
         self.download_cipd_artifact(
             package="chromiumos/infra/cros_test_runner/linux-amd64",
             ref=os.getenv(CTRR_CIPD_REF, PROD_REF),
+            local_path=os.getenv(CTRR_LOCAL_PKG_PATH),
             artifact="cros_test_runner",
             artifact_dest=os.path.join(artifact_dest_dir, "cros_test_runner"),
             artifact_perm=0o755,
@@ -125,6 +120,7 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
         self.download_cipd_artifact(
             package="chromiumos/infra/cache-server/linux-amd64",
             ref=os.getenv(CACHE_SERVER_CIPD_REF, PROD_REF),
+            local_path=None,
             artifact="cacheserver",
             artifact_dest=os.path.join(artifact_dest_dir, "cacheserver"),
             artifact_perm=0o755,
@@ -132,11 +128,20 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
         )
 
     def download_cipd_artifact(
-        self, package, ref, artifact, artifact_dest,
-        artifact_perm=None, manifest_dest=None
+        self,
+        package,
+        ref,
+        local_path,
+        artifact,
+        artifact_dest,
+        artifact_perm=None,
+        manifest_dest=None,
     ):
         """Downloads the file from the given pacakge/ref to the dest"""
-        self.cipd_install(package, ref)
+        if local_path:
+            self.cipd_deploy(local_path)
+        else:
+            self.cipd_install(package, ref)
 
         # Copy the artifact into the artifact dir
         artifact_symlink_path = os.path.join(self.full_out, artifact)

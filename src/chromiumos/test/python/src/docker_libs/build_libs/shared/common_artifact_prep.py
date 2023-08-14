@@ -271,6 +271,23 @@ class CrosArtifactPrep:
         if code != 0:
             print(f"downloading {package} package failed")
 
+    def cipd_deploy(self, package, json_output_file=None):
+        """Install package using cipd."""
+        deploy_cmd = (
+            f"{self.full_out}/cipd pkg-deploy {package} -root {self.full_out}"
+        )
+        if json_output_file:
+            output_loc = f"{self.full_out}/{json_output_file}"
+            deploy_cmd = f"{deploy_cmd} -json-output {output_loc}"
+
+        out, err, code = run(deploy_cmd)
+        if out != "":
+            print(out)
+        if err != "":
+            print(err)
+        if code != 0:
+            print(f"deploying {package} package failed")
+
 
 def FromSysrootPath(sysroot: str, file: str):
     return os.path.join(sysroot, file)
