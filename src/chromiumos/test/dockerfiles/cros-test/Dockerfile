@@ -102,6 +102,7 @@ COPY --chown=chromeos-test:chromeos-test tast/vars/ /etc/tast/vars
 # Copy fsck.erofs binary (used by tast).
 # TODO (b/293823961): Use `apt-get install erofs-utils` once it becomes available.
 COPY --chown=chromeos-test:chromeos-test tast-tools/fsck.erofs /usr/bin/fsck.erofs
+RUN chmod 755 /usr/bin/fsck.erofs
 
 # Mark for Autotest/Tast to know they are within the CFT environment.
 RUN touch /usr/local/f20container
