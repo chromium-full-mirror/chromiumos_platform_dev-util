@@ -176,7 +176,7 @@ for carrier in [
     )
 
     tests = single_test_template.format(
-        test_exprs=f"['cellular.Autoconnect.{carrier}','cellular.ShillEnableDisable.{carrier}']"
+        test_exprs=f"['cellular.ShillAutoconnect.{carrier}','cellular.ShillEnableDisable.{carrier}']"
     )
     write_control_file(
         out_dir,
