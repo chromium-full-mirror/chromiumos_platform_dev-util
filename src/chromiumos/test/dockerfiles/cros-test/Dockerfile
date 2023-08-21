@@ -4,10 +4,11 @@
 
 FROM python:3.8-slim-buster AS build
 
-# unzip, openjdk are for CTS specifically.
+# attr, unzip, openjdk are for CTS specifically.
 # squashfs-tools is for Uprev specifically.
 RUN apt-get update \
     && apt-get install -y \
+      attr \
       ca-certificates \
       curl \
       iproute2 \
