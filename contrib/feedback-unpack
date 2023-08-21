@@ -37,6 +37,7 @@ while (my $zip_file = shift(@ARGV)) {
     while (my $line = $z->getline()) {
         if ($line =~ /^(Profile\[.*\] )?(.*)=<multiline>$/) {
             my $new_log = "$output_dir/$2";
+            $new_log =~ s/ /_/g;
             open (my $fh, ">", $new_log) or die "Cannot open $new_log: $!";
             while (my $line = $z->getline()) {
                 next if ($line =~ /---------- START ----------/);
