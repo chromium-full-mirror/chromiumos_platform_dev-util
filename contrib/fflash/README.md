@@ -4,40 +4,14 @@
 
 `fflash` is a tool to update a ChromiumOS device with a test image from `gs://` (Google Cloud Storage).
 
-## Setup & Build
+## Setup
 
 Dependencies:
 
-*   `bazel`
+*   `bazel` (which is included in depot_tools)
 *   A C++ toolchain
 
-### In-repo setup
-
-```
-cd ~/chromiumos/src/platform/dev/contrib/fflash
-bazel build //cmd/fflash
-```
-
-The binary is at `bazel-bin/cmd/fflash/fflash_/fflash`.
-
-### (Alternative) Out of source tree setup
-
-```
-git clone https://chromium.googlesource.com/chromiumos/platform/dev-util
-cd dev-util/contrib/fflash
-bazel build //cmd/fflash
-```
-
-The binary is at `bazel-bin/cmd/fflash/fflash_/fflash`.
-
-### (Alternative) Ninja setup
-
-```
-cd ~/chromiumos/src/platform/dev/contrib/fflash
-ninja -v
-```
-
-The binary is at `bin/fflash`.
+The first time you invoke `fflash` it will build itself from source.
 
 ## Run
 
@@ -52,7 +26,7 @@ The binary is at `bin/fflash`.
     ***
 
 2.  ```
-    path/to/fflash ${dut_host}
+    ~/chromiumos/src/platform/dev/contrib/fflash/fflash ${dut_host}
     ```
 
     Where `${dut_host}` is the ssh target.
