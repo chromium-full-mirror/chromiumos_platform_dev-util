@@ -9,7 +9,6 @@
 Dependencies:
 
 *   `bazel` (which is included in depot_tools)
-*   A C++ toolchain
 
 The first time you invoke `fflash` it will build itself from source.
 
