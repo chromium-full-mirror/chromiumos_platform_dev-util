@@ -151,7 +151,7 @@ for carrier in [
 
     extra_dependencies = ", cellular_modem_state:NORMAL"
     dut_check_test_names = [
-        f"'cellular.Identifiers.{carrier}'",
+        "'cellular.Identifiers'",
         f"'cellular.IsConnected.{carrier}'",
         f"'cellular.Smoke.{carrier}'",
         f"'cellular.SmokeIPConnectivity.{carrier}'",
@@ -176,7 +176,7 @@ for carrier in [
     )
 
     tests = single_test_template.format(
-        test_exprs=f"['cellular.ShillAutoconnect.{carrier}','cellular.ShillEnableDisable.{carrier}']"
+        test_exprs="['cellular.ShillAutoconnect','cellular.ShillEnableDisable']"
     )
     write_control_file(
         out_dir,
