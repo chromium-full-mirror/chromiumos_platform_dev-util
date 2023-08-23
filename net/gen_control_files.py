@@ -160,6 +160,9 @@ for carrier in [
     hotspot_test_names = [
         f"'network.HotspotUpdateConfiguration.{carrier}'",
         f"'network.HotspotUpdateConfigurationWhenHotspotOn.{carrier}'",
+        f"'network.HotspotAutoDisable.{carrier}'",
+        f"'network.HotspotDisabledWhenNoUpstreamNetwork.{carrier}'",
+        f"'network.HotspotEnableDisableInLockScreen.{carrier}'",
     ]
     if carrier in ["tmobile", "docomo"]:
         dut_check_test_names += hotspot_test_names
