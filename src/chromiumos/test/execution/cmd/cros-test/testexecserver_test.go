@@ -67,6 +67,18 @@ func TestReadInput(t *testing.T) {
 					},
 				},
 			},
+			{
+				Dut: &labapi.Dut{
+					Id: &labapi.Dut_Id{Value: "CompanionDut2"},
+					DutType: &labapi.Dut_Android_{
+						Android: &labapi.Dut_Android{
+							AssociatedHostname: &labapi.IpEndpoint{Address: "127.0.0.1", Port: 2224},
+							DutModel:           &labapi.DutModel{BuildTarget: "XYZ", ModelName: "pixel6"},
+							SerialNumber:       "ABC123",
+						},
+					},
+				},
+			},
 		},
 	}
 

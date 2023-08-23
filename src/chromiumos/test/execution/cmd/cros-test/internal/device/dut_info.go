@@ -16,7 +16,7 @@ import (
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 )
 
-// DutInfo stores
+// DutInfo stores information of a ChromeOS DUT.
 type DutInfo struct {
 	Addr                string   // The address of the DUT.
 	Role                string   // The role of the DUT.
@@ -61,6 +61,13 @@ func joinHostAndPort(endpoint *labapi.IpEndpoint) string {
 		return endpoint.Address
 	}
 	return net.JoinHostPort(endpoint.Address, strconv.Itoa(int(endpoint.Port)))
+}
+
+// AndroidInfo stores information of a Android device.
+type AndroidInfo struct {
+	AssoicateAddr string // A hostname of the device that the Android DUT is attached to.
+	Serial        string // A string created by adb to uniquely identify the device.
+	ModelName     string // The model name of the device.
 }
 
 // Address returns the address of a DUT.
@@ -353,4 +360,15 @@ func AppendChromeOsLabels(dut *DutInfo) (map[string]string, []string, error) {
 	}
 
 	return attrMap, labels, nil
+}
+
+// FillAndroidInfo extraction Android information from a device.
+func FillAndroidInfo(device *api.CrosTestRequest_Device) *AndroidInfo {
+	android := device.Dut.GetAndroid()
+	return &AndroidInfo{
+		AssoicateAddr: joinHostAndPort(android.GetAssociatedHostname()),
+		Serial:        android.GetSerialNumber(),
+		ModelName:     android.GetDutModel().GetModelName(),
+	}
+
 }

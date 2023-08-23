@@ -58,17 +58,15 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 	primary, err := device.FillDUTInfo(req.Primary, "")
 	if err != nil {
 		return nil, errors.NewStatusError(errors.InvalidArgument,
-			fmt.Errorf("cannot get address from primary device: %v", primary))
+			fmt.Errorf("cannot get address from primary device: %v", err))
 	}
-	var companions []*device.DutInfo
-	for i, c := range req.Companions {
-		info, err := device.FillDUTInfo(c, fmt.Sprintf("cd%d", i+1))
-		if err != nil {
-			return nil, errors.NewStatusError(errors.InvalidArgument,
-				fmt.Errorf("cannot get address from companion device: %v", c))
-		}
-		companions = append(companions, info)
+
+	chromeOSCompanions, AndriodCompanions, err := companions(req.Companions)
+	if err != nil {
+		return nil, errors.NewStatusError(errors.InvalidArgument,
+			fmt.Errorf("cannot get companion devices information: %v", err))
 	}
+
 	yamlPath, err := genHostInfoYAML(primary)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate info yaml: %w", err)
@@ -76,7 +74,7 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 
 	// Be nice and clean up.
 	defer os.Remove(yamlPath)
-	args := newTastArgs(primary, companions, testNames, resultsDir, reportServer.Address(), yamlPath)
+	args := newTastArgs(primary, chromeOSCompanions, AndriodCompanions, testNames, resultsDir, reportServer.Address(), yamlPath)
 
 	err = common.WriteHostInfoToFile(resultsDir, primary.Addr, primary, td.logger)
 	if err != nil {
@@ -148,6 +146,27 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 	return &api.CrosTestResponse{TestCaseResults: results}, nil
 }
 
+func companions(devices []*api.CrosTestRequest_Device) (chromeOSCompanions []*device.DutInfo,
+	AndriodCompanions []*device.AndroidInfo, err error) {
+
+	for i, c := range devices {
+		if c.Dut.GetChromeos() != nil {
+			info, err := device.FillDUTInfo(c, fmt.Sprintf("cd%d", i+1))
+			if err != nil {
+				return nil, nil, errors.NewStatusError(errors.InvalidArgument,
+					fmt.Errorf("cannot get address from companion device: %v", c))
+			}
+			chromeOSCompanions = append(chromeOSCompanions, info)
+			continue
+		}
+		if c.Dut.GetAndroid() != nil {
+			androidInfo := device.FillAndroidInfo(c)
+			AndriodCompanions = append(AndriodCompanions, androidInfo)
+		}
+	}
+	return chromeOSCompanions, AndriodCompanions, nil
+}
+
 // Command name and flag names.
 const (
 	httpPrefix                 = "http://"
@@ -176,15 +195,19 @@ const (
 
 // runArgs stores arguments to invoke Tast
 type runArgs struct {
-	primary    *device.DutInfo   // The information of the primary machine.
-	patterns   []string          // The names of test to be run.
-	tastFlags  map[string]string // The flags for tast.
-	runFlags   map[string]string // The flags for tast run command.
-	companions []*device.DutInfo // The information of the companion DUTs to be used for testing.
+	primary    *device.DutInfo       // The information of the primary machine.
+	patterns   []string              // The names of test to be run.
+	tastFlags  map[string]string     // The flags for tast.
+	runFlags   map[string]string     // The flags for tast run command.
+	companions []*device.DutInfo     // The information of the companion DUTs to be used for testing.
+	androids   []*device.AndroidInfo // The information of the android companions.
+
 }
 
 // newTastArgs created an argument structure for invoking tast
-func newTastArgs(primary *device.DutInfo, companionDuts []*device.DutInfo, tests []string, resultsDir, rsAddress string, varsFilePath string) *runArgs {
+func newTastArgs(primary *device.DutInfo,
+	companionDuts []*device.DutInfo, andriods []*device.AndroidInfo,
+	tests []string, resultsDir, rsAddress string, varsFilePath string) *runArgs {
 	return &runArgs{
 		primary: primary,
 		tastFlags: map[string]string{
@@ -203,6 +226,7 @@ func newTastArgs(primary *device.DutInfo, companionDuts []*device.DutInfo, tests
 		},
 		patterns:   tests, // TO-DO Support Tags
 		companions: companionDuts,
+		androids:   andriods,
 	}
 }
 
@@ -218,6 +242,17 @@ func genArgList(args *runArgs) (argList []string) {
 	for _, c := range args.companions {
 		// example: -companiondut=cd1:127.0.0.1:2222
 		argList = append(argList, fmt.Sprintf("%v=%s:%s", companionDUTFlag, c.Role, c.Addr))
+	}
+
+	if len(args.androids) > 0 {
+		// example: -var=android.companions=host1:1C291FDEE00923:pixel5a
+		var androidArgs []string
+		for _, a := range args.androids {
+			androidArgs = append(androidArgs,
+				fmt.Sprintf("%s:%s:%s", a.AssoicateAddr, a.Serial, a.ModelName))
+		}
+		argList = append(argList,
+			fmt.Sprintf("%v=android.companions=%s", varFlag, strings.Join(androidArgs, ",")))
 	}
 
 	// Fill in the servo var flags.
@@ -243,7 +278,6 @@ func genArgList(args *runArgs) (argList []string) {
 		// example: var=servers.dut=:d1:22,cd1:d2:22,cd3:d3:22
 		argList = append(argList, fmt.Sprintf("%v=%s", devServerFlag, httpPrefix+args.primary.CacheServer))
 	} else {
-
 		// Fill in DUT server var flags.
 		dutServerStrs := ""
 		if args.primary.DutServer != "" {

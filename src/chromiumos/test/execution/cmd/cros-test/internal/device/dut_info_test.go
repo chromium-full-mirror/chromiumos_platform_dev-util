@@ -179,7 +179,7 @@ func TestFillDUTInfo(t *testing.T) {
 			t.Errorf("Cannot get address for dut %v: %v", dut, err)
 		}
 		if diff := cmp.Diff(got, wanted); diff != "" {
-			t.Errorf("DownloadPrivateBundlesRequest mismatch (-got +want):\n%s", diff)
+			t.Errorf("FillDUTInfo mismatch (-got +want):\n%s", diff)
 		}
 	}
 }
@@ -273,7 +273,63 @@ func TestFillDUTInfoExtended(t *testing.T) {
 			t.Errorf("Cannot get address for dut %v: %v", dut, err)
 		}
 		if diff := cmp.Diff(got, wanted); diff != "" {
-			t.Errorf("DownloadPrivateBundlesRequest mismatch (-got +want):\n%s", diff)
+			t.Errorf("FillDUTInfo mismatch (-got +want):\n%s", diff)
+		}
+	}
+}
+
+// TestFillAndroidInfo makes sure FillAndroidInfo behaved as expected.
+func TestFillAndroidInfo(t *testing.T) {
+	expected := []*AndroidInfo{
+		{
+			AssoicateAddr: "host1",
+			Serial:        "ABC123",
+			ModelName:     "pixel6",
+		},
+		{
+			AssoicateAddr: "127.0.0.1:2222",
+			Serial:        "DEF456",
+			ModelName:     "pixel7",
+		},
+	}
+	input := []*api.CrosTestRequest_Device{
+		{
+			Dut: &labapi.Dut{
+				Id: &labapi.Dut_Id{Value: "AnyId"},
+				DutType: &labapi.Dut_Android_{
+					Android: &labapi.Dut_Android{
+						AssociatedHostname: &labapi.IpEndpoint{Address: "host1"},
+						SerialNumber:       "ABC123",
+						DutModel: &labapi.DutModel{
+							BuildTarget: "abc",
+							ModelName:   "pixel6",
+						},
+					},
+				},
+			},
+		},
+		{
+			Dut: &labapi.Dut{
+				Id: &labapi.Dut_Id{Value: "AnyId"},
+				DutType: &labapi.Dut_Android_{
+					Android: &labapi.Dut_Android{
+						AssociatedHostname: &labapi.IpEndpoint{Address: "127.0.0.1", Port: 2222},
+						SerialNumber:       "DEF456",
+						DutModel: &labapi.DutModel{
+							BuildTarget: "abc",
+							ModelName:   "pixel7",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for i, wanted := range expected {
+		android := input[i]
+		got := FillAndroidInfo(android)
+		if diff := cmp.Diff(got, wanted); diff != "" {
+			t.Errorf("FillAndroidInfo mismatch (-got +want):\n%s", diff)
 		}
 	}
 }

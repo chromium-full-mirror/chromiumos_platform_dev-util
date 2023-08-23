@@ -42,7 +42,7 @@ func TestNewTastArgs(t *testing.T) {
 	}
 
 	args := newTastArgs(
-		primary, nil, expectedArgs.patterns,
+		primary, nil, nil, expectedArgs.patterns,
 		workDir1, expectedArgs.runFlags[reportsServerFlag],
 		expectedArgs.runFlags[varsFile],
 	)
@@ -64,6 +64,13 @@ func TestNewTastArgsCompanions(t *testing.T) {
 			Role: "cd2",
 		},
 	}
+	androids := []*device.AndroidInfo{
+		{
+			AssoicateAddr: "host1",
+			Serial:        "ABC123",
+			ModelName:     "pixel7",
+		},
+	}
 	expectedArgs := runArgs{
 		primary:  primary,
 		patterns: []string{test1, test2, test3, test4, test5},
@@ -82,10 +89,11 @@ func TestNewTastArgsCompanions(t *testing.T) {
 			varsFile:                   "/tmp/test.yaml",
 		},
 		companions: companions,
+		androids:   androids,
 	}
 
 	args := newTastArgs(
-		primary, companions, expectedArgs.patterns, workDir1,
+		primary, companions, androids, expectedArgs.patterns, workDir1,
 		expectedArgs.runFlags[reportsServerFlag], expectedArgs.runFlags[varsFile])
 	if diff := cmp.Diff(args, &expectedArgs, cmp.AllowUnexported(runArgs{})); diff != "" {
 		t.Errorf("Got unexpected argument from newTastArgs (-got +want):\n%s", diff)
@@ -103,6 +111,18 @@ func TestGenArgList(t *testing.T) {
 		{
 			Addr: "companion_dut2_address",
 			Role: "cd2",
+		},
+	}
+	androids := []*device.AndroidInfo{
+		{
+			AssoicateAddr: "host1",
+			Serial:        "ABC123",
+			ModelName:     "pixel6",
+		},
+		{
+			AssoicateAddr: "host1",
+			Serial:        "DEF456",
+			ModelName:     "pixel7",
 		},
 	}
 	args := runArgs{
@@ -123,6 +143,7 @@ func TestGenArgList(t *testing.T) {
 			varsFile:                   "/a/file",
 		},
 		companions: companions,
+		androids:   androids,
 	}
 
 	var expectedArgList []string
@@ -137,6 +158,16 @@ func TestGenArgList(t *testing.T) {
 	for i, c := range companions {
 		expectedArgList = append(expectedArgList, fmt.Sprintf("%v=cd%v:%v", companionDUTFlag, i+1, c.Addr))
 	}
+	var androidsInfo []string
+	for _, a := range androids {
+		androidsInfo = append(androidsInfo,
+			fmt.Sprintf("%s:%s:%s", a.AssoicateAddr, a.Serial, a.ModelName))
+	}
+	if len(androidsInfo) > 0 {
+		expectedArgList = append(expectedArgList,
+			fmt.Sprintf("-var=android.companions=%s", strings.Join(androidsInfo, ",")))
+	}
+
 	dutIndex := len(expectedArgList)
 	expectedArgList = append(expectedArgList, dut1)
 	expectedArgList = append(expectedArgList, test1)
