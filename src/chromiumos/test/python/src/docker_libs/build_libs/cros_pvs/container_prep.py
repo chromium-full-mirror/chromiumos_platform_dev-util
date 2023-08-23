@@ -67,7 +67,7 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
             ref=os.getenv(PVS_CIPD_REF, DEFAULT_PVS_CIPD_REF),
             local_path=os.getenv(PVS_LOCAL_PKG_PATH),
             artifact="pvs",
-            artifact_dest=os.path.join(self.full_out, "pvs_bin"),
+            artifact_dest=os.path.join(self.full_out, "pvs"),
             artifact_perm=0o755,
         )
 
@@ -94,10 +94,13 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
 
         share_dir = os.path.join(self.full_out, "share")
         os.mkdir(share_dir)
+        os.chmod(share_dir, 0o755)
         artifact_dest_dir = os.path.join(share_dir, "cft")
         os.mkdir(artifact_dest_dir)
+        os.chmod(artifact_dest_dir, 0o755)
         manifest_dest_dir = os.path.join(share_dir, "cft_manifests")
         os.mkdir(manifest_dest_dir)
+        os.chmod(manifest_dest_dir, 0o755)
 
         self.download_cipd_artifact(
             package="chromiumos/infra/cros-tool-runner/linux-amd64",
@@ -147,8 +150,8 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
         artifact_symlink_path = os.path.join(self.full_out, artifact)
         relative_artifact_path = os.readlink(artifact_symlink_path)
         abs_artifact_path = os.path.join(self.full_out, relative_artifact_path)
-        if artifact_symlink_path != artifact_dest:
-            shutil.copy(abs_artifact_path, artifact_dest)
+        os.remove(artifact_symlink_path)
+        shutil.copy(abs_artifact_path, artifact_dest)
         if artifact_perm:
             os.chmod(artifact_dest, artifact_perm)
 

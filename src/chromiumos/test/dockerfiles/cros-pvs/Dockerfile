@@ -36,10 +36,10 @@ WORKDIR ${AUTOTEST_REPO_ROOT}
 RUN git clone --depth=1 https://chromium.googlesource.com/chromiumos/third_party/autotest -b ${UPLOAD_RESULTS_BRANCH} .
 
 # Copy pvs/cft binaries/dependencies from host to container
-ADD ssh/ ${SSH_CONFIG_DIR}
-ADD passcriteria/ ${PASS_CRITERIA_DIR}
-ADD share/ ${PVS_SHARE_DIR}
-ADD pvs ${PVS_BIN_DIR}/pvs
+COPY ssh/ ${SSH_CONFIG_DIR}
+COPY passcriteria/ ${PASS_CRITERIA_DIR}
+COPY share/ ${PVS_SHARE_DIR}
+COPY pvs ${PVS_BIN_DIR}/pvs
 RUN pvs completion bash > ${COMPLETION_DIR}/pvs
 
 # Build all the pvs artifacts on container initialization
