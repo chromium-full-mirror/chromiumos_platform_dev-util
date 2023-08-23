@@ -40,7 +40,7 @@ COPY ssh/ ${SSH_CONFIG_DIR}
 COPY passcriteria/ ${PASS_CRITERIA_DIR}
 COPY share/ ${PVS_SHARE_DIR}
 COPY pvs ${PVS_BIN_DIR}/pvs
-RUN pvs completion bash > ${COMPLETION_DIR}/pvs
+RUN ${PVS_BIN_DIR}/pvs completion bash > ${COMPLETION_DIR}/pvs
 
 # Build all the pvs artifacts on container initialization
 WORKDIR /home/pvs
