@@ -37,7 +37,6 @@ RUN git clone --depth=1 https://chromium.googlesource.com/chromiumos/third_party
 
 # Copy pvs/cft binaries/dependencies from host to container
 COPY ssh/ ${SSH_CONFIG_DIR}
-COPY passcriteria/ ${PASS_CRITERIA_DIR}
 COPY share/ ${PVS_SHARE_DIR}
 COPY pvs ${PVS_BIN_DIR}/pvs
 RUN ${PVS_BIN_DIR}/pvs completion bash > ${COMPLETION_DIR}/pvs

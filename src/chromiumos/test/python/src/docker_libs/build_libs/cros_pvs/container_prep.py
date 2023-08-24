@@ -53,7 +53,6 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
         self.setup_cipd()
         self.download_pvs_bin()
         self.download_cft_binaries()
-        self.copy_pass_criteria()
         self.copy_ssh_keys()
 
     def setup_cipd(self):
@@ -70,15 +69,6 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
             artifact_dest=os.path.join(self.full_out, "pvs"),
             artifact_perm=0o755,
         )
-
-    def copy_pass_criteria(self):
-        dest = os.path.join(self.full_out, "passcriteria")
-        shutil.copytree(
-            os.path.join(self.cros_root_dir(), "src/platform/pvs/passcriteria"),
-            dest,
-            dirs_exist_ok=True,
-        )
-        os.system(f"chmod -R a+r {dest}")
 
     def copy_ssh_keys(self):
         dest = os.path.join(self.full_out, "ssh")
