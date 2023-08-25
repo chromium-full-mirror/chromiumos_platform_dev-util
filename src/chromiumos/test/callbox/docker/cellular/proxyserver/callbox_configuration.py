@@ -19,6 +19,9 @@ from acts.controllers.rohdeschwarz_lib import cmx500_events
 from acts.controllers.rohdeschwarz_lib.cmw500_handover_simulator import (
     Cmw500HandoverSimulator,
 )
+from acts.controllers.rohdeschwarz_lib.cmx500_handover_simulator import (
+    Cmx500HandoverSimulator,
+)
 from cellular.callbox_utils.cmw500_iperf_measurement import (
     Cmw500IperfMeasurement,
 )
@@ -56,6 +59,8 @@ _IP_TYPE_MAP = {
 _HANDOVER_MAP = {
     CellularTechnology.LTE: hs.CellularTechnology.LTE,
     CellularTechnology.WCDMA: hs.CellularTechnology.WCDMA,
+    CellularTechnology.NR5G_NSA: hs.CellularTechnology.NR5G_NSA,
+    CellularTechnology.NR5G_SA: hs.CellularTechnology.NR5G_SA,
 }
 
 
@@ -74,6 +79,63 @@ class CallboxConfiguration(object):
         self.technology = None
         self.handover = None
 
+    def nr5g_sa_handover(self, band, channel, bw):
+        """Performs a handover to 5G SA.
+
+        Args:
+            band: the band of the handover destination
+            channel: the downlink channel of the handover destination
+            bw: the downlink bandwidth of the handover destination
+        """
+        if not self.technology in _HANDOVER_MAP:
+            raise ValueError(
+                f"Handover from {self.technology} is not supported in the current callbox configuration"
+            )
+
+        self.handover.nr5g_sa_handover(
+            band, channel, bw, _HANDOVER_MAP[self.technology]
+        )
+        self._set_technology(CellularTechnology.NR5G_SA)
+
+    def nr5g_nsa_handover(
+        self,
+        band,
+        channel,
+        bandwidth,
+        secondary_band,
+        secondary_channel,
+        secondary_bandwidth,
+    ):
+        """Performs a handover to 5G NSA.
+
+        Args:
+            band: the band of the handover destination primary cell.
+            channel: the downlink channel of the handover destination primary
+                cell.
+            bandwidth: the downlink bandwidth of the handover destination primary
+                cell.
+            secondary_band: the band of the handover destination secondary cell.
+            secondary_channel: the downlink channel of the handover destination
+                secondary cell.
+            secondary_bandwidth: the downlink bandwidth of the handover
+                destination secondary cell.
+        """
+        if not self.technology in _HANDOVER_MAP:
+            raise ValueError(
+                f"Handover from {self.technology} is not supported in the current callbox configuration"
+            )
+
+        self.handover.nr5g_nsa_handover(
+            band,
+            channel,
+            bandwidth,
+            secondary_band,
+            secondary_channel,
+            secondary_bandwidth,
+            _HANDOVER_MAP[self.technology],
+        )
+        self._set_technology(CellularTechnology.NR5G_NSA)
+
     def lte_handover(self, band, channel, bw):
         """Performs a handover to LTE.
 
@@ -81,7 +143,6 @@ class CallboxConfiguration(object):
             band: the band of the handover destination
             channel: the downlink channel of the handover destination
             bw: the downlink bandwidth of the handover destination
-            source_technology: the source handover technology.
         """
         raise NotImplementedError()
 
@@ -91,7 +152,6 @@ class CallboxConfiguration(object):
         Args:
             band: the band of the handover destination
             channel: the downlink channel of the handover destination
-            source_technology: the source handover technology.
         """
         raise NotImplementedError()
 
@@ -197,7 +257,6 @@ class CMW500Configuration(CallboxConfiguration):
             band: the band of the handover destination
             channel: the downlink channel of the handover destination
             bw: the downlink bandwidth of the handover destination
-            source_technology: the source handover technology.
         """
         if not self.technology in _HANDOVER_MAP:
             raise ValueError(
@@ -215,7 +274,6 @@ class CMW500Configuration(CallboxConfiguration):
         Args:
             band: the band of the handover destination
             channel: the downlink channel of the handover destination
-            source_technology: the source handover technology.
         """
         if not self.technology in _HANDOVER_MAP:
             raise ValueError(
@@ -315,8 +373,65 @@ class CMX500Configuration(CallboxConfiguration):
         self.simulator = cmx.CMX500CellularSimulator(
             host, port, config_mode=None
         )
-        self.handover = None
+        self.handover = Cmx500HandoverSimulator(self.simulator.cmx)
         self._set_technology(technology)
+
+    def nr5g_sa_handover(self, band, channel, bw):
+        """Performs a handover to 5G SA.
+
+        Args:
+            band: the band of the handover destination
+            channel: the downlink channel of the handover destination
+            bw: the downlink bandwidth of the handover destination
+        """
+        if not self.technology in _HANDOVER_MAP:
+            raise ValueError(
+                f"Handover from {self.technology} is not supported in the current callbox configuration"
+            )
+
+        self.handover.nr5g_sa_handover(
+            band, channel, bw, _HANDOVER_MAP[self.technology]
+        )
+        self._set_technology(CellularTechnology.NR5G_SA)
+
+    def nr5g_nsa_handover(
+        self,
+        band,
+        channel,
+        bandwidth,
+        secondary_band,
+        secondary_channel,
+        secondary_bandwidth,
+    ):
+        """Performs a handover to 5G NSA.
+
+        Args:
+            band: the band of the handover destination primary cell.
+            channel: the downlink channel of the handover destination primary
+                cell.
+            bandwidth: the downlink bandwidth of the handover destination
+                primary cell.
+            secondary_band: the band of the handover destination secondary cell.
+            secondary_channel: the downlink channel of the handover destination
+                secondary cell.
+            secondary_bandwidth: the downlink bandwidth of the handover
+                destination secondary cell.
+        """
+        if not self.technology in _HANDOVER_MAP:
+            raise ValueError(
+                f"Handover from {self.technology} is not supported in the current callbox configuration"
+            )
+
+        self.handover.nr5g_nsa_handover(
+            band,
+            channel,
+            bandwidth,
+            secondary_band,
+            secondary_channel,
+            secondary_bandwidth,
+            _HANDOVER_MAP[self.technology],
+        )
+        self._set_technology(CellularTechnology.NR5G_NSA)
 
     def lte_handover(self, band, channel, bw):
         """Performs a handover to LTE.
@@ -325,10 +440,16 @@ class CMX500Configuration(CallboxConfiguration):
             band: the band of the handover destination
             channel: the downlink channel of the handover destination
             bw: the downlink bandwidth of the handover destination
-            source_technology: the source handover technology.
         """
-        # LTE handover not supported (yet) on CMX
-        raise NotImplementedError()
+        if not self.technology in _HANDOVER_MAP:
+            raise ValueError(
+                f"Handover from {self.technology} is not supported in the current callbox configuration"
+            )
+
+        self.handover.lte_handover(
+            band, channel, bw, _HANDOVER_MAP[self.technology]
+        )
+        self._set_technology(CellularTechnology.LTE)
 
     def wcdma_handover(self, band, channel):
         """Performs a handover to WCDMA.
@@ -336,7 +457,6 @@ class CMX500Configuration(CallboxConfiguration):
         Args:
             band: the band of the handover destination
             channel: the downlink channel of the handover destination
-            source_technology: the source handover technology.
         """
         # WCDMA handover not supported on CMX
         raise NotImplementedError()

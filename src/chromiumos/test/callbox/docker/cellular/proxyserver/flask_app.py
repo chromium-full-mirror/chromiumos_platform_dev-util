@@ -275,6 +275,26 @@ class CallboxManager:
             config.lte_handover(data["band"], data["channel"], data["bw"])
         elif technology == cbc.CellularTechnology.WCDMA:
             config.wcdma_handover(data["band"], data["channel"])
+        elif technology == cbc.CellularTechnology.NR5G_SA:
+            self._require_dict_keys(data, "bw")
+            config.nr5g_sa_handover(data["band"], data["channel"], data["bw"])
+        elif technology == cbc.CellularTechnology.NR5G_NSA:
+            self._require_dict_keys(
+                data,
+                "bw",
+                "secondary_band",
+                "secondary_channel",
+                "secondary_bw",
+            )
+            config.nr5g_nsa_handover(
+                data["band"],
+                data["channel"],
+                data["bw"],
+                data["secondary_band"],
+                data["secondary_channel"],
+                data["secondary_bw"],
+            )
+
         else:
             raise ValueError(
                 f"Unsupported handover destination technology {technology}"
