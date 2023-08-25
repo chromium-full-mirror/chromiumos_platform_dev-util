@@ -9,6 +9,7 @@ import (
 	"os"
 
 	dut_api "go.chromium.org/chromiumos/config/go/test/lab/api"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -18,7 +19,7 @@ const (
 	binName = "legacy_hw_filter"
 )
 
-// hwTargetsFromReq returns the list of hwTargets from the suiteMetadata defintion.
+// hwTargetsFromReq returns the list of hwTargets from the suiteMetadata definition.
 func hwTargetsFromReq(req *api.InternalTestplan) (hwTargets []*api.SwarmingDefinition) {
 	for _, target := range req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements() {
 		for _, hwTarget := range target.GetHwRequirements().GetHwDefinition() {
@@ -55,15 +56,18 @@ func tcDeps(tc *api.CTPTestCase) (deps []string) {
 func generateTcHwReqs(hwTargets []*api.SwarmingDefinition, tcDeps []string) (tcHwReqs []*api.HWRequirements) {
 
 	for _, target := range hwTargets {
+		// We need to clone the target as different tests can set different hw requirements.
+		// If we just set the field directly then it would change for all tests every time we change
+		// the field.
+		t := proto.Clone(target).(*api.SwarmingDefinition)
+		t.SwarmingLabels = tcDeps
 		targ := &api.HWRequirements{
 			// For legacy solver, each HwDefinition is a list of 1
 			// This is because for a test dut matching will follow this logic:
 			// HwDefinition = [[a], [b]]; must run the test on a AND b
 			// HwDefinition = [[a, b], [c]]; must run on A OR B, AND C
 			// Legacy always lists of 1 item. Others, eg 3D; will give OR options.
-			HwDefinition: []*api.SwarmingDefinition{target},
-			// Every HW Definition will be required to have the deps.
-			SwarmingLabels: tcDeps,
+			HwDefinition: []*api.SwarmingDefinition{t},
 		}
 		tcHwReqs = append(tcHwReqs, targ)
 	}

@@ -24,14 +24,10 @@ const (
 )
 
 func toCTPTestCase(metadata *api.TestCaseMetadata) *api.CTPTestCase {
-	hwReqs := api.HWRequirements{}
-	for _, dep := range metadata.GetTestCase().GetDependencies() {
-		hwReqs.SwarmingLabels = append(hwReqs.SwarmingLabels, dep.GetValue())
-	}
+
 	return &api.CTPTestCase{
-		Name:           metadata.GetTestCase().GetName(),
-		HwRequirements: []*api.HWRequirements{&hwReqs},
-		Metadata:       metadata,
+		Name:     metadata.GetTestCase().GetName(),
+		Metadata: metadata,
 	}
 }
 func toTestFinderRequest(testPlan *api.InternalTestplan) (*api.CrosTestFinderRequest, error) {
