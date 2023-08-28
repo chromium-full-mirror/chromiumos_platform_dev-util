@@ -62,6 +62,20 @@ func TestDetermineSignalFromQuery(t *testing.T) {
 		t.Fatalf("MaxFilterForceDisableCheck - Test marked as stable when should be marked as unstable.")
 	}
 
+	qi = PassRatePolicy{requiredPassRate: 80.0, requiredRecentPassRate: 90, requiredRecentRuns: 20}
+	// Test that when the test is < requiredPassRate; and the requiredPassRate > RECENT PASS RATE < requiredRecentPassRate
+	// The test is still not enabled (this is added specifically due to a found bug.)
+	signal, _ = qi.determineSignalFromQuery("Test2", 70.0, 85.0, 30, 20, 5)
+	if signal {
+		t.Fatalf("RecentEnableCheck - Test marked as stable when should be marked as unstable.")
+	}
+	qi = PassRatePolicy{requiredPassRate: 80.0, requiredRecentPassRate: 90, requiredRecentRuns: 20}
+	// A general recent cheeck
+	signal, _ = qi.determineSignalFromQuery("Test2", 70.0, 95.0, 30, 20, 5)
+	if !signal {
+		t.Fatalf("RecentEnableCheck - Test marked as unstable when should be marked as stable.")
+	}
+
 }
 
 func TestPopulateMissingTests(t *testing.T) {

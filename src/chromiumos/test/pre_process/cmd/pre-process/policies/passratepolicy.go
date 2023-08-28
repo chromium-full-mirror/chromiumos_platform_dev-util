@@ -112,7 +112,7 @@ func (q *PassRatePolicy) determineSignalFromQuery(testname string, passRate floa
 	} else if passRate >= float64(q.requiredPassRate) {
 		return true, filterRemaining
 	} else if q.requiredPassRate != 0 && q.requiredRecentRuns != 0 {
-		if recPassRate >= q.requiredPassRate && recRuns >= q.requiredRecentRuns {
+		if recPassRate >= q.requiredRecentPassRate && recRuns >= q.requiredRecentRuns {
 			return true, filterRemaining // Was bad, but recent signal is very strongly good.
 		}
 	}
