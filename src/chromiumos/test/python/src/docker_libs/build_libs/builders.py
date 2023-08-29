@@ -143,7 +143,7 @@ class DockerBuilder:
         print(f"Docker Login step output: {out}")
 
 
-    def write_outfile(self, digest: str):
+    def write_outfile(self, digest: str = None):
         """Write the outfile with build info if outfile is given.
 
         Args:
@@ -159,7 +159,10 @@ class DockerBuilder:
                 "project": self.cloud_project,
             },
             "name": self.image_name,
-            "digest": digest,
+            # if no digest is given then use "sha256:" because this causes
+            # cros_test_runner to default to using the tags instead of the
+            # digest
+            "digest": digest if digest else "sha256:",
             "tags": [tag for tag in self.tags],
         }
         with open(self.output, "w") as wf:

@@ -166,6 +166,12 @@ def parse_local_arguments() -> argparse.Namespace:
         'Cloud builds will always "upload".',
     )
     parser.add_argument(
+        "--skip-upload",
+        dest="skip_upload",
+        action="store_true",
+        help="Don't upload images ever when using local build",
+    )
+    parser.add_argument(
         "--build_all",
         dest="build_all",
         action="store_true",
@@ -262,7 +268,10 @@ def build_container(b: DockerBuilder, args: argparse.Namespace):
         try:
             b.build()
             # Upload if requested, or an output file is given.
-            if args.upload or args.output:
+            if args.skip_upload and args.output:
+                # create a metadata file but don't upload
+                b.write_outfile()    
+            elif args.upload or args.output:
                 b.upload_image()
             return
         except Exception as e:
