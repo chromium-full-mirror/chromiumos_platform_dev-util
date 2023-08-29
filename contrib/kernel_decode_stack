@@ -37,14 +37,14 @@ decode_stacktrace() {
   local ARCH
   ARCH=$("portageq-${board}" envvar ARCH)
 
-  # cros-kernel2.eclass falls back to tc-arch-kernel when CHROMEOS_KERNEL_ARCH
+  # cros-kernel.eclass falls back to tc-arch-kernel when CHROMEOS_KERNEL_ARCH
   # is not set, but since tc-arch-kernel parse the arch from CHOST, we can just
   # ignnore kernel_arch and use the original CHOST as CROSS_COMPILE in this
   # case.
   local kernel_arch
   kernel_arch=$("portageq-${board}" envvar CHROMEOS_KERNEL_ARCH || true)
 
-  # This part is from cros-kernel2.eclass
+  # This part is from cros-kernel.eclass
   # Support 64bit kernels w/32bit userlands.
   local cross=${CHOST}
   if [[ "${ARCH}:${kernel_arch}" == "arm:arm64" ]]; then
