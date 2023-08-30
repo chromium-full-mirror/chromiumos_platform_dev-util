@@ -51,6 +51,8 @@ topic_patches["block-fs"] = [
     "fixups/FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr.patch",
     "fixups/CHROMIUM: fuse: Implement CHROMEOS_TMPFILE.patch",
     "fixups/FROMLIST: configfs: make directories inherit uid_gid from creator.patch",
+    "fixups/FIXUP: mm: convert per process reclaim to use folios.patch",
+    "fixups/FIXUP: CHROMIUM: mm: per-process reclaim.patch",
 ]
 
 topic_patches["cros_ec"] = [
@@ -120,6 +122,7 @@ patch_deps = {
     "9374b3da44f7": ["a8d5ee3cd35c"],
     "dba4f3cbb765": ["f1c5e6917f73"],
     "343cf85ba839": ["85634c066fc3"],
+    "63aa88dd27f5": ["57ebaa81ea9d02"],
 }
 
 # Add entry here to overwrite default disposition on particular commit
