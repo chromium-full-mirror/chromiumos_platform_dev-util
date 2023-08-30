@@ -53,6 +53,7 @@ topic_patches["block-fs"] = [
     "fixups/FROMLIST: configfs: make directories inherit uid_gid from creator.patch",
     "fixups/FIXUP: mm: convert per process reclaim to use folios.patch",
     "fixups/FIXUP: CHROMIUM: mm: per-process reclaim.patch",
+    "fixups/FIXUP: CHROMIUM: verity: bring over dm-verity-chromeos.c.patch",
 ]
 
 topic_patches["cros_ec"] = [
