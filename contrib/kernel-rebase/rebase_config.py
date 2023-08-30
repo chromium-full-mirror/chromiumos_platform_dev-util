@@ -55,6 +55,7 @@ topic_patches["block-fs"] = [
     "fixups/FIXUP: CHROMIUM: mm: per-process reclaim.patch",
     "fixups/FIXUP: CHROMIUM: verity: bring over dm-verity-chromeos.c.patch",
     "fixups/FIXUP: CHROMIUM: drivers: md: dm-verity-chromeos: init: improve the name_to_dev_t interface.patch",
+    "fixups/FIXUP: NOUPSTREAM: ANDROID: fs-verity: Export function to check signatures.patch",
 ]
 
 topic_patches["cros_ec"] = [
