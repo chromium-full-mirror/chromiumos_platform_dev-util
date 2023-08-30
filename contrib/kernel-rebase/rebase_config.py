@@ -71,6 +71,7 @@ topic_patches["mm"] = [
     "fixups/CHROMIUM: mm: per-process reclaim.patch",
     "fixups/FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr.patch",
     "fixups/FIXUP: CHROMIUM: Restrict swapon() to zram devices lock down zram.patch",
+    "fixups/FIXUP: CHROMIUM: mm: per-process reclaim for mm topic.patch",
 ]
 
 topic_patches["drivers"] = [
