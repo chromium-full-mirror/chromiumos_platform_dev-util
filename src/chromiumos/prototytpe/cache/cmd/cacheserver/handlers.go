@@ -220,7 +220,7 @@ func (h *HTTPHandlers) extractHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("extracting %v from %v", fileToExtract, localTarFilePath)
-	extractCmd := exec.Command("tar", "-xf", localTarFilePath, fileToExtract)
+	extractCmd := exec.Command("tar", "-Oxf", localTarFilePath, fileToExtract)
 	extractCmd.Stdout = w
 	if err := extractCmd.Run(); err != nil {
 		http.Error(w, fmt.Sprintf("error when extracting %v from %v", fileToExtract, localTarFilePath), http.StatusInternalServerError)
