@@ -45,7 +45,7 @@ func RootCmd() (*cobra.Command, error) {
 
 	cmd := &cobra.Command{
 		Use:           "btpeer_manager",
-		Version:       "1.1.0",
+		Version:       "1.1.1",
 		Short:         "Utility for managing btpeers",
 		SilenceErrors: true,
 		SilenceUsage:  true,

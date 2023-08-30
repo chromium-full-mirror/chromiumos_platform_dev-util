@@ -74,14 +74,13 @@ func TestSelectChameleondBundleByChameleondCommit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := SelectChameleondBundleByChameleondCommit(tt.args.config, tt.args.chameleondCommit)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SelectChameleondBundleByChameleondCommit() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			if err != nil {
+				if !tt.wantErr {
+					t.Errorf("SelectChameleondBundleByChameleondCommit() error = %v, wantErr %v", err, tt.wantErr)
+				}
 				return
 			}
-			if err != nil && got.ChameleondCommit != tt.args.chameleondCommit {
+			if got.ChameleondCommit != tt.args.chameleondCommit {
 				t.Errorf("SelectChameleondBundleByChameleondCommit() got commit = %v, want commit %v", got.ChameleondCommit, tt.args.chameleondCommit)
 			}
 		})
@@ -108,7 +107,26 @@ func TestSelectChameleondBundleByCrosReleaseVersion(t *testing.T) {
 			},
 		},
 	}
-
+	config2 := &labapi.BluetoothPeerChameleondConfig{
+		NextChameleondCommit: "b",
+		Bundles: []*labapi.BluetoothPeerChameleondConfig_ChameleondBundle{
+			{
+				ChameleondCommit:     "a",
+				ArchivePath:          "",
+				MinDutReleaseVersion: "10",
+			},
+			{
+				ChameleondCommit:     "b",
+				ArchivePath:          "",
+				MinDutReleaseVersion: "30",
+			},
+			{
+				ChameleondCommit:     "c",
+				ArchivePath:          "",
+				MinDutReleaseVersion: "20",
+			},
+		},
+	}
 	type args struct {
 		config                *labapi.BluetoothPeerChameleondConfig
 		dutCrosReleaseVersion string
@@ -152,6 +170,15 @@ func TestSelectChameleondBundleByCrosReleaseVersion(t *testing.T) {
 				config1,
 				"4000",
 			},
+			"b",
+			false,
+		},
+		{
+			"matching highest excluding next",
+			args{
+				config2,
+				"4000",
+			},
 			"c",
 			false,
 		},
@@ -159,14 +186,13 @@ func TestSelectChameleondBundleByCrosReleaseVersion(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := SelectChameleondBundleByCrosReleaseVersion(tt.args.config, tt.args.dutCrosReleaseVersion)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SelectChameleondBundleByCrosReleaseVersion() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			if err != nil {
+				if !tt.wantErr {
+					t.Errorf("SelectChameleondBundleByCrosReleaseVersion() error = %v, wantErr %v", err, tt.wantErr)
+				}
 				return
 			}
-			if err != nil && got.ChameleondCommit != tt.wantCommit {
+			if got.ChameleondCommit != tt.wantCommit {
 				t.Errorf("SelectChameleondBundleByCrosReleaseVersion() got commit = %v, want commit %v", got.ChameleondCommit, tt.wantCommit)
 			}
 		})
@@ -248,14 +274,13 @@ func TestSelectChameleondBundleByNextCommit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := SelectChameleondBundleByNextCommit(tt.args.config)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SelectChameleondBundleByNextCommit() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			if err != nil {
+				if !tt.wantErr {
+					t.Errorf("SelectChameleondBundleByNextCommit() error = %v, wantErr %v", err, tt.wantErr)
+				}
 				return
 			}
-			if err != nil && got.ChameleondCommit != tt.wantCommit {
+			if got.ChameleondCommit != tt.wantCommit {
 				t.Errorf("SelectChameleondBundleByNextCommit() got commit = %v, want commit %v", got.ChameleondCommit, tt.wantCommit)
 			}
 		})
@@ -375,14 +400,13 @@ func TestSelectChameleondBundleForDut(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := SelectChameleondBundleForDut(tt.args.config, tt.args.dutHostname, tt.args.dutCrosReleaseVersion)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SelectChameleondBundleForDut() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			if err != nil {
+				if !tt.wantErr {
+					t.Errorf("SelectChameleondBundleForDut() error = %v, wantErr %v", err, tt.wantErr)
+				}
 				return
 			}
-			if err != nil && got.ChameleondCommit != tt.wantCommit {
+			if got.ChameleondCommit != tt.wantCommit {
 				t.Errorf("SelectChameleondBundleForDut() got commit = %v, want commit %v", got.ChameleondCommit, tt.wantCommit)
 			}
 		})

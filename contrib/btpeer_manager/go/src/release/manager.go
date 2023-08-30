@@ -231,15 +231,16 @@ func (m *Manager) validateConfig(config *labapi.BluetoothPeerChameleondConfig) e
 			return fmt.Errorf("NextDutReleaseVersions[%d] %q is invalid: %w", i, version, err)
 		}
 	}
-	if config.NextChameleondCommit == "" {
-		if len(config.NextDutHosts) > 0 {
-			return errors.New("NextChameleondCommit is empty, but NextDutHosts is not empty")
+	if config.NextChameleondCommit != "" {
+		if !bundleCommits[config.NextChameleondCommit] {
+			return fmt.Errorf("NextChameleondCommit is set to %q, but there is no matching bundle configured", config.NextChameleondCommit)
 		}
-		if len(config.NextDutReleaseVersions) > 0 {
-			return errors.New("NextChameleondCommit is empty, but NextDutReleaseVersions is not empty")
+		if len(config.NextDutHosts) == 0 {
+			return errors.New("NextChameleondCommit is set, but NextDutHosts is empty")
 		}
-	} else if !bundleCommits[config.NextChameleondCommit] {
-		return fmt.Errorf("NextChameleondCommit is set to %q, but there is no matching bundle configured", config.NextChameleondCommit)
+		if len(config.NextDutReleaseVersions) == 0 {
+			return errors.New("NextChameleondCommit is set, but NextDutReleaseVersions is empty")
+		}
 	}
 	return nil
 }
