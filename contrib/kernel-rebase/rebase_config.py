@@ -51,7 +51,6 @@ topic_patches["block-fs"] = [
     "fixups/FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr.patch",
     "fixups/CHROMIUM: fuse: Implement CHROMEOS_TMPFILE.patch",
     "fixups/FROMLIST: configfs: make directories inherit uid_gid from creator.patch",
-    "fixups/improve the name_to_dev_t interface-remove-init.patch",
 ]
 
 topic_patches["cros_ec"] = [
