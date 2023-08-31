@@ -30,8 +30,6 @@ except ImportError:
 
 import setup_chromite  # pylint: disable=unused-import
 
-from chromite.lib import cros_update_progress
-
 
 def _Log(message, *args):
     """Module-local log function."""
@@ -210,7 +208,6 @@ class Root(object):
         apache_client_count = _get_process_count("bin/apache2? -k start")
         telemetry_test_count = _get_process_count("python.*telemetry")
         gsutil_count = _get_process_count("gsutil")
-        au_process_count = len(cros_update_progress.GetAllRunningAUProcess())
 
         health_data = {
             "free_disk": free_disk,
@@ -218,7 +215,6 @@ class Root(object):
             "apache_client_count": apache_client_count,
             "telemetry_test_count": telemetry_test_count,
             "gsutil_count": gsutil_count,
-            "au_process_count": au_process_count,
         }
         health_data.update(self._get_io_stats() or {})
 
