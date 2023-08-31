@@ -4,31 +4,33 @@
 
 `fflash` is a tool to update a ChromiumOS device with a test image from `gs://` (Google Cloud Storage).
 
-## Setup
+## Dependencies
 
-Dependencies:
+[Install depot_tools](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up)
+and you are all set!
+If you are a Chromium or ChromiumOS developer you are probably already set up.
 
-*   `bazel` (which is included in depot_tools)
-
-The first time you invoke `fflash` it will build itself from source.
-
-## Run
+## Set up and Run
 
 1.  Make sure you can `ssh ${dut_host}` without typing a password
-
-    *** note
-    If using crosfleet devices, you might need to copy
-    https://chrome-internal.googlesource.com/chromeos/sshkeys/+/HEAD/partner_testing_rsa
-    to `~/.ssh/partner_testing_rsa`.
-    Refer to [b/260010430](https://issuetracker.google.com/issues/260010430)
-    for more information.
-    ***
 
 2.  ```
     ~/chromiumos/src/platform/dev/contrib/fflash/fflash ${dut_host}
     ```
 
     Where `${dut_host}` is the ssh target.
+
+    The first time you invoke `fflash`, it might do some extra set up:
+
+    *   Build itself from source.
+    *   If prompted, use `luci-auth` to grant `fflash` access to Google Cloud Storage, and run again.
+
+### Alternative: Run without full ChromiumOS checkout
+
+```
+git clone https://chromium.googlesource.com/chromiumos/platform/dev-util
+./dev-util/contrib/fflash/fflash
+```
 
 ## Usage examples
 
@@ -98,6 +100,16 @@ go get -u -d ./...
 go mod tidy
 bazel run //:gazelle-update-repos
 ```
+
+## Troubleshooting
+
+### partner_testing_rsa
+
+If using crosfleet devices, you might need to copy
+https://chrome-internal.googlesource.com/chromeos/sshkeys/+/HEAD/partner_testing_rsa
+to `~/.ssh/partner_testing_rsa`.
+Refer to [b/260010430](https://issuetracker.google.com/issues/260010430)
+for more information.
 
 ## Bugs & Feedback
 
