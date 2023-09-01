@@ -69,18 +69,24 @@ access token to the Chrome OS release image directory (Google Cloud -> DUT).
 
 ## Development
 
+fflash is written in go and built with Bazel. Bazel handles the go toolchain.
+
+You can invoke `bazel` through the `tools/bazel` launcher. If you obtained
+`bazel` through other channels, as long as it satisifies `.bazelversion`, it
+should also work.
+
 ### Testing
 
 #### Unit tests
 
 ```
-bazel test //...
+tools/bazel test //...
 ```
 
 #### Integration tests
 
 ```
-bazel run //cmd/integration-test ${dut_host}
+tools/bazel run //cmd/integration-test ${dut_host}
 ```
 
 ### Add go source
@@ -88,7 +94,7 @@ bazel run //cmd/integration-test ${dut_host}
 Add the source normally and:
 
 ```
-bazel run //:gazelle
+tools/bazel run //:gazelle
 ```
 
 to update the BUILD.bazel files.
@@ -98,7 +104,7 @@ to update the BUILD.bazel files.
 ```
 go get -u -d ./...
 go mod tidy
-bazel run //:gazelle-update-repos
+tools/bazel run //:gazelle-update-repos
 ```
 
 ## Troubleshooting

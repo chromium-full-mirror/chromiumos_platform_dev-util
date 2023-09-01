@@ -1,0 +1,8 @@
+# To regenerate them (after modifying this file):
+#   cipd ensure-file-resolve -ensure-file cipd_manifest.txt
+$ResolvedVersions cipd_manifest.versions
+
+$VerifiedPlatform linux-amd64
+
+# Bazel
+skia/bots/bazelisk latest

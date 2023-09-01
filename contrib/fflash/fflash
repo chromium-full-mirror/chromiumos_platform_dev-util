@@ -6,4 +6,4 @@
 set -e
 old_pwd="${PWD}"
 cd "$(dirname "${BASH_SOURCE[0]}")"
-bazel run --run_under="cd '${old_pwd}' && " //cmd/fflash -- "$@"
+exec tools/bazel run --run_under="cd '${old_pwd}' && " //cmd/fflash -- "$@"
