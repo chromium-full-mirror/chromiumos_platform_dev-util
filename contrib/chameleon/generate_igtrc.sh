@@ -63,6 +63,7 @@ URL=http://${cv3_ip}:9992
 
 # Check if dut_ip is in IP format
 if [[ ${dut_ip} =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "The default password is test0000"
   target_dut_ip="root@${dut_ip}"
 else
   target_dut_ip="${dut_ip}"
@@ -73,5 +74,5 @@ fi
 if ssh "${target_dut_ip}" "echo '${igtrc_file}' > ~/.igtrc"; then
   echo "igtrc file successfully written to the remote device at ${dut_ip}."
 else
-  echo "Error: Failed to write igtrc file to the remote device. Make sure rootfs verification has been removed by running |sudo /usr/share/vboot/bin/make_dev_ssd.sh --remove_rootfs_verification|"
+  echo "Error: Failed to write igtrc file to the remote device. Make sure rootfs verification has been removed by running |sudo /usr/share/vboot/bin/make_dev_ssd.sh --remove_rootfs_verification| - If it is removed, use a hostname instead of an IP address."
 fi
