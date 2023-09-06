@@ -450,7 +450,7 @@ class Gerrit:
             A dictionary mapping upstream commit hashes to their
             current Change-Id on Gerrit.
         """
-        query = f"status:open project:{project} branch:{branch} topic:{topic}"
+        query = f"status:open project:{project} branch:{branch} hashtag:{topic}"
         query_result = self.search(query)
         change_ids = {}
         for cl in query_result:
@@ -653,8 +653,6 @@ def get_push_refspec(args, downstream_branch):
         for option in value.split(","):
             push_options.append(f"{key}={option}")
 
-    _add_push_option("topic", args.topic)
-
     for label in args.labels:
         _add_push_option("l", label)
 
@@ -664,7 +662,7 @@ def get_push_refspec(args, downstream_branch):
     for reviewer in args.reviewers:
         _add_push_option("r", reviewer)
 
-    for hashtag in args.hashtags:
+    for hashtag in [args.topic, *args.hashtags]:
         _add_push_option("ht", hashtag)
 
     return f"HEAD:refs/for/{downstream_branch}%{','.join(push_options)}"
