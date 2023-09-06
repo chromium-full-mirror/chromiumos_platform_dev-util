@@ -50,17 +50,24 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
     def prep(self):
         """Run the steps needed to prep the container artifacts."""
         self.copy_dockercontext()
+        share_dir = self.create_share_dir()
         self.setup_cipd()
-        self.download_pvs_bin()
-        self.download_cft_binaries()
+        self.download_pvs_bin(share_dir)
+        self.download_cft_binaries(share_dir)
         self.copy_ssh_keys()
+
+    def create_share_dir(self):
+        share_dir = os.path.join(self.full_out, "share")
+        os.mkdir(share_dir)
+        os.chmod(share_dir, 0o755)
+        return share_dir
 
     def setup_cipd(self):
         """Set up cipd so cipd packages can be installed"""
         self.install_cipd_package()
         self.cipd_init()
 
-    def download_pvs_bin(self):
+    def download_pvs_bin(self, share_dir):
         self.download_cipd_artifact(
             package="infra_internal/tools/pvs/pvs/linux-amd64",
             ref=os.getenv(PVS_CIPD_REF, DEFAULT_PVS_CIPD_REF),
@@ -68,6 +75,8 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
             artifact="pvs",
             artifact_dest=os.path.join(self.full_out, "pvs"),
             artifact_perm=0o755,
+            version_file=".versions/pvs.cipd_version",
+            version_file_dest=os.path.join(share_dir, "pvs.cipd_version"),
         )
 
     def copy_ssh_keys(self):
@@ -79,18 +88,11 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
         )
         os.chmod(os.path.join(dest, "testing_rsa"), 0o600)
 
-    def download_cft_binaries(self):
-        """Download the cft binaries and their respective cipd manifests"""
-
-        share_dir = os.path.join(self.full_out, "share")
-        os.mkdir(share_dir)
-        os.chmod(share_dir, 0o755)
+    def download_cft_binaries(self, share_dir):
+        """Download the cft binaries and their respective cipd version files"""
         artifact_dest_dir = os.path.join(share_dir, "cft")
         os.mkdir(artifact_dest_dir)
         os.chmod(artifact_dest_dir, 0o755)
-        manifest_dest_dir = os.path.join(share_dir, "cft_manifests")
-        os.mkdir(manifest_dest_dir)
-        os.chmod(manifest_dest_dir, 0o755)
 
         self.download_cipd_artifact(
             package="chromiumos/infra/cros-tool-runner/linux-amd64",
@@ -99,7 +101,10 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
             artifact="cros-tool-runner",
             artifact_dest=os.path.join(artifact_dest_dir, "cros-tool-runner"),
             artifact_perm=0o755,
-            manifest_dest=os.path.join(manifest_dest_dir, "cros-tool-runner"),
+            version_file=".versions/cros-tool-runner.cipd_version",
+            version_file_dest=os.path.join(
+                artifact_dest_dir, "cros-tool-runner.cipd_version"
+            ),
         )
         self.download_cipd_artifact(
             package="chromiumos/infra/cros_test_runner/linux-amd64",
@@ -108,7 +113,10 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
             artifact="cros_test_runner",
             artifact_dest=os.path.join(artifact_dest_dir, "cros_test_runner"),
             artifact_perm=0o755,
-            manifest_dest=os.path.join(manifest_dest_dir, "cros_test_runner"),
+            version_file=".versions/cros_test_runner.cipd_version",
+            version_file_dest=os.path.join(
+                artifact_dest_dir, "cros_test_runner.cipd_version"
+            ),
         )
         self.download_cipd_artifact(
             package="chromiumos/infra/cache-server/linux-amd64",
@@ -117,7 +125,10 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
             artifact="cacheserver",
             artifact_dest=os.path.join(artifact_dest_dir, "cacheserver"),
             artifact_perm=0o755,
-            manifest_dest=os.path.join(manifest_dest_dir, "cacheserver"),
+            version_file=".versions/cache-server.cipd_version",
+            version_file_dest=os.path.join(
+                artifact_dest_dir, "cache-server.cipd_version"
+            ),
         )
 
     def download_cipd_artifact(
@@ -128,7 +139,8 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
         artifact,
         artifact_dest,
         artifact_perm=None,
-        manifest_dest=None,
+        version_file=None,
+        version_file_dest=None,
     ):
         """Downloads the file from the given pacakge/ref to the dest"""
         if local_path:
@@ -145,12 +157,12 @@ class CrosPvsArtifactPrep(CrosArtifactPrep):
         if artifact_perm:
             os.chmod(artifact_dest, artifact_perm)
 
-        # Copy the manifest into the manifest dir
-        if manifest_dest:
-            absolute_manifest_path = os.path.join(
-                os.path.dirname(abs_artifact_path), ".cipdpkg/manifest.json"
+        # Copy the versionfile to its dest
+        if version_file and version_file_dest:
+            absolute_version_file_path = os.path.join(
+                os.path.dirname(abs_artifact_path), version_file
             )
-            shutil.copy(absolute_manifest_path, manifest_dest)
+            shutil.copy(absolute_version_file_path, version_file_dest)
 
     def cros_root_dir(self):
         """Path to the root of the chromiumos root directory"""
