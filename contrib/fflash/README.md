@@ -12,7 +12,9 @@ If you are a Chromium or ChromiumOS developer you are probably already set up.
 
 ## Set up and Run
 
-1.  Make sure you can `ssh ${dut_host}` without typing a password
+1.  Make sure:
+    *   You can `ssh ${dut_host}` without typing a password.
+    *   Your DUT has access to the internet.
 
 2.  ```
     ~/chromiumos/src/platform/dev/contrib/fflash/fflash ${dut_host}
