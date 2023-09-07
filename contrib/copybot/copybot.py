@@ -663,7 +663,7 @@ def get_push_refspec(args, downstream_branch):
         _add_push_option("r", reviewer)
 
     for hashtag in [args.topic, *args.hashtags]:
-        _add_push_option("ht", hashtag)
+        _add_push_option("t", hashtag)
 
     return f"HEAD:refs/for/{downstream_branch}%{','.join(push_options)}"
 
