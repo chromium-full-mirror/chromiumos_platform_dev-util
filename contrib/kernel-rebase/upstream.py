@@ -203,16 +203,17 @@ def doit(db=upstreamdb, path=upstream_path, name="upstream"):
             continue
         # First look for matching upstream patch ID
         cu.execute(
-            "SELECT sha, subject from commits where patchid is '%s'" % patchid
+            "SELECT sha, subject, integrated from commits where patchid is '%s'" % patchid
         )
         fsha = cu.fetchone()
         if fsha:
             rsha = fsha[0]
             subject = fsha[1]
+            integrated = fsha[2]
             c2.execute(
                 "UPDATE commits SET dsha=('%s') where sha='%s'" % (rsha, sha)
             )
-            in_target = is_in_target(rsha)
+            in_target = is_in_target(integrated)
             if in_target:
                 disposition = "drop"
             else:
