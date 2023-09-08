@@ -163,6 +163,7 @@ for carrier in [
         f"'network.HotspotAutoDisable.{carrier}'",
         f"'network.HotspotDisabledWhenNoUpstreamNetwork.{carrier}'",
         f"'network.HotspotEnableDisableInLockScreen.{carrier}'",
+        f"'network.HotspotPolicy.{carrier}'",
     ]
     if carrier in ["tmobile", "docomo"]:
         dut_check_test_names += hotspot_test_names
