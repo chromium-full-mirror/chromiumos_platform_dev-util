@@ -83,7 +83,6 @@ topic_patches["power-thermal"] = [
 
 topic_patches["tpm-virtio"] = [
     "fixups/FROMLIST: tpm: add sysfs attributes for tpm2.patch",
-    "fixups/FIXUP: CHROMIUM: tpm: Use TPM_CHIP_FLAG_SUSPENDED instead of is_suspended.patch",
 ]
 
 topic_patches["chromeos"] = [
