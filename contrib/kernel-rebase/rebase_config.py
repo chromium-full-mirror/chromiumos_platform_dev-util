@@ -58,10 +58,6 @@ topic_patches["block-fs"] = [
     "fixups/FIXUP: NOUPSTREAM: ANDROID: fs-verity: Export function to check signatures.patch",
 ]
 
-topic_patches["cros_ec"] = [
-    "fixups/platform: x86: add ACPI driver for ChromeOS.patch",
-]
-
 topic_patches["gpu/other"] = [
     "fixups/CHROMIUM: gpu: mali: Apply r40p0 EAC release 1.patch",
     "fixups/CHROMIUM: gpu: mali: Apply r40p0 EAC release 2.patch",
