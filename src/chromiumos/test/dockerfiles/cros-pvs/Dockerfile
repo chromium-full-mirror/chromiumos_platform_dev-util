@@ -39,8 +39,7 @@ RUN git clone --depth=1 https://chromium.googlesource.com/chromiumos/third_party
 COPY ssh/ ${SSH_CONFIG_DIR}
 COPY share/ ${PVS_SHARE_DIR}
 COPY pvs ${PVS_BIN_DIR}/pvs
-# TODO(b/299528283): fix completions so they work in cloudbuild
-# RUN ${PVS_BIN_DIR}/pvs completion bash > ${COMPLETION_DIR}/pvs
+RUN ${PVS_BIN_DIR}/pvs completion bash > ${COMPLETION_DIR}/pvs
 
 # Build all the pvs artifacts on container initialization
 WORKDIR /home/pvs
