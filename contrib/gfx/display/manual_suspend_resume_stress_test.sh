@@ -46,7 +46,13 @@ run_command_on_remote() {
 
   }
 
-check_pkgs() {
+check_reqs() {
+    # Check if you have a camera connected
+    if ! ls /dev/video* 2>/dev/null; then
+      echo "No Camera is connected"
+      exit 1
+    fi
+
     # Check if fswebcam is installed
     if ! command -v fswebcam &> /dev/null
     then
@@ -63,7 +69,25 @@ check_pkgs() {
     fi
 }
 
+start_display_suspension_in_s() {
+  time_until_dim_ms=$(($1*1000))
+  time_until_display_off_ms=$((time_until_dim_ms + (5 * 1000)))
+  time_until_display_suspend_ms=$((time_until_display_off_ms + (5 * 1000)))
+  time_until_display_suspend_complete_s=$(( (time_until_display_suspend_ms / 1000) + 5 ))
 
+  # Directory where powerd's runtime-settable pref files are stored.
+  DIR=/var/lib/power_manager
+
+  # Emulate display naturally going to sleep.
+  echo "Setting up powerd to dim, turn off, and suspend the display starting in $1 seconds."
+  run_command_on_remote "echo 1 >${DIR}/ignore_external_policy"
+  run_command_on_remote "echo ${time_until_dim_ms} > ${DIR}/plugged_dim_ms"
+  run_command_on_remote "echo ${time_until_display_off_ms} > ${DIR}/plugged_off_ms"
+  run_command_on_remote "echo ${time_until_display_suspend_ms} > ${DIR}/plugged_suspend_ms"
+
+  # Restart powerd to apply the new settings.
+  run_command_on_remote "( (status powerd | fgrep -q 'start/running' ) && restart powerd ) || start powerd"
+}
 
 capture_photo() {
     mkdir -p temp
@@ -100,28 +124,30 @@ process_logs() {
 ## SCRIPT STARTS HERE ##
 
 parse_hostname_argument "$@"
-check_pkgs
+check_reqs
 
 # Basic Test Plan:
-# 1. Suspend device for |suspend_time| seconds
-# 2. at Wake, wait for |wait_time| seconds
-# 3. take a webcam shot
-# 4. Analyze the photo brightness to see if the screen is off
-# 5. If it's off, generate logs and save it with the picture.
+# 1. Dim, turn off, and suspend the display
+# 2. Suspend the SoC
+# 3. at Wake, wait for |wait_time| seconds
+# 4. take a webcam shot
+# 5. Analyze the photo brightness to see if the screen is off
+# 6. If it's off, generate logs and save it with the picture.
 
-suspend_time=30
-wait_time=20
-if (( wait_time > suspend_time )); then
-  echo "Error: wait_time must be less than suspend_time."
-  exit 1
-fi
+soc_suspend_time_s=30
+wait_until_on_s=15
 
-iterations=$((15 * 30))  # the 15 hours I'm away from the office
-for ((i = 0; i < iterations; i++)); do
-  echo "Sleep for ${suspend_time} seconds."
-  run_command_on_remote "powerd_dbus_suspend --suspend_for_sec=${suspend_time}"
-  echo "Wake up after ${suspend_time} seconds."
-  sleep "${wait_time}"
+for ((i = 0; i < 500; i++)); do
+  start_display_suspension_in_s 5
+  echo "Waiting for displays to turn off"
+  sleep "${time_until_display_suspend_complete_s}"
+
+  echo "screen should be off. Suspending SoC for ${soc_suspend_time_s} seconds."
+  run_command_on_remote "powerd_dbus_suspend --suspend_for_sec=${soc_suspend_time_s}"
+  echo "Waking up after ${soc_suspend_time_s} seconds. gonna wait for ${wait_until_on_s} seconds to take a photo."
+  # Reset the suspension time to have enough time to wait and take a photo.
+  start_display_suspension_in_s 60
+  sleep "${wait_until_on_s}"
 
   image_filename=$(capture_photo)
   echo "Photo saved to ${image_filename}"
