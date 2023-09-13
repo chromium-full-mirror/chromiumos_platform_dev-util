@@ -34,9 +34,7 @@ CHROMEOS_URLS = [
 
 BRANCHES = ('6.1', '5.15', '5.10', '5.4', '4.19', '4.14')
 
-CHROMEOS_RELEASE_BRANCHES = ('R108-15183.B', 'R114-15437.B',
-                             'R116-15509.B', 'R117-15572.B',
-                             'R118-15604.B')
+MIN_RELEASE = 114
 
 def _git(args, stdin=None, encoding='utf-8'):
     """Calls a git subcommand.
@@ -71,6 +69,23 @@ def _git(args, stdin=None, encoding='utf-8'):
         ).stdout.strip()
     except subprocess.CalledProcessError:
         return None
+
+
+def release_branches(baseline):
+    """Return existing release branches."""
+
+    command = ['branch', '-r', '--list', 'origin/release-R*-chromeos-%s' % baseline]
+
+    releases = []
+
+    branches = _git(command).splitlines()
+
+    for branch in branches:
+        release = re.match(r' *origin/release-(R([0-9]+)-[0-9]+\.B)-.*', branch)
+        if release and int(release[2]) >= MIN_RELEASE:
+            releases += [release[1]]
+
+    return releases
 
 
 def _find_remote(urls):
@@ -182,7 +197,7 @@ def checkbranch(remote, baseline, subject, queued=False):
                     if chromeos_remote:
                         contained = []
                         not_contained = []
-                        for b in CHROMEOS_RELEASE_BRANCHES:
+                        for b in release_branches(baseline):
                             release_branch = f'release-{b}-chromeos-{baseline}'
                             release = b.split('-', maxsplit=1)[0]
                             gitcommand = ['merge-base', '--is-ancestor', ssha,
