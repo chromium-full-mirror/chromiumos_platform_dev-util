@@ -32,12 +32,37 @@ func TestScanner(stream io.Reader, logger *log.Logger, harness string) {
 }
 
 // UnpackMetadata unpacks the Any metadata field into AutotestExecutionMetadata
-func UnpackMetadata(req *api.CrosTestRequest) (*api.AutotestExecutionMetadata, error) {
+func UnpackMetadata(req *api.CrosTestRequest) (interface{}, error) {
+	if req.Metadata == nil {
+		return nil, nil
+	}
+
+	if autotestMetaData, err := unpackAutotestMetadata(req); err == nil {
+		return autotestMetaData, nil
+	}
+	return unpackTastMetadata(req)
+}
+
+// unpackAutotestMetadata unpacks the Any metadata field into AutotestExecutionMetadata
+func unpackAutotestMetadata(req *api.CrosTestRequest) (*api.AutotestExecutionMetadata, error) {
 	if req.Metadata == nil {
 		return &api.AutotestExecutionMetadata{}, nil
 	}
 
 	var m api.AutotestExecutionMetadata
+	if err := req.Metadata.UnmarshalTo(&m); err != nil {
+		return nil, fmt.Errorf("improperly formatted input proto metadata, %s", err)
+	}
+	return &m, nil
+}
+
+// unpackTastMetadata unpacks the Any metadata field into TastExecutionMetadata
+func unpackTastMetadata(req *api.CrosTestRequest) (*api.TastExecutionMetadata, error) {
+	if req.Metadata == nil {
+		return &api.TastExecutionMetadata{}, nil
+	}
+
+	var m api.TastExecutionMetadata
 	if err := req.Metadata.UnmarshalTo(&m); err != nil {
 		return nil, fmt.Errorf("improperly formatted input proto metadata, %s", err)
 	}

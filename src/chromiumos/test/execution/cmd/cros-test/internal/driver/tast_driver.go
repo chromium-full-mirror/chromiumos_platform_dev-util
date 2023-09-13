@@ -72,9 +72,17 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 		return nil, fmt.Errorf("failed to generate info yaml: %w", err)
 	}
 
+	// Get tast execution args.
+	md, err := common.UnpackMetadata(req)
+	if err != nil {
+		return nil, err
+	}
+	customTastArgs, _ := md.(*api.TastExecutionMetadata)
+
 	// Be nice and clean up.
 	defer os.Remove(yamlPath)
-	args := newTastArgs(primary, chromeOSCompanions, AndriodCompanions, testNames, resultsDir, reportServer.Address(), yamlPath)
+	args := newTastArgs(primary, chromeOSCompanions, AndriodCompanions, testNames,
+		resultsDir, reportServer.Address(), yamlPath, customTastArgs.GetArgs())
 
 	err = common.WriteHostInfoToFile(resultsDir, primary.Addr, primary, td.logger)
 	if err != nil {
@@ -191,14 +199,20 @@ const (
 	companionDUTFlag           = "-companiondut"
 	varFlag                    = "-var"
 	varsFile                   = "-varsfile"
+	buildArtifactsURL          = "-buildartifactsurl"
 )
+
+type flagValue struct {
+	flag  string
+	value string
+}
 
 // runArgs stores arguments to invoke Tast
 type runArgs struct {
 	primary    *device.DutInfo       // The information of the primary machine.
 	patterns   []string              // The names of test to be run.
 	tastFlags  map[string]string     // The flags for tast.
-	runFlags   map[string]string     // The flags for tast run command.
+	runFlags   []flagValue           // The flags for tast run command.
 	companions []*device.DutInfo     // The information of the companion DUTs to be used for testing.
 	androids   []*device.AndroidInfo // The information of the android companions.
 
@@ -207,23 +221,31 @@ type runArgs struct {
 // newTastArgs created an argument structure for invoking tast
 func newTastArgs(primary *device.DutInfo,
 	companionDuts []*device.DutInfo, andriods []*device.AndroidInfo,
-	tests []string, resultsDir, rsAddress string, varsFilePath string) *runArgs {
+	tests []string, resultsDir, rsAddress string, varsFilePath string,
+	customTastArgs []*api.Arg) *runArgs {
+	runFlags := []flagValue{
+		{sshRetriesFlag, "2"},
+		{downloadDataFlag, "batch"},
+		{buildFlag, "false"},
+		{downloadPrivateBundlesFlag, "true"},
+		{testRetriesFlag, "1"}, // TODO b/270193958 remove this hardcode for a var.
+		{resultsDirFlag, resultsDir},
+		{reportsServerFlag, rsAddress},
+		{varsFile, varsFilePath},
+	}
+	for _, a := range customTastArgs {
+		if a.GetFlag() == "" {
+			continue
+		}
+		runFlags = append(runFlags, flagValue{"-" + a.GetFlag(), a.GetValue()})
+	}
 	return &runArgs{
 		primary: primary,
 		tastFlags: map[string]string{
 			verboseFlag: "true",
 			logTimeFlag: "false",
 		},
-		runFlags: map[string]string{
-			sshRetriesFlag:             "2",
-			downloadDataFlag:           "batch",
-			buildFlag:                  "false",
-			downloadPrivateBundlesFlag: "true",
-			testRetriesFlag:            "1", // TODO b/270193958 remove this hardcode for a var.
-			resultsDirFlag:             resultsDir,
-			reportsServerFlag:          rsAddress,
-			varsFile:                   varsFilePath,
-		},
+		runFlags:   runFlags,
 		patterns:   tests, // TO-DO Support Tags
 		companions: companionDuts,
 		androids:   andriods,
@@ -236,8 +258,8 @@ func genArgList(args *runArgs) (argList []string) {
 		argList = append(argList, fmt.Sprintf("%v=%v", flag, value))
 	}
 	argList = append(argList, runSubcommand)
-	for flag, value := range args.runFlags {
-		argList = append(argList, fmt.Sprintf("%v=%v", flag, value))
+	for _, fv := range args.runFlags {
+		argList = append(argList, fmt.Sprintf("%v=%v", fv.flag, fv.value))
 	}
 	for _, c := range args.companions {
 		// example: -companiondut=cd1:127.0.0.1:2222

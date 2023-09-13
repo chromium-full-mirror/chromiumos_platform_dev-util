@@ -78,7 +78,9 @@ func (s *ExecutionServiceServer) loadResultsDir(req *api.CrosTestRequest) (strin
 		return "", err
 	}
 
-	resultsSubDir := metadata.GetResultsSubDir()
+	autotestMetaData, _ := metadata.(*api.AutotestExecutionMetadata)
+
+	resultsSubDir := autotestMetaData.GetResultsSubDir()
 	if resultsSubDir == "" {
 		return s.resultRootDir, nil
 	}

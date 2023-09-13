@@ -17,11 +17,16 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"chromiumos/test/execution/cmd/cros-test/internal/device"
+
+	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
 // TestNewTastArgs makes sure newTastArgs creates the correct arguments for tast.
 func TestNewTastArgs(t *testing.T) {
 	primary := &device.DutInfo{Addr: dut1, Role: ""}
+	reportsServerValue := ":5555"
+	varsFileValue := "/tmp/test.yaml"
+	buildArtifactsURLValue := "gs://chromeos-image-archive/corsola-release/R119-15611.0.0/"
 	expectedArgs := runArgs{
 		primary:  primary,
 		patterns: []string{test1, test2, test3, test4, test5},
@@ -29,24 +34,31 @@ func TestNewTastArgs(t *testing.T) {
 			verboseFlag: "true",
 			logTimeFlag: "false",
 		},
-		runFlags: map[string]string{
-			sshRetriesFlag:             "2",
-			testRetriesFlag:            "1",
-			downloadDataFlag:           "batch",
-			buildFlag:                  "false",
-			downloadPrivateBundlesFlag: "true",
-			resultsDirFlag:             workDir1,
-			reportsServerFlag:          ":5555",
-			varsFile:                   "/tmp/test.yaml",
+		runFlags: []flagValue{
+			{sshRetriesFlag, "2"},
+			{downloadDataFlag, "batch"},
+			{buildFlag, "false"},
+			{downloadPrivateBundlesFlag, "true"},
+			{testRetriesFlag, "1"},
+			{resultsDirFlag, workDir1},
+			{reportsServerFlag, reportsServerValue},
+			{varsFile, varsFileValue},
+			{buildArtifactsURL, buildArtifactsURLValue},
 		},
 	}
 
 	args := newTastArgs(
 		primary, nil, nil, expectedArgs.patterns,
-		workDir1, expectedArgs.runFlags[reportsServerFlag],
-		expectedArgs.runFlags[varsFile],
+		workDir1, reportsServerValue,
+		varsFileValue,
+		[]*api.Arg{
+			{
+				Flag:  "buildartifactsurl",
+				Value: buildArtifactsURLValue,
+			},
+		},
 	)
-	if diff := cmp.Diff(args, &expectedArgs, cmp.AllowUnexported(runArgs{}), cmpopts.EquateEmpty()); diff != "" {
+	if diff := cmp.Diff(args, &expectedArgs, cmp.AllowUnexported(runArgs{}, flagValue{}), cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("Got unexpected argument from newTastArgs (-got +want):\n%s\n%v\n--\n%v\n", diff, args, expectedArgs)
 	}
 }
@@ -54,6 +66,9 @@ func TestNewTastArgs(t *testing.T) {
 // TestNewTastArgsCompanions makes sure newTastArgs creates the correct arguments for tast with companion DUTs.
 func TestNewTastArgsCompanions(t *testing.T) {
 	primary := &device.DutInfo{Addr: dut1, Role: ""}
+	reportsServerValue := ":127.0.0.1:3333"
+	varsFileValue := "/tmp/test.yaml"
+	buildArtifactsURLValue := "gs://chromeos-image-archive/corsola-release/R119-15611.0.0/"
 	companions := []*device.DutInfo{
 		{
 			Addr: "companion_dut1_address",
@@ -78,15 +93,16 @@ func TestNewTastArgsCompanions(t *testing.T) {
 			verboseFlag: "true",
 			logTimeFlag: "false",
 		},
-		runFlags: map[string]string{
-			sshRetriesFlag:             "2",
-			testRetriesFlag:            "1",
-			downloadDataFlag:           "batch",
-			buildFlag:                  "false",
-			downloadPrivateBundlesFlag: "true",
-			resultsDirFlag:             workDir1,
-			reportsServerFlag:          ":5555",
-			varsFile:                   "/tmp/test.yaml",
+		runFlags: []flagValue{
+			{sshRetriesFlag, "2"},
+			{downloadDataFlag, "batch"},
+			{buildFlag, "false"},
+			{downloadPrivateBundlesFlag, "true"},
+			{testRetriesFlag, "1"},
+			{resultsDirFlag, workDir1},
+			{reportsServerFlag, reportsServerValue},
+			{varsFile, varsFileValue},
+			{buildArtifactsURL, buildArtifactsURLValue},
 		},
 		companions: companions,
 		androids:   androids,
@@ -94,8 +110,15 @@ func TestNewTastArgsCompanions(t *testing.T) {
 
 	args := newTastArgs(
 		primary, companions, androids, expectedArgs.patterns, workDir1,
-		expectedArgs.runFlags[reportsServerFlag], expectedArgs.runFlags[varsFile])
-	if diff := cmp.Diff(args, &expectedArgs, cmp.AllowUnexported(runArgs{})); diff != "" {
+		reportsServerValue, varsFileValue,
+		[]*api.Arg{
+			{
+				Flag:  "buildartifactsurl",
+				Value: buildArtifactsURLValue,
+			},
+		},
+	)
+	if diff := cmp.Diff(args, &expectedArgs, cmp.AllowUnexported(runArgs{}, flagValue{})); diff != "" {
 		t.Errorf("Got unexpected argument from newTastArgs (-got +want):\n%s", diff)
 	}
 }
@@ -103,6 +126,9 @@ func TestNewTastArgsCompanions(t *testing.T) {
 // TestGenArgList makes sure genArgList generates the correct list of argument for tast.
 func TestGenArgList(t *testing.T) {
 	primary := &device.DutInfo{Addr: dut1, Role: ""}
+	reportsServerValue := ":5555"
+	varsFileValue := "/tmp/test.yaml"
+	buildArtifactsURLValue := "gs://chromeos-image-archive/corsola-release/R119-15611.0.0/"
 	companions := []*device.DutInfo{
 		{
 			Addr: "companion_dut1_address",
@@ -132,15 +158,16 @@ func TestGenArgList(t *testing.T) {
 			verboseFlag: "true",
 			logTimeFlag: "false",
 		},
-		runFlags: map[string]string{
-			sshRetriesFlag:             "2",
-			testRetriesFlag:            "1",
-			downloadDataFlag:           "batch",
-			buildFlag:                  "false",
-			downloadPrivateBundlesFlag: "true",
-			resultsDirFlag:             workDir1,
-			reportsServerFlag:          "127.0.0.1:3333",
-			varsFile:                   "/a/file",
+		runFlags: []flagValue{
+			{sshRetriesFlag, "2"},
+			{downloadDataFlag, "batch"},
+			{buildFlag, "false"},
+			{downloadPrivateBundlesFlag, "true"},
+			{testRetriesFlag, "1"},
+			{resultsDirFlag, workDir1},
+			{reportsServerFlag, reportsServerValue},
+			{varsFile, varsFileValue},
+			{buildArtifactsURL, buildArtifactsURLValue},
 		},
 		companions: companions,
 		androids:   androids,
@@ -152,8 +179,8 @@ func TestGenArgList(t *testing.T) {
 	}
 	runIndex := len(expectedArgList)
 	expectedArgList = append(expectedArgList, "run")
-	for key, value := range args.runFlags {
-		expectedArgList = append(expectedArgList, fmt.Sprintf("%v=%v", key, value))
+	for _, kv := range args.runFlags {
+		expectedArgList = append(expectedArgList, fmt.Sprintf("%v=%v", kv.flag, kv.value))
 	}
 	for i, c := range companions {
 		expectedArgList = append(expectedArgList, fmt.Sprintf("%v=cd%v:%v", companionDUTFlag, i+1, c.Addr))
@@ -197,6 +224,7 @@ func TestGenArgListWithServers(t *testing.T) {
 		LibsServer:      "libsserver0",
 		ProvisionServer: "provisionserver0",
 	}
+	reportsServerValue := ":127.0.0.1:3333"
 	companions := []*device.DutInfo{
 		{
 			Addr:            "companion_dut1_address",
@@ -220,14 +248,14 @@ func TestGenArgListWithServers(t *testing.T) {
 			verboseFlag: "true",
 			logTimeFlag: "false",
 		},
-		runFlags: map[string]string{
-			sshRetriesFlag:             "2",
-			testRetriesFlag:            "1",
-			downloadDataFlag:           "batch",
-			buildFlag:                  "false",
-			downloadPrivateBundlesFlag: "true",
-			resultsDirFlag:             workDir1,
-			reportsServerFlag:          "127.0.0.1:3333",
+		runFlags: []flagValue{
+			{sshRetriesFlag, "2"},
+			{downloadDataFlag, "batch"},
+			{buildFlag, "false"},
+			{downloadPrivateBundlesFlag, "true"},
+			{testRetriesFlag, "1"},
+			{resultsDirFlag, workDir1},
+			{reportsServerFlag, reportsServerValue},
 		},
 		companions: companions,
 	}
@@ -238,8 +266,8 @@ func TestGenArgListWithServers(t *testing.T) {
 	}
 	runIndex := len(expectedArgList)
 	expectedArgList = append(expectedArgList, "run")
-	for key, value := range args.runFlags {
-		expectedArgList = append(expectedArgList, fmt.Sprintf("%v=%v", key, value))
+	for _, kv := range args.runFlags {
+		expectedArgList = append(expectedArgList, fmt.Sprintf("%v=%v", kv.flag, kv.value))
 	}
 	for i, c := range companions {
 		expectedArgList = append(expectedArgList, fmt.Sprintf("%v=cd%v:%v", companionDUTFlag, i+1, c.Addr))

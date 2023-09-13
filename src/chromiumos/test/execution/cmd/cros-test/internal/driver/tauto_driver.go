@@ -82,11 +82,12 @@ func (td *TautoDriver) RunTests(ctx context.Context, resultsDir string, req *api
 		libsServer = fmt.Sprintf("%s", primary.LibsServer)
 	}
 
-	// Get autotest execution args
-	customAutotestArgs, err := common.UnpackMetadata(req)
+	// Get autotest execution args.
+	md, err := common.UnpackMetadata(req)
 	if err != nil {
 		return nil, err
 	}
+	customAutotestArgs, _ := md.(*api.AutotestExecutionMetadata)
 
 	args, err := newTautoArgs(primary, companions, testNames, dutServers, resultsDir, libsServer, customAutotestArgs)
 	if err != nil {

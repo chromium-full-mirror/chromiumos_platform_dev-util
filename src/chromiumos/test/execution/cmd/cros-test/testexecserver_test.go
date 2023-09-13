@@ -17,9 +17,23 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func TestReadInput(t *testing.T) {
+	tastMetadata, err := anypb.New(
+		&api.TastExecutionMetadata{
+			Args: []*api.Arg{
+				{
+					Flag:  "buildartifactsurl",
+					Value: "gs://chromeos-image-archive/corsola-release/R119-15611.0.0/",
+				},
+			},
+		},
+	)
+	if err != nil {
+		t.Fatal("Failed to create Tast metadata: ", err)
+	}
 	expReq := &api.CrosTestRequest{
 		TestSuites: []*api.TestSuite{
 			{
@@ -80,6 +94,7 @@ func TestReadInput(t *testing.T) {
 				},
 			},
 		},
+		Metadata: tastMetadata,
 	}
 
 	m := jsonpb.Marshaler{}
