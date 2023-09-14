@@ -6,6 +6,11 @@
 
 # TODO(markyacoub): Add a description of what this script does.
 
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
 # Function to display script usage
 usage() {
   echo "Usage: $0 [OPTIONS] HOSTNAME"
@@ -37,14 +42,24 @@ parse_hostname_argument() {
 
 run_command_on_remote() {
   local command="$1"
+  local background="$2"
   local remote_output
 
-  # Run the SSH command and capture the output
-  # shellcheck disable=SC2029
-  remote_output=$(ssh "${hostname}" "${command}" 2>&1)
-  echo "${remote_output}"
+  if [ -z "${isBackground}" ]; then
+    isBackground=false
+  fi
 
-  }
+  if [ -z "${background}" ]; then
+    # Run the SSH command and capture the output
+    # shellcheck disable=SC2029
+    remote_output=$(ssh "${hostname}" "${command}" 2>&1)
+    echo "${remote_output}"
+  else
+    # Run the SSH command in the background and return immediately
+    # shellcheck disable=SC2029
+    ssh "${hostname}" "${command}" &
+  fi
+}
 
 check_reqs() {
     # Check if you have a camera connected
@@ -78,15 +93,14 @@ start_display_suspension_in_s() {
   # Directory where powerd's runtime-settable pref files are stored.
   DIR=/var/lib/power_manager
 
-  # Emulate display naturally going to sleep.
+  # Emulate display naturally going to sleep and Restart powerd to apply the new settings.
   echo "Setting up powerd to dim, turn off, and suspend the display starting in $1 seconds."
-  run_command_on_remote "echo 1 >${DIR}/ignore_external_policy"
-  run_command_on_remote "echo ${time_until_dim_ms} > ${DIR}/plugged_dim_ms"
-  run_command_on_remote "echo ${time_until_display_off_ms} > ${DIR}/plugged_off_ms"
-  run_command_on_remote "echo ${time_until_display_suspend_ms} > ${DIR}/plugged_suspend_ms"
-
-  # Restart powerd to apply the new settings.
-  run_command_on_remote "( (status powerd | fgrep -q 'start/running' ) && restart powerd ) || start powerd"
+  command="echo 1 >${DIR}/ignore_external_policy \
+    && echo ${time_until_dim_ms} > ${DIR}/plugged_dim_ms \
+    && echo ${time_until_display_off_ms} > ${DIR}/plugged_off_ms \
+    && echo ${time_until_display_suspend_ms} > ${DIR}/plugged_suspend_ms \
+    && ( (status powerd | fgrep -q 'start/running' ) && restart powerd ) || start powerd"
+  run_command_on_remote "${command}"
 }
 
 capture_photo() {
@@ -106,7 +120,7 @@ check_screen_on() {
     average_brightness=$(identify -verbose "${gray_image_filename}" | grep -i "mean: " | awk '{print $2}' | cut -d, -f1)
     echo "${average_brightness}"
 
-    threshold=5 # through empirical testing, this is the threshold for screen on/off.
+    threshold=25 # through empirical testing, this is the threshold for screen on/off.
     # Make a decision based on the brightness
     if [ "$(echo "${average_brightness} < ${threshold}" | bc)" -eq 1 ]; then
         echo false
@@ -138,39 +152,56 @@ soc_suspend_time_s=30
 wait_until_on_s=15
 
 for ((i = 0; i < 500; i++)); do
+  echo -e "${YELLOW}Starting run ${i}..${NC}"
   start_display_suspension_in_s 5
   echo "Waiting for displays to turn off"
   sleep "${time_until_display_suspend_complete_s}"
 
-  echo "screen should be off. Suspending SoC for ${soc_suspend_time_s} seconds."
-  run_command_on_remote "powerd_dbus_suspend --suspend_for_sec=${soc_suspend_time_s}"
+  echo "Screen should be off. Suspending SoC for ${soc_suspend_time_s} seconds."
+  run_command_on_remote "powerd_dbus_suspend --suspend_for_sec=${soc_suspend_time_s}" true # setting background to true
+  echo "Requested SoC suspend for ${soc_suspend_time_s} seconds."
+
+  echo "Verifying that the screen is off.."
+  image_filename=$(capture_photo)
+  brightness_output=$(check_screen_on "${image_filename}")
+  is_screen_on=$(echo "${brightness_output}" | sed -n '2p')
+  if [ "${is_screen_on}" = true ]; then
+    average_brightness=$(echo "${brightness_output}" | sed -n '1p')
+    echo -e "${RED}Screen seems to be on while SoC is suspended. Reported brightness: ${average_brightness}. Retrying..${NC}"
+    continue
+  else
+    echo "indeed, the screen is off - Gonna wait for suspend for ${soc_suspend_time_s} seconds."
+    rm "${image_filename}"
+    rm "${image_filename}_gray.jpg"
+  fi
+
+  sleep "${soc_suspend_time_s}"
   echo "Waking up after ${soc_suspend_time_s} seconds. gonna wait for ${wait_until_on_s} seconds to take a photo."
   # Reset the suspension time to have enough time to wait and take a photo.
   start_display_suspension_in_s 60
   sleep "${wait_until_on_s}"
 
   image_filename=$(capture_photo)
-  echo "Photo saved to ${image_filename}"
   brightness_output=$(check_screen_on "${image_filename}")
   average_brightness=$(echo "${brightness_output}" | sed -n '1p')
   echo "Screen Average Brightness: ${average_brightness}"
 
-  screen_status=$(echo "${brightness_output}" | sed -n '2p')
-  if [ "${screen_status}" = true ]; then
-    echo "Screen is on. Deleting image and continuing."
+  is_screen_on=$(echo "${brightness_output}" | sed -n '2p')
+  if [ "${is_screen_on}" = true ]; then
+    echo -e "${GREEN}Screen is on. Deleting image and continuing.${NC}"
     rm "${image_filename}"
     rm "${image_filename}_gray.jpg"
     continue
   fi
 
   # If we get here, the screen is off. Generate logs and report.
-  echo "Screen is off. Generating logs and reporting."
+  echo -e "${RED}Screen is off. Generating logs and reporting.${NC}"
   output=$(run_command_on_remote "generate_logs")
   echo "out: ${output}"
   logs_dir=$(process_logs "${output}")
   # check if logs_dir is invalid
   if [ -z "${logs_dir}" ]; then
-    echo "Failed to get the logs file directory. SSH output: ${output}"
+    echo -e "${RED}Failed to get the logs file directory. SSH output: ${output}.${NC}"
     continue
   fi
 
