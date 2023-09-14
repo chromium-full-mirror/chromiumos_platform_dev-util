@@ -160,8 +160,10 @@ func ExecTestPlan(
 	// and suiteName. Otherwise, the builtins will return errors.
 	var getTagCriteriaBuiltin *starlark.Builtin
 	var getSuiteNameBuiltin *starlark.Builtin
+	var getProgramBuiltin *starlark.Builtin
 	getTagCriteriaBuiltinName := "get_tag_criteria"
 	getSuiteNameBuiltinName := "get_suite_name"
+	getProgramBuiltinName := "get_program"
 	if templateParameters != nil {
 		getTagCriteriaBuiltin = protoAccessorBuiltin(
 			protoLoader, getTagCriteriaBuiltinName, templateParameters.GetTagCriteria(),
@@ -169,6 +171,7 @@ func ExecTestPlan(
 		getSuiteNameBuiltin = accessorBuiltin(
 			getSuiteNameBuiltinName, starlark.String(templateParameters.GetSuiteName()),
 		)
+		getProgramBuiltin = accessorBuiltin(getProgramBuiltinName, starlark.String(templateParameters.GetProgram()))
 	} else {
 		getTagCriteriaBuiltin = starlark.NewBuiltin(
 			getTagCriteriaBuiltinName,
@@ -189,6 +192,16 @@ func ExecTestPlan(
 				)
 			},
 		)
+
+		getProgramBuiltin = starlark.NewBuiltin(
+			getProgramBuiltinName,
+			func(thread *starlark.Thread, fn *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+				return nil, fmt.Errorf(
+					"%s: no program available in this Starlark execution, was it specified on the interpreter command line?",
+					getProgramBuiltinName,
+				)
+			},
+		)
 	}
 
 	var hw_test_plans []*test_api_v1.HWTestPlan
@@ -204,6 +217,7 @@ func ExecTestPlan(
 			getFlatConfigListBuiltin.Name(): getFlatConfigListBuiltin,
 			getTagCriteriaBuiltin.Name():    getTagCriteriaBuiltin,
 			getSuiteNameBuiltin.Name():      getSuiteNameBuiltin,
+			getProgramBuiltin.Name():        getProgramBuiltin,
 			addHWTestPlanBuiltin.Name():     addHWTestPlanBuiltin,
 			addVMTestPlanBuiltin.Name():     addVMTestPlanBuiltin,
 		},

@@ -94,6 +94,7 @@ func TestExecTestPlan(t *testing.T) {
 	starlarkSource := `
 load("@proto//chromiumos/test/api/v1/plan.proto", plan_pb = "chromiumos.test.api.v1")
 load("@proto//chromiumos/test/api/coverage_rule.proto", coverage_rule_pb = "chromiumos.test.api")
+load("@proto//chromiumos/test/api/dut_attribute.proto", dut_attribute_pb = "chromiumos.test.api")
 load("@proto//chromiumos/test/api/test_suite.proto", test_suite_pb = "chromiumos.test.api")
 load("@proto//lab/license.proto", licence_pb = "lab")
 
@@ -110,6 +111,18 @@ coverage_rule_a = coverage_rule_pb.CoverageRule(
 				tags=testplan.get_tag_criteria().tags
 			)
 		)
+	],
+	dut_targets = [
+		dut_attribute_pb.DutTarget(
+			criteria = [
+				dut_attribute_pb.DutCriterion(
+					attribute_id = dut_attribute_pb.DutAttribute.Id(
+						value = "attr-program",
+					),
+					values = [testplan.get_program()],
+				),
+			],
+		),
 	]
 )
 coverage_rule_b = coverage_rule_pb.CoverageRule(name='ruleB')
@@ -144,6 +157,7 @@ print('Got struct {}'.format(s1))
 				Tags: []string{"group:mainline", "group:mycustomgroup"},
 			},
 			SuiteName: "mycustomgroup",
+			Program:   "programA",
 		},
 	)
 
@@ -163,6 +177,16 @@ print('Got struct {}'.format(s1))
 							Spec: &test_api.TestSuite_TestCaseTagCriteria_{
 								TestCaseTagCriteria: &test_api.TestSuite_TestCaseTagCriteria{
 									Tags: []string{"group:mainline", "group:mycustomgroup"},
+								},
+							},
+						},
+					},
+					DutTargets: []*test_api.DutTarget{
+						{
+							Criteria: []*test_api.DutCriterion{
+								{
+									AttributeId: &test_api.DutAttribute_Id{Value: "attr-program"},
+									Values:      []string{"programA"},
 								},
 							},
 						},
