@@ -43,6 +43,7 @@ func (c *InstallAPKCommand) Execute(log *log.Logger) error {
 				versionCode = pkg.CIPDPackage.VersionCode
 			}
 			androidPkg.UpdatedVersionCode = versionCode
+			log.Printf("Installed Android package: %s, version=%s", androidPkg.PackageName, androidPkg.UpdatedVersionCode)
 		}
 	}
 	log.Printf("InstallAPKCommand Success")

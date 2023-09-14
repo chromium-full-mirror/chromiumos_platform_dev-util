@@ -66,6 +66,7 @@ func (c *ResolveCIPDPackageCommand) Execute(log *log.Logger) error {
 		cipdPkg.PackageName = d.InstanceInfo.Pin.PackageName
 		cipdPkg.InstanceId = d.InstanceInfo.Pin.InstanceID
 		cipdPkg.VersionCode = versionCodeTag
+		log.Printf("Resolved CIPD package: %s, instance ID=%s, version=%s", cipdPkg.PackageName, cipdPkg.PackageName, cipdPkg.VersionCode)
 	}
 	log.Printf("ResolveCIPDPackageCommand Success")
 	return nil

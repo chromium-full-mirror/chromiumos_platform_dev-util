@@ -110,6 +110,7 @@ func (c *FetchDutInfoCommand) fetchPackagesInfo() error {
 			return err
 		}
 		pkg.AndroidPackage.VersionCode = versionCode
+		log.Printf("Found Android package: %s, version=%s", pkg.AndroidPackage.PackageName, versionCode)
 	}
 	return nil
 }
