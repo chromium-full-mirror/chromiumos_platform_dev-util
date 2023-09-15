@@ -53,7 +53,7 @@ case ${DIR} in
     else
         STAGING_NAME="${SOC}-staging"
     fi
-    CHROMEOS_BRANCH=chromeos
+    CHROMEOS_BRANCH=firmware-brya-14505.B
     SRC_DIR="${CHROMIUM_BRYA_FW_ROOT}/src/third_party/fsp/${SOC}/${DIR}/${LOCAL_DIR}"
     STAGING_REPO="https://chrome-internal.googlesource.com/chromeos/third_party/intel-fsp/${STAGING_NAME}"
     ;;
@@ -76,7 +76,7 @@ case ${DIR} in
 
   coreboot)
     STAGING_NAME="${SOC}-staging"
-    CHROMEOS_BRANCH=chromeos
+    CHROMEOS_BRANCH=firmware-brya-14505.B
     SRC_DIR="${CHROMIUM_BRYA_FW_ROOT}/src/third_party/coreboot-intel-private/${SOC}"
     STAGING_REPO="https://chrome-internal.googlesource.com/chromeos/third_party/coreboot-intel-private/${STAGING_NAME}"
     ;;
