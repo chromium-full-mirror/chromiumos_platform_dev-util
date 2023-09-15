@@ -47,6 +47,14 @@ func TestTestsReports(t *testing.T) {
 	  "resultspath": "/tmp/test/results/tauto/results-1-stub_FailServer",
 	  "starttime": "1650319391",
 	  "endtime": "1650319496"
+	},
+	  {
+	  "verdict": "Warn",
+	  "testname": "infra_warn",
+	  "errmsg": "warning happened.",
+	  "resultspath": "/tmp/test/results/tauto/results-1-stub_FailServer",
+	  "starttime": "1650319391",
+	  "endtime": "1650319496"
 	}]
 	}`
 	td, err := ioutil.TempDir("", "example")
@@ -144,6 +152,48 @@ func TestTestsReports(t *testing.T) {
 			Duration:  DURATION105,
 		},
 		{
+			TestCaseId: &api.TestCase_Id{Value: "infra_warn_id"},
+			ResultDirPath: &_go.StoragePath{
+				HostType: _go.StoragePath_LOCAL,
+				Path:     "/tmp/test/results/tauto/results-1-stub_FailServer",
+			},
+			Verdict: &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
+			Reason:  "warning happened.",
+			TestHarness: &api.TestHarness{
+				TestHarnessType: &api.TestHarness_Tauto_{
+					Tauto: &api.TestHarness_Tauto{},
+				},
+			},
+			StartTime: EXPECTSTARTTIME,
+			Duration:  DURATION105,
+			TestCaseMetadata: &api.TestCaseMetadata{
+				TestCase: &api.TestCase{
+					Name: "infra_warn",
+				},
+				TestCaseInfo: &api.TestCaseInfo{
+					Owners: []*api.Contact{
+						{
+							Email: "owner1@test.com",
+						},
+					},
+					Requirements: []*api.Requirement{
+						{
+							Value: "requirement 1",
+						},
+					},
+					BugComponent: &api.BugComponent{
+						Value: "b/1234",
+					},
+					Criteria: &api.Criteria{
+						Value: "criteria 1",
+					},
+					HwAgnostic: &api.HwAgnostic{
+						Value: true,
+					},
+				},
+			},
+		},
+		{
 			TestCaseId: &api.TestCase_Id{Value: "infra_dne_id"},
 			Verdict:    &api.TestCaseResult_NotRun_{NotRun: &api.TestCaseResult_NotRun{}},
 			Reason:     "AutoservCrash",
@@ -155,19 +205,46 @@ func TestTestsReports(t *testing.T) {
 		},
 	}
 
-	tests := []string{"infra_pass", "infra_fail", "infra_err", "infra_dne"}
+	tests := []string{"infra_pass", "infra_fail", "infra_err", "infra_dne", "infra_warn"}
 
 	testNamesToIds := map[string]string{
 		"infra_pass": "infra_pass_id",
 		"infra_fail": "infra_fail_id",
 		"infra_err":  "infra_err_id",
 		"infra_dne":  "infra_dne_id",
+		"infra_warn": "infra_warn_id",
 	}
 
 	testNamesToMetadata := map[string]*api.TestCaseMetadata{
 		"infra_pass": {
 			TestCase: &api.TestCase{
 				Name: "infra_pass",
+			},
+			TestCaseInfo: &api.TestCaseInfo{
+				Owners: []*api.Contact{
+					{
+						Email: "owner1@test.com",
+					},
+				},
+				Requirements: []*api.Requirement{
+					{
+						Value: "requirement 1",
+					},
+				},
+				BugComponent: &api.BugComponent{
+					Value: "b/1234",
+				},
+				Criteria: &api.Criteria{
+					Value: "criteria 1",
+				},
+				HwAgnostic: &api.HwAgnostic{
+					Value: true,
+				},
+			},
+		},
+		"infra_warn": {
+			TestCase: &api.TestCase{
+				Name: "infra_warn",
 			},
 			TestCaseInfo: &api.TestCaseInfo{
 				Owners: []*api.Contact{
@@ -200,7 +277,7 @@ func TestTestsReports(t *testing.T) {
 
 	for i := 0; i < len(reports); i++ {
 		if !proto.Equal(reports[i], expectedResults[i]) {
-			t.Errorf("Got unexpected reports(-got +want):\n%v\n--\n%v\n", reports, expectedResults)
+			t.Errorf("[%v]Got unexpected reports(-got +want):\n%v\n--\n%v\n", i, reports[i], expectedResults[i])
 		}
 	}
 

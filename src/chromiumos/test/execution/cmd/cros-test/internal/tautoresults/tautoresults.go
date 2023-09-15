@@ -150,7 +150,14 @@ func GenerateReport(test test, testID string, resultsDir string, testCaseMetadat
 	} else if test.Verdict == "Pass" {
 		testResult.Verdict = &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}}
 		testResult.Reason = ""
+	} else if test.Verdict == "Warn" {
+		testResult.Verdict = &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}}
+		testResult.Reason = test.Errmsg
+		if test.Errmsg == "" {
+			testResult.Reason = "Test had warnings."
+		}
 	}
+
 	// r.testCaseResults = append(r.testCaseResults, &testResult)
 	return &testResult
 }
