@@ -3,14 +3,18 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# Configures project path and exe and runs the build_in_chroot.sh script from
+# within chroot.
+# Meant to be run outside of chroot.
+
 set -e
 
-# Build go project.
 SCRIPT_DIR="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
-source "${SCRIPT_DIR}/enter_gopath.sh"
-CMD_PATH="${PROJECT_GOPATH}/bin/btpeer_manager"
-cd "${PROJECT_GOPATH}/src" && go mod tidy
-cd "${PROJECT_GOPATH}/src" && go fmt ./...
-cd "${PROJECT_GOPATH}/src" && go test ./...
-cd "${PROJECT_GOPATH}/src" && go build -o "${CMD_PATH}"
-echo "Successfully built btpeer_manager at '${CMD_PATH}'"
+
+CHROOT_DIR="${SCRIPT_DIR}/../../../../../chroot"
+SCRIPT_DIR_FROM_CHROOT="/mnt/host/source/src/platform/dev/contrib/btpeer_manager"
+PROJECT_EXE_NAME="btpeer_manager"
+
+echo "Building ${PROJECT_EXE_NAME} in chroot"
+cros_sdk --chroot "${CHROOT_DIR}" --working-dir "${SCRIPT_DIR_FROM_CHROOT}" bash "./build_in_chroot.sh" "${PROJECT_EXE_NAME}"
+echo "Successfully built ${PROJECT_EXE_NAME} at '${SCRIPT_DIR}/go/bin/${PROJECT_EXE_NAME}'"
