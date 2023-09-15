@@ -11,6 +11,8 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+time_until_display_suspend_complete_s=0
+
 # Function to display script usage
 usage() {
   echo "Usage: $0 [OPTIONS] HOSTNAME"
@@ -151,10 +153,12 @@ check_reqs
 soc_suspend_time_s=30
 wait_until_on_s=15
 
+# Guaranteeing that no dimming or off happens until we've captured a photo.
+start_display_suspension_in_s $((wait_until_on_s + 5))
+
 for ((i = 0; i < 500; i++)); do
   echo -e "${YELLOW}Starting run ${i}..${NC}"
-  start_display_suspension_in_s 5
-  echo "Waiting for displays to turn off"
+  echo "Waiting for displays to turn off within ${time_until_display_suspend_complete_s}s"
   sleep "${time_until_display_suspend_complete_s}"
 
   echo "Screen should be off. Suspending SoC for ${soc_suspend_time_s} seconds."
@@ -170,15 +174,14 @@ for ((i = 0; i < 500; i++)); do
     echo -e "${RED}Screen seems to be on while SoC is suspended. Reported brightness: ${average_brightness}. Retrying..${NC}"
     continue
   else
-    echo "indeed, the screen is off - Gonna wait for suspend for ${soc_suspend_time_s} seconds."
+    echo "Indeed, the screen is off - Gonna wait for suspend for ${soc_suspend_time_s} seconds."
     rm "${image_filename}"
     rm "${image_filename}_gray.jpg"
   fi
 
   sleep "${soc_suspend_time_s}"
   echo "Waking up after ${soc_suspend_time_s} seconds. gonna wait for ${wait_until_on_s} seconds to take a photo."
-  # Reset the suspension time to have enough time to wait and take a photo.
-  start_display_suspension_in_s 60
+  echo "Waiting ${wait_until_on_s}s to ensure screen is on."
   sleep "${wait_until_on_s}"
 
   image_filename=$(capture_photo)
@@ -209,6 +212,7 @@ for ((i = 0; i < 500; i++)); do
   combined_dir="temp/run_${i}"
   mkdir -p "${combined_dir}"
   mv "${image_filename}" "${combined_dir}"
+  mv "${image_filename}_gray.jpg" "${combined_dir}"
   scp "${hostname}:${logs_dir}" "${combined_dir}"
 
 done
