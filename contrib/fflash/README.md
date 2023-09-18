@@ -91,23 +91,20 @@ tools/bazel test //...
 tools/bazel run //cmd/integration-test ${dut_host}
 ```
 
-### Add go source
+### Add go source / deps
 
 Add the source normally and:
 
 ```
+go get -u -d ./...
+go mod tidy
 tools/bazel run //:gazelle
 ```
 
 to update the BUILD.bazel files.
 
-#### Update all go deps
-
-```
-go get -u -d ./...
-go mod tidy
-tools/bazel run //:gazelle-update-repos
-```
+Bazel emits a warning and a `buildozer`` command to automatically fix the `MODULE.bazel`` file if
+it is outdated.
 
 ## Troubleshooting
 
