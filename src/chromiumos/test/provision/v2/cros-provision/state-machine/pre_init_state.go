@@ -35,6 +35,7 @@ func NewCrOSPreInitState(service *service.CrOSService) common_utils.ServiceState
 func (s CrOSPreInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Printf("State: Execute CrOSPreInitState")
 	comms := []common_utils.CommandInterface{
+		commands.NewGetBoardCommand(ctx, s.service),
 		commands.NewGetVersionCommand(ctx, s.service),
 		commands.NewCheckInstallNeeded(ctx, s.service),
 	}
