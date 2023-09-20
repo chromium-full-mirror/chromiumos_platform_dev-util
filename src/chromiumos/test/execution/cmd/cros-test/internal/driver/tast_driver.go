@@ -200,6 +200,7 @@ const (
 	varFlag                    = "-var"
 	varsFile                   = "-varsfile"
 	buildArtifactsURL          = "-buildartifactsurl"
+	ephemeralDevServer         = "-ephemeraldevserver"
 )
 
 type flagValue struct {
@@ -299,6 +300,7 @@ func genArgList(args *runArgs) (argList []string) {
 	if args.primary.CacheServer != "" {
 		// example: var=servers.dut=:d1:22,cd1:d2:22,cd3:d3:22
 		argList = append(argList, fmt.Sprintf("%v=%s", devServerFlag, httpPrefix+args.primary.CacheServer))
+		argList = append(argList, fmt.Sprintf("%v=%s", ephemeralDevServer, "false"))
 	} else {
 		// Fill in DUT server var flags.
 		dutServerStrs := ""
