@@ -77,6 +77,7 @@ topic_patches["drivers"] = [
     "fixups/FROMGIT: xhci: check for a pending command completion during command timeout.patch",
     "fixups/CHROMIUM: PCI: Allowlist for drivers allowed to bind to untrusted devices.patch",
     "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: configfs: Add Uevent to notify userspace.patch",
+    "fixups/FIXUP: CHROMIUM: sysrq: Added Chrome OS specific x key.patch",
 ]
 
 topic_patches["power-thermal"] = [
