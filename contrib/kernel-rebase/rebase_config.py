@@ -94,6 +94,11 @@ topic_patches["net"] = [
     "fixups/ROMLIST: net: wwan: t7xx: Infrastructure for early port configuration.patch",
 ]
 
+topic_patches["media"] = [
+    "fixups/revert-media: v4l: async: Drop v4l2_async_nf_parse_fwnode_endpoints.patch",
+    "fixups/FIXUP: CHROMIUM: media: intel-ipu6: copy IPU6 driver from v5.4 branch.patch",
+]
+
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
