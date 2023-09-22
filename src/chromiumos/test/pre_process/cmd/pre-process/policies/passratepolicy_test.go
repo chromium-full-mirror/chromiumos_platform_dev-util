@@ -5,6 +5,7 @@
 package policies
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -14,7 +15,14 @@ import (
 )
 
 func TestDetermineSignalFromQuery(t *testing.T) {
-	qi := PassRatePolicy{requiredPassRate: 99.0, requiredRecentPassRate: 99.5, requiredRecentRuns: 20}
+	tcList := make(map[string]struct{})
+	tcList["Test1"] = struct{}{}
+	tcList["Test2"] = struct{}{}
+	tcList["Test3"] = struct{}{}
+	tcList["Test4"] = struct{}{}
+	tcList["Test6"] = struct{}{}
+
+	qi := PassRatePolicy{requiredPassRate: 99.0, requiredRecentPassRate: 99.5, requiredRecentRuns: 20, missingTcList: tcList}
 	qi.forceMapEnable = listToMap([]string{"Test1"})
 	qi.forceMapDisable = listToMap([]string{"Test2"})
 
@@ -62,18 +70,28 @@ func TestDetermineSignalFromQuery(t *testing.T) {
 		t.Fatalf("MaxFilterForceDisableCheck - Test marked as stable when should be marked as unstable.")
 	}
 
-	qi = PassRatePolicy{requiredPassRate: 80.0, requiredRecentPassRate: 90, requiredRecentRuns: 20}
+	qi = PassRatePolicy{requiredPassRate: 80.0, requiredRecentPassRate: 90, requiredRecentRuns: 20, missingTcList: tcList}
 	// Test that when the test is < requiredPassRate; and the requiredPassRate > RECENT PASS RATE < requiredRecentPassRate
 	// The test is still not enabled (this is added specifically due to a found bug.)
 	signal, _ = qi.determineSignalFromQuery("Test2", 70.0, 85.0, 30, 20, 5)
 	if signal {
 		t.Fatalf("RecentEnableCheck - Test marked as stable when should be marked as unstable.")
 	}
-	qi = PassRatePolicy{requiredPassRate: 80.0, requiredRecentPassRate: 90, requiredRecentRuns: 20}
-	// A general recent cheeck
+	qi = PassRatePolicy{requiredPassRate: 80.0, requiredRecentPassRate: 90, requiredRecentRuns: 20, missingTcList: tcList}
+	// A general recent check
 	signal, _ = qi.determineSignalFromQuery("Test2", 70.0, 95.0, 30, 20, 5)
 	if !signal {
 		t.Fatalf("RecentEnableCheck - Test marked as unstable when should be marked as stable.")
+	}
+	// A general recent check
+	_, filterRemaining := qi.determineSignalFromQuery("Test6", 0.0, 0.0, 30, 20, 5)
+	if filterRemaining != 4 {
+		fmt.Println(filterRemaining)
+		t.Fatalf("filterRemainingCheck - Test in list being filtered should decrement number of remaining filters.")
+	}
+	_, filterRemaining = qi.determineSignalFromQuery("Test5", 0.0, 0.0, 30, 20, 5)
+	if filterRemaining != 5 {
+		t.Fatalf("filterRemainingCheck - Test not in requested suite should not count towards filter n.")
 	}
 
 }
@@ -151,5 +169,13 @@ func TestPolicyFilterTestConfigsToMapNoBoardMatch(t *testing.T) {
 	eq = reflect.DeepEqual(disabled, expected)
 	if !eq {
 		t.Fatalf("got: %s did not match expected: %s", disabled, expected)
+	}
+}
+
+func TestMaxFiltered(t *testing.T) {
+	r := &api.PassRatePolicy{MaxFilteredPercent: 20}
+	mf := maxAllowedToBeFiltered(r, 5)
+	if mf != 1 {
+		t.Fatalf("MaxFiltered Should be 1 when 20 percent of 5 is set, got %v", mf)
 	}
 }

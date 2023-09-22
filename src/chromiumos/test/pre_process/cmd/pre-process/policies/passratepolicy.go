@@ -122,7 +122,11 @@ func (q *PassRatePolicy) determineSignalFromQuery(testname string, passRate floa
 		return true, filterRemaining
 	}
 
-	filterRemaining--
+	// Only decrement the filter remaining if the TC is actually in the list of TC.
+	_, ok := q.missingTcList[testname]
+	if ok {
+		filterRemaining--
+	}
 	return false, filterRemaining
 }
 
