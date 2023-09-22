@@ -236,10 +236,10 @@ func (m *Manager) validateConfig(config *labapi.BluetoothPeerChameleondConfig) e
 			return fmt.Errorf("NextChameleondCommit is set to %q, but there is no matching bundle configured", config.NextChameleondCommit)
 		}
 		if len(config.NextDutHosts) == 0 {
-			return errors.New("NextChameleondCommit is set, but NextDutHosts is empty")
+			log.Logger.Printf("WARNING: NextChameleondCommit is set, but NextDutHosts is empty so the next bundle will never be selected")
 		}
 		if len(config.NextDutReleaseVersions) == 0 {
-			return errors.New("NextChameleondCommit is set, but NextDutReleaseVersions is empty")
+			log.Logger.Printf("WARNING: NextChameleondCommit is set, but NextDutReleaseVersions is empty so the next bundle will never be selected")
 		}
 	}
 	return nil
