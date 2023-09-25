@@ -893,7 +893,7 @@ func TestCache(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -H X-SWARMING-TASK-ID:none -H X-BBID:none -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("curl output"))
 				se.Write([]byte(""))
@@ -1059,7 +1059,7 @@ func TestCachePipeRetriesAllTimes(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -H X-SWARMING-TASK-ID:none -H X-BBID:none -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("failed!"))
 				se.Write([]byte("failed!"))
@@ -1071,7 +1071,7 @@ func TestCachePipeRetriesAllTimes(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -H X-SWARMING-TASK-ID:none -H X-BBID:none -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("failed!"))
 				se.Write([]byte("failed!"))
@@ -1083,7 +1083,7 @@ func TestCachePipeRetriesAllTimes(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -H X-SWARMING-TASK-ID:none -H X-BBID:none -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("failed!"))
 				se.Write([]byte("failed!"))
@@ -1154,7 +1154,7 @@ func TestCachePipe(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 cacheaddress/download/source/path | piped commands")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -H X-SWARMING-TASK-ID:none -H X-BBID:none cacheaddress/download/source/path | piped commands")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("curl output"))
 				se.Write([]byte(""))
@@ -1233,7 +1233,7 @@ func TestUntarCache(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/extract/source/path?file=somefile")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -H X-SWARMING-TASK-ID:none -H X-BBID:none -o /dest/path cacheaddress/extract/source/path?file=somefile")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("curl output"))
 				se.Write([]byte(""))
@@ -1314,7 +1314,7 @@ func TestUnzipCache(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/decompress/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -H X-SWARMING-TASK-ID:none -H X-BBID:none -o /dest/path cacheaddress/decompress/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte("curl output"))
 				se.Write([]byte(""))
@@ -1444,7 +1444,7 @@ func TestCacheFailsCommandFails(t *testing.T) {
 		mci.EXPECT().NewSession().Return(msi, nil),
 		msi.EXPECT().SetStdout(gomock.Any()).Do(func(arg io.Writer) { so = arg }),
 		msi.EXPECT().SetStderr(gomock.Any()).Do(func(arg io.Writer) { se = arg }),
-		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
+		msi.EXPECT().Run(gomock.Eq("curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60 -H X-SWARMING-TASK-ID:none -H X-BBID:none -o /dest/path cacheaddress/download/source/path")).DoAndReturn(
 			func(arg string) error {
 				so.Write([]byte(""))
 				se.Write([]byte("failed download"))

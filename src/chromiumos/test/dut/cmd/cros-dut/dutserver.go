@@ -16,6 +16,7 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -328,7 +329,7 @@ func (s *DutServiceServer) Cache(ctx context.Context, req *api.CacheRequest) (*l
 	s.logger.Println("Received api.CacheRequest: ", req)
 	op := s.manager.NewOperation()
 
-	command := "curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60"
+	command := formatDownloadCmdLine()
 
 	destination, err := s.parseDestination(req)
 
@@ -486,6 +487,24 @@ func (s *DutServiceServer) reconnect(ctx context.Context) error {
 	}
 	s.connection = &dutssh.SSHClient{Client: conn}
 	return nil
+}
+
+// formatDownloadCmdLine formats the command line to download image files.
+func formatDownloadCmdLine() string {
+	cmd := []string{"curl --keepalive-time 20 -S -s -v -# -C - --retry 3 --retry-delay 60"}
+	swarming := os.Getenv("SWARMING_TASK_ID")
+	if swarming == "" {
+		swarming = "none"
+	}
+	cmd = append(cmd, fmt.Sprintf("-H X-SWARMING-TASK-ID:%s", swarming))
+
+	bbid := os.Getenv("BUILD_BUCKET_ID")
+	if bbid == "" {
+		bbid = "none"
+	}
+	cmd = append(cmd, fmt.Sprintf("-H X-BBID:%s", bbid))
+
+	return strings.Join(cmd, " ")
 }
 
 // readFetchCrashesProto reads stdout and transforms it into a FetchCrashesResponse
