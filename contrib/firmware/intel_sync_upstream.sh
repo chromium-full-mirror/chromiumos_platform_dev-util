@@ -185,6 +185,14 @@ if [ $? -ne 0 ]; then
     esac
   done
 fi;
+
+DIFF_WITH_UPSTREAM=$(git diff --stat=200 "${UPREV_BRANCH}" .)
+if [ -n "${DIFF_WITH_UPSTREAM}" ]; then
+  echo -e "\n\033[33mWARNING: The local and upstream branches have below differences.\033[0m"
+  echo -n "${DIFF_WITH_UPSTREAM}" | head -n -1
+  echo -e "\033[33mWARNING: Please review the above differences before pushing.\033[0m\n"
+fi
+
 echo "Merge of ${STAGING_NAME}-${VERSION} complete, ready for upload."
 
 while true
