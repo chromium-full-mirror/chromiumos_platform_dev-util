@@ -55,6 +55,14 @@ func TestTestsReports(t *testing.T) {
 	  "resultspath": "/tmp/test/results/tauto/results-1-stub_FailServer",
 	  "starttime": "1650319391",
 	  "endtime": "1650319496"
+	},
+	  {
+	  "verdict": "Not Run",
+	  "testname": "infra_skip",
+	  "errmsg": "test skipped.",
+	  "resultspath": "/tmp/test/results/tauto/results-1-stub_FailServer",
+	  "starttime": "1650319391",
+	  "endtime": "1650319496"
 	}]
 	}`
 	td, err := ioutil.TempDir("", "example")
@@ -194,6 +202,22 @@ func TestTestsReports(t *testing.T) {
 			},
 		},
 		{
+			TestCaseId: &api.TestCase_Id{Value: "infra_skip_id"},
+			ResultDirPath: &_go.StoragePath{
+				HostType: _go.StoragePath_LOCAL,
+				Path:     "/tmp/test/results/tauto/results-1-stub_FailServer",
+			},
+			Verdict: &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}},
+			Reason:  "test skipped.",
+			TestHarness: &api.TestHarness{
+				TestHarnessType: &api.TestHarness_Tauto_{
+					Tauto: &api.TestHarness_Tauto{},
+				},
+			},
+			StartTime: EXPECTSTARTTIME,
+			Duration:  DURATION105,
+		},
+		{
 			TestCaseId: &api.TestCase_Id{Value: "infra_dne_id"},
 			Verdict:    &api.TestCaseResult_NotRun_{NotRun: &api.TestCaseResult_NotRun{}},
 			Reason:     "AutoservCrash",
@@ -205,7 +229,7 @@ func TestTestsReports(t *testing.T) {
 		},
 	}
 
-	tests := []string{"infra_pass", "infra_fail", "infra_err", "infra_dne", "infra_warn"}
+	tests := []string{"infra_pass", "infra_fail", "infra_err", "infra_dne", "infra_warn", "infra_skip"}
 
 	testNamesToIds := map[string]string{
 		"infra_pass": "infra_pass_id",
@@ -213,6 +237,7 @@ func TestTestsReports(t *testing.T) {
 		"infra_err":  "infra_err_id",
 		"infra_dne":  "infra_dne_id",
 		"infra_warn": "infra_warn_id",
+		"infra_skip": "infra_skip_id",
 	}
 
 	testNamesToMetadata := map[string]*api.TestCaseMetadata{

@@ -156,6 +156,12 @@ func GenerateReport(test test, testID string, resultsDir string, testCaseMetadat
 		if test.Errmsg == "" {
 			testResult.Reason = "Test had warnings."
 		}
+	} else if test.Verdict == "Not Run" {
+		testResult.Verdict = &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}}
+		testResult.Reason = test.Errmsg
+		if test.Errmsg == "" {
+			testResult.Reason = "Test ended with Not Run state."
+		}
 	}
 
 	// r.testCaseResults = append(r.testCaseResults, &testResult)
