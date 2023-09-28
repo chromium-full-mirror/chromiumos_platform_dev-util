@@ -84,6 +84,8 @@ check_reqs() {
         sudo apt-get update
         sudo apt-get install -y imagemagick
     fi
+
+    mkdir -p temp
 }
 
 start_display_suspension_in_s() {
@@ -105,13 +107,28 @@ start_display_suspension_in_s() {
   run_command_on_remote "${command}"
 }
 
+# shellcheck disable=SC2120
 capture_photo() {
-    mkdir -p temp
-    timestamp=$(date +"%Y%m%d%H%M%S")
-    filename="temp/image_${timestamp}.jpg"
+    num_cameras="${1:-1}"
 
-    fswebcam -r 640x480 --no-banner "${filename}"
-    echo "${filename}"
+    if [ "${num_cameras}" -le 0 ] || [ "${num_cameras}" -gt 2 ]; then
+      echo "Error: Invalid number of cameras specified. You can capture photos from 1 or 2 cameras."
+      return 1
+    fi
+
+    timestamp=$(date +"%Y%m%d%H%M%S")
+
+    # Capture a photo from the first camera (video0)
+    filename1="temp/image_${timestamp}_camera1.jpg"
+    fswebcam -r 640x480 --no-banner --device /dev/video0 "${filename1}"
+    echo "${filename1}"
+
+    # Capture a photo from the second camera (video2) if num_cameras is 2
+    if [ "${num_cameras}" -eq 2 ]; then
+        filename2="temp/image_${timestamp}_camera2.jpg"
+        fswebcam -r 640x480 --no-banner --device /dev/video2 "${filename2}"
+        echo "${filename2}"
+    fi
 }
 
 check_screen_on() {
@@ -122,13 +139,39 @@ check_screen_on() {
     average_brightness=$(identify -verbose "${gray_image_filename}" | grep -i "mean: " | awk '{print $2}' | cut -d, -f1)
     echo "${average_brightness}"
 
-    threshold=25 # through empirical testing, this is the threshold for screen on/off.
+    threshold=200 # through empirical testing, this is the threshold for screen on/off.
     # Make a decision based on the brightness
-    if [ "$(echo "${average_brightness} < ${threshold}" | bc)" -eq 1 ]; then
-        echo false
-    else
+    if [ "$(echo "${average_brightness} > ${threshold}" | bc)" -eq 1 ]; then
         echo true
+    else
+        echo false
     fi
+}
+
+capture_and_check_2_screens() {
+  filenames=$(capture_photo 2)
+  image1_filename=$(echo "${filenames}" | sed -n '1p')
+  image2_filename=$(echo "${filenames}" | sed -n '2p')
+
+  screen_check1=$(check_screen_on "${image1_filename}")
+  brightness_output1=$(echo "${screen_check1}" | sed -n '1p')
+  is_screen_on1=$(echo "${screen_check1}" | sed -n '2p')
+
+  screen_check2=$(check_screen_on "${image2_filename}")
+  brightness_output2=$(echo "${screen_check2}" | sed -n '1p')
+  is_screen_on2=$(echo "${screen_check2}" | sed -n '2p')
+
+  if [ "${is_screen_on1}" = "true" ] && [ "${is_screen_on2}" = "true" ]; then
+    echo true
+  else
+    echo false
+  fi
+
+  average_brightness=$(echo "scale=2; (${brightness_output1} + ${brightness_output2}) / 2" | bc)
+  echo "${average_brightness}"
+
+  echo "${image1_filename}"
+  echo "${image2_filename}"
 }
 
 process_logs() {
@@ -150,13 +193,13 @@ check_reqs
 # 5. Analyze the photo brightness to see if the screen is off
 # 6. If it's off, generate logs and save it with the picture.
 
-soc_suspend_time_s=30
-wait_until_on_s=15
+soc_suspend_time_s=120
+wait_until_on_s=60
 
 # Guaranteeing that no dimming or off happens until we've captured a photo.
 start_display_suspension_in_s $((wait_until_on_s + 5))
 
-for ((i = 0; i < 500; i++)); do
+for ((i = 0; i < 1000; i++)); do
   echo -e "${YELLOW}Starting run ${i}..${NC}"
   echo "Waiting for displays to turn off within ${time_until_display_suspend_complete_s}s"
   sleep "${time_until_display_suspend_complete_s}"
@@ -166,17 +209,20 @@ for ((i = 0; i < 500; i++)); do
   echo "Requested SoC suspend for ${soc_suspend_time_s} seconds."
 
   echo "Verifying that the screen is off.."
-  image_filename=$(capture_photo)
-  brightness_output=$(check_screen_on "${image_filename}")
-  is_screen_on=$(echo "${brightness_output}" | sed -n '2p')
-  if [ "${is_screen_on}" = true ]; then
-    average_brightness=$(echo "${brightness_output}" | sed -n '1p')
-    echo -e "${RED}Screen seems to be on while SoC is suspended. Reported brightness: ${average_brightness}. Retrying..${NC}"
+  screens_check=$(capture_and_check_2_screens)
+  are_screens_on=$(echo "${screens_check}" | sed -n '1p')
+  average_brightness=$(echo "${screens_check}" | sed -n '2p')
+  if [ "${are_screens_on}" = true ]; then
+    echo -e "${RED}Screen seems to be on while SoC is suspended. Reported avr brightness: ${average_brightness}. Retrying..${NC}"
     continue
   else
     echo "Indeed, the screen is off - Gonna wait for suspend for ${soc_suspend_time_s} seconds."
-    rm "${image_filename}"
-    rm "${image_filename}_gray.jpg"
+    image_filename1=$(echo "${screens_check}" | sed -n '3p')
+    rm "${image_filename1}"
+    rm "${image_filename1}_gray.jpg"
+    image_filename2=$(echo "${screens_check}" | sed -n '4p')
+    rm "${image_filename2}"
+    rm "${image_filename2}_gray.jpg"
   fi
 
   sleep "${soc_suspend_time_s}"
@@ -184,16 +230,18 @@ for ((i = 0; i < 500; i++)); do
   echo "Waiting ${wait_until_on_s}s to ensure screen is on."
   sleep "${wait_until_on_s}"
 
-  image_filename=$(capture_photo)
-  brightness_output=$(check_screen_on "${image_filename}")
-  average_brightness=$(echo "${brightness_output}" | sed -n '1p')
+  screens_check=$(capture_and_check_2_screens)
+  average_brightness=$(echo "${screens_check}" | sed -n '2p')
   echo "Screen Average Brightness: ${average_brightness}"
-
-  is_screen_on=$(echo "${brightness_output}" | sed -n '2p')
-  if [ "${is_screen_on}" = true ]; then
+  are_screens_on=$(echo "${screens_check}" | sed -n '1p')
+  image_filename1=$(echo "${screens_check}" | sed -n '3p')
+  image_filename2=$(echo "${screens_check}" | sed -n '4p')
+  if [ "${are_screens_on}" = true ]; then
     echo -e "${GREEN}Screen is on. Deleting image and continuing.${NC}"
-    rm "${image_filename}"
-    rm "${image_filename}_gray.jpg"
+    rm "${image_filename1}"
+    rm "${image_filename1}_gray.jpg"
+    rm "${image_filename2}"
+    rm "${image_filename2}_gray.jpg"
     continue
   fi
 
@@ -209,10 +257,12 @@ for ((i = 0; i < 500; i++)); do
   fi
 
   # Combine the image and logs into a directory
-  combined_dir="temp/run_${i}"
+  combined_dir="temp/run_${i}_${are_screens_on}"
   mkdir -p "${combined_dir}"
-  mv "${image_filename}" "${combined_dir}"
-  mv "${image_filename}_gray.jpg" "${combined_dir}"
+  mv "${image_filename1}" "${combined_dir}"
+  mv "${image_filename1}_gray.jpg" "${combined_dir}"
+  mv "${image_filename2}" "${combined_dir}"
+  mv "${image_filename2}_gray.jpg" "${combined_dir}"
   scp "${hostname}:${logs_dir}" "${combined_dir}"
 
 done
