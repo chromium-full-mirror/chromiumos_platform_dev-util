@@ -24,10 +24,11 @@ To do this, run the following command **inside** the chroot.
 (inside the chroot) $ sudo ln -s ~/chromiumos/src/platform/dev/contrib/corp-ssh-helper-helper/corp-ssh-helper-helper-client.py /usr/bin/corp-ssh-helper
 ```
 
-## Set up ~/.ssh/config inside the chroot
+## Set up ~/.ssh/config
 
 If you are lucky, you don't have to do anything, as `cros_sdk` copies ~/.ssh/config outside the chroot when entering the chroot, and your config file may contain the required ProxyCommand setup. Otherwise, you need to create ~/.ssh/config inside the chroot, and the following is to use the helper for $DUT (replace $DUT with an IP address or a host name).
 
+To ensure that this config is persistant every time you enter the chroot, be sure to add this in the ssh-config OUTSIDE the chroot, then re-enter the chroot to confirm that the ssh config in your chroot updated properly.
 ```
 Host $DUT
   ProxyCommand corp-ssh-helper %h %p
