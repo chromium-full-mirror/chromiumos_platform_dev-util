@@ -48,6 +48,7 @@ var CmpOpts = cmpopts.IgnoreUnexported(
 	test_platform.Request_Params_SoftwareDependency{},
 	test_platform.Request_Params_Time{},
 	test_platform.Request_Suite{},
+	test_platform.Request_Params_ResultsUploadConfig{},
 )
 
 var testValidateAndAddDefaultsData = []struct {
@@ -542,9 +543,12 @@ func TestTestPlatformRequest(t *testing.T) {
 		Dimensions:      map[string]string{"foo-dim": "bar-dim"},
 		Keyvals:         map[string]string{"foo-key": "foo-val"},
 		CFT:             true,
-		TRV2:            true,
-		TestPlan:        sampleTestPlan,
-		UseScheduke:     true,
+		ResultsUploadConfig: &test_platform.Request_Params_ResultsUploadConfig{
+			Mode: test_platform.Request_Params_ResultsUploadConfig_TEST_RESULTS_VISIBILITY_CUSTOM_REALM,
+		},
+		TRV2:        true,
+		TestPlan:    sampleTestPlan,
+		UseScheduke: true,
 	}
 	buildTags := map[string]string{"foo-tag": "bar-tag"}
 	wantRequest := &test_platform.Request{
@@ -587,6 +591,9 @@ func TestTestPlatformRequest(t *testing.T) {
 			RunViaCft:           true,
 			RunViaTrv2:          true,
 			ScheduleViaScheduke: true,
+			Results: &test_platform.Request_Params_ResultsUploadConfig{
+				Mode: test_platform.Request_Params_ResultsUploadConfig_TEST_RESULTS_VISIBILITY_CUSTOM_REALM,
+			},
 		},
 	}
 	gotRequest, err := b.TestPlatformRequest(buildTags)

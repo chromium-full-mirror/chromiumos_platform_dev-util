@@ -78,6 +78,8 @@ type CTPBuilder struct {
 	// QSAccount is what QuotaScheduler account the tests should run under
 	// Priority and QSAccount cannot both be set
 	QSAccount string
+	// ResultsUploadConfig contains the desired ResultsUploadConfig.
+	ResultsUploadConfig *test_platform.Request_Params_ResultsUploadConfig
 	// SecondaryBoards is a list containing the boards of any secondary devices
 	SecondaryBoards []string
 	// SecondaryModels is a list containing the models of any secondary devices
@@ -328,6 +330,7 @@ func (c *CTPBuilder) TestPlatformRequest(buildTags map[string]string) (*test_pla
 			RunViaCft:           c.CFT,
 			RunViaTrv2:          c.TRV2,
 			ScheduleViaScheduke: c.UseScheduke,
+			Results:             c.ResultsUploadConfig,
 		},
 	}
 	// Handling multi-DUTs use case if secondaryBoards provided.
