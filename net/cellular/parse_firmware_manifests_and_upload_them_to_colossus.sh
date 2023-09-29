@@ -36,13 +36,22 @@ for fm_path in "${src_path}"/private-overlays/chromeos-partner-overlay/chromeos-
       board="${BASH_REMATCH[1]}"
     fi
   fi
+  ( \
   gqui from "flatten(textproto:${fm_path}, device.carrier_firmware.carrier_id)" \
     proto "${proto_path}":FirmwareManifestV2 \
     "select device.device_id, device.variant, " \
       "device.carrier_firmware.carrier_id, " \
       "device.carrier_firmware.main_firmware_version != NULL ? device.carrier_firmware.main_firmware_version : device.default_main_firmware_version " \
       "format '%r,%r,%r,%r\n'" \
+    --quiet &&
+  gqui from "flatten(textproto:${fm_path}, device.oem_firmware.main_firmware_version)" \
+    proto "${proto_path}":FirmwareManifestV2 \
+    "select device.device_id, device.variant, 'generic' as carrier_id, " \
+      "device.oem_firmware.main_firmware_version != NULL ? device.oem_firmware.main_firmware_version : device.default_main_firmware_version " \
+      "where all(device.carrier_firmware[*].filename == NULL) " \
+      "format '%r,%r,%r,%r\n'" \
     --quiet \
+  ) \
     | sed -e 's/usb:2cb7:0007/L850GL/g' \
       -e 's/pci:14c3:4d75 (External)/FM350/g' -e 's/usb:2cb7:01a0/NL668AM/g' \
       -e 's/usb:2cb7:01a2/FM101/g' -e 's/usb:2c7c:030b/EM060/g' \
