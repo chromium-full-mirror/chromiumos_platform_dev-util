@@ -74,7 +74,7 @@ var (
 	copyLaCrOSImageCommand  = CopyCommandStructure{Source: "path/to/image/lacros_compressed.squash", Dest: "/var/lib/imageloader/lacros/v1/image.squash"}
 	runStatCommand          = RunCommandStructure{Command: "stat", Args: []string{"-c%s", "/var/lib/imageloader/lacros/v1/image.squash"}}
 	runDDCommand            = RunCommandStructure{Command: "dd", Args: []string{"if=/dev/zero", "bs=1", "count=3996", "seek=100", "of=/var/lib/imageloader/lacros/v1/image.squash"}}
-	runVerityCommand        = RunCommandStructure{Command: "verity", Args: []string{"mode=create", "alg=sha256", "payload=/var/lib/imageloader/lacros/v1/image.squash", "payload_blocks=1", "hashtree=/var/lib/imageloader/lacros/v1/hashtree", "salt=random", ">", "/var/lib/imageloader/lacros/v1/table"}}
+	runVerityCommand        = RunCommandStructure{Command: "verity", Args: []string{"--mode=create", "--alg=sha256", "--payload=/var/lib/imageloader/lacros/v1/image.squash", "--payload_blocks=1", "--hashtree=/var/lib/imageloader/lacros/v1/hashtree", "--salt=random", ">", "/var/lib/imageloader/lacros/v1/table"}}
 	runMeowHashTreeCommand  = RunCommandStructure{Command: "cat", Args: []string{"/var/lib/imageloader/lacros/v1/hashtree", ">>", "/var/lib/imageloader/lacros/v1/image.squash"}}
 	getImageHashCommand     = RunCommandStructure{Command: "sha256sum", Args: []string{"/var/lib/imageloader/lacros/v1/image.squash", "|", "cut", "-d' '", "-f1"}}
 	getTableHashCommand     = RunCommandStructure{Command: "sha256sum", Args: []string{"/var/lib/imageloader/lacros/v1/table", "|", "cut", "-d' '", "-f1"}}
@@ -91,7 +91,7 @@ var (
 	customOverwriteCopyLaCrOSImageCommand  = CopyCommandStructure{Source: "path/to/image/lacros_compressed.squash", Dest: "/home/chronos/cros-components/v1/image.squash"}
 	customOverwriteRunStatCommand          = RunCommandStructure{Command: "stat", Args: []string{"-c%s", "/home/chronos/cros-components/v1/image.squash"}}
 	customOverwriteRunDDCommand            = RunCommandStructure{Command: "dd", Args: []string{"if=/dev/zero", "bs=1", "count=3996", "seek=100", "of=/home/chronos/cros-components/v1/image.squash"}}
-	customOverwriteRunVerityCommand        = RunCommandStructure{Command: "verity", Args: []string{"mode=create", "alg=sha256", "payload=/home/chronos/cros-components/v1/image.squash", "payload_blocks=1", "hashtree=/home/chronos/cros-components/v1/hashtree", "salt=random", ">", "/home/chronos/cros-components/v1/table"}}
+	customOverwriteRunVerityCommand        = RunCommandStructure{Command: "verity", Args: []string{"--mode=create", "--alg=sha256", "--payload=/home/chronos/cros-components/v1/image.squash", "--payload_blocks=1", "--hashtree=/home/chronos/cros-components/v1/hashtree", "--salt=random", ">", "/home/chronos/cros-components/v1/table"}}
 	customOverwriteRunMeowHashTreeCommand  = RunCommandStructure{Command: "cat", Args: []string{"/home/chronos/cros-components/v1/hashtree", ">>", "/home/chronos/cros-components/v1/image.squash"}}
 	customOverwriteGetImageHashCommand     = RunCommandStructure{Command: "sha256sum", Args: []string{"/home/chronos/cros-components/v1/image.squash", "|", "cut", "-d' '", "-f1"}}
 	customOverwriteGetTableHashCommand     = RunCommandStructure{Command: "sha256sum", Args: []string{"/home/chronos/cros-components/v1/table", "|", "cut", "-d' '", "-f1"}}
