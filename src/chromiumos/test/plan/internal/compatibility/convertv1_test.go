@@ -264,6 +264,44 @@ var hwTestPlans = []*test_api_v1.HWTestPlan{
 				Critical:  &wrapperspb.BoolValue{Value: true},
 				RunViaCft: true,
 			},
+			{
+				TestSuites: []*testpb.TestSuite{
+					{
+						Spec: &testpb.TestSuite_TestCaseIds{
+							TestCaseIds: &testpb.TestCaseIdList{
+								TestCaseIds: []*testpb.TestCase_Id{
+									{
+										Value: "suite1",
+									},
+								},
+							},
+						},
+					},
+				},
+				DutTargets: []*testpb.DutTarget{
+					{
+						Criteria: []*testpb.DutCriterion{
+							{
+								AttributeId: &testpb.DutAttribute_Id{
+									Value: "attr-program",
+								},
+								// board-bad-containers failed to build CFT
+								// containers, so should not run this suite
+								// (RunViaCft is set true).
+								Values: []string{"board-bad-containers"},
+							},
+							{
+								AttributeId: &testpb.DutAttribute_Id{
+									Value: "swarming-pool",
+								},
+								Values: []string{"DUT_POOL_QUOTA"},
+							},
+						},
+					},
+				},
+				Critical:  &wrapperspb.BoolValue{Value: true},
+				RunViaCft: true,
+			},
 		},
 	},
 }
@@ -669,6 +707,31 @@ func getSerializedBuilds(t *testing.T) []*testplans.ProtoBytes {
 		Critical: bbpb.Trinary_YES,
 	}
 
+	buildWithFailedContainers := &bbpb.Build{
+		Builder: &bbpb.BuilderID{
+			Builder: "cq-builder-bad-containers",
+		},
+		Input: &bbpb.Build_Input{
+			Properties: newStruct(t, map[string]interface{}{
+				"build_target": map[string]interface{}{
+					"name": "board-bad-containers",
+				},
+			}),
+		},
+		Output: &bbpb.Build_Output{
+			Properties: newStruct(t, map[string]interface{}{
+				"artifacts": map[string]interface{}{
+					"gs_bucket": "testgsbucket",
+					"gs_path":   "testgspath",
+					"files_by_artifact": map[string]interface{}{
+						"IMAGE_ZIP": []interface{}{"file1", "file2"},
+					},
+				},
+				"container_building_failed": true,
+			}),
+		},
+	}
+
 	return []*testplans.ProtoBytes{
 		serializeOrFatal(t, build1),
 		serializeOrFatal(t, build2),
@@ -681,6 +744,7 @@ func getSerializedBuilds(t *testing.T) []*testplans.ProtoBytes {
 		serializeOrFatal(t, vmBuildWithVariant),
 		serializeOrFatal(t, asanBuild),
 		serializeOrFatal(t, vmOptimizedBuild),
+		serializeOrFatal(t, buildWithFailedContainers),
 	}
 }
 

@@ -228,6 +228,13 @@ type buildInfo struct {
 	// build doesn't have testable artifacts, this will be nil.
 	payload *testplans.BuildPayload
 
+	// the containerBuildingFailed output property, which indicates if
+	// building the CFT containers failed. Note this property is not set on
+	// builds that ran before crrev.com/c/4906244. If the property is not set
+	// on the build, it is assumed false, i.e. building the CFT containers was
+	// successful.
+	containerBuildingFailed bool
+
 	// a pointer to the Build itself, useful for functions that need the above
 	// extracted fields for computation, but still return results containing
 	// the actual Build.
@@ -382,13 +389,23 @@ func buildsToBuildInfos(
 			glog.Warningf("no BuilderConfig found for %q", builderName)
 		}
 
+		var containerBuildingFailed bool
+		containerBuildingFailedValue, ok := extractFromProtoStruct(build.GetOutput().GetProperties(), "container_building_failed")
+		if ok {
+			containerBuildingFailed = containerBuildingFailedValue.GetBoolValue()
+		} else {
+			glog.Warningf("container_building_failed not found in the output properties of build %q, assuming false (CFT containers build successfully)", builderName)
+			containerBuildingFailed = false
+		}
+
 		buildInfos = append(buildInfos, &buildInfo{
-			buildTarget: buildTarget,
-			builderName: build.GetBuilder().GetBuilder(),
-			profile:     profile,
-			criticality: build.GetCritical(),
-			payload:     payload,
-			build:       build,
+			buildTarget:             buildTarget,
+			builderName:             build.GetBuilder().GetBuilder(),
+			profile:                 profile,
+			criticality:             build.GetCritical(),
+			containerBuildingFailed: containerBuildingFailed,
+			payload:                 payload,
+			build:                   build,
 		},
 		)
 	}
@@ -984,6 +1001,14 @@ func ToCTP1(
 				glog.Infof(
 					"profile for build %q (%q) doesn't match profile for suite %q (%q), skipping",
 					buildInfo.builderName, buildInfo.profile, suiteInfo.suite, suiteInfo.profile,
+				)
+				continue
+			}
+
+			if suiteInfo.runViaCft && buildInfo.containerBuildingFailed {
+				glog.Errorf(
+					"builder %q failed container building, cannot run suite %q with CFT",
+					buildInfo.builderName, suiteInfo.suite,
 				)
 				continue
 			}
