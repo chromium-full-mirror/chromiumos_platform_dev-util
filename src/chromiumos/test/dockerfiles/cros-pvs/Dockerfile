@@ -26,7 +26,7 @@ RUN echo "@testing http://nl.alpinelinux.org/alpine/edge/testing" >> /etc/apk/re
 
 # Install upload_results.py dependencies
 RUN python3 -m pip install google.cloud google.cloud.pubsub google.cloud.storage \
-    jsonrpclib protobuf==3.19.3 chardet
+    jsonrpclib protobuf==3.19.3 chardet six
 
 # Download the config proto files and autotest repo we need these to run the
 # upload_results.py script in the container
