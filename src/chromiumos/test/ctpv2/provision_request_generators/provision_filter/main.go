@@ -21,6 +21,8 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 	for _, target := range req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements() {
 		var swBuild string
 		var gcsPath string
+		var variant string
+
 		for _, swRequirements := range target.GetSwRequirements() {
 
 			// If there is a keyvalue, its not for cros, so continue.
@@ -29,6 +31,7 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 			}
 			swBuild = swRequirements.GetBuild()
 			gcsPath = swRequirements.GetGcsPath()
+			variant = swRequirements.GetVariant()
 		}
 
 		for _, hwTarget := range target.HwRequirements.HwDefinition {
@@ -39,7 +42,7 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 			default:
 				continue
 			}
-			hwTarget.ProvisionInfo = generateProvisionInfo(hwTarget.GetProvisionInfo(), swBuild, gcsPath)
+			hwTarget.ProvisionInfo = generateProvisionInfo(hwTarget.GetProvisionInfo(), swBuild, gcsPath, variant)
 		}
 	}
 
@@ -48,7 +51,7 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 
 // Currently this is simple... just append the new provision info onto the existing.
 // We are appending it in case another provsion filter has run and populated info.
-func generateProvisionInfo(current []*api.ProvisionInfo, build string, path string) []*api.ProvisionInfo {
+func generateProvisionInfo(current []*api.ProvisionInfo, build string, path string, variant string) []*api.ProvisionInfo {
 	installInfo := &api.InstallRequest{
 		ImagePath: &conf.StoragePath{
 			Path:     path,
@@ -59,6 +62,7 @@ func generateProvisionInfo(current []*api.ProvisionInfo, build string, path stri
 	info := &api.ProvisionInfo{
 		Type:           api.ProvisionInfo_CROS,
 		InstallRequest: installInfo,
+		Identifier:     variant,
 	}
 	return append(current, info)
 
