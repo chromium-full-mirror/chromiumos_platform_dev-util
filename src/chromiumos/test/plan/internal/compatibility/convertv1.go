@@ -893,7 +893,7 @@ func createTastGCETest(buildInfo *buildInfo, suiteInfo *suiteInfo, shardIndex in
 		GceMetadata: &testplans.TastGceTestCfg_TastGceTest_GceMetadata{
 			Project:     "chromeos-gce-tests",
 			Zone:        "us-central1-a",
-			MachineType: "n2-standard-8",
+			MachineType: "n1-standard-4",
 			Network:     "chromeos-gce-tests",
 			Subnet:      "us-central1",
 		},
