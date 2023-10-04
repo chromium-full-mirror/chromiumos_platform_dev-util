@@ -68,6 +68,7 @@ func generateTcHwReqs(hwTargets []*api.SwarmingDefinition, tcDeps []string) (tcH
 			// HwDefinition = [[a, b], [c]]; must run on A OR B, AND C
 			// Legacy always lists of 1 item. Others, eg 3D; will give OR options.
 			HwDefinition: []*api.SwarmingDefinition{t},
+			State:        api.HWRequirements_REQUIRED,
 		}
 		tcHwReqs = append(tcHwReqs, targ)
 	}
