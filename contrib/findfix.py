@@ -165,6 +165,70 @@ def compare_releases(r1, r2):
     return 1
 
 
+def get_patch_id(sha):
+    """Get patch ID for given SHA"""
+
+    gitcommand = ['show', sha]
+    commit = _git(gitcommand)
+    if not commit:
+        return None
+
+    gitcommand = ['patch-id']
+    spid = _git(gitcommand, stdin=commit)
+    if not spid:
+        return None
+    return spid.split(" ", 1)[0]
+
+
+def findpatch(remote, branch, baseline, sha, subject):
+    """ Return True if a patch is found in a branch, False otherwise"""
+
+    release_branch = f'release-{branch}-chromeos-{baseline}'
+    gitcommand = ['merge-base', '--is-ancestor', sha, f'{remote}/{release_branch}']
+    result = _git(gitcommand)
+    if result:
+        return True
+
+    # SHA is not in release branch. Search for it based on subject and patch ID.
+
+    patch_id = get_patch_id(sha)
+    if not patch_id:
+        return False
+
+    gitcommand = ['log', '--oneline', f'v{baseline}..{remote}/{release_branch}']
+    commits = _git(gitcommand)
+    if not commits:
+        return False
+
+    for commit in commits.splitlines():
+        if subject in commit:
+            ssha = commit.split(' ')[0]
+            match_id = get_patch_id(ssha)
+            if match_id == patch_id:
+                return True
+
+    return False
+
+
+def check_release_branches(baseline, sha, subject):
+    """Check if a patch is present in a release branch"""
+
+    chromeos_remote = _find_remote(CHROMEOS_URLS)
+    if chromeos_remote:
+        contained = []
+        not_contained = []
+        for b in release_branches(baseline):
+            release = b.split('-', maxsplit=1)[0]
+            if findpatch(chromeos_remote, b, baseline, sha, subject):
+                contained += [release]
+            else:
+                not_contained += [release]
+        if not_contained:
+            print('    Not in ' + ', '.join(not_contained))
+        if contained:
+            print('    In ' + ', '.join(contained))
+
+
 def checkbranch(remote, baseline, subject, queued=False):
     """Check if a commit is present in a branch.
 
@@ -178,6 +242,14 @@ def checkbranch(remote, baseline, subject, queued=False):
     gitcommand = ['log', '--oneline', f'v{baseline}..{remote}/linux-{baseline}.y']
     commits = _git(gitcommand)
 
+    # If the patch in not in an upstream stable release, try to find it in
+    # a ChromeOS branch.
+    if subject not in commits:
+        chromeos_remote = _find_remote(CHROMEOS_URLS)
+        if chromeos_remote:
+            gitcommand = ['log', '--oneline', f'v{baseline}..{chromeos_remote}/chromeos-{baseline}']
+            commits = _git(gitcommand)
+
     if commits: # pylint: disable=too-many-nested-blocks
         for commit in commits.splitlines():
             if subject in commit:
@@ -187,30 +259,13 @@ def checkbranch(remote, baseline, subject, queued=False):
                     if queued:
                         print((f'  Expected to be fixed in chromeos-{baseline} '
                                f'with next stable release merge (sha {ssha})'))
+                    else:
+                        print(f'  Fixed in chromeos-{baseline} (sha {ssha})')
+                        check_release_branches(baseline, ssha, subject)
                 elif not queued:
                     msg=f'  Fixed in chromeos-{baseline} with merge of {isha} (sha {ssha})'
                     print(msg)
-                    # Now check release branches
-                    # FIXME: Patches may be in release branches but use a different SHA there.
-                    # Output in that case should be "Fixed in <Release> (sha <sha>)"
-                    chromeos_remote = _find_remote(CHROMEOS_URLS)
-                    if chromeos_remote:
-                        contained = []
-                        not_contained = []
-                        for b in release_branches(baseline):
-                            release_branch = f'release-{b}-chromeos-{baseline}'
-                            release = b.split('-', maxsplit=1)[0]
-                            gitcommand = ['merge-base', '--is-ancestor', ssha,
-                                          f'{chromeos_remote}/{release_branch}']
-                            result = _git(gitcommand)
-                            if result is None:
-                                not_contained += [release]
-                            else:
-                                contained += [release]
-                        if not_contained:
-                            print('    Not in ' + ', '.join(not_contained))
-                        if contained:
-                            print('    In ' + ', '.join(contained))
+                    check_release_branches(baseline, ssha, subject)
                 found=True
                 break
 
