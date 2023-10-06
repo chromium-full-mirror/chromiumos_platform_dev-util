@@ -237,8 +237,6 @@ def checkbranch(remote, baseline, subject, queued=False):
     number)
     """
 
-    found=False
-
     gitcommand = ['log', '--oneline', f'v{baseline}..{remote}/linux-{baseline}.y']
     commits = _git(gitcommand)
 
@@ -250,26 +248,26 @@ def checkbranch(remote, baseline, subject, queued=False):
             gitcommand = ['log', '--oneline', f'v{baseline}..{chromeos_remote}/chromeos-{baseline}']
             commits = _git(gitcommand)
 
-    if commits: # pylint: disable=too-many-nested-blocks
-        for commit in commits.splitlines():
-            if subject in commit:
-                ssha = commit.split(' ')[0]
-                isha = integrated(ssha)
-                if not isha or isha == 'ToT':
-                    if queued:
-                        print((f'  Expected to be fixed in chromeos-{baseline} '
-                               f'with next stable release merge (sha {ssha})'))
-                    else:
-                        print(f'  Fixed in chromeos-{baseline} (sha {ssha})')
-                        check_release_branches(baseline, ssha, subject)
-                elif not queued:
-                    msg=f'  Fixed in chromeos-{baseline} with merge of {isha} (sha {ssha})'
-                    print(msg)
-                    check_release_branches(baseline, ssha, subject)
-                found=True
-                break
+    if not commits:
+        return False
 
-    return found
+    for commit in commits.splitlines():
+        if subject in commit:
+            ssha = commit.split(' ')[0]
+            isha = integrated(ssha)
+            if not isha or isha == 'ToT':
+                if queued:
+                    print((f'  Expected to be fixed in chromeos-{baseline} '
+                           f'with next stable release merge (sha {ssha})'))
+                else:
+                    print(f'  Fixed in chromeos-{baseline} (sha {ssha})')
+                    check_release_branches(baseline, ssha, subject)
+            elif not queued:
+                print(f'  Fixed in chromeos-{baseline} with merge of {isha} (sha {ssha})')
+                check_release_branches(baseline, ssha, subject)
+            return True
+
+    return False
 
 
 def main(args):
