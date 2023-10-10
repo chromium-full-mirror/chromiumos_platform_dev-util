@@ -212,8 +212,20 @@ func genCommitMsg(baseSHA string, mergeSHA string, cqDepend string, bugFlag stri
 	runCmd(cmd, true)
 }
 
+func compile(compileBoardFlag string) {
+	repoNames := []string{"libqrtr-glib", "libmbim", "libqmi", "modemmanager-next"}
+	for _, repoName := range repoNames {
+		cBoards := strings.Split(compileBoardFlag, ",")
+		for _, c := range cBoards {
+			runCmd(exec.Command("cros_workon", "--board="+c, "start", repoName), true)
+			runCmd(exec.Command("emerge-"+c, repoName), true)
+			defer runCmd(exec.Command("cros_workon", "--board="+c, "stop", repoName), false)
+		}
+	}
+}
+
 // returns gerrit cl, cleanup function
-func postMerge(rootDir string, repoName string, upstreamBranch string, cqDepend string, uploadFlag bool, compileFlag bool, compileBoardFlag string, cqP1Flag bool, prettyMsg bool, bugFlag string) (string, func()) {
+func postMerge(rootDir string, repoName string, upstreamBranch string, cqDepend string, uploadFlag bool, cqP1Flag bool, prettyMsg bool, bugFlag string) (string, func()) {
 	cleanupFunc := func() {}
 	uprevDate := time.Now().Format("01-02-2006")
 	branchName := "merge-upstream-" + uprevDate
@@ -240,24 +252,6 @@ func postMerge(rootDir string, repoName string, upstreamBranch string, cqDepend 
 
 	if prettyMsg {
 		genCommitMsg("cros/main", "HEAD", cqDepend, bugFlag, lastTag)
-	}
-
-	if compileFlag {
-		cBoards := strings.Split(compileBoardFlag, ",")
-		for _, c := range cBoards {
-			cmd = exec.Command("cros_workon", "--board="+c, "start", repoName)
-			runCmd(cmd, true)
-		}
-		cleanupFunc = func() {
-			for _, c := range cBoards {
-				cmd = exec.Command("cros_workon", "--board="+c, "stop", repoName)
-				runCmd(cmd, false)
-			}
-		}
-		for _, c := range cBoards {
-			cmd = exec.Command("emerge-"+c, repoName)
-			runCmd(cmd, true)
-		}
 	}
 
 	if !uploadFlag {
@@ -379,6 +373,10 @@ func main() {
 		ensureOutChroot()
 		mergeSubCmd()
 
+	case "compile":
+		ensureInChroot()
+		compileSubCmd()
+
 	case "post-merge":
 		ensureInChroot()
 		postMergeSubCmd()
@@ -453,24 +451,14 @@ func mergeSubCmd() {
 	}
 }
 
-func postMergeSubCmd() {
-	postmergeFlagSet := flag.NewFlagSet("post-merge", flag.ExitOnError)
-	prettyMsgFlag := postmergeFlagSet.Bool("pretty-msg", true, "prettify the commit message of the head commit.")
-	uploadFlag := postmergeFlagSet.Bool("upload", false, "upload to gerrit")
-	cqP1Flag := postmergeFlagSet.Bool("cq", false, "V+1, CQ+1 on gerrit")
-	compileFlag := postmergeFlagSet.Bool("compile", false, "Compile on specified boards")
-	compileBoardFlag := postmergeFlagSet.String("board", "trogdor,dedede", "boards to be used in the compile process (default:trogdor,dedede)")
-	bugFlag := postmergeFlagSet.String("bug", "None", "Bug number in commit msg")
-	skipSetupBoardForCompileFlag := postmergeFlagSet.Bool("skip-setup-board-for-compile", false, "If --compile is true, skip executing setup_board. You will have to ensure that it's already been run before.")
-	postmergeFlagSet.Parse(os.Args[2:])
-	if !*uploadFlag && !*compileFlag && !*prettyMsgFlag {
-		logPanic("Atleast one of --upload, --cq, --pretty-msg needs to be set")
-	}
-	if *cqP1Flag && !*uploadFlag {
-		logPanic("--cq needs to be used with --upload")
-	}
+func compileSubCmd() {
+	compileFlagSet := flag.NewFlagSet("compile", flag.ExitOnError)
+	compileBoardFlag := compileFlagSet.String("board", "trogdor,dedede", "boards to be used in the compile process (default:trogdor,dedede)")
+	skipSetupBoardFlag := compileFlagSet.Bool("skip-setup-board", false, "Skip executing setup_board. You will have to ensure that it's already been run before.")
 
-	if *compileFlag && !*skipSetupBoardForCompileFlag {
+	compileFlagSet.Parse(os.Args[2:])
+
+	if !*skipSetupBoardFlag {
 		cBoards := strings.Split(*compileBoardFlag, ",")
 		for _, c := range cBoards {
 			cmd := exec.Command("setup_board", "--board="+c)
@@ -478,21 +466,38 @@ func postMergeSubCmd() {
 		}
 	}
 
+	compile(*compileBoardFlag)
+}
+
+func postMergeSubCmd() {
+	postmergeFlagSet := flag.NewFlagSet("post-merge", flag.ExitOnError)
+	prettyMsgFlag := postmergeFlagSet.Bool("pretty-msg", true, "prettify the commit message of the head commit.")
+	uploadFlag := postmergeFlagSet.Bool("upload", false, "upload to gerrit")
+	cqP1Flag := postmergeFlagSet.Bool("cq", false, "V+1, CQ+1 on gerrit")
+	bugFlag := postmergeFlagSet.String("bug", "None", "Bug number in commit msg")
+	postmergeFlagSet.Parse(os.Args[2:])
+	if !*uploadFlag && !*prettyMsgFlag {
+		logPanic("Atleast one of --upload, --cq, --pretty-msg needs to be set")
+	}
+	if *cqP1Flag && !*uploadFlag {
+		logPanic("--cq needs to be used with --upload")
+	}
+
 	homeDir, _ := os.UserHomeDir()
 	rootDir := homeDir + "/chromiumos/src/third_party/"
 	cqDepend := ""
 
-	libqrtrCl, cleanupLibqrtr := postMerge(rootDir, "libqrtr-glib", "upstream/main", cqDepend, *uploadFlag, *compileFlag, *compileBoardFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
+	libqrtrCl, cleanupLibqrtr := postMerge(rootDir, "libqrtr-glib", "upstream/main", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
 	defer cleanupLibqrtr()
 
-	libqmiCl, cleanupLibqmi := postMerge(rootDir, "libqmi", "upstream", cqDepend, *uploadFlag, *compileFlag, *compileBoardFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
+	libqmiCl, cleanupLibqmi := postMerge(rootDir, "libqmi", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
 	defer cleanupLibqmi()
 
-	libmbimCl, cleanupLibmbim := postMerge(rootDir, "libmbim", "upstream", cqDepend, *uploadFlag, *compileFlag, *compileBoardFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
+	libmbimCl, cleanupLibmbim := postMerge(rootDir, "libmbim", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
 	defer cleanupLibmbim()
 
 	cqDepend = libqrtrCl + libqmiCl + libmbimCl
 	cqDepend = strings.ReplaceAll(strings.TrimSpace(cqDepend), " ", ",")
-	_, cleanupMM := postMerge(rootDir, "modemmanager-next", "upstream", cqDepend, *uploadFlag, *compileFlag, *compileBoardFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
+	_, cleanupMM := postMerge(rootDir, "modemmanager-next", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
 	defer cleanupMM()
 }
