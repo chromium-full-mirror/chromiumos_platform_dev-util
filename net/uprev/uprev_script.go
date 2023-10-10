@@ -93,7 +93,7 @@ func uprevRepo(rootDir string, repoName string, upstreamBranch string, lastTagFl
 	uprevDate := time.Now().Format("01-02-2006")
 	branchName := "merge-upstream-" + uprevDate
 	fmt.Println(rootDir, repoName, upstreamBranch, uprevDate)
-	if err := os.Chdir(rootDir + repoName); err != nil {
+	if err := os.Chdir(filepath.Join(rootDir, repoName)); err != nil {
 		logPanic(err.Error())
 	}
 	newDir, _ := os.Getwd()
@@ -376,7 +376,7 @@ func main() {
 		uploadEmptyCL()
 
 	case "merge":
-		ensureInChroot()
+		ensureOutChroot()
 		mergeSubCmd()
 
 	case "post-merge":
@@ -441,8 +441,8 @@ func mergeSubCmd() {
 		return
 	}
 
-	homeDir, _ := os.UserHomeDir()
-	rootDir := homeDir + "/chromiumos/src/third_party/"
+	checkoutDir := lookupCheckout()
+	rootDir := filepath.Join(checkoutDir, "src/third_party")
 
 	if *createAndMergeFlag {
 		uprevRepo(rootDir, "libqrtr-glib", "upstream/main", *lastTagFlag, *libqrtrCommitFlag, *forceFlag)
