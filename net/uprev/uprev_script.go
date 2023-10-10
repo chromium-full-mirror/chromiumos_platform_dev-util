@@ -281,16 +281,13 @@ func postMerge(rootDir string, repoName string, upstreamBranch string, cqDepend 
 
 func uploadEmptyCL() {
 	fmt.Printf("%sUploading an empty CL before the merge...\n%s", colorGreen, colorReset)
-	homeDir, _ := os.UserHomeDir()
-	rootDir := homeDir + "/chromiumos/src/third_party/"
-	fmt.Printf("%s\n", rootDir)
-
-	if err := os.Chdir(rootDir + emptyCLRepoName); err != nil {
+	checkoutDir := lookupCheckout()
+	rootDir := filepath.Join(checkoutDir, "src/third_party")
+	if err := os.Chdir(filepath.Join(rootDir, emptyCLRepoName)); err != nil {
 		logPanic(err.Error())
 	}
-	defer os.Chdir(homeDir)
 	newDir, _ := os.Getwd()
-	fmt.Printf("%sWorking on : %s\n%s", colorGreen, newDir, colorReset)
+	fmt.Printf("%sWorking on: %s\n%s", colorGreen, newDir, colorReset)
 
 	runCmd(exec.Command("repo", "sync", "-d", "."), true)
 	runCmd(exec.Command("git", "branch", "-D", emptyCLBranchName), false)
@@ -320,12 +317,40 @@ func uploadEmptyCL() {
 	fmt.Printf("%sUploaded an empty CL: crrev.com/c/%s\n%s", colorGreen, res[1], colorReset)
 }
 
-func main() {
-
-	if _, err := os.Stat("/etc/cros_chroot_version"); errors.Is(err, os.ErrNotExist) {
-		logPanic("Please run inside chroot")
+// Returns the absolute path of the chromeos source checkout.
+func lookupCheckout() string {
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		logPanic("Failed to retrieve working directory: " + err.Error())
 	}
 
+	currentDirectory := workingDirectory
+	for {
+		repoDirectory := filepath.Join(currentDirectory, ".repo")
+		if _, err := os.Stat(repoDirectory); err == nil {
+			return currentDirectory
+		}
+
+		currentDirectory = filepath.Dir(currentDirectory)
+		if currentDirectory == "/" {
+			logPanic("Please run within a chromeos source checkout.")
+		}
+	}
+}
+
+func ensureOutChroot() {
+	if _, err := os.Stat("/etc/cros_chroot_version"); !errors.Is(err, os.ErrNotExist) {
+		logPanic("Please run out of the chroot.")
+	}
+}
+
+func ensureInChroot() {
+	if _, err := os.Stat("/etc/cros_chroot_version"); errors.Is(err, os.ErrNotExist) {
+		logPanic("Please run inside the chromeos chroot.")
+	}
+}
+
+func main() {
 	file, err := ioutil.TempFile("/tmp", "uprev")
 	if err != nil {
 		logPanic(err.Error())
@@ -338,12 +363,15 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "empty-cl":
+		ensureOutChroot()
 		uploadEmptyCL()
 
 	case "merge":
+		ensureInChroot()
 		mergeSubCmd()
 
 	case "post-merge":
+		ensureInChroot()
 		postMergeSubCmd()
 	default:
 		logPanic("Expected merge or post-merge subcommands, got " + os.Args[1])
