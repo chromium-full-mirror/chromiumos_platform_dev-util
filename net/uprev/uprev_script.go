@@ -19,18 +19,20 @@ import (
 )
 
 const (
-	repoName     = "modemmanager-next"
-	branchName   = "uprev_empty_cl"
-	fileName     = "src/meson.build"
 	cqCommitText = "\n" +
 		"Cros-Add-Test-Suites: cellular_ota,cellular_ota_flaky\n" +
 		"Cros-Add-TS-Boards-BuildTarget: trogdor,brya,octopus,herobrine\n" +
 		"Cros-Add-TS-Pool: cellular\n"
-	commitMsg  = "EMPTY CL FOR UPREV PURPOSES: **DO NOT MERGE**\n\nNOTHING\n\nBUG=None\nFIXED=None\n\nTEST=NONE\n" + cqCommitText
-	emptyMsg   = "\n# EMPTY"
 	colorGreen = "\033[32m"
 	colorRed   = "\033[31m"
 	colorReset = "\033[0m"
+	// Constants in the empty CL logic
+	emptyCLRepoName   = "modemmanager-next"
+	emptyCLBranchName = "uprev_empty_cl"
+	emptyCLFileName   = "src/meson.build"
+	emptyCLMsg        = "\n# EMPTY"
+	emptyCLCommitMsg  = "EMPTY CL FOR UPREV PURPOSES: **DO NOT MERGE**\n" +
+		"\nBUG=None\nFIXED=None\n\nTEST=NONE\n" + cqCommitText
 )
 
 func logPanic(s string) {
@@ -277,13 +279,13 @@ func postMerge(rootDir string, repoName string, upstreamBranch string, cqDepend 
 	return "chromium:" + res[1] + " ", cleanupFunc
 }
 
-func uploadEmptyCl() {
+func uploadEmptyCL() {
 	fmt.Printf("%sUploading an empty CL before the merge...\n%s", colorGreen, colorReset)
 	homeDir, _ := os.UserHomeDir()
 	rootDir := homeDir + "/chromiumos/src/third_party/"
 	fmt.Printf("%s\n", rootDir)
 
-	if err := os.Chdir(rootDir + repoName); err != nil {
+	if err := os.Chdir(rootDir + emptyCLRepoName); err != nil {
 		logPanic(err.Error())
 	}
 	defer os.Chdir(homeDir)
@@ -291,23 +293,23 @@ func uploadEmptyCl() {
 	fmt.Printf("%sWorking on : %s\n%s", colorGreen, newDir, colorReset)
 
 	runCmd(exec.Command("repo", "sync", "-d", "."), true)
-	runCmd(exec.Command("git", "branch", "-D", branchName), false)
-	runCmd(exec.Command("repo", "start", branchName, "."), true)
-	defer runCmd(exec.Command("repo", "abandon", branchName, "."), false)
+	runCmd(exec.Command("git", "branch", "-D", emptyCLBranchName), false)
+	runCmd(exec.Command("repo", "start", emptyCLBranchName, "."), true)
+	defer runCmd(exec.Command("repo", "abandon", emptyCLBranchName, "."), false)
 
-	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	f, err := os.OpenFile(emptyCLFileName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
-	if _, err = f.WriteString(emptyMsg); err != nil {
+	if _, err = f.WriteString(emptyCLMsg); err != nil {
 		panic(err)
 	}
 
 	runCmd(exec.Command("git", "add", "."), true)
-	runCmd(exec.Command("git", "commit", "-m", commitMsg), true)
+	runCmd(exec.Command("git", "commit", "-m", emptyCLCommitMsg), true)
 
-	cmd := exec.Command("repo", "upload", "--cbr", ".", "--no-verify", "-o", "topic="+branchName, "-y")
+	cmd := exec.Command("repo", "upload", "--cbr", ".", "--no-verify", "-o", "topic="+emptyCLBranchName, "-y")
 	cmd.Stdin = strings.NewReader("yes")
 	out, _ := runCmd(cmd, true)
 	re := regexp.MustCompile(`\+/(.*) EMPTY`)
@@ -324,7 +326,7 @@ func main() {
 		logPanic("Please run inside chroot")
 	}
 
-	uploadEmptyCl()
+	uploadEmptyCL()
 
 	file, err := ioutil.TempFile("/tmp", "uprev")
 	if err != nil {
