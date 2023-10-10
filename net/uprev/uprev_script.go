@@ -350,6 +350,14 @@ func ensureInChroot() {
 	}
 }
 
+func printUsageAndExit(exitcode int) {
+	fmt.Printf("Usage: %s [ACTION] ...\n", filepath.Base(os.Args[0]))
+	fmt.Printf("  ACTION is one of 'empty-cl', 'merge', 'post-merge' or 'help'\n")
+	fmt.Printf("  Run 'ACTION -help' for details\n")
+	fmt.Printf("\n")
+	os.Exit(exitcode)
+}
+
 func main() {
 	file, err := ioutil.TempFile("/tmp", "uprev")
 	if err != nil {
@@ -359,7 +367,8 @@ func main() {
 	defer fmt.Println("\nUprev logs in ", file.Name())
 
 	if len(os.Args) < 2 {
-		logPanic("expected 'empty-cl', 'merge' or 'post-merge' subcommands")
+		fmt.Fprintf(os.Stderr, "error: action not specified\n\n")
+		printUsageAndExit(1)
 	}
 	switch os.Args[1] {
 	case "empty-cl":
@@ -373,8 +382,13 @@ func main() {
 	case "post-merge":
 		ensureInChroot()
 		postMergeSubCmd()
+
+	case "help":
+		printUsageAndExit(0)
+
 	default:
-		logPanic("Expected merge or post-merge subcommands, got " + os.Args[1])
+		fmt.Fprintf(os.Stderr, "error: invalid action: %s\n\n", os.Args[1])
+		printUsageAndExit(2)
 	}
 }
 
