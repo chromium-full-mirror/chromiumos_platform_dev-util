@@ -224,13 +224,12 @@ func compile(compileBoardFlag string) {
 	}
 }
 
-// returns gerrit cl, cleanup function
-func postMerge(rootDir string, repoName string, upstreamBranch string, cqDepend string, uploadFlag bool, cqP1Flag bool, prettyMsg bool, bugFlag string) (string, func()) {
-	cleanupFunc := func() {}
+// returns gerrit cl
+func postMerge(rootDir string, repoName string, upstreamBranch string, cqDepend string, uploadFlag bool, cqP1Flag bool, prettyMsg bool, bugFlag string) string {
 	uprevDate := time.Now().Format("01-02-2006")
 	branchName := "merge-upstream-" + uprevDate
 	fmt.Println(rootDir, repoName, upstreamBranch, uprevDate)
-	if err := os.Chdir(rootDir + repoName); err != nil {
+	if err := os.Chdir(filepath.Join(rootDir, repoName)); err != nil {
 		logPanic(err.Error())
 	}
 	newDir, _ := os.Getwd()
@@ -240,7 +239,7 @@ func postMerge(rootDir string, repoName string, upstreamBranch string, cqDepend 
 	cmd = exec.Command("git", "log", "cros/main..HEAD", "--abbrev", "--oneline", "--format=%h")
 	out, _ := runCmd(cmd, true)
 	if out == "" {
-		return "", cleanupFunc
+		return ""
 	}
 
 	cmd = exec.Command("git", "describe", "--abbrev=0", "cros/"+upstreamBranch)
@@ -255,7 +254,7 @@ func postMerge(rootDir string, repoName string, upstreamBranch string, cqDepend 
 	}
 
 	if !uploadFlag {
-		return "", cleanupFunc
+		return ""
 	}
 	//TODO: check if -o uploadvalidator~skip is needed whenever AUTHORS change. (Florence_ is a banned word)
 	cmd = exec.Command("repo", "upload", "--cbr", ".", "--no-verify", "-o", "topic="+branchName, "-y")
@@ -270,7 +269,7 @@ func postMerge(rootDir string, repoName string, upstreamBranch string, cqDepend 
 		runCmd(exec.Command("gerrit", "label-cq", res[1], "1"), false)
 	}
 
-	return "chromium:" + res[1] + " ", cleanupFunc
+	return "chromium:" + res[1] + " "
 }
 
 func uploadEmptyCL() {
@@ -378,7 +377,7 @@ func main() {
 		compileSubCmd()
 
 	case "post-merge":
-		ensureInChroot()
+		ensureOutChroot()
 		postMergeSubCmd()
 
 	case "help":
@@ -483,21 +482,15 @@ func postMergeSubCmd() {
 		logPanic("--cq needs to be used with --upload")
 	}
 
-	homeDir, _ := os.UserHomeDir()
-	rootDir := homeDir + "/chromiumos/src/third_party/"
+	checkoutDir := lookupCheckout()
+	rootDir := filepath.Join(checkoutDir, "src/third_party")
 	cqDepend := ""
 
-	libqrtrCl, cleanupLibqrtr := postMerge(rootDir, "libqrtr-glib", "upstream/main", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
-	defer cleanupLibqrtr()
-
-	libqmiCl, cleanupLibqmi := postMerge(rootDir, "libqmi", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
-	defer cleanupLibqmi()
-
-	libmbimCl, cleanupLibmbim := postMerge(rootDir, "libmbim", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
-	defer cleanupLibmbim()
+	libqrtrCl := postMerge(rootDir, "libqrtr-glib", "upstream/main", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
+	libqmiCl := postMerge(rootDir, "libqmi", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
+	libmbimCl := postMerge(rootDir, "libmbim", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
 
 	cqDepend = libqrtrCl + libqmiCl + libmbimCl
 	cqDepend = strings.ReplaceAll(strings.TrimSpace(cqDepend), " ", ",")
-	_, cleanupMM := postMerge(rootDir, "modemmanager-next", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
-	defer cleanupMM()
+	postMerge(rootDir, "modemmanager-next", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
 }
