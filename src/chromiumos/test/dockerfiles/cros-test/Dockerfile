@@ -4,7 +4,7 @@
 
 FROM python:3.8-slim-buster AS build
 
-# attr, unzip, openjdk are for CTS specifically.
+# attr, unzip are for CTS specifically.
 # squashfs-tools is for Uprev specifically.
 RUN apt-get update \
     && apt-get install -y \
@@ -19,7 +19,6 @@ RUN apt-get update \
       ssh \
       sudo \
       unzip \
-      openjdk-11-jdk \
       wget \
       xxd
 
@@ -83,6 +82,13 @@ RUN pip3 install -r requirements_py3.txt
 RUN mkdir -p /usr/local/dldir
 RUN wget -P /usr/local/dldir https://chromium.googlesource.com/chromiumos/platform/btsocket/+archive/refs/heads/main.tar.gz
 RUN tar -xvf /usr/local/dldir/main.tar.gz -C /usr/local/dldir && cd /usr/local/dldir && python3 setup.py build && python3 setup.py install
+
+# Install JDK 9 required for CTS.
+RUN mkdir -p /usr/local/jdk && \
+    gsutil cp gs://chromiumos-test-assets-public/cts/openjdk-9.0.4_linux-x64_bin.tar.gz /usr/local/jdk && \
+    tar -xvf /usr/local/jdk/openjdk-9.0.4_linux-x64_bin.tar.gz -C /usr/local/jdk && \
+    rm /usr/local/jdk/openjdk-9.0.4_linux-x64_bin.tar.gz
+ENV PATH="${PATH}:/usr/local/jdk/jdk-9.0.4/bin"
 
 # Cros-test binary is static across boards.
 COPY --chown=chromeos-test:chromeos-test cros-test /usr/bin/
