@@ -317,7 +317,7 @@ func uploadEmptyCL() {
 
 	runCmd(exec.Command("gerrit", "label-v", res[1], "1"), false)
 	runCmd(exec.Command("gerrit", "label-cq", res[1], "1"), false)
-	fmt.Printf("%sUploaded an empty CL: crrev.com/c/%s. Onto the merge...\n%s", colorGreen, res[1], colorReset)
+	fmt.Printf("%sUploaded an empty CL: crrev.com/c/%s\n%s", colorGreen, res[1], colorReset)
 }
 
 func main() {
@@ -325,8 +325,6 @@ func main() {
 	if _, err := os.Stat("/etc/cros_chroot_version"); errors.Is(err, os.ErrNotExist) {
 		logPanic("Please run inside chroot")
 	}
-
-	uploadEmptyCL()
 
 	file, err := ioutil.TempFile("/tmp", "uprev")
 	if err != nil {
@@ -336,9 +334,12 @@ func main() {
 	defer fmt.Println("\nUprev logs in ", file.Name())
 
 	if len(os.Args) < 2 {
-		logPanic("expected 'merge' or 'post-merge' subcommands")
+		logPanic("expected 'empty-cl', 'merge' or 'post-merge' subcommands")
 	}
 	switch os.Args[1] {
+	case "empty-cl":
+		uploadEmptyCL()
+
 	case "merge":
 		mergeSubCmd()
 
