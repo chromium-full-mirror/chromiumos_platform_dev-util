@@ -157,16 +157,7 @@ for carrier in [
         f"'cellular.SmokeIPConnectivity.{carrier}'",
         "'cellular.IsModemUp'",
     ]
-    hotspot_test_names = [
-        f"'network.HotspotUpdateConfiguration.{carrier}'",
-        f"'network.HotspotUpdateConfigurationWhenHotspotOn.{carrier}'",
-        f"'network.HotspotAutoDisable.{carrier}'",
-        f"'network.HotspotDisabledWhenNoUpstreamNetwork.{carrier}'",
-        f"'network.HotspotEnableDisableInLockScreen.{carrier}'",
-        f"'network.HotspotPolicy.{carrier}'",
-    ]
-    if carrier in ["tmobile", "docomo"]:
-        dut_check_test_names += hotspot_test_names
+
     tests = single_test_template.format(
         test_exprs=f"[{', '.join(dut_check_test_names)}]"
     )
@@ -285,6 +276,23 @@ for carrier in [
         "perf",
         tests,
     )
+
+    if carrier in ["tmobile", "docomo", "softbank"]:
+        hotspot_tests = [
+            f"'network.HotspotUpdateConfiguration.{carrier}'",
+            f"'network.HotspotUpdateConfigurationWhenHotspotOn.{carrier}'",
+            f"'network.HotspotAutoDisable.{carrier}'",
+            f"'network.HotspotDisabledWhenNoUpstreamNetwork.{carrier}'",
+            f"'network.HotspotEnableDisableInLockScreen.{carrier}'",
+            f"'network.HotspotPolicy.{carrier}'",
+            f"'network.HotspotAbortEnable.{carrier}'",
+        ]
+        tests = single_test_template.format(
+            test_exprs=f"[{', '.join(hotspot_tests)}]"
+        )
+        write_control_file(
+            out_dir, ["cellular_ota_flaky"], carrier, extra_dependencies, "hotspot", tests
+        )
 
     # limit carrier independent cq tests to tmobile to save lab time.
     if carrier == "tmobile":
