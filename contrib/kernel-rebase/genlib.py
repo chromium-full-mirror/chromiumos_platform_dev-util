@@ -22,6 +22,9 @@ import pickle
 from google.auth.transport.requests import (
     Request,  # pylint: disable=import-error, disable=no-name-in-module
 )
+from google.oauth2.service_account import (
+    Credentials,  # pylint: disable=import-error
+)
 from google_auth_oauthlib.flow import (
     InstalledAppFlow,  # pylint: disable=import-error
 )
@@ -37,6 +40,16 @@ def getsheet():
     """Get and return reference to spreadsheet"""
 
     creds = None
+
+    # The file credentials_service.json stores service account credentials
+    # and service account has precedence over user's account
+    if os.path.exists("credentials_service.json"):
+        creds = Credentials.from_service_account_file(
+            "credentials_service.json"
+        )
+        service = discovery.build("sheets", "v4", credentials=creds)
+        return service.spreadsheets()  # pylint: disable=no-member
+
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
