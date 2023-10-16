@@ -334,3 +334,31 @@ def sscope(name, sheetId, rows, start, end):
         start += 1
         s += [scope(name, sheetId, rows, start)]
     return s
+
+
+def share_sheet(fileId, users, emailMsg):
+    """Share spreadsheet with defined users/groups."""
+
+    # This funtion applies only when service account is being used for creation
+    # of a spreadsheet otherwise user has to manually share the generated
+    # spreadsheet with other users/groups
+    if not os.path.exists("credentials_service.json"):
+        return
+
+    creds = Credentials.from_service_account_file("credentials_service.json")
+    drive = discovery.build(
+        "drive", "v3", credentials=creds
+    )  # pylint: disable=no-member
+
+    perm = {}
+    for email, val in users.items():
+        perm["emailAddress"] = email
+        perm["type"] = val[0]
+        perm["role"] = val[1]
+
+        drive.permissions().create(  # pylint: disable=no-member
+            fileId=fileId,
+            body=perm,
+            transferOwnership=False,
+            emailMessage=emailMsg,
+        ).execute()
