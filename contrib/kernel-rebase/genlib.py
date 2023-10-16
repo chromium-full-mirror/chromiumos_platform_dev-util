@@ -87,7 +87,7 @@ def init_spreadsheet(filename, title):
         ssid = create_spreadsheet(sheet, title)
     else:
         try:
-            with open(filename, "r") as f:
+            with open(filename, "r", encoding="utf-8") as f:
                 ssid = f.read().strip("\n")
             request = sheet.get(
                 spreadsheetId=ssid, ranges=[], includeGridData=False
@@ -97,7 +97,7 @@ def init_spreadsheet(filename, title):
             delete_sheets((sheet, ssid), sheets)
         except IOError:
             ssid = create_spreadsheet(sheet, title)
-            with open(filename, "w") as f:
+            with open(filename, "w", encoding="utf-8") as f:
                 f.write(ssid)
 
     return (sheet, ssid)

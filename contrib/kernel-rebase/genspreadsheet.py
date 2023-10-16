@@ -93,7 +93,7 @@ def add_topics_summary(requests):
 
     c.execute("select topic, name from topics order by name")
     rowindex = 1
-    for (topic, name) in c.fetchall():
+    for topic, name in c.fetchall():
         # Insert 'other' topic last, and don't count it here.
         if name == "other":
             continue
@@ -103,7 +103,7 @@ def add_topics_summary(requests):
         )
         rows = 0
         effrows = 0
-        for (d, r) in c2.fetchall():
+        for d, r in c2.fetchall():
             # Skip entries associated with a topic if they are fully upstream
             # and are not being replaced.
             if d == "drop" and r == "upstream":
@@ -136,7 +136,7 @@ def add_topics_summary(requests):
     allrows = 0
     alleff = 0
     c2.execute("select disposition, reason from commits where topic != 0")
-    for (d, r) in c2.fetchall():
+    for d, r in c2.fetchall():
         if d == "drop" and r == "upstream":
             continue
         allrows += 1
@@ -258,7 +258,8 @@ def add_description(requests):
                             },
                             {
                                 "userEnteredValue": {
-                                    "stringValue": "some problems; problematic patches marked orange"
+                                    "stringValue": """some problems; problematic patches marked
+                                                    orange"""
                                 },
                             },
                         ]
@@ -315,7 +316,7 @@ def add_topics_sheets(requests):
     c.execute("select topic, name from topics order by name")
 
     index = 1
-    for (topic, name) in c.fetchall():
+    for topic, name in c.fetchall():
         # Insert 'other' topic at very end
         if name != "other":
             addsheet(requests, index, topic, name)
