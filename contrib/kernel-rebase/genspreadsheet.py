@@ -20,7 +20,6 @@ from __future__ import print_function
 
 import sqlite3
 
-from common import rebase_baseline
 from common import rebase_target_tag
 from common import rebase_target_version
 from common import rebasedb
@@ -499,7 +498,7 @@ def main():
 
     sheet = genlib.init_spreadsheet(
         rebase_filename,
-        "Rebase %s -> %s" % (rebase_baseline(), rebase_target_tag()),
+        "Rebase %s -> %s" % (rebase_baseline_branch, rebase_target_tag()),
     )
     get_other_topic_id()
 
