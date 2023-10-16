@@ -180,6 +180,29 @@ process_logs() {
     echo "${directory_path}"
 }
 
+min_time=
+max_time=
+total_time=0
+num_iterations=0
+report_times() {
+    elapsed_time="$1"
+
+    if [ -z "${min_time}" ] || [ "${elapsed_time}" -lt "${min_time}" ]; then
+        min_time="${elapsed_time}"
+    fi
+    if [ -z "${max_time}" ] || [ "${elapsed_time}" -gt "${max_time}" ]; then
+        max_time="${elapsed_time}"
+    fi
+
+    total_time=$((total_time + elapsed_time))
+    num_iterations=$((num_iterations + 1))
+    average_time=$((total_time / num_iterations))
+
+    echo "Minimum Time: ${min_time} seconds"
+    echo "Maximum Time: ${max_time} seconds"
+    echo "Average Time: ${average_time} seconds"
+}
+
 ## SCRIPT STARTS HERE ##
 
 parse_hostname_argument "$@"
@@ -226,27 +249,51 @@ for ((i = 0; i < 1000; i++)); do
   fi
 
   sleep "${soc_suspend_time_s}"
-  echo "Waking up after ${soc_suspend_time_s} seconds. gonna wait for ${wait_until_on_s} seconds to take a photo."
-  echo "Waiting ${wait_until_on_s}s to ensure screen is on."
-  sleep "${wait_until_on_s}"
 
-  screens_check=$(capture_and_check_2_screens)
-  average_brightness=$(echo "${screens_check}" | sed -n '2p')
-  echo "Screen Average Brightness: ${average_brightness}"
-  are_screens_on=$(echo "${screens_check}" | sed -n '1p')
-  image_filename1=$(echo "${screens_check}" | sed -n '3p')
-  image_filename2=$(echo "${screens_check}" | sed -n '4p')
-  if [ "${are_screens_on}" = true ]; then
-    echo -e "${GREEN}Screen is on. Deleting image and continuing.${NC}"
+  start_time=$(date +%s)
+  end_time=$((start_time + wait_until_on_s))
+  while true; do
+    current_time=$(date +%s)
+    elapsed_time=$((current_time - start_time))
+
+    # Check the screen status
+    screens_check=$(capture_and_check_2_screens)
+    are_screens_on=$(echo "${screens_check}" | sed -n '1p')
+    average_brightness=$(echo "${screens_check}" | sed -n '2p')
+    echo "Screens Average Brightness: ${average_brightness}"
+    image_filename1=$(echo "${screens_check}" | sed -n '3p')
+    image_filename2=$(echo "${screens_check}" | sed -n '4p')
+
+    if [ "${are_screens_on}" = true ]; then
+        echo -e "${GREEN}Screen turned on after ${elapsed_time} seconds.${NC}"
+        rm "${image_filename1}"
+        rm "${image_filename1}_gray.jpg"
+        rm "${image_filename2}"
+        rm "${image_filename2}_gray.jpg"
+        break  # Screen is on, exit the loop
+    fi
+
+    # Check if the specified time has elapsed
+    if [ "${current_time}" -ge "${end_time}" ]; then
+        echo "Screen did not turn on within the specified time."
+        break  # Specified time elapsed, exit the loop
+    fi
+
+    # If the screen is off and the specified time has not elapsed, delete the images we saved and try again.
     rm "${image_filename1}"
     rm "${image_filename1}_gray.jpg"
     rm "${image_filename2}"
     rm "${image_filename2}_gray.jpg"
+  done
+
+  if [ "${are_screens_on}" = true ]; then
+    # Only report times if the screen turned on.
+    report_times "${elapsed_time}"
     continue
   fi
 
   # If we get here, the screen is off. Generate logs and report.
-  echo -e "${RED}Screen is off. Generating logs and reporting.${NC}"
+  echo -e "${RED}Screen did not turn on for ${wait_until_on_s}s. Generating logs..${NC}"
   output=$(run_command_on_remote "generate_logs")
   echo "out: ${output}"
   logs_dir=$(process_logs "${output}")
