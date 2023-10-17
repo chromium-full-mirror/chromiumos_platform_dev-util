@@ -5,7 +5,6 @@
 
 """Entry point for cros-test cloudbuild."""
 
-
 import argparse
 import os
 import pathlib
@@ -89,6 +88,7 @@ REGISTERED_BUILDS = {
     "cros-pvs": {"prepper": CrosPvsDockerPrepper, "cloud": True},
     "pre-process": {"prepper": PreProcessDockerPrepper, "cloud": False},
     "vm-provision": {"prepper": CommonServiceDockerPrepper, "cloud": False},
+    "cros-hpt": {"prepper": CommonServiceDockerPrepper, "cloud": False},
 }
 
 # There is a ~1 in 10000 err with the fetching of the base container
@@ -97,7 +97,9 @@ REGISTERED_BUILDS = {
 BUILD_RETRIES = 1
 RETRIES_WAIT = 31
 # callbox is not used (and a bit heavy) so do not build until its needed.
-DO_NOT_BUILD = set(["cros-callbox", "cros-servod", "cros-fw-provision"])
+DO_NOT_BUILD = set(
+    ["cros-callbox", "cros-servod", "cros-fw-provision", "cros-hpt"]
+)
 # NOTE: when promoting a service from DO_NOT_BUILD, it should be added to
 # NON_CRITICAL for atleast a short time to verify health.
 NON_CRITICAL = set(
@@ -270,7 +272,7 @@ def build_container(b: DockerBuilder, args: argparse.Namespace):
             # Upload if requested, or an output file is given.
             if args.skip_upload and args.output:
                 # create a metadata file but don't upload
-                b.write_outfile()    
+                b.write_outfile()
             elif args.upload or args.output:
                 b.upload_image()
             return
