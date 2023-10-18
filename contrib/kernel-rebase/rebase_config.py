@@ -11,7 +11,7 @@
 import hooks  # pylint: disable=unused-import
 
 
-verify_board = "volteer"
+verify_board = "brya-kernelnext"
 verify_package = "chromeos-kernel-upstream"
 rebase_repo = "kernel-upstream"
 baseline_repo = "baseline/kernel-upstream/"
