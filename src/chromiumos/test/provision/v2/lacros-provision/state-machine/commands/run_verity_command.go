@@ -29,12 +29,12 @@ func NewRunVerityCommand(ctx context.Context, cs *service.LaCrOSService) *RunVer
 func (c *RunVerityCommand) Execute(log *log.Logger) error {
 	// Generate the verity (hashtree and table) from Lacros image.
 	if _, err := c.cs.Connection.RunCmd(c.ctx, "verity", []string{
-		"--mode=create",
-		"--alg=sha256",
-		fmt.Sprintf("--payload=%s", c.cs.GetLocalImagePath()),
-		fmt.Sprintf("--payload_blocks=%d", c.cs.Blocks),
-		fmt.Sprintf("--hashtree=%s", c.cs.GetHashTreePath()),
-		"--salt=random",
+		"mode=create",
+		"alg=sha256",
+		fmt.Sprintf("payload=%s", c.cs.GetLocalImagePath()),
+		fmt.Sprintf("payload_blocks=%d", c.cs.Blocks),
+		fmt.Sprintf("hashtree=%s", c.cs.GetHashTreePath()),
+		"salt=random",
 		">",
 		c.cs.GetTablePath(),
 	}); err != nil {

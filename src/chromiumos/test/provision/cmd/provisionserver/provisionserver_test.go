@@ -476,7 +476,7 @@ func TestLaCrOSInstallStateTransitions(t *testing.T) {
 		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("stat"), gomock.Eq([]string{"-c%s", "/var/lib/imageloader/lacros/v1/image.squash"})).Return(" 100 ", nil),
 		// Ensure dd runs if value isn't multiple of 4096:
 		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("dd"), gomock.Eq([]string{"if=/dev/zero", "bs=1", "count=3996", "seek=100", "of=/var/lib/imageloader/lacros/v1/image.squash"})).Return("", nil),
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("verity"), gomock.Eq([]string{"--mode=create", "--alg=sha256", "--payload=/var/lib/imageloader/lacros/v1/image.squash", "--payload_blocks=1", "--hashtree=/var/lib/imageloader/lacros/v1/hashtree", "--salt=random", ">", "/var/lib/imageloader/lacros/v1/table"})).Return("", nil),
+		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("verity"), gomock.Eq([]string{"mode=create", "alg=sha256", "payload=/var/lib/imageloader/lacros/v1/image.squash", "payload_blocks=1", "hashtree=/var/lib/imageloader/lacros/v1/hashtree", "salt=random", ">", "/var/lib/imageloader/lacros/v1/table"})).Return("", nil),
 		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("cat"), gomock.Eq([]string{"/var/lib/imageloader/lacros/v1/hashtree", ">>", "/var/lib/imageloader/lacros/v1/image.squash"})).Return("", nil),
 	)
 
@@ -578,7 +578,7 @@ func TestLacrosAlignedDoesNotExtendAlignment(t *testing.T) {
 		sam.EXPECT().CopyData(gomock.Any(), gomock.Eq("path/to/image/lacros_compressed.squash"), gomock.Eq("/var/lib/imageloader/lacros/v1/image.squash")).Return(nil),
 		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("stat"), gomock.Eq([]string{"-c%s", "/var/lib/imageloader/lacros/v1/image.squash"})).Return(" 4096 ", nil),
 		// Ensure dd doesn't run if value is multiple of 4096:
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("verity"), gomock.Eq([]string{"--mode=create", "--alg=sha256", "--payload=/var/lib/imageloader/lacros/v1/image.squash", "--payload_blocks=1", "--hashtree=/var/lib/imageloader/lacros/v1/hashtree", "--salt=random", ">", "/var/lib/imageloader/lacros/v1/table"})).Return("", nil),
+		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("verity"), gomock.Eq([]string{"mode=create", "alg=sha256", "payload=/var/lib/imageloader/lacros/v1/image.squash", "payload_blocks=1", "hashtree=/var/lib/imageloader/lacros/v1/hashtree", "salt=random", ">", "/var/lib/imageloader/lacros/v1/table"})).Return("", nil),
 		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("cat"), gomock.Eq([]string{"/var/lib/imageloader/lacros/v1/hashtree", ">>", "/var/lib/imageloader/lacros/v1/image.squash"})).Return("", nil),
 	)
 

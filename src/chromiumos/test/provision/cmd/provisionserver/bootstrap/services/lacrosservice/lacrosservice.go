@@ -197,12 +197,12 @@ func (l *LaCrOSService) CopyImageToDUT(ctx context.Context) error {
 func (l *LaCrOSService) RunVerity(ctx context.Context, payloadBlocks int) error {
 	// Generate the verity (hashtree and table) from Lacros image.
 	if _, err := l.connection.RunCmd(ctx, "verity", []string{
-		"--mode=create",
-		"--alg=sha256",
-		fmt.Sprintf("--payload=%s", l.GetLocalImagePath()),
-		fmt.Sprintf("--payload_blocks=%d", payloadBlocks),
-		fmt.Sprintf("--hashtree=%s", l.GetHashTreePath()),
-		"--salt=random",
+		"mode=create",
+		"alg=sha256",
+		fmt.Sprintf("payload=%s", l.GetLocalImagePath()),
+		fmt.Sprintf("payload_blocks=%d", payloadBlocks),
+		fmt.Sprintf("hashtree=%s", l.GetHashTreePath()),
+		"salt=random",
 		">",
 		l.GetTablePath(),
 	}); err != nil {
