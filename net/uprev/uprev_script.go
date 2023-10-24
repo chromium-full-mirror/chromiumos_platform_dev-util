@@ -486,11 +486,11 @@ func postMergeSubCmd() {
 	rootDir := filepath.Join(checkoutDir, "src/third_party")
 	cqDepend := ""
 
-	libqrtrCl := postMerge(rootDir, "libqrtr-glib", "upstream/main", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
-	libqmiCl := postMerge(rootDir, "libqmi", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
-	libmbimCl := postMerge(rootDir, "libmbim", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
+	libqrtrCL := postMerge(rootDir, "libqrtr-glib", "upstream/main", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
+	libqmiCL := postMerge(rootDir, "libqmi", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
+	libmbimCL := postMerge(rootDir, "libmbim", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
 
-	cqDepend = libqrtrCl + libqmiCl + libmbimCl
+	cqDepend = libqrtrCL + libqmiCL + libmbimCL
 	cqDepend = strings.ReplaceAll(strings.TrimSpace(cqDepend), " ", ",")
 	postMerge(rootDir, "modemmanager-next", "upstream", cqDepend, *uploadFlag, *cqP1Flag, *prettyMsgFlag, *bugFlag)
 }
