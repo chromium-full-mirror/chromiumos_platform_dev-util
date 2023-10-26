@@ -6,6 +6,7 @@
 package tasks
 
 import (
+	"bufio"
 	"chromiumos/test/local-cft/internal/services"
 	"chromiumos/test/local-cft/internal/utils"
 	"context"
@@ -42,6 +43,7 @@ type localCftCmd struct {
 	test          bool
 	testFind      bool
 	// publish   bool
+	stayAlive bool
 
 	errorLogger *log.Logger
 }
@@ -74,6 +76,7 @@ func LocalCft() int {
 	localCft.flagSet.BoolVar(&localCft.test, "test", false, "Run cros-test-finder and cros-test")
 	localCft.flagSet.BoolVar(&localCft.testFind, "findtest", false, "Run cros-test-finder")
 	// localCft.flagSet.BoolVar(&localCft.publish, "publish", false, "Run cros-publish")
+	localCft.flagSet.BoolVar(&localCft.stayAlive, "stayalive", false, "Keep the containers alive until user input")
 
 	return localCft.Run()
 }
@@ -116,6 +119,10 @@ func (c *localCftCmd) Run() int {
 
 	servicesToRun := c.compileServicesToRun(manager)
 	defer func() {
+		if c.stayAlive {
+			log.Println("Press 'Enter' to close...")
+			bufio.NewReader(os.Stdin).ReadBytes('\n')
+		}
 		if err := manager.Stop(); err != nil {
 			c.errorLogger.Println(err)
 		}
