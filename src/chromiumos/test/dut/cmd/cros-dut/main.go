@@ -64,7 +64,7 @@ func main() {
 		port := flag.Int("port", 0, "the port used to start service. default not specified")
 		flag.Parse()
 
-		if os.Args[1] == "version" {
+		if len(os.Args) > 1 && os.Args[1] == "version" {
 			fmt.Println("dutservice version ", Version)
 			return 0
 		}

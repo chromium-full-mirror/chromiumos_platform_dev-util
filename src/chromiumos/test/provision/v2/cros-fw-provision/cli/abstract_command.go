@@ -56,7 +56,10 @@ func ParseInputs() (AbstractCommand, error) {
 		NewCLICommand(),
 	}
 
-	subcommand := os.Args[1]
+	subcommand := ""
+	if len(os.Args) > 1 {
+		subcommand = os.Args[1]
+	}
 	options := []string{}
 
 	for _, cmd := range cmds {
