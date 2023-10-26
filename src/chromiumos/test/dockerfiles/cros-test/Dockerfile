@@ -39,7 +39,8 @@ RUN sudo rm /usr/bin/python3*; exit 0
 RUN sudo ln -s /usr/local/bin/python3 /usr/bin/python3
 
 # Config the user
-RUN useradd -m chromeos-test
+# dialout added for b/273797484
+RUN useradd -m chromeos-test -G dialout
 # Add passwordless sudo for chromeos-test.
 # TODO, Try to remove SUDO from containers
 RUN echo 'chromeos-test ALL=NOPASSWD:ALL' > /etc/sudoers.d/chromeos-test
