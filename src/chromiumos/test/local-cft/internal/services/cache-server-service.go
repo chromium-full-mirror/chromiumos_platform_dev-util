@@ -72,12 +72,8 @@ func (starter *SetupCacheServer) Setup() error {
 		return err
 	}
 	request := &api.StartContainerRequest{
-		Name: starter.cs.Name,
-		ContainerImage: fmt.Sprintf(
-			"us-docker.pkg.dev/cros-registry/test-services/%s:%s",
-			SERVICES().CrosTest,
-			SERVICES().CacheServer,
-		),
+		Name:           starter.cs.Name,
+		ContainerImage: "us-docker.pkg.dev/cros-registry/test-services/cacheserver:prod",
 		AdditionalOptions: &api.StartContainerRequest_Options{
 			Expose: []string{fmt.Sprint(starter.cs.Port)},
 			Volume: []string{
