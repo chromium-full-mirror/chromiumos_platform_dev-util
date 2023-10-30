@@ -76,6 +76,7 @@ type Options struct {
 	VersionString string `json:",omitempty"` // version string such as R105-14989.0.0
 	MilestoneNum  int    `json:",omitempty"` // release number such as 105
 	Board         string `json:",omitempty"` // build target name such as brya
+	Snapshot      bool   `json:",omitempty"` // flash a snapshot build
 	Postsubmit    bool   `json:",omitempty"` // flash a postsubmit build
 	Port          string `json:",omitempty"` // port number to connect to on the dut-host
 	DryRun        bool   `json:",omitempty"` // print what is going to be flashed but do not actually flash

@@ -241,66 +241,66 @@ func GetLatestVersion(ctx context.Context, c *storage.Client, board string) (str
 	return getLatestVersionForLATEST(ctx, c, board, "LATEST-main", false)
 }
 
-type postsubmitID struct {
+type snapshotID struct {
 	milestone   int
 	build       int
 	snapshot    int
 	buildbucket *big.Int
 }
 
-var postsubmitIDRegexp = regexp.MustCompile(`^R(\d+)-(\d+).0.0-(\d+)-(\d+)$`)
+var snapshotIDRegexp = regexp.MustCompile(`^R(\d+)-(\d+).0.0-(\d+)-(\d+)$`)
 
-func parsePostsubmitID(s string) (postsubmitID, error) {
-	m := postsubmitIDRegexp.FindStringSubmatch(s)
+func parseSnapshotID(s string) (snapshotID, error) {
+	m := snapshotIDRegexp.FindStringSubmatch(s)
 	if m == nil {
-		return postsubmitID{}, errors.New("bad format")
+		return snapshotID{}, errors.New("bad format")
 	}
-	var id postsubmitID
+	var id snapshotID
 	var err error
 	if id.milestone, err = strconv.Atoi(m[1]); err != nil {
-		return postsubmitID{}, fmt.Errorf("bad milestone %q", m[1])
+		return snapshotID{}, fmt.Errorf("bad milestone %q", m[1])
 	}
 	if id.build, err = strconv.Atoi(m[2]); err != nil {
-		return postsubmitID{}, fmt.Errorf("bad build %q", m[2])
+		return snapshotID{}, fmt.Errorf("bad build %q", m[2])
 	}
 	if id.snapshot, err = strconv.Atoi(m[3]); err != nil {
-		return postsubmitID{}, fmt.Errorf("bad snapshot %q", m[3])
+		return snapshotID{}, fmt.Errorf("bad snapshot %q", m[3])
 	}
 	if val, ok := new(big.Int).SetString(m[4], 10); !ok {
-		return postsubmitID{}, fmt.Errorf("bad buildbucket %q", m[4])
+		return snapshotID{}, fmt.Errorf("bad buildbucket %q", m[4])
 	} else {
 		id.buildbucket = val
 	}
 	return id, nil
 }
 
-func (a postsubmitID) less(b postsubmitID) bool {
-	if a.milestone != b.milestone {
-		return a.milestone < b.milestone
+func (sid snapshotID) less(b snapshotID) bool {
+	if sid.milestone != b.milestone {
+		return sid.milestone < b.milestone
 	}
-	if a.build != b.build {
-		return a.build < b.build
+	if sid.build != b.build {
+		return sid.build < b.build
 	}
-	if a.snapshot != b.snapshot {
-		return a.snapshot < b.snapshot
+	if sid.snapshot != b.snapshot {
+		return sid.snapshot < b.snapshot
 	}
-	return a.buildbucket.Cmp(b.buildbucket) == -1
+	return sid.buildbucket.Cmp(b.buildbucket) == -1
 }
 
-func (pid postsubmitID) String() string {
-	return fmt.Sprintf("R%d-%d.0.0-%d-%s", pid.milestone, pid.build, pid.snapshot, pid.buildbucket)
+func (sid snapshotID) String() string {
+	return fmt.Sprintf("R%d-%d.0.0-%d-%s", sid.milestone, sid.build, sid.snapshot, sid.buildbucket)
 }
 
-// Given a version hint, try to find a postsubmit build.
-// For postsubmit images, see also:
+// Given a version hint, try to find a snapshot build.
+// For snapshot/postsubmit images, see also:
 // https://docs.google.com/presentation/d/1IynhrQMDtH3dAjXJD3Aheb4ZTYveVwBAEPgf6TgKzUs/edit?resourcekey=0-epY9CwLiU9zLv4E3dDs0FA#slide=id.g150f95639fd_0_70
-func findPostsubmitAroundVersion(ctx context.Context, c *storage.Client, board string, versionOrPrefix string) (targetBucket string, targetDirectory string, err error) {
+func findSnapshotAroundVersion(ctx context.Context, c *storage.Client, snapshotOrPostsubmit, board, versionOrPrefix string) (targetBucket string, targetDirectory string, err error) {
 	var tryVersions []string
 	if v, err := parseVersion(versionOrPrefix); err != nil {
-		log.Println("Looking for postsubmit builds with prefix", versionOrPrefix)
+		log.Printf("Looking for %s builds with prefix %s", snapshotOrPostsubmit, versionOrPrefix)
 		tryVersions = []string{versionOrPrefix}
 	} else {
-		log.Println("Looking for postsubmit builds around", v)
+		log.Printf("Looking for %s builds around %s", snapshotOrPostsubmit, v)
 		tryVersions = []string{
 			version{v.r, v.x, 0, 0}.String(),
 			// Also try one release build before.
@@ -308,30 +308,32 @@ func findPostsubmitAroundVersion(ctx context.Context, c *storage.Client, board s
 		}
 	}
 
+	buildDirectory := fmt.Sprintf("%s-%s", board, snapshotOrPostsubmit)
+
 	for _, v := range tryVersions {
 		q := &storage.Query{
 			Delimiter: "/",
-			Prefix:    fmt.Sprintf("%s-postsubmit/%s", board, v),
+			Prefix:    fmt.Sprintf("%s/%s", buildDirectory, v),
 		}
 		objects, err := queryPrefix(ctx, c, q)
 		if err != nil {
 			return "", "", fmt.Errorf("cannot get snapshots available for %s: %w", v, err)
 		}
-		var postsubmits []postsubmitID
+		var snapshots []snapshotID
 		for _, obj := range objects {
 			basename := path.Base(obj.Prefix)
-			pid, err := parsePostsubmitID(basename)
+			pid, err := parseSnapshotID(basename)
 			if err != nil {
-				return "", "", fmt.Errorf("cannot parse %q as postsubmit ID: %w", basename, err)
+				return "", "", fmt.Errorf("cannot parse %q as snapshot ID: %w", basename, err)
 			}
-			postsubmits = append(postsubmits, pid)
+			snapshots = append(snapshots, pid)
 		}
-		slices.SortFunc(postsubmits, func(a, b postsubmitID) bool { return b.less(a) })
-		for _, pid := range postsubmits {
+		slices.SortFunc(snapshots, func(a, b snapshotID) bool { return b.less(a) })
+		for _, pid := range snapshots {
 			// Verify that the flash payload actually exist.
 			req := dut.Request{
 				Bucket:    "chromeos-image-archive",
-				Directory: fmt.Sprintf("%s-postsubmit/%s", board, pid),
+				Directory: fmt.Sprintf("%s/%s", buildDirectory, pid),
 			}
 			if err := req.Check(ctx, c); err != nil {
 				log.Printf("%s not valid: %s", pid, err)
@@ -340,7 +342,7 @@ func findPostsubmitAroundVersion(ctx context.Context, c *storage.Client, board s
 			return req.Bucket, req.Directory, nil
 		}
 	}
-	return "", "", errors.New("no valid postsubmit build found")
+	return "", "", fmt.Errorf("no valid %s build found", snapshotOrPostsubmit)
 }
 
 func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *Options) (targetBucket string, targetDirectory string, err error) {
@@ -354,11 +356,9 @@ func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *
 
 	var gsVersion string
 	if opts.VersionString != "" {
-		if opts.Postsubmit {
-			// Don't resolve the version and let findPostsubmitAroundVersion() handle it.
+		if opts.Postsubmit || opts.Snapshot {
+			// Don't resolve the version and let findSnapshotAroundVersion() handle it.
 			gsVersion = opts.VersionString
-		} else {
-			gsVersion, err = GetLatestVersionWithPrefix(ctx, c, board, opts.VersionString)
 		}
 	} else if opts.MilestoneNum != 0 {
 		gsVersion, err = GetLatestVersionForMilestone(ctx, c, board, opts.MilestoneNum)
@@ -369,8 +369,10 @@ func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *
 		return "", "", err
 	}
 
-	if opts.Postsubmit {
-		return findPostsubmitAroundVersion(ctx, c, board, gsVersion)
+	if opts.Snapshot {
+		return findSnapshotAroundVersion(ctx, c, "snapshot", board, gsVersion)
+	} else if opts.Postsubmit {
+		return findSnapshotAroundVersion(ctx, c, "postsubmit", board, gsVersion)
 	}
 
 	return "chromeos-image-archive", fmt.Sprintf("%s-release/%s", board, gsVersion), err

@@ -29,6 +29,7 @@ func cliParse(args []string) (target string, opts Options, err error) {
 	app.Flag("board",
 		"flash from gs://chromeos-image-archive/${board}-release/R*. Use with caution!").
 		StringVar(&opts.Board)
+	app.Flag("snapshot", "flash a snapshot build").BoolVar(&opts.Snapshot)
 	app.Flag("postsubmit", "flash a postsubmit build").BoolVar(&opts.Postsubmit)
 	app.Flag("port", "port number to connect to on the dut-host").Short('p').StringVar(&opts.Port)
 	app.Flag("dry-run", "print the target image version but do not actually flash it").BoolVar(&opts.DryRun)

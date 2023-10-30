@@ -44,6 +44,9 @@ fflash ${dut_host} -R104-14911.0.0  # flash 104-14911.0.0
 fflash ${dut_host} --board=cherry64 -R104  # flash latest R104 for board cherry64
 fflash ${dut_host} --gs=gs://chromeos-image-archive/cherry-release/R104-14911.0.0  # flash specified gs:// directory
 fflash ${dut_host} --gs=gs://chromeos-image-archive/volteer-cq/R118-15584.0.0-86601-8772438681633523617  # From CQ+1
+fflash ${dut_host} --snapshot  # flash a recent snapshot build
+fflash ${dut_host} --snapshot -R119  # flash a R119 snapshot build
+fflash ${dut_host} --snapshot -R119-15634.0.0-88565-  # flash the snapshot 88565
 fflash ${dut_host} --postsubmit  # flash a recent postsubmit build
 fflash ${dut_host} --postsubmit -R115  # flash a R115 postsubmit build
 fflash ${dut_host} --postsubmit -R115-15474.0.0-82578-  # flash the snapshot 82578
