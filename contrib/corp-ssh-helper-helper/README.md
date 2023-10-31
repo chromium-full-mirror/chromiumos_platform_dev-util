@@ -28,7 +28,9 @@ To do this, run the following command **inside** the chroot.
 
 If you are lucky, you don't have to do anything, as `cros_sdk` copies ~/.ssh/config outside the chroot when entering the chroot, and your config file may contain the required ProxyCommand setup. Otherwise, you need to create ~/.ssh/config inside the chroot, and the following is to use the helper for $DUT (replace $DUT with an IP address or a host name).
 
-To ensure that this config is persistant every time you enter the chroot, be sure to add this in the ssh-config OUTSIDE the chroot, then re-enter the chroot to confirm that the ssh config in your chroot updated properly.
+You may also need to copy your `testing_rsa` or `partner_testing_rsa` keys from outside of the chroot to inside of the chroot, in the ~/.ssh directory. More information on these keys is available at http://go/chromeos-lab-duts-ssh#setup-private-key-and-ssh-config.
+
+To ensure that this config is persistent every time you enter the chroot, be sure to add this in the ssh-config OUTSIDE the chroot, then re-enter the chroot to confirm that the ssh config in your chroot updated properly.
 ```
 Host $DUT
   ProxyCommand corp-ssh-helper %h %p
