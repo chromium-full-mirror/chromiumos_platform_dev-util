@@ -34,8 +34,7 @@ type CrosTestService struct {
 }
 
 func (c *CrosTestService) Start() error {
-	c.Port = 8001 //utils.GetFreePort()
-	c.manager.ports[c.Name] = c.Port
+	c.EnsurePort()
 
 	c.LocalLogger.Printf("Starting %s on port %d", c.Name, c.Port)
 

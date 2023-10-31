@@ -46,7 +46,7 @@ func NewMockLocalCFTManager() *services.LocalCFTManager {
 	return services.NewLocalCFTManager(
 		context.Background(),
 		"fakeboard", "fakemodel", "fakebuild", "fakedut", "/tmp", "",
-		[]string{}, []string{}, []string{}, []string{},
+		[]string{}, []string{}, []string{}, []string{}, nil,
 	)
 }
 

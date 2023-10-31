@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/maruel/subcommands"
@@ -43,6 +44,7 @@ type localCftCmd struct {
 	test          bool
 	testFind      bool
 	// publish   bool
+	ports     map[string]uint16
 	stayAlive bool
 
 	errorLogger *log.Logger
@@ -76,6 +78,23 @@ func LocalCft() int {
 	localCft.flagSet.BoolVar(&localCft.test, "test", false, "Run cros-test-finder and cros-test")
 	localCft.flagSet.BoolVar(&localCft.testFind, "findtest", false, "Run cros-test-finder")
 	// localCft.flagSet.BoolVar(&localCft.publish, "publish", false, "Run cros-publish")
+	localCft.flagSet.Func("port", "set port for a service. Example -port cros-dut=8080", func(servicePort string) error {
+		parts := strings.SplitN(servicePort, "=", 2)
+		if len(parts) == 2 {
+			port, err := strconv.ParseUint(parts[1], 10, 16)
+			if err != nil {
+				return err
+			}
+			if port > 0 && parts[0] != "" {
+				if localCft.ports == nil {
+					localCft.ports = make(map[string]uint16)
+				}
+				localCft.ports[parts[0]] = uint16(port)
+				return nil
+			}
+		}
+		return fmt.Errorf("use service-name=12345")
+	})
 	localCft.flagSet.BoolVar(&localCft.stayAlive, "stayalive", false, "Keep the containers alive until user input")
 
 	return localCft.Run()
@@ -114,7 +133,7 @@ func (c *localCftCmd) Run() int {
 		ctx,
 		c.board, c.model, c.build, c.dutHost, c.baseDir, c.chroot,
 		parsedTests, parsedTags, parsedExcludedTags,
-		parsedLocalServices,
+		parsedLocalServices, c.ports,
 	)
 
 	servicesToRun := c.compileServicesToRun(manager)

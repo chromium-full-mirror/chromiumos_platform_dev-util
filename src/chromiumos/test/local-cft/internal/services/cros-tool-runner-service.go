@@ -6,7 +6,6 @@
 package services
 
 import (
-	"chromiumos/test/local-cft/internal/utils"
 	"fmt"
 	"os"
 	"os/exec"
@@ -48,8 +47,7 @@ type CTRService struct {
 }
 
 func (c *CTRService) Start() error {
-	c.Port = utils.GetFreePort()
-	c.manager.ports[c.Name] = c.Port
+	c.EnsurePort()
 
 	c.LocalLogger.Printf("Starting %s on port %d", c.Name, c.Port)
 

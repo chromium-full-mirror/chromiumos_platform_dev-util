@@ -29,8 +29,7 @@ type CrosDutService struct {
 }
 
 func (c *CrosDutService) Start() error {
-	c.Port = utils.GetFreePort()
-	c.manager.ports[c.Name] = c.Port
+	c.EnsurePort()
 
 	c.LocalLogger.Printf("Starting %s on port %d", c.Name, c.Port)
 

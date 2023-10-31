@@ -28,8 +28,7 @@ type CacheServerService struct {
 }
 
 func (c *CacheServerService) Start() error {
-	c.Port = utils.GetFreePort()
-	c.manager.ports[c.Name] = c.Port
+	c.EnsurePort()
 
 	c.LocalLogger.Printf("Starting %s on port %d", c.Name, c.Port)
 

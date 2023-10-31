@@ -7,6 +7,7 @@ package services
 
 import (
 	"bytes"
+	"chromiumos/test/local-cft/internal/utils"
 	"fmt"
 	"io"
 	"log"
@@ -65,6 +66,24 @@ type ServiceBase struct {
 	loggerBuf     *bytes.Buffer
 
 	conn *grpc.ClientConn
+}
+
+// EnsurePort sets the Port member, if it is not already set.
+// The port is first selected from the manager port list if possible, then any free port is assigned otherwise.
+func (sb *ServiceBase) EnsurePort() {
+	if sb.Port > 0 {
+		return
+	}
+	port, ok := sb.manager.ports[sb.Name]
+	if ok {
+		sb.Port = port
+		return
+	}
+	sb.Port = utils.GetFreePort()
+	if sb.manager.ports == nil {
+		sb.manager.ports = make(map[string]uint16)
+	}
+	sb.manager.ports[sb.Name] = sb.Port
 }
 
 type ServiceResult_ = string

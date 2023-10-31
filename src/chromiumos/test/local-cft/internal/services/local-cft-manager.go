@@ -9,6 +9,8 @@ import (
 	"context"
 	"fmt"
 
+	"golang.org/x/exp/maps"
+
 	buildapi "go.chromium.org/chromiumos/config/go/build/api"
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -73,6 +75,7 @@ func NewLocalCFTManager(
 	ctx context.Context,
 	board, model, build, dutHost, baseDir, chroot string,
 	tests, tags, tagsExclude, localServices []string,
+	ports map[string]uint16,
 ) *LocalCFTManager {
 	localServicesMap := map[string]struct{}{}
 	for _, service := range localServices {
@@ -84,7 +87,7 @@ func NewLocalCFTManager(
 		services:        make(map[string]Service),
 		servicesStarted: []string{},
 		servicesResults: map[string]string{},
-		ports:           make(map[string]uint16),
+		ports:           maps.Clone(ports),
 		images:          make(map[string]*buildapi.ContainerImageInfo),
 		Board:           board,
 		Model:           model,
