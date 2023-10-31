@@ -41,13 +41,13 @@ func UpdateContainerService(logger *log.Logger, chroot, imageBase, service strin
 // updateBinary emerges the local changes into a binary
 func updateBinary(logger *log.Logger, service string) error {
 	workon := exec.Command("cros_sdk", "cros-workon", "--host", "start", service)
-	if err := workon.Run(); err != nil {
-		return fmt.Errorf("Workon failed, %s", err)
+	if out, err := workon.CombinedOutput(); err != nil {
+		return fmt.Errorf("Workon failed, %s: %s", err, string(out))
 	}
 
 	emerge := exec.Command("cros_sdk", "sudo", "emerge", service)
-	if err := emerge.Run(); err != nil {
-		return fmt.Errorf("Emerge failed. %s", err)
+	if out, err := emerge.CombinedOutput(); err != nil {
+		return fmt.Errorf("Emerge failed. %s: %s", err, string(out))
 	}
 	return nil
 }
@@ -104,7 +104,7 @@ func updateImage(logger *log.Logger, image string, targets []*containerTarget, s
 func copyIntoDocker(logger *log.Logger, target *containerTarget, tempName string) error {
 	args := []string{"cp", target.Src, fmt.Sprintf("%s:%s", tempName, target.Dst)}
 	cp := exec.Command("docker", args...)
-	if out, err := cp.Output(); err != nil {
+	if out, err := cp.CombinedOutput(); err != nil {
 		logger.Println(fmt.Errorf("docker cp failed, retrying, %s, %s", err, string(out)))
 		cp = exec.Command("docker", args...)
 		if out2, err := cp.Output(); err != nil {

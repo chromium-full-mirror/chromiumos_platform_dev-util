@@ -111,7 +111,6 @@ func (s ServiceAdapter) execCmd(ctx context.Context, cmd string, args []string, 
 		ch <- execCmdResult{response: "", err: fmt.Errorf("execution single stream result: %w", err)}
 		return
 	}
-	log.Printf("Run cmd response: %s\n", execCmdResponse)
 	if execCmdResponse.ExitInfo.Status != 0 {
 		err = fmt.Errorf("status:%v message:%v", execCmdResponse.ExitInfo.Status, execCmdResponse.ExitInfo.ErrorMessage)
 	}
