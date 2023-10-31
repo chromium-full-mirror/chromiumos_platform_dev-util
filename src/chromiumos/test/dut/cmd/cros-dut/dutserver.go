@@ -381,6 +381,10 @@ func (s *DutServiceServer) runCmdOutputWithRetry(cmd string, retry *api.CacheReq
 		if err == nil {
 			return
 		}
+		if retryCount > 0 {
+			s.logger.Printf("Command failed, retrying %q: %v", cmd, err)
+			s.logger.Printf("stdout: %s, stderr: %s", stdout, stderr)
+		}
 		time.Sleep(retryInterval)
 	}
 	return
