@@ -199,6 +199,18 @@ func (starter *SetupCTR) fetchCrosToolRunner() (string, error) {
 }
 
 func (starter *SetupCTR) fetchImageData() error {
+	if strings.HasPrefix(starter.ctr.manager.Build, "LATEST") {
+		latest := exec.Command("gsutil", "cat", fmt.Sprintf("gs://chromeos-image-archive/%s-release/%s",
+			starter.ctr.manager.Board,
+			starter.ctr.manager.Build,
+		))
+
+		latestOut, err := latest.Output()
+		if err != nil {
+			return err
+		}
+		starter.ctr.manager.Build = string(latestOut)
+	}
 	template := fmt.Sprintf(
 		IMAGE_DATA_TEMPLATE,
 		starter.ctr.manager.Board,

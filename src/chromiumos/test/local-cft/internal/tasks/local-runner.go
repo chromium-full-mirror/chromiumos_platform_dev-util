@@ -69,7 +69,7 @@ func LocalCft() int {
 	localCft.flagSet.StringVar(&localCft.tagsExclude, "tagsExclude", "", "Excluded tag(s) to run, comma separated. Example: -tags group:1,group:2")
 	localCft.flagSet.StringVar(&localCft.model, "model", "", "Model name")
 	localCft.flagSet.StringVar(&localCft.board, "board", "", "Board name")
-	localCft.flagSet.StringVar(&localCft.build, "build", "", "Build number to run containers from.\n Eg R108 or R108-14143. Do not use with -md_path")
+	localCft.flagSet.StringVar(&localCft.build, "build", "LATEST-main", "Build number to run containers from.\n Eg R108 or R108-14143. Defaults to LATEST-main.")
 	localCft.flagSet.StringVar(&localCft.dutHost, "host", "", "Hostname of dut")
 	localCft.flagSet.StringVar(&localCft.baseDir, "dir", "/tmp", "The base absolute path for the local-cft runner's interactions and output.\n Eg /tmp")
 	localCft.flagSet.StringVar(&localCft.chroot, "chroot", "", "Absolute path of your chromiumos chroot. Necessary for updating local services.")
