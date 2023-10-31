@@ -13,12 +13,12 @@ import (
 func main() {
 	opt, err := cli.ParseInputs()
 	if err != nil {
-		fmt.Printf("unable to parse inputs: %s", err)
+		fmt.Printf("unable to parse inputs: %s\n", err)
 		os.Exit(2)
 	}
 	err = opt.Run()
 	if err != nil {
-		fmt.Printf("cros-fw-provision failed: %v", err)
+		fmt.Printf("cros-fw-provision failed: %v\n", err)
 		os.Exit(1)
 	}
 }

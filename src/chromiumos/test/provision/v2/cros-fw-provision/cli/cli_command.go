@@ -90,11 +90,11 @@ func (cc *CLICommand) Logger() *log.Logger {
 // validate checks if inputs are ok
 func (cc *CLICommand) validate() error {
 	if cc.inputFile == "" {
-		return errors.New("input file not specified")
+		return errors.New("input file not specified, use -input")
 	}
 
 	if cc.outputFile == "" {
-		return errors.New("output file not specified")
+		return errors.New("output file not specified, use -output")
 	}
 	return nil
 }
