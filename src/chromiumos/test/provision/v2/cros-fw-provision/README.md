@@ -39,29 +39,6 @@ cros workon --host start local-cft && cros_sdk -- sudo emerge local-cft
 # --chroot ~/chromiumos/chroot --localservices cros-dut
 ```
 
-To test simple request with ssh
-```
-~/chromiumos/src/platform/dev/fast_build.sh -b chromiumos/test/provision/v2/cros-fw-provision -o ~/go/bin && \
-cat >/tmp/input.json <<EOF && ~/go/bin/cros-fw-provision cli -input /tmp/input.json -output /tmp/output.json ; cat /tmp/output.json
-{
-        "board": "${BOARD?}",
-        "model": "${MODEL?}",
-        "dut_server_address": {
-                "address": "localhost",
-                "port": 8123
-        },
-        "useServo": false,
-        "simpleRequest": {
-                "flashRo": true,
-                "firmwareImagePath": {
-                        "hostType": "GS",
-                        "path": "${FW_IMAGE?}"
-                }
-        }
-}
-EOF
-```
-
 To test detailed request via ssh
 ```
 ~/chromiumos/src/platform/dev/fast_build.sh -b chromiumos/test/provision/v2/cros-fw-provision -o ~/go/bin && \

@@ -33,31 +33,19 @@ func (s FirmwarePrepareState) Execute(ctx context.Context, log *log.Logger) (*an
 	}
 	log.Printf("[FW Provisioning: Prepare FW] downloading Firmware Images onto %v\n", firmwareImageDestination)
 
-	if s.service.GetUseSimpleRequest() {
-		imagePath, _ := s.service.GetSimpleRequest()
-		if len(imagePath) > 0 {
-			if err := s.service.DownloadAndProcess(ctx, imagePath); err != nil {
-				return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
-			}
-		} else {
-			// was checked for earlier
-			panic("SimpleRequest has empty url")
+	if mainRw := s.service.GetMainRwPath(); len(mainRw) > 0 {
+		if err := s.service.DownloadAndProcess(ctx, mainRw); err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
 		}
-	} else {
-		if mainRw := s.service.GetMainRwPath(); len(mainRw) > 0 {
-			if err := s.service.DownloadAndProcess(ctx, mainRw); err != nil {
-				return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
-			}
+	}
+	if mainRo := s.service.GetMainRoPath(); len(mainRo) > 0 {
+		if err := s.service.DownloadAndProcess(ctx, mainRo); err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
 		}
-		if mainRo := s.service.GetMainRoPath(); len(mainRo) > 0 {
-			if err := s.service.DownloadAndProcess(ctx, mainRo); err != nil {
-				return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
-			}
-		}
-		if ecRoPath := s.service.GetEcRoPath(); len(ecRoPath) > 0 {
-			if err := s.service.DownloadAndProcess(ctx, ecRoPath); err != nil {
-				return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
-			}
+	}
+	if ecRoPath := s.service.GetEcRoPath(); len(ecRoPath) > 0 {
+		if err := s.service.DownloadAndProcess(ctx, ecRoPath); err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
 		}
 	}
 	return nil, api.InstallResponse_STATUS_OK, nil

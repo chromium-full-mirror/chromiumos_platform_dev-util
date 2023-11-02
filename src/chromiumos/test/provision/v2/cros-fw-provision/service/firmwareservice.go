@@ -26,14 +26,10 @@ type FirmwareService struct {
 	// In case of flashing over Servo, |connection| connects to the ServoHost.
 	connection common_utils.ServiceAdapterInterface
 
-	useSimpleRequest bool
 	// DetailedRequest fields
 	mainRwPath *conf.StoragePath
 	mainRoPath *conf.StoragePath
 	ecRoPath   *conf.StoragePath
-	// SimpleRequest fields
-	simpleImagePath *conf.StoragePath
-	simpleFlashRo   bool
 
 	board, model string
 
@@ -55,15 +51,10 @@ type FirmwareService struct {
 
 // NewFirmwareService initializes a FirmwareService.
 func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdapterInterface, servoClient api.ServodServiceClient, req *api.ProvisionFirmwareRequest) (*FirmwareService, error) {
-	simpleRequest := req.GetSimpleRequest()
 	detailedRequest := req.GetDetailedRequest()
-	if simpleRequest == nil && detailedRequest == nil {
-		return nil, InvalidRequestErr("Specify SimpleRequest and DetailedRequest")
+	if detailedRequest == nil {
+		return nil, InvalidRequestErr("Specify DetailedRequest")
 	}
-	if simpleRequest != nil && detailedRequest != nil {
-		panic(req) // shouldn't happen
-	}
-	useSimpleRequest := (simpleRequest != nil)
 
 	board := req.GetBoard()
 	if len(board) == 0 {
@@ -78,32 +69,26 @@ func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdap
 	useServo := req.GetUseServo()
 
 	fws := FirmwareService{
-		connection:       dutAdapter,
-		board:            board,
-		model:            model,
-		force:            force,
-		useServo:         useServo,
-		useSimpleRequest: useSimpleRequest,
-		imagesMetadata:   make(map[string]ImageArchiveMetadata),
+		connection:     dutAdapter,
+		board:          board,
+		model:          model,
+		force:          force,
+		useServo:       useServo,
+		imagesMetadata: make(map[string]ImageArchiveMetadata),
 	}
 
-	if useSimpleRequest {
-		fws.simpleFlashRo = simpleRequest.FlashRo
-		fws.simpleImagePath = simpleRequest.GetFirmwareImagePath()
-	} else {
-		// Firmware may be updated in write-protected mode, where only 'rw' regions
-		// would be update, or write-protection may be disabled (dangerous) in order
-		// to update 'ro' regions.
-		//
-		// The only 'rw' firmware is the main one, aka AP firmware, which also syncs
-		// EC 'rw'. It will be flashed with write protection turned on.
-		fws.mainRwPath = detailedRequest.MainRwPayload.GetFirmwareImagePath()
+	// Firmware may be updated in write-protected mode, where only 'rw' regions
+	// would be update, or write-protection may be disabled (dangerous) in order
+	// to update 'ro' regions.
+	//
+	// The only 'rw' firmware is the main one, aka AP firmware, which also syncs
+	// EC 'rw'. It will be flashed with write protection turned on.
+	fws.mainRwPath = detailedRequest.MainRwPayload.GetFirmwareImagePath()
 
-		// Read-only firmware images include AP, EC, and PD firmware, and will be
-		// flashed with write protection turned off.
-		fws.mainRoPath = detailedRequest.MainRoPayload.GetFirmwareImagePath()
-		fws.ecRoPath = detailedRequest.EcRoPayload.GetFirmwareImagePath()
-	}
+	// Read-only firmware images include AP, EC, and PD firmware, and will be
+	// flashed with write protection turned off.
+	fws.mainRoPath = detailedRequest.MainRoPayload.GetFirmwareImagePath()
+	fws.ecRoPath = detailedRequest.EcRoPayload.GetFirmwareImagePath()
 
 	if useServo {
 		fws.prepareServoConnection(ctx, servoClient)
@@ -157,7 +142,7 @@ func (fws *FirmwareService) prepareServoConnection(ctx context.Context, servoCli
 		// Handle dual servo.
 		// We need CCD if ec_ro is set, otherwise, servo_micro will be faster.
 		preferCCD := false
-		if !fws.useSimpleRequest && fws.ecRoPath != nil {
+		if fws.ecRoPath != nil {
 			preferCCD = true
 		}
 		servoSubtypeStr := servoType.PickServoSubtype(preferCCD)
@@ -186,25 +171,17 @@ func (fws *FirmwareService) prepareServoConnection(ctx context.Context, servoCli
 func (fws *FirmwareService) PrintRequestInfo() {
 	informationString := "provisioning "
 
-	if fws.useSimpleRequest {
-		if fws.simpleFlashRo {
-			informationString += "all RW+RO firmware"
-		} else {
-			informationString += "all RW firmware"
-		}
-	} else {
-		images := []string{}
-		if fws.mainRwPath != nil {
-			images = append(images, "AP(RW)")
-		}
-		if fws.mainRoPath != nil {
-			images = append(images, "AP(RO)")
-		}
-		if fws.ecRoPath != nil {
-			images = append(images, "EC(RO)")
-		}
-		informationString += strings.Join(images, " and ") + " firmware"
+	images := []string{}
+	if fws.mainRwPath != nil {
+		images = append(images, "AP(RW)")
 	}
+	if fws.mainRoPath != nil {
+		images = append(images, "AP(RO)")
+	}
+	if fws.ecRoPath != nil {
+		images = append(images, "EC(RO)")
+	}
+	informationString += strings.Join(images, " and ") + " firmware"
 
 	flashMode := "SSH"
 	if fws.useServo {
@@ -223,29 +200,17 @@ func (fws *FirmwareService) PrintRequestInfo() {
 
 // UpdateRw returns whether the read/write firmware is being operated on.
 func (fws *FirmwareService) UpdateRw() bool {
-	if fws.useSimpleRequest {
-		return !fws.simpleFlashRo && len(fws.simpleImagePath.GetPath()) > 0
-	}
 	return fws.mainRwPath != nil
 }
 
 // UpdateRo returns whether the read-only firmware is being operated on.
 func (fws *FirmwareService) UpdateRo() bool {
-	if fws.useSimpleRequest {
-		return fws.simpleFlashRo && len(fws.simpleImagePath.GetPath()) > 0
-	}
 	return (fws.mainRoPath != nil) || (fws.ecRoPath != nil)
 }
 
 // GetBoard returns board of the DUT to provision. Returns empty string if board is not known.
 func (fws *FirmwareService) GetBoard() string {
 	return fws.board
-}
-
-// GetUseSimpleRequest returns true if SimpleRequest is used,
-// returns false if DetailedRequest is used.
-func (fws *FirmwareService) GetUseSimpleRequest() bool {
-	return fws.useSimpleRequest
 }
 
 // RestartDut restarts the DUT using one of the available mechanisms.
@@ -455,29 +420,19 @@ func (fws FirmwareService) GetEcRoPath() string {
 	return fws.ecRoPath.GetPath()
 }
 
-// GetSimpleRequest returns (imageGsLink, flashRo)
-func (fws FirmwareService) GetSimpleRequest() (string, bool) {
-	return fws.simpleImagePath.GetPath(), fws.simpleFlashRo
-}
-
 // DownloadAndProcess downloads the provided archive.
 // If DetailedRequest is used, DownloadAndProcess also extracts the archive and
 // enumerates its contents, storing the metadata in s.service.archiveFolders.
 func (fws FirmwareService) DownloadAndProcess(ctx context.Context, gspath string) error {
 	connection := fws.GetConnectionToFlashingDevice()
 	if _, alreadyDownloaded := fws.imagesMetadata[gspath]; !alreadyDownloaded {
-		archiveMetadata, err := downloadAndProcessArchive(ctx, connection, gspath, !fws.useSimpleRequest)
+		archiveMetadata, err := downloadAndProcessArchive(ctx, connection, gspath, true)
 		if err != nil {
 			log.Printf("[FW Provisioning: Prepare FW] failed to download and process %v: %v\n", gspath, err)
 			return err
 		}
-		if fws.GetUseSimpleRequest() {
-			log.Printf("[FW Provisioning: Prepare FW] downloaded %v to %v\n",
-				gspath, archiveMetadata.ArchivePath)
-		} else {
-			log.Printf("[FW Provisioning: Prepare FW] downloaded %v to %v. Files in archive: %v\n",
-				gspath, archiveMetadata.ArchivePath, len(archiveMetadata.ListOfFiles))
-		}
+		log.Printf("[FW Provisioning: Prepare FW] downloaded %v to %v. Files in archive: %v\n",
+			gspath, archiveMetadata.ArchivePath, len(archiveMetadata.ListOfFiles))
 		fws.imagesMetadata[gspath] = *archiveMetadata
 	}
 	return nil

@@ -27,53 +27,40 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 
 	// form futility command args based on the request
 	var futilityImageArgs []string
-	if s.service.GetUseSimpleRequest() {
-		// Simple Request
-		imagePath, flashRo := s.service.GetSimpleRequest()
-		if !flashRo {
-			panic("entered FirmwareUpdateRoState when flashRo == false") // impossible
+	// Detailed Request
+	mainRoMetadata, ok := s.service.GetImageMetadata(s.service.GetMainRoPath())
+	if ok {
+		log.Printf("[FW Provisioning: Update RO] extracting AP image to flash\n")
+		mainRoPath, err := firmwareservice.PickAndExtractMainImage(ctx, connection, mainRoMetadata, s.service.GetBoard(), s.service.GetModel())
+		if err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
 		}
-		imgMetadata, ok := s.service.GetImageMetadata(imagePath)
-		if !ok {
-			panic("no metadata for SimpleRequest") // impossible
-		}
-		futilityImageArgs = append(futilityImageArgs, []string{fmt.Sprint("--archive=", imgMetadata.ArchivePath)}...)
-	} else {
-		// Detailed Request
-		mainRoMetadata, ok := s.service.GetImageMetadata(s.service.GetMainRoPath())
-		if ok {
-			log.Printf("[FW Provisioning: Update RO] extracting AP image to flash\n")
-			mainRoPath, err := firmwareservice.PickAndExtractMainImage(ctx, connection, mainRoMetadata, s.service.GetBoard(), s.service.GetModel())
-			if err != nil {
-				return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
-			}
-			futilityImageArgs = append(futilityImageArgs, []string{fmt.Sprint("--image=", mainRoPath)}...)
-		}
+		futilityImageArgs = append(futilityImageArgs, []string{fmt.Sprint("--image=", mainRoPath)}...)
+	}
 
-		ecRoMetadata, ok := s.service.GetImageMetadata(s.service.GetEcRoPath())
-		if ok {
-			log.Printf("[FW Provisioning: Update RO] extracting EC image to flash\n")
-			ecRoPath, err := firmwareservice.PickAndExtractECImage(ctx, connection, ecRoMetadata, s.service.GetBoard(), s.service.GetModel())
+	ecRoMetadata, ok := s.service.GetImageMetadata(s.service.GetEcRoPath())
+	if ok {
+		log.Printf("[FW Provisioning: Update RO] extracting EC image to flash\n")
+		ecRoPath, err := firmwareservice.PickAndExtractECImage(ctx, connection, ecRoMetadata, s.service.GetBoard(), s.service.GetModel())
+		if err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
+		}
+		if s.service.IsServoUsed() {
+			log.Printf("[FW Provisioning: Update RO] separately flashing EC over Servo with flash_ec\n")
+			// futility refuses to flash EC over servod as a separate image and only
+			// accepts single image: http://shortn/_dtaO92HvqW. So, for servod, we
+			// use flash_ec script that to flash the EC separately.
+			flashECScript, err := firmwareservice.GetFlashECScript(ctx, connection, ecRoMetadata.ArchiveDir)
 			if err != nil {
 				return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
 			}
-			if s.service.IsServoUsed() {
-				log.Printf("[FW Provisioning: Update RO] separately flashing EC over Servo with flash_ec\n")
-				// futility refuses to flash EC over servod as a separate image and only
-				// accepts single image: http://shortn/_dtaO92HvqW. So, for servod, we
-				// use flash_ec script that to flash the EC separately.
-				flashECScript, err := firmwareservice.GetFlashECScript(ctx, connection, ecRoMetadata.ArchiveDir)
-				if err != nil {
-					return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
-				}
-				err = s.service.ProvisionWithFlashEC(ctx, ecRoPath, flashECScript)
-				if err != nil {
-					return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
-				}
-			} else {
-				// For SSH, we can simply run `futility ... --ec-image=$EC_IMAGE ...`
-				futilityImageArgs = append(futilityImageArgs, []string{fmt.Sprint("--ec_image=", ecRoPath)}...)
+			err = s.service.ProvisionWithFlashEC(ctx, ecRoPath, flashECScript)
+			if err != nil {
+				return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
 			}
+		} else {
+			// For SSH, we can simply run `futility ... --ec-image=$EC_IMAGE ...`
+			futilityImageArgs = append(futilityImageArgs, []string{fmt.Sprint("--ec_image=", ecRoPath)}...)
 		}
 	}
 

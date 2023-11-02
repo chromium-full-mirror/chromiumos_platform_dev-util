@@ -145,15 +145,15 @@ func (ps *FWProvisionServer) Provision(ctx context.Context, req *api.ProvisionFi
 }
 
 // validateProtoInputs ensures the proto part of the CLI input is valid
-func (cc *FWProvisionServer) validateProtoInputs(req *api.ProvisionFirmwareRequest) error {
+func (ps *FWProvisionServer) validateProtoInputs(req *api.ProvisionFirmwareRequest) error {
 	if len(req.Board) == 0 {
 		return errors.New("ProvisionFirmwareRequest: Board field is required ")
 	}
 	if len(req.Model) == 0 {
 		return errors.New("ProvisionFirmwareRequest: Model field is required ")
 	}
-	if req.GetSimpleRequest() == nil && req.GetDetailedRequest() == nil {
-		return errors.New("ProvisionFirmwareRequest: SimpleRequest or DetailedRequest is required")
+	if req.GetDetailedRequest() == nil {
+		return errors.New("ProvisionFirmwareRequest: DetailedRequest is required")
 	}
 	return nil
 }
