@@ -320,3 +320,6 @@ disp_overwrite["c5a095b4b2cd"] = "drop"  # CHROMIUM: Bluetooth: Fix kernel panic
 disp_overwrite[
     "6d77b60b54ff"
 ] = "drop"  # CHROMIUM: i2c-hid: retry SMBUS read sequence on failure
+disp_overwrite[
+    "e31b40257460"
+] = "drop"  # CHROMIUM: misc: nxp-sr1xx: Disable building with COMPILE_TEST
