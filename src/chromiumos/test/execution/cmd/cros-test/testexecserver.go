@@ -46,7 +46,7 @@ func driverToTestsMapping(logger *log.Logger, mdList []*api.TestCaseMetadata) (m
 			driverToTests[tautoDriver] = append(driverToTests[tautoDriver], md)
 		} else if md.TestCaseExec.TestHarness.GetGtest() != nil {
 			driverToTests[gtestDriver] = append(driverToTests[gtestDriver], md)
-		} else if md.TestCaseExec.TestHarness.GetGtest() != nil {
+		} else if md.TestCaseExec.TestHarness.GetMobly() != nil {
 			driverToTests[moblyDriver] = append(driverToTests[moblyDriver], md)
 		} else {
 			return nil, statuserrors.NewStatusError(statuserrors.InvalidArgument,
