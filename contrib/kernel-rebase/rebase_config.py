@@ -56,6 +56,7 @@ topic_patches["block-fs"] = [
     "fixups/FIXUP: CHROMIUM: drivers: md: dm-verity-chromeos: init: improve the name_to_dev_t interface.patch",
     "fixups/FIXUP: NOUPSTREAM: ANDROID: fs-verity: Export function to check signatures.patch",
     "fixups/FIXUP: FROMLIST: fuse: Introduce passthrough for mmap.patch",
+    "fixups/FIXUP: mm: leverage madvise* for per process reclaim-block-fs-topic.patch",
 ]
 
 topic_patches["gpu/other"] = [
@@ -70,6 +71,7 @@ topic_patches["mm"] = [
     "fixups/FIXUP: CHROMIUM: Restrict swapon() to zram devices lock down zram.patch",
     "fixups/FIXUP: CHROMIUM: mm: per-process reclaim for mm topic.patch",
     "fixups/FIXUP: CHROMIUM: Add dev_low-mem device for low-memory notification.patch",
+    "fixups/FIXUP: mm: leverage madvise* for per process reclaim-mm-topic.patch",
 ]
 
 topic_patches["drivers"] = [
