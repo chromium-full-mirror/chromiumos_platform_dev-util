@@ -91,6 +91,7 @@ topic_patches["tpm-virtio"] = [
 
 topic_patches["chromeos"] = [
     "fixups/CHROMIUM: create alt-syscall infrastructure.patch",
+    "fixups/FIXUP: CHROMIUM: Restrict swapon() to zram devices lock down zram.patch",
 ]
 
 topic_patches["net"] = [
