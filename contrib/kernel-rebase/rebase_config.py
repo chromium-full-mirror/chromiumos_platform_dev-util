@@ -317,3 +317,6 @@ disp_overwrite[
     "85d4080fdfca"
 ] = "drop"  # CHROMIUM: Bluetooth: hci_sync: Use safe loop when adding accept list
 disp_overwrite["c5a095b4b2cd"] = "drop"  # CHROMIUM: Bluetooth: Fix kernel panic
+disp_overwrite[
+    "6d77b60b54ff"
+] = "drop"  # CHROMIUM: i2c-hid: retry SMBUS read sequence on failure
