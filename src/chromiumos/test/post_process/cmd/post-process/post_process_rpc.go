@@ -44,7 +44,7 @@ func NewServer(logger *log.Logger, dutClient api.DutServiceClient) (*grpc.Server
 func (s *PostTestServiceServer) RunActivity(ctx context.Context, req *api.RunActivityRequest) (*api.RunActivityResponse, error) {
 	s.logger.Printf("Received GetFWInfo: %s", req)
 
-	rspn, err := parseAndRunCmds(req, s.logger, s.dutClient)
+	rspn, err := parseAndRunCmds(req.Request, s.logger, s.dutClient)
 	s.logger.Printf("After Parse")
 
 	if err != nil {

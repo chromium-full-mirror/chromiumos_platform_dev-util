@@ -8,26 +8,49 @@ import (
 	"chromiumos/test/util/common"
 	"context"
 	"log"
+	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
-// GetFwInfo will gather fwinfo via crossystem. If any field is not found it will be returned with "None".
-func GetFwInfo(logger *log.Logger, req *api.GetFWInfoRequest, dutClient api.DutServiceClient) (*api.GetFWInfoResponse, error) {
+// GetFwInfo will gather fwinfo via crossystem. If any field is not found it will be returned with "".
+func GetFwInfo(logger *log.Logger, dutClient api.DutServiceClient) (*api.GetFWInfoResponse, error) {
 	roFWID, err := common.RunCmd(context.Background(), "crossystem", []string{"ro_fwid"}, dutClient)
 	if err != nil {
 		logger.Printf("get ro_fwid cmd FAILED: %s\n", err)
+		roFWID = ""
 	}
 	rwFWID, err := common.RunCmd(context.Background(), "crossystem", []string{"rw_fwid"}, dutClient)
 	if err != nil {
 		logger.Printf("get rw_fwid cmd FAILED: %s\n", err)
-		rwFWID = "None"
+		rwFWID = ""
 
 	}
+	gsctoolOut, err := common.RunCmd(context.Background(), "gsctool", []string{"-afM"}, dutClient)
+	if err != nil {
+		logger.Printf("gsctool -afM cmd FAILED: %s\n", err)
+	}
+	gscRO := ""
+	gscRW := ""
+
+	entries := strings.Split(gsctoolOut, "\n")
+	for _, content := range entries {
+		if strings.Contains(content, "RO_FW_VER") {
+			gscRO = content[strings.LastIndex(content, "=")+1:]
+		} else if strings.Contains(content, "RW_FW_VER") {
+			gscRW = content[strings.LastIndex(content, "=")+1:]
+
+		}
+	}
+
 	kVersion, err := common.RunCmd(context.Background(), "uname", []string{"-r"}, dutClient)
 	if err != nil {
 		logger.Printf("get uname -r cmd FAILED: %s\n", err)
+		kVersion = ""
 	}
-	resp := &api.GetFWInfoResponse{RoFwid: roFWID, RwFwid: rwFWID, KernelVersion: kVersion}
+	kVersion = strings.Replace(kVersion, "\n", "", -1)
+
+	resp := &api.GetFWInfoResponse{RoFwid: roFWID, RwFwid: rwFWID, KernelVersion: kVersion, GscRo: gscRO, GscRw: gscRW}
 	return resp, nil
+
 }
