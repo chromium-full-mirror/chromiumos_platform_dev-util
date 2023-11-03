@@ -131,6 +131,9 @@ for carrier in [
     "docomo",
     "softbank",
     "fi",
+    "roger",
+    "bell",
+    "telus",
 ]:
     # used by the cellular dashboard to identify bad DUTs
     tests = single_test_template.format(test_exprs="['cellular.IsModemUp']")
