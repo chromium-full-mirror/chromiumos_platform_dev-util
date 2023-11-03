@@ -8,7 +8,7 @@ cd "${progdir}" || exit 1
 
 if [[ ! -d env ]]; then
     python3 -m venv env
-    env/bin/pip -q install google_auth_oauthlib python-Levenshtein fuzzywuzzy rich google-api-python-client
+    env/bin/pip -q install google_auth_oauthlib python-Levenshtein fuzzywuzzy rich google-api-python-client sh
 fi
 
 source "env/bin/activate"
