@@ -186,7 +186,7 @@ for carrier in [
     )
 
     tests = single_test_template.format(
-        test_exprs="['cellular.ShillEnableAndConnect','cellular.HostStressEnableDisable','cellular.ModemmanagerEnableAndConnect','cellular.ShillSafetyDance']"
+        test_exprs="['cellular.ShillEnableAndConnect','cellular.HostStressEnableDisable','cellular.ModemmanagerEnableAndConnect','cellular.ShillSafetyDance','cellular.ModemSSRVerification']"
     )
     write_control_file(
         out_dir,
@@ -294,7 +294,12 @@ for carrier in [
             test_exprs=f"[{', '.join(hotspot_tests)}]"
         )
         write_control_file(
-            out_dir, ["cellular_ota_flaky"], carrier, extra_dependencies, "hotspot", tests
+            out_dir,
+            ["cellular_ota_flaky"],
+            carrier,
+            extra_dependencies,
+            "hotspot",
+            tests,
         )
 
     # limit carrier independent cq tests to tmobile to save lab time.
