@@ -47,10 +47,8 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			FirmwareConfig.EcRoPayload = fakePayload
 		}
 		req := &api.ProvisionFirmwareRequest{
-			Board: "test_board",
-			Model: "test_model",
-		}
-		req.FirmwareRequest = &api.ProvisionFirmwareRequest_DetailedRequest{
+			Board:           "test_board",
+			Model:           "test_model",
 			DetailedRequest: &FirmwareConfig,
 		}
 
