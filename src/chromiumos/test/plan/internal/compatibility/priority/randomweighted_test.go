@@ -4,6 +4,7 @@
 package priority_test
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -301,6 +302,61 @@ func TestRandomWeighted_UnconfiguredPool(t *testing.T) {
 		"boardB":         258,
 		"boardC":         239,
 		"undefinedBoard": 256,
+	}
+	if diff := cmp.Diff(expected, counts); diff != "" {
+		t.Errorf("Unexpected counts of chosen boards (-want +got): %s", diff)
+	}
+}
+
+func TestRandomWeighted_selectPriority(t *testing.T) {
+	boardPriorityList := &testplans.BoardPriorityList{
+		BoardPriorities: []*testplans.BoardPriority{
+			{
+				SkylabBoard: "boardA",
+				Priority:    -100,
+			},
+			{
+				SkylabBoard: "boardB",
+				Priority:    -99,
+			},
+			{
+				SkylabBoard: "boardC",
+				Priority:    -50,
+			},
+			{
+				SkylabBoard: "boardD",
+				Priority:    100,
+			},
+		},
+	}
+
+	selector := priority.NewRandomWeightedSelector(
+		rand.New(rand.NewSource(7)), boardPriorityList,
+	)
+
+	counts := make(map[string]int)
+	for i := 0; i < 1000; i++ {
+		selected, err := selector.SelectPriority("DUT_POOL_QUOTA", []string{"boardA", "boardB", "boardC", "boardD", "boardC", "boardD", "undefinedBoard"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		counts[fmt.Sprintf("%d_%s", selected.GetIndex(), selected.GetBoard())] += 1
+	}
+	// The probabilities are computed from configured priorities as follows:
+	// 1. Flip signs: 100, 99, 50, -100, 50, -100.
+	// 2. Shift so minimum is 1 (and add default probability for the undefined
+	//    board): 201, 200, 151, 1, 151, 1, 101
+	// 3. Divide by the sum (806): 0.249, 0.248, 0.187, 0.001, 0.187, 0.001, 0.125
+	// Because the same random seed is used: intentional for reusing test results
+	// (http://shortn/_ULRFyxUaU8), the test will always return the same result.
+	expected := map[string]int{
+		"0_boardA":         256,
+		"1_boardB":         236,
+		"2_boardC":         183,
+		"3_boardD":         3,
+		"4_boardC":         202,
+		"5_boardD":         5,
+		"6_undefinedBoard": 115,
 	}
 	if diff := cmp.Diff(expected, counts); diff != "" {
 		t.Errorf("Unexpected counts of chosen boards (-want +got): %s", diff)

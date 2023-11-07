@@ -47,7 +47,25 @@ func NewRandomWeightedSelector(rand *rand.Rand, boardPriorityList *testplans.Boa
 // priorities for internal computations.
 type floatPriority struct {
 	board    string
+	index    int
 	priority float64
+}
+
+// BoardInfo represents a (chosen) board and its index in the original input
+// boards list. This is done by exposing relevant floatPriority fields to
+// external packages.
+// Index is needed for multi-dut tests where the input may have repeating boards
+// for different multi-dut combinations.
+type BoardInfo = floatPriority
+
+// GetBoard exposes the internal field: board.
+func (p *BoardInfo) GetBoard() string {
+	return p.board
+}
+
+// GetIndex exposes the internal field: index.
+func (p *BoardInfo) GetIndex() int {
+	return p.index
 }
 
 // getPriority looks up the configured priority for a given (board, pool)
@@ -72,25 +90,43 @@ func (rw *RandomWeightedSelector) getPriority(board, pool string) (*testplans.Bo
 // panics due to possible small floating point imprecisions.
 const floatErrorTolerance = 0.001
 
-// Select randomly chooses a board from boards, with the probability a board is
-// chosen proportional to its configured probability.
+// Select is a wrapper of SelectPriority.
+// TODO(mingkong): remove the wrapper once the code is fully migrated to the new
+// method signature.
 func (rw *RandomWeightedSelector) Select(pool string, boards []string) (string, error) {
+	priority, err := rw.SelectPriority(pool, boards)
+	return priority.GetBoard(), err
+}
+
+// SelectPriority randomly chooses a board from boards, with the probability a
+// board is chosen proportional to its configured probability. Returns a
+// BoardInfo object that contains the board name and its index in the input
+// boards list.
+// The index can be used to choose the board for companions accordingly to the
+// board selection of the primary device in multi-dut tests.
+// It is likely that multi-dut config to have repeating values in the input
+// boards list, which means the priority for repeating boards is double
+// weighted using the existing algorithm.
+// TODO(mingkong) evaluate the side effect and check if global priority config
+// (http://shortn/_NmJHlrSPiZ) should be used by multi-dut tests, which has its
+// own specialized pools.
+func (rw *RandomWeightedSelector) SelectPriority(pool string, boards []string) (BoardInfo, error) {
 	if len(boards) == 0 {
-		return "", errors.New("boards must be non-empty")
+		return BoardInfo{}, errors.New("boards must be non-empty")
 	}
 
 	var normalizedPriorities []floatPriority
 	// For each board in boards, look up its priority and store a floatPriority
 	// with the sign flipped from the configured priority. If a board is not
 	// found in the configured priorities, it gets priority 0.
-	for _, board := range boards {
+	for i, board := range boards {
 		if priority, found := rw.getPriority(board, pool); found {
 			normalizedPriorities = append(normalizedPriorities, floatPriority{
-				board: board, priority: float64(-priority.GetPriority()),
+				board: board, index: i, priority: float64(-priority.GetPriority()),
 			})
 		} else {
 			normalizedPriorities = append(normalizedPriorities, floatPriority{
-				board: board, priority: 0,
+				board: board, index: i, priority: 0,
 			})
 		}
 	}
@@ -130,7 +166,7 @@ func (rw *RandomWeightedSelector) Select(pool string, boards []string) (string, 
 		}
 
 		if randFloat < cumulativePriority {
-			return priority.board, nil
+			return priority, nil
 		}
 	}
 
