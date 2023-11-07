@@ -75,6 +75,7 @@ check_cq_plus1() {
 
     retries=2
     retry_threshold=86400
+    has_failed=0
 
     if [[ ${cq} != "0" ]] || [[ ${v} == "1" ]]; then
         echo "..Already handled"
@@ -98,14 +99,19 @@ check_cq_plus1() {
         fi
 
         if echo "${message}" | grep -q "This CL has passed the run"; then
-            echo "..CQ+1 has passed"
-            echo "..Mark V+1 and AS+1"
-            "${GERRIT}" label-v "${cl_num}" 1
-            "${GERRIT}" label-as "${cl_num}" 1
-            return
+            # Make sure the latest result passes CQ.
+            if [[ ${has_failed} -eq 0 ]]; then
+                echo "..CQ+1 has passed"
+                echo "..Mark V+1 and AS+1"
+                "${GERRIT}" label-v "${cl_num}" 1
+                "${GERRIT}" label-as "${cl_num}" 1
+                return
+            fi
         fi
 
         if echo "${message}" | grep -q "This CL has failed the run"; then
+            has_failed=1
+
             retries="$((retries - 1))"
             if [[ ${retries} -gt 0 ]]; then
                 continue
