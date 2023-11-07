@@ -359,6 +359,9 @@ func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *
 		if opts.Postsubmit || opts.Snapshot {
 			// Don't resolve the version and let findSnapshotAroundVersion() handle it.
 			gsVersion = opts.VersionString
+		} else {
+			// Resolve for release build
+			gsVersion, err = GetLatestVersionWithPrefix(ctx, c, board, opts.VersionString)
 		}
 	} else if opts.MilestoneNum != 0 {
 		gsVersion, err = GetLatestVersionForMilestone(ctx, c, board, opts.MilestoneNum)
