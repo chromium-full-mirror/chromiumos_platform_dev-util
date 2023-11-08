@@ -135,7 +135,7 @@ func chooseProgramToTest(
 	programs []string,
 	buildInfos map[string]*buildInfo,
 	prioritySelector *priority.RandomWeightedSelector,
-) (string, error) {
+) (priority.BoardInfo, error) {
 	var criticalPrograms, completedPrograms []string
 	for _, program := range programs {
 		buildInfo, found := buildInfos[program]
@@ -150,16 +150,16 @@ func chooseProgramToTest(
 
 	if len(criticalPrograms) > 0 {
 		glog.V(2).Infof("Choosing between critical programs: %q", criticalPrograms)
-		return prioritySelector.Select(pool, criticalPrograms)
+		return prioritySelector.SelectPriority(pool, criticalPrograms)
 	}
 
 	if len(completedPrograms) > 0 {
 		glog.V(2).Infof("Choosing between completed programs: %q", completedPrograms)
-		return prioritySelector.Select(pool, completedPrograms)
+		return prioritySelector.SelectPriority(pool, completedPrograms)
 	}
 
 	glog.V(2).Info("No completed programs found.")
-	return prioritySelector.Select(pool, programs)
+	return prioritySelector.SelectPriority(pool, programs)
 }
 
 // extractFromProtoStruct returns the path pointed to by fields. For example,
@@ -429,6 +429,9 @@ const (
 type suiteInfo struct {
 	// program that was chosen to run the suite on
 	program string
+	// optional, only multi-dut tests to hold chosen program and provision config
+	// for each comapnion
+	companions []*testplans.TestCompanion
 	// optional, design that was chosen to run the suite on
 	design string
 	// pool to run the suite in.
@@ -543,9 +546,6 @@ func coverageRuleToSuiteInfo(
 	prioritySelector *priority.RandomWeightedSelector,
 	isVM bool,
 ) ([]*suiteInfo, error) {
-	if len(rule.GetDutTargets()) != 1 {
-		return nil, fmt.Errorf("expected exactly one DutTarget in CoverageRule, got %q", rule)
-	}
 
 	dutTarget := rule.GetDutTargets()[0]
 
@@ -580,6 +580,7 @@ func coverageRuleToSuiteInfo(
 	// test the "kernelnext" or "asan" build chosen from multiple programs is
 	// not currently supported.
 	var chosenProgram string
+	var chosenIndex int
 	boardVariant := dutTarget.GetProvisionConfig().GetBoardVariant()
 	profile := dutTarget.GetProvisionConfig().GetProfile()
 	if len(boardVariant) > 0 || len(profile) > 0 {
@@ -591,14 +592,21 @@ func coverageRuleToSuiteInfo(
 		}
 
 		chosenProgram = programs[0]
+		chosenIndex = 0
 	} else {
-		chosenProgram, err = chooseProgramToTest(
+		chosenBoardInfo, err := chooseProgramToTest(
 			pool, programs, buildTargetToBuildInfo, prioritySelector,
 		)
 		if err != nil {
 			return nil, err
 		}
+		chosenProgram = chosenBoardInfo.GetBoard()
+		chosenIndex = chosenBoardInfo.GetIndex()
 		glog.V(2).Infof("chose program %q from possible programs %q", chosenProgram, programs)
+	}
+	companions, err := chooseCompanions(chosenIndex, rule, programAttr)
+	if err != nil {
+		return nil, err
 	}
 
 	// The design attribute is optional. If a design is specified, only one
@@ -680,6 +688,7 @@ func coverageRuleToSuiteInfo(
 					suiteInfos,
 					&suiteInfo{
 						program:      chosenProgram,
+						companions:   companions,
 						design:       design,
 						pool:         pool,
 						suite:        id.Value,
@@ -716,6 +725,7 @@ func coverageRuleToSuiteInfo(
 			suiteInfos = append(suiteInfos,
 				&suiteInfo{
 					program:      chosenProgram,
+					companions:   companions,
 					design:       design,
 					pool:         pool,
 					suite:        suite.GetName(),
@@ -1037,6 +1047,7 @@ func ToCTP1(
 					RunViaCft:   suiteInfo.runViaCft,
 					TagCriteria: suiteInfo.tagCriteria,
 					TotalShards: suiteInfo.totalShards,
+					Companions:  suiteInfo.companions,
 				}
 
 				if _, found := hwTests[displayName]; found {

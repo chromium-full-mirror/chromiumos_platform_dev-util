@@ -302,6 +302,69 @@ var hwTestPlans = []*test_api_v1.HWTestPlan{
 				Critical:  &wrapperspb.BoolValue{Value: true},
 				RunViaCft: true,
 			},
+			// Multi-dut tests.
+			{
+				TestSuites: []*testpb.TestSuite{
+					{
+						Name: "suite4-multi-dut",
+						Spec: &testpb.TestSuite_TestCaseTagCriteria_{
+							TestCaseTagCriteria: &testpb.TestSuite_TestCaseTagCriteria{
+								Tags:        []string{`"group:somegroup"`},
+								TagExcludes: []string{"informational"},
+							},
+						},
+						TotalShards: 1,
+					},
+				},
+				DutTargets: []*testpb.DutTarget{
+					{
+						Criteria: []*testpb.DutCriterion{
+							{
+								AttributeId: &testpb.DutAttribute_Id{
+									Value: "attr-program",
+								},
+								Values: []string{"boardA", "boardB"},
+							},
+							{
+								AttributeId: &testpb.DutAttribute_Id{
+									Value: "swarming-pool",
+								},
+								Values: []string{"DUT_POOL_MULTI_DUT"},
+							},
+						},
+					},
+					{
+						Criteria: []*testpb.DutCriterion{
+							{
+								AttributeId: &testpb.DutAttribute_Id{
+									Value: "attr-program",
+								},
+								Values: []string{"boardCompanionA", "boardCompanionB"},
+							},
+						},
+					},
+					{
+						Criteria: []*testpb.DutCriterion{
+							{
+								AttributeId: &testpb.DutAttribute_Id{
+									Value: "attr-program",
+								},
+								Values: []string{"pixelA", "pixelB"},
+							},
+						},
+						ProvisionConfig: &testpb.ProvisionConfig{
+							Companion: &testpb.CompanionConfig{
+								Config: &testpb.CompanionConfig_Android_{
+									Android: &testpb.CompanionConfig_Android{
+										GmsCorePackage: "latest-stable",
+									},
+								},
+							},
+						},
+					},
+				},
+				Critical: &wrapperspb.BoolValue{Value: false},
+			},
 		},
 	},
 }
@@ -863,6 +926,35 @@ func TestToCTP1(t *testing.T) {
 						},
 						{
 							Common: &testplans.TestSuiteCommon{
+								DisplayName: "cq-builderA.hw.suite4-multi-dut",
+								Critical:    wrapperspb.Bool(false),
+							},
+							Suite: "suite4-multi-dut",
+							TagCriteria: &testpb.TestSuite_TestCaseTagCriteria{
+								Tags:        []string{`"group:somegroup"`},
+								TagExcludes: []string{"informational"},
+							},
+							TotalShards: 1,
+							SkylabBoard: "boardA",
+							Pool:        "DUT_POOL_MULTI_DUT",
+							Companions: []*testplans.TestCompanion{
+								{
+									Board: "boardCompanionA",
+								},
+								{
+									Board: "pixelA",
+									Config: &testpb.CompanionConfig{
+										Config: &testpb.CompanionConfig_Android_{
+											Android: &testpb.CompanionConfig_Android{
+												GmsCorePackage: "latest-stable",
+											},
+										},
+									},
+								},
+							},
+						},
+						{
+							Common: &testplans.TestSuiteCommon{
 								DisplayName: "cq-builderA.model1.hw.suite3",
 								Critical:    wrapperspb.Bool(false),
 							},
@@ -1313,42 +1405,6 @@ func TestToCTP1Errors(t *testing.T) {
 			},
 			dutAttributeList: dutAttributeList,
 			errRegexp:        "only DutCriteria with one \"attr-design\" attribute are supported",
-		},
-		{
-			name:        "multiple DUT targets",
-			vmTestPlans: vmTestPlans,
-			hwTestPlans: []*test_api_v1.HWTestPlan{
-				{
-					CoverageRules: []*testpb.CoverageRule{
-						{
-							DutTargets: []*testpb.DutTarget{
-								{
-									Criteria: []*testpb.DutCriterion{
-										{
-											AttributeId: &testpb.DutAttribute_Id{
-												Value: "attr-program",
-											},
-											Values: []string{"programA"},
-										},
-									},
-								},
-								{
-									Criteria: []*testpb.DutCriterion{
-										{
-											AttributeId: &testpb.DutAttribute_Id{
-												Value: "attr-program",
-											},
-											Values: []string{"programB"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			dutAttributeList: dutAttributeList,
-			errRegexp:        "expected exactly one DutTarget in CoverageRule",
 		},
 		{
 			name: "invalid DutAttributeList",
