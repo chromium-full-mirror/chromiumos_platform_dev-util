@@ -62,6 +62,7 @@ var (
 	stopUI                    = RunCommandStructure{Command: "stop", Args: []string{"ui"}}
 	stopUpdateEngine          = RunCommandStructure{Command: "stop", Args: []string{"update-engine"}}
 	dlcLibExists              = PathExistsCommandStructure{Path: common_utils.DlcLibDir}
+	kvmDevicePathExists       = PathExistsCommandStructure{Path: common_utils.KvmDevicePath}
 	stopDLCservice            = RunCommandStructure{Command: "stop", Args: []string{"dlcservice"}}
 	removeVerified            = RunCommandStructure{Command: "rm", Args: []string{"-f", "/var/cache/dlc/*/*/dlc_b/verified"}}
 	startDLCservice           = RunCommandStructure{Command: "start", Args: []string{"dlcservice"}}
@@ -150,6 +151,7 @@ func TestStateTransitions(t *testing.T) {
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
 		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
 		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -314,6 +316,7 @@ func TestMismatchPostInstall(t *testing.T) {
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
 		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
 		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -644,6 +647,7 @@ func TestInstallPostInstallFailureCausesReversal(t *testing.T) {
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
 		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
 		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -711,6 +715,7 @@ func TestInstallClearTPMFailureCausesReversal(t *testing.T) {
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
 		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
 		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -779,6 +784,7 @@ func TestFirmwareUpdateStateSkippedDueToNoUpdaterExist(t *testing.T) {
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
 		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
 		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -843,6 +849,7 @@ func TestFirmwareUpdateStateWithNoChange(t *testing.T) {
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
 		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
 		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -900,6 +907,7 @@ func TestPostInstallStatePreservesStatefulWhenRequested(t *testing.T) {
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
 		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
 		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -972,6 +980,7 @@ func TestPostInstallStatefulFailsGetsReversed(t *testing.T) {
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
 		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
 		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -1039,6 +1048,7 @@ func TestProvisionDLCWithEmptyDLCsDoesNotExecute(t *testing.T) {
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
 		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
 		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -1093,6 +1103,7 @@ func TestProvisionDLCWhenVerifyIsTrueDoesNotExecuteInstall(t *testing.T) {
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
 		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
 		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -1161,6 +1172,7 @@ func TestPostInstallOverwriteWhenSpecified(t *testing.T) {
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
 		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
 		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -1193,6 +1205,53 @@ func TestPostInstallOverwriteWhenSpecified(t *testing.T) {
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed post-install state: %v", err)
+	}
+}
+
+func TestKvmDevicePathMissing(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sam := mock_common_utils.NewMockServiceAdapterInterface(ctrl)
+	log, _ := cli.SetUpLog(constants.DefaultLogDirectory)
+	cs := service.NewCrOSServiceFromExistingConnection(
+		sam,
+		&conf.StoragePath{
+			HostType: conf.StoragePath_GS,
+			Path:     "path/to/image",
+		},
+		nil,
+		true, // <- preserve stateful
+		[]*api.CrOSProvisionMetadata_DLCSpec{{Id: "1"}},
+		false,
+	)
+
+	ctx := context.Background()
+
+	// PRE INIT STATE
+	st := state_machine.NewCrOSPreInitState(&cs)
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+	)
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed init state: %v", err)
+	}
+	st.Next()
+
+	// INIT STATE
+	st = state_machine.NewCrOSInitState(&cs)
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
+		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(false, nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err.Error() != "failed check KVM enabled, KVM device path does not exist" {
+		t.Fatalf("check KVM enabled should have failed with specific error, instead got: %v", err)
 	}
 }
 

@@ -34,6 +34,7 @@ func (s CrOSInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 	comms := []common_utils.CommandInterface{
 		commands.NewCreateProvisionMarkerCommand(ctx, s.service),
 		commands.NewGetRootInfoCommand(ctx, s.service),
+		commands.NewCheckKvmEnabled(ctx, s.service),
 	}
 
 	for _, comm := range comms {
