@@ -141,7 +141,7 @@ func TestStateTransitions(t *testing.T) {
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 
 	// INIT STATE
@@ -306,7 +306,7 @@ func TestMismatchPostInstall(t *testing.T) {
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 
 	// INIT STATE
@@ -428,7 +428,7 @@ func TestSkipInstall(t *testing.T) {
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 
 	// Check state completion
@@ -466,7 +466,7 @@ func TestSkipInstallOnRevenNoTpmClear(t *testing.T) {
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 
 	// Check state completion
@@ -505,7 +505,7 @@ func TestSkipInstallAndResetDeviceState(t *testing.T) {
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 
 	// RESET DEVICE
@@ -636,7 +636,7 @@ func TestInstallPostInstallFailureCausesReversal(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 	st.Next()
 
@@ -704,7 +704,7 @@ func TestInstallClearTPMFailureCausesReversal(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 	st.Next()
 
@@ -773,7 +773,7 @@ func TestFirmwareUpdateStateSkippedDueToNoUpdaterExist(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 	st.Next()
 
@@ -838,7 +838,7 @@ func TestFirmwareUpdateStateWithNoChange(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 	st.Next()
 
@@ -896,7 +896,7 @@ func TestPostInstallStatePreservesStatefulWhenRequested(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 	st.Next()
 
@@ -969,7 +969,7 @@ func TestPostInstallStatefulFailsGetsReversed(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 	st.Next()
 
@@ -1037,7 +1037,7 @@ func TestProvisionDLCWithEmptyDLCsDoesNotExecute(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 	st.Next()
 
@@ -1092,7 +1092,7 @@ func TestProvisionDLCWhenVerifyIsTrueDoesNotExecuteInstall(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 	st.Next()
 
@@ -1161,7 +1161,7 @@ func TestPostInstallOverwriteWhenSpecified(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 	st.Next()
 
@@ -1236,7 +1236,7 @@ func TestKvmDevicePathMissing(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 	st.Next()
 
@@ -1283,7 +1283,7 @@ func TestKvmDevicePathForLabstationDevice(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
-		t.Fatalf("failed init state: %v", err)
+		t.Fatalf("failed pre-init state: %v", err)
 	}
 	st.Next()
 
