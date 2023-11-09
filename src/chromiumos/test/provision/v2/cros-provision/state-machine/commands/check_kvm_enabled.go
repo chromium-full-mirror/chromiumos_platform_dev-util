@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -32,12 +33,16 @@ func NewCheckKvmEnabled(ctx context.Context, cs *service.CrOSService) *CheckKvmE
 func (c *CheckKvmEnabled) Execute(log *log.Logger) error {
 	log.Printf("RUNNING CheckKvmEnabled Execute")
 
-	exist, err := c.cs.Connection.PathExists(c.ctx, common_utils.KvmDevicePath)
-	if err != nil {
-		return err
-	}
-	if !exist {
-		return errors.New("KVM device path does not exist")
+	if strings.Contains(c.cs.MachineMetadata.Board, "labstation") {
+		log.Printf("CheckKvmEnabled skipping labstation boards")
+	} else {
+		exist, err := c.cs.Connection.PathExists(c.ctx, common_utils.KvmDevicePath)
+		if err != nil {
+			return err
+		}
+		if !exist {
+			return errors.New("KVM device path does not exist")
+		}
 	}
 
 	log.Printf("RUNNING CheckKvmEnabled Success")

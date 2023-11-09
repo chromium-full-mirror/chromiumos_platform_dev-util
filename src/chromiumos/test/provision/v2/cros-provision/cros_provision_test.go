@@ -1255,6 +1255,54 @@ func TestKvmDevicePathMissing(t *testing.T) {
 	}
 }
 
+func TestKvmDevicePathForLabstationDevice(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sam := mock_common_utils.NewMockServiceAdapterInterface(ctrl)
+	log, _ := cli.SetUpLog(constants.DefaultLogDirectory)
+	cs := service.NewCrOSServiceFromExistingConnection(
+		sam,
+		&conf.StoragePath{
+			HostType: conf.StoragePath_GS,
+			Path:     "path/to/image",
+		},
+		nil,
+		true, // <- preserve stateful
+		[]*api.CrOSProvisionMetadata_DLCSpec{{Id: "1"}},
+		false,
+	)
+
+	ctx := context.Background()
+
+	// PRE INIT STATE
+	st := state_machine.NewCrOSPreInitState(&cs)
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=some-labstation", nil),
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+	)
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed init state: %v", err)
+	}
+	st.Next()
+
+	// INIT STATE
+	st = state_machine.NewCrOSInitState(&cs)
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
+		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+	)
+	// Explicit check.
+	getPathExistsCommand(sam, kvmDevicePathExists).Times(0)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed init state: %v", err)
+	}
+}
+
 func getPathExistsCommand(sam *mock_common_utils.MockServiceAdapterInterface, s PathExistsCommandStructure) *gomock.Call {
 	return sam.EXPECT().PathExists(gomock.Any(), gomock.Eq(s.Path))
 }
