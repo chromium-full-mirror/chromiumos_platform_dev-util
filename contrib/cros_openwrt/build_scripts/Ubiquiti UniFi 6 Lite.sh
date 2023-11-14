@@ -5,6 +5,7 @@
 
 # This script preforms the necessary commands to build the current standard
 # image for openwrt deployment with Ubiquiti UniFi 6 Lite test APs.
+# OpenWrt device page: https://openwrt.org/toh/hwdata/ubiquiti/ubiquiti_unifi_6_lite
 
 set -e
 
