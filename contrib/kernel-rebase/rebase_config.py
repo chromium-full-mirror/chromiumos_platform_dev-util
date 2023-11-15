@@ -57,6 +57,7 @@ topic_patches["block-fs"] = [
     "fixups/FIXUP: NOUPSTREAM: ANDROID: fs-verity: Export function to check signatures.patch",
     "fixups/FIXUP: FROMLIST: fuse: Introduce passthrough for mmap.patch",
     "fixups/FIXUP: CHROMIUM: mm: per-process reclaim for block-fs topic.patch",
+    "fixups/FIXUP: CHROMIUM: mm: Optionally limit per-process reclaim.patch",
 ]
 
 topic_patches["gpu/other"] = [
