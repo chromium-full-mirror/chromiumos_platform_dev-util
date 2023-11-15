@@ -328,3 +328,27 @@ disp_overwrite[
 disp_overwrite[
     "e32b40257460"
 ] = "drop"  # CHROMIUM: misc: nxp-sr1xx: Disable building with COMPILE_TEST
+disp_overwrite["04c089868427"] = [
+    "move",
+    "media",
+]  # FROMGIT: media: cros-ec-cec: Manage an array of ports
+disp_overwrite["5b9663158011"] = [
+    "move",
+    "media",
+]  # FROMGIT: media: cros-ec-cec: Support multiple ports in set/get host commands
+disp_overwrite["5fc7537a63a8"] = [
+    "move",
+    "media",
+]  # FROMGIT: media: cros-ec-cec: Support multiple ports in write command
+disp_overwrite["f25a9de23a3b"] = [
+    "move",
+    "media",
+]  # FROMGIT: media: cros-ec-cec: Support multiple ports in MKBP cec_events
+disp_overwrite["5c34e5d47ba4"] = [
+    "move",
+    "media",
+]  # FROMGIT: media: cros-ec-cec: Support receiving messages from multiple ports
+disp_overwrite["caf3dbdbbf4b"] = [
+    "move",
+    "media",
+]  # FROMGIT: media: cros-ec-cec: Get number of CEC ports from EC
