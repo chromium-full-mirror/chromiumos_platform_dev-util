@@ -326,5 +326,5 @@ disp_overwrite[
     "6d77b60b54ff"
 ] = "drop"  # CHROMIUM: i2c-hid: retry SMBUS read sequence on failure
 disp_overwrite[
-    "e31b40257460"
+    "e32b40257460"
 ] = "drop"  # CHROMIUM: misc: nxp-sr1xx: Disable building with COMPILE_TEST
