@@ -104,6 +104,9 @@ topic_patches["media"] = [
     "fixups/FIXUP: CHROMIUM: media: intel-ipu6: copy IPU6 driver from v5.4 branch.patch",
 ]
 
+topic_patches["cros_ec"] = [
+    "fixups/FIXUP: Reland CHROMIUM: platform: x86: add ACPI driver for ChromeOS.patch",
+]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
