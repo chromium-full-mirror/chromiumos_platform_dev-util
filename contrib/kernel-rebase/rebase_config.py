@@ -352,3 +352,4 @@ disp_overwrite["caf3dbdbbf4b"] = [
     "move",
     "media",
 ]  # FROMGIT: media: cros-ec-cec: Get number of CEC ports from EC
+disp_overwrite["760f4cf674da"] = "drop"  # CHROMIUM: Introduce CONFIG_BPF_DYNPTR
