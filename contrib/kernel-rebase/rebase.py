@@ -10,9 +10,10 @@
 # pylint: disable=unused-wildcard-import
 # pylint: disable=import-outside-toplevel
 # pylint: disable=missing-function-docstring
-# pylint: disable=input-builtin
 # pylint: disable=redefined-outer-name
 # pylint: disable=banned-string-format-function
+# pylint: disable=consider-using-f-string
+# pylint: disable=import-modules-only
 
 """Automatic rebase
 
@@ -247,14 +248,13 @@ class Rebaser:
         checkout("kernel-upstream", rebase_target)
 
     def get_topic_dispositions(self, topic_list):
-
         gids = []
         for topic in topic_list:
             gids.append(self.topics[topic])
         gids = str(gids).replace("[", "(").replace("]", ")")
 
         self.cur.execute(
-            "select disposition,sha,subject,reason from commits where topic in %s"
+            "select disposition,sha,subject,reason,dsha from commits where topic in %s"
             % gids
         )
         dispositions = self.cur.fetchall()
@@ -263,22 +263,32 @@ class Rebaser:
             sha = dispositions[i][1]
             subject = dispositions[i][2]
             reason = dispositions[i][3]
+            dsha = dispositions[i][4]
             # Assume there are only pick and drop dispositions
-            assert disp in ["pick", "drop"], "Unrecognized disposition."
+            assert disp in [
+                "pick",
+                "drop",
+                "replace",
+            ], "Unrecognized disposition."
 
             # Modify dispositions according to overwrite
             if sha in disp_overwrite:
                 # extended disposition are handled in handle_ext_disposition
                 if isinstance(disp_overwrite[sha], list):
                     continue
-                dispositions[i] = (disp_overwrite[sha], sha, subject, reason)
+                dispositions[i] = (
+                    disp_overwrite[sha],
+                    sha,
+                    subject,
+                    reason,
+                    dsha,
+                )
 
         return dispositions
 
     # Handle extended dispositions
     # topic_list: list of source topics
     def handle_ext_disposition(self, topic_list):
-
         print("Handle extended disposition overwrites")
         for sha, val in disp_overwrite.items():
             # currently we support 'move' extended disposition only
@@ -295,7 +305,6 @@ class Rebaser:
     # topics: list of source topics
     # is_triage: if set, skip over commits that require manual resolution
     def rebase_multiple(self, end_name, topic_list, is_triage=False):
-
         print("Checkout to", rebase_target, "...")
         checkout("kernel-upstream", rebase_target)
 
@@ -305,7 +314,7 @@ class Rebaser:
             with sh.pushd("kernel-upstream"):
                 try:
                     sh.git("branch", "-D", topic_branch)
-                except sh.ErrorReturnCode_1 as e:
+                except sh.ErrorReturnCode_1:
                     pass
         else:
             topic_branch = branch_name(
@@ -339,7 +348,9 @@ class Rebaser:
                 for dep in rebase_config.patch_deps[sha]:
                     print("Adding dependency", dep, "for patch", sha)
                     subject = "(fake subject) Dependency of " + sha
-                    dispositions_with_deps.append(["pick", dep, subject, ""])
+                    dispositions_with_deps.append(
+                        ["pick", dep, subject, "", ""]
+                    )
             dispositions_with_deps.append(i)
 
         dispositions = dispositions_with_deps
@@ -348,6 +359,7 @@ class Rebaser:
             sha = i[1]
             subject = i[2]
             reason = i[3]
+            dsha = i[4]
 
             if cp_or_am_in_progress("kernel-upstream"):
                 print(
@@ -363,13 +375,19 @@ class Rebaser:
                 if reason != "upstream":
                     dropped += 1
                 continue
-            print("Pick commit %s: %s" % (sha, subject))
             if disp == "replace":
-                # Replace dispositions are treated as 'pick' to avoid the
-                # hassle.
-                print("WARNING: commit disposition is replace")
-
-            diff = replacement("kernel-upstream", sha)
+                # 'pick' commit from upstream, not from chromium db.
+                print("INFO: commit disposition is replace")
+                fsha = dsha
+                upstream_subject = commit_subject("kernel-upstream", fsha)
+                print(
+                    'Replace commit %s: "%s" with upstream commit %s: "%s"'
+                    % (sha, subject, fsha, upstream_subject)
+                )
+            else:
+                fsha = sha
+                print("Pick commit %s: %s" % (fsha, subject))
+            diff = replacement("kernel-upstream", fsha)
             if diff is not None:
                 print("Patch replaced by previous conflict resolution:", diff)
                 # Make the path absolute
@@ -377,26 +395,34 @@ class Rebaser:
 
             override_unresolved = False
             try:
-                call_hook(sha, "pre")
+                call_hook(fsha, "pre")
                 if diff is None:
-                    cherry_pick("kernel-upstream", sha)
+                    cherry_pick("kernel-upstream", fsha)
+                    if disp == "replace":
+                        add_prefix_to_commit_subject(
+                            "kernel-upstream", "UPSTREAM", upstream_subject
+                        )
                 else:
                     apply_patch(
-                        "kernel-upstream", diff, sha
+                        "kernel-upstream", diff, fsha
                     )  # sha is only used for debugs
                     add_kcr_patch_tag(diff)
                 noconflicts += 1
                 # No conflicts, check rerere and continue
-                call_hook(sha, "post")
+                call_hook(fsha, "post")
                 continue
             except Exception as error:  # pylint: disable=broad-except
                 if "could not build fake ancestor" in str(error):
                     override_unresolved = True
                 if debug:
-                    sh.mkdir("-p", "debug/rebase/" + sha)
-                    with open("debug/rebase/" + sha + "/cp_am_err", "w") as f:
+                    sh.mkdir("-p", "debug/rebase/" + fsha)
+                    with open(
+                        "debug/rebase/" + fsha + "/cp_am_err",
+                        "w",
+                        encoding="utf-8",
+                    ) as f:
                         f.write(str(error))
-                call_hook(sha, "conflict")
+                call_hook(fsha, "conflict")
 
             print("Conflicts found.")
             # There were conflicts, check if autoresolved
@@ -409,7 +435,7 @@ class Rebaser:
                 with sh.pushd("kernel-upstream"):
                     try:
                         sh.git("-c", "core.editor=true", "am", "--continue")
-                        call_hook(sha, "post")
+                        call_hook(fsha, "post")
                     except sh.ErrorReturnCode_128 as e:
                         am_err = "No changes - did you forget" in str(e.stdout)
                         if am_err:
@@ -417,7 +443,7 @@ class Rebaser:
                                 "Cherry-pick/am empty due to conflict resolution. Skip."
                             )
                             sh.git("-c", "core.editor=true", "am", "--abort")
-                            call_hook(sha, "post_empty")
+                            call_hook(fsha, "post_empty")
                             continue
                         raise e
                     if diff is not None:
@@ -428,7 +454,7 @@ class Rebaser:
                 manual += 1
                 with sh.pushd("kernel-upstream"):
                     sh.git("am", "--abort")
-                call_hook(sha, "post_drop")
+                call_hook(fsha, "post_drop")
                 continue
 
             print(
@@ -459,7 +485,7 @@ class Rebaser:
                         err_s = str(e)
                         if "did you forget to use 'git add'" in err_s:
                             sh.git("am", "--skip")
-                            call_hook(sha, "post_drop")
+                            call_hook(fsha, "post_drop")
                             print(
                                 "Patch empty due to conflict resolution. Skip."
                             )
@@ -470,16 +496,16 @@ class Rebaser:
                             ans = input()
                             if ans in ["y", "Y"]:
                                 return {}
-                save_head("kernel-upstream", sha)
+                save_head("kernel-upstream", fsha)
             elif cmd in ["drop", "d"]:
                 dropped += 1
                 # Drop the commit and record as dropped in overlay
                 with sh.pushd("kernel-upstream"):
                     sh.git("am", "--abort")
-                with open("rebase_config.py", "a") as f:
+                with open("rebase_config.py", "a", encoding="utf-8") as f:
                     f.write(
                         "disp_overwrite['%s'] = '%s' # %s\n"
-                        % (sha, "drop", subject)
+                        % (fsha, "drop", subject)
                     )
             else:
                 print(
@@ -492,9 +518,9 @@ class Rebaser:
                 return {}
 
         # Apply global reverts
-        for sha in rebase_config.global_reverts:
+        for fsha in rebase_config.global_reverts:
             with sh.pushd("kernel-upstream"):
-                sh.git("-c", "core.editor=true", "revert", sha)
+                sh.git("-c", "core.editor=true", "revert", fsha)
 
         for topic in topic_list:
             if topic in rebase_config.topic_patches:
@@ -633,6 +659,7 @@ def triage():
                 + topic_branch.replace(".", "_").replace("/", "-")
                 + ".txt",
                 "w",
+                encoding="utf-8",
             ) as f:
                 f.write(ret["output"])
 
@@ -679,12 +706,10 @@ def save_head_user(prefix=None):
 
 
 def save_as_patch(prefix="patches"):
-
     save_head_user(prefix)
 
 
 def save_as_fixup(prefix="fixups"):
-
     save_head_user(prefix)
 
 

@@ -5,6 +5,7 @@
 # Disable pylint noise
 # pylint: disable=E0401
 # pylint: disable=redefined-outer-name
+# pylint: disable=import-modules-only
 
 """Git helpers
 
@@ -160,6 +161,19 @@ def add_tag_to_commit_hdr(repo, tag_name, tag_value):
         )
 
 
+def add_prefix_to_commit_subject(repo, prefix_value, subject_value):
+    """replace subject with 'prefix_value: subject_value' to commit pointed by HEAD"""
+
+    with sh.pushd(repo):
+        sh.git(
+            "--no-pager",
+            "commit",
+            "--amend",
+            "-m",
+            prefix_value + ": " + subject_value,
+        )
+
+
 def add_kcr_patch_tag(path, add_prefix=False):
     """adds 'Kcr-patch: path_to_patch_or_fixup_or_conflict_resolution' to commit pointed by HEAD"""
 
@@ -183,7 +197,7 @@ def cherry_pick(repo, sha, use_am=True):
         patch = format_patch(repo, sha)
         path = "/tmp/rebase_cherry_pick_patch"
 
-        with open(path, "w+") as f:
+        with open(path, "w+", encoding="utf-8") as f:
             f.write(patch)
         apply_patch(repo, path, sha)
     else:
@@ -197,7 +211,9 @@ def apply_patch(repo, diff, sha):
         ret = sh.git("am", "-3", "--no-rerere-autoupdate", diff)
     if debug:
         sh.mkdir("-p", GITHELPERS_DBG_PATH + sha)
-        with open(GITHELPERS_DBG_PATH + sha + "/am", "w") as f:
+        with open(
+            GITHELPERS_DBG_PATH + sha + "/am", "w", encoding="utf-8"
+        ) as f:
             f.write(str(ret))
 
     return ret
@@ -281,11 +297,19 @@ def patch_title(repo, sha, old=False):
         if old:
             s = "_old"
         sh.mkdir("-p", GITHELPERS_DBG_PATH + sha + s)
-        with open(GITHELPERS_DBG_PATH + sha + s + "/text_all", "w") as f:
+        with open(
+            GITHELPERS_DBG_PATH + sha + s + "/text_all", "w", encoding="utf-8"
+        ) as f:
             f.write(text)
-        with open(GITHELPERS_DBG_PATH + sha + s + "/text_hashed", "w") as f:
+        with open(
+            GITHELPERS_DBG_PATH + sha + s + "/text_hashed",
+            "w",
+            encoding="utf-8",
+        ) as f:
             f.write(refined)
-        with open(GITHELPERS_DBG_PATH + sha + s + "/sha224", "w") as f:
+        with open(
+            GITHELPERS_DBG_PATH + sha + s + "/sha224", "w", encoding="utf-8"
+        ) as f:
             f.write(sha224)
     return sha224
 
@@ -331,7 +355,7 @@ def save_head(repo, sha, path_override=None, add_prefix=False):
     else:
         path = path_override
     print("Saving patch", sha, "as", path)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(diff)
 
     add_kcr_patch_tag(path, add_prefix)
