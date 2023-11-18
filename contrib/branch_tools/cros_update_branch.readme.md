@@ -330,7 +330,7 @@ changed in the future to look it up by the directory above.
 PROJ_F_BRANCH[default]="remotes/cros/main"
 PROJ_F_BRANCH[private_partner_overlay]="remotes/cros-internal/main"
 PROJ_F_BRANCH[private_chipset_overlay]="remotes/cros-internal/main"
-PROJ_F_BRANCH[coreboot]="remotes/cros/chromeos-2016.05"
+PROJ_F_BRANCH[coreboot]="remotes/cros/main"
 ...
 ```
 
