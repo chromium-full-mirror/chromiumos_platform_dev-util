@@ -35,7 +35,7 @@ TEMP_DIR=""
 # All drivers are in media-libs/ portage category.
 CATEGORY="media-libs"
 # List of supported drivers
-DRIVERS="arc-mali-drivers-bifrost arc-mali-drivers-valhall mali-drivers mali-drivers-bifrost mali-drivers-valhall img-ddk"
+DRIVERS="mali-drivers-bifrost mali-drivers-valhall img-ddk"
 
 # List of parameters to pass to build_board, for a given package $pn:
 #  - Build board names.
@@ -43,24 +43,6 @@ DRIVERS="arc-mali-drivers-bifrost arc-mali-drivers-valhall mali-drivers mali-dri
 #  - Overlay paths for each board.
 #
 # Variable name: "PARAMS_${pn//-/_}"
-
-# Only add board that is still using ARC++ P
-# shellcheck disable=SC2034
-PARAMS_arc_mali_drivers_bifrost=(
-  "kukui kukui chipset-mt8183"
-)
-
-# Only add board that is still using ARC++ P
-# shellcheck disable=SC2034
-PARAMS_arc_mali_drivers_valhall=(
-  "asurada asurada chipset-mt8192"
-  "cherry cherry chipset-mt8195"
-)
-
-# shellcheck disable=SC2034
-PARAMS_mali_drivers=(
-  "kevin gru baseboard-gru"
-)
 
 # shellcheck disable=SC2034
 PARAMS_mali_drivers_bifrost=(
