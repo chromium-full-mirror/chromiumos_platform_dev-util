@@ -24,6 +24,7 @@ type DutInfo struct {
 	DutServer           string   // The address of the dutServer.
 	LibsServer          string   // The address of the libsServer.
 	ProvisionServer     string   // The address of the provision server
+	DevboardServer      string   // The address of the devboard server.
 	Board               string   // The board of the DUT
 	Model               string   // The model of the DUT
 	ServoHostname       string   // The hostname of the Servo paired with the DUT
@@ -85,10 +86,22 @@ func Address(device *api.CrosTestRequest_Device) (string, error) {
 		return "", fmt.Errorf("DUT does not have end point information: %v", dut)
 	}
 	return joinHostAndPort(chromeOS.Ssh), nil
-
 }
 
-// FillDUTInfo extraction DUT information from a device.
+// dutAddress extract the dut address from the Device information.
+func dutAddress(dut *labapi.Dut) (string, error) {
+	if dut.GetDevboard() != nil {
+		// Ignore DUT address if the devboard server is set.
+		return "", nil
+	}
+	chromeOS := dut.GetChromeos()
+	if chromeOS == nil {
+		return "", fmt.Errorf("DUT does not have end point information: %v", dut)
+	}
+	return joinHostAndPort(chromeOS.Ssh), nil
+}
+
+// FillDUTInfo extracts DUT information from a device.
 func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, error) {
 	if device == nil {
 		return nil, errors.New("requested device is nil")
@@ -97,25 +110,27 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 	if dut == nil {
 		return nil, errors.New("DUT is nil")
 	}
-	chromeOS := dut.GetChromeos()
-	if chromeOS == nil {
-		return nil, fmt.Errorf("DUT does not have end point information: %v", dut)
+	addr, err := dutAddress(dut)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get DUT address: %v", dut)
 	}
 
 	cacheInfo := dut.GetCacheServer()
-
-	addr := joinHostAndPort(chromeOS.Ssh)
+	chromeOS := dut.GetChromeos()
 
 	// Servo address.
 	var servo string
 	var servoHostname string
 	var servoPort string
 	var servoSerial string
-	if chromeOS.Servo != nil && chromeOS.Servo.ServodAddress != nil {
-		servo = joinHostAndPort(chromeOS.Servo.ServodAddress)
-		servoHostname = strings.ToLower(chromeOS.Servo.ServodAddress.Address)
-		servoPort = fmt.Sprintf("%v", chromeOS.Servo.ServodAddress.Port)
-		servoSerial = chromeOS.Servo.Serial
+	if chromeOS.GetServo().GetServodAddress() != nil {
+
+		servo = joinHostAndPort(chromeOS.GetServo().GetServodAddress())
+		servoHostname = strings.ToLower(chromeOS.GetServo().GetServodAddress().GetAddress())
+		if chromeOS.GetServo().GetServodAddress().GetPort() != 0 {
+			servoPort = fmt.Sprintf("%v", chromeOS.GetServo().GetServodAddress().GetPort())
+		}
+		servoSerial = chromeOS.GetServo().GetSerial()
 	}
 
 	// Address to the frontend service for accessing the RPM.
@@ -143,54 +158,41 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 	if device.ProvisionServer != nil {
 		provisionServer = joinHostAndPort(device.ProvisionServer)
 	}
-	var board string
-	var model string
-	if chromeOS.DutModel != nil {
-		board = chromeOS.DutModel.BuildTarget
-		model = chromeOS.DutModel.ModelName
+	// Devboard server address.
+	var devboardServer string
+	if device.DevboardServer != nil {
+		devboardServer = joinHostAndPort(device.DevboardServer)
 	}
+
+	board := chromeOS.GetDutModel().GetBuildTarget()
+	model := chromeOS.GetDutModel().GetModelName()
 
 	// - Chameleon
 
 	var chameleonAudio bool
 	var chamelonPresent bool
 	var chamelonPeriphsList []string
-	if chromeOS.Chameleon != nil {
-		if chromeOS.Chameleon.AudioBoard {
-			chameleonAudio = true
-		}
-
-		if len(chromeOS.Chameleon.Peripherals) > 0 {
-			chamelonPresent = true
-			for _, v := range chromeOS.Chameleon.Peripherals {
-				lv := "chameleon:" + strings.ToLower(v.String())
-				chamelonPeriphsList = append(chamelonPeriphsList, lv)
-			}
+	chameleonAudio = chromeOS.GetChameleon().GetAudioBoard()
+	if len(chromeOS.GetChameleon().GetPeripherals()) > 0 {
+		chamelonPresent = true
+		for _, v := range chromeOS.GetChameleon().GetPeripherals() {
+			lv := "chameleon:" + strings.ToLower(v.String())
+			chamelonPeriphsList = append(chamelonPeriphsList, lv)
 		}
 	}
 
-	var atrusAudio bool
-	if audio := chromeOS.Audio; audio != nil {
-		if audio.Atrus {
-			atrusAudio = true
-		}
-	}
+	atrusAudio := chromeOS.GetAudio().GetAtrus()
 
-	var touchMimo bool
-	if touch := chromeOS.Touch; touch != nil {
-		if touch.Mimo {
-			touchMimo = true
-		}
-	}
+	touchMimo := chromeOS.GetTouch().GetMimo()
 
 	var cameraboxFacing string
-	if camerabox := chromeOS.Camerabox; camerabox != nil {
+	if camerabox := chromeOS.GetCamerabox(); camerabox != nil {
 		facing := camerabox.Facing
 		cameraboxFacing = strings.ToLower(facing.String())
 	}
 
 	var cableList []string
-	if cables := chromeOS.Cables; len(cables) > 0 {
+	if cables := chromeOS.GetCables(); len(cables) > 0 {
 		for _, v := range cables {
 			// TODO: Figure out why this proto has an empty space at end
 			// eg. USBAUDIO is returning "USBAUDIO "
@@ -199,19 +201,17 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 	}
 
 	var carriers []string
-	if car := chromeOS.Cellular; car != nil {
-		if len(car.Operators) > 0 {
+	if car := chromeOS.GetCellular(); car != nil {
+		if len(car.GetOperators()) > 0 {
 			for _, v := range car.Operators {
 				lv := "carrier:" + strings.ToLower(v.String())
 				carriers = append(carriers, lv)
-
 			}
-
 		}
 	}
 
 	var hwids []string
-	if hwid := chromeOS.HwidComponent; len(hwid) > 0 {
+	if hwid := chromeOS.GetHwidComponent(); len(hwid) > 0 {
 		for _, v := range hwid {
 			// TODO: Figure out why this proto has an empty space at end
 			// eg. USBAUDIO is returning "USBAUDIO "
@@ -220,15 +220,15 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 		}
 	}
 
-	sku := chromeOS.Sku
+	sku := chromeOS.GetSku()
 
 	var phase string
-	phase = strings.ToUpper(chromeOS.Phase.String())
+	phase = strings.ToUpper(chromeOS.GetPhase().String())
 
-	hwid := string(chromeOS.Hwid)
+	hwid := chromeOS.GetHwid()
 
 	btpeers := 0
-	if peers := chromeOS.BluetoothPeers; len(peers) > 0 {
+	if peers := chromeOS.GetBluetoothPeers(); len(peers) > 0 {
 		for _, v := range peers {
 			state := v.State
 			if strings.ToLower(state.String()) == "working" {
@@ -239,7 +239,7 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 
 	cacheServer := ""
 	if cacheInfo != nil {
-		cacheServer = fmt.Sprintf("%v:%v", cacheInfo.GetAddress().Address, cacheInfo.GetAddress().Port)
+		cacheServer = fmt.Sprintf("%v:%v", cacheInfo.GetAddress().GetAddress(), cacheInfo.GetAddress().GetPort())
 
 	}
 
@@ -250,6 +250,7 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 		DutServer:           dutServer,
 		LibsServer:          libsServer,
 		ProvisionServer:     provisionServer,
+		DevboardServer:      devboardServer,
 		Board:               board,
 		Model:               model,
 		ServoHostname:       servoHostname,

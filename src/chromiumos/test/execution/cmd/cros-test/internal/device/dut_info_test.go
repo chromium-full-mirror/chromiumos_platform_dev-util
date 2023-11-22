@@ -99,6 +99,16 @@ func TestFillDUTInfo(t *testing.T) {
 			Servo:           "",
 			DutServer:       "",
 			ProvisionServer: "",
+			DevboardServer:  "",
+			Phase:           "PHASE_UNSPECIFIED",
+		},
+		{
+			Addr:            "",
+			Role:            "",
+			Servo:           "",
+			DutServer:       "",
+			ProvisionServer: "",
+			DevboardServer:  "cros-board:80",
 			Phase:           "PHASE_UNSPECIFIED",
 		},
 	}
@@ -169,6 +179,18 @@ func TestFillDUTInfo(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			Dut: &labapi.Dut{
+				Id: &labapi.Dut_Id{Value: "AnyId"},
+				DutType: &labapi.Dut_Devboard_{
+					Devboard: &labapi.Dut_Devboard{
+						BoardType:           "AnyBoardType",
+						UltradebugSerial:    "AnySerical",
+						FingerprintModuleId: "AnyFPID",
+					},
+				},
+			},
+			DevboardServer: &labapi.IpEndpoint{Address: "cros-board", Port: 80},
 		},
 	}
 

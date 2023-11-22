@@ -262,6 +262,10 @@ func genArgList(args *runArgs) (argList []string) {
 		argList = append(argList, fmt.Sprintf("%v=%v", fv.flag, fv.value))
 	}
 	for _, c := range args.companions {
+		if c.DevboardServer != "" {
+			// Skipped if the DUT is a devboard.
+			continue
+		}
 		// example: -companiondut=cd1:127.0.0.1:2222
 		argList = append(argList, fmt.Sprintf("%v=%s:%s", companionDUTFlag, c.Role, c.Addr))
 	}
@@ -361,7 +365,28 @@ func genArgList(args *runArgs) (argList []string) {
 		argList = append(argList, fmt.Sprintf("%v=servers.provision=%s", varFlag, provisionServerStrs))
 	}
 
-	argList = append(argList, args.primary.Addr)
+	// Fill in devboard server var flags.
+	devboardServerStrs := ""
+	if args.primary.DevboardServer != "" {
+		// Fill in the servo var flag
+		devboardServerStrs = fmt.Sprintf(":%s", args.primary.DevboardServer)
+	}
+	for _, c := range args.companions {
+		if c.DevboardServer != "" {
+			devboardServerStrs = fmt.Sprintf("%s,%s:%s", devboardServerStrs, c.Role, c.DevboardServer)
+		}
+	}
+	if devboardServerStrs != "" {
+		// example: -var=servers.devboard=primary:p1:22,cd1:p2:22,cd2:p2:22
+		argList = append(argList, fmt.Sprintf("%v=servers.devboard=%s", varFlag, devboardServerStrs))
+	}
+
+	if args.primary.DevboardServer != "" {
+		// If the DUT is devboard, use "-" as the DUT address.
+		argList = append(argList, "-")
+	} else {
+		argList = append(argList, args.primary.Addr)
+	}
 	argList = append(argList, args.patterns...)
 	return argList
 }

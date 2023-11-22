@@ -316,6 +316,76 @@ func TestGenArgListWithServers(t *testing.T) {
 	}
 }
 
+// TestGenArgListWithDevboard makes sure genArgList generates the correct list of argument for tast
+// when various servers are defined.
+func TestGenArgListWithDevboard(t *testing.T) {
+	primary := &device.DutInfo{
+		Addr:           "",
+		Role:           "",
+		DevboardServer: "devboardserver0",
+	}
+	reportsServerValue := ":127.0.0.1:3333"
+	companions := []*device.DutInfo{
+		{
+			Addr:           "",
+			Role:           "cd1",
+			DevboardServer: "devboardserver1",
+		},
+	}
+	args := runArgs{
+		primary:  primary,
+		patterns: []string{test1, test2},
+		tastFlags: map[string]string{
+			verboseFlag: "true",
+			logTimeFlag: "false",
+		},
+		runFlags: []flagValue{
+			{sshRetriesFlag, "2"},
+			{downloadDataFlag, "batch"},
+			{buildFlag, "false"},
+			{downloadPrivateBundlesFlag, "true"},
+			{testRetriesFlag, "1"},
+			{resultsDirFlag, workDir1},
+			{reportsServerFlag, reportsServerValue},
+		},
+		companions: companions,
+	}
+
+	var expectedArgList []string
+	for key, value := range args.tastFlags {
+		expectedArgList = append(expectedArgList, fmt.Sprintf("%v=%v", key, value))
+	}
+	runIndex := len(expectedArgList)
+	expectedArgList = append(expectedArgList, "run")
+	for _, kv := range args.runFlags {
+		expectedArgList = append(expectedArgList, fmt.Sprintf("%v=%v", kv.flag, kv.value))
+	}
+
+	// Creates devboard list.
+	devboardStr := fmt.Sprintf(":%s", primary.DevboardServer)
+	for _, c := range companions {
+		devboardStr = fmt.Sprintf("%s,%s:%s", devboardStr, c.Role, c.DevboardServer)
+	}
+	expectedArgList = append(expectedArgList, fmt.Sprintf("-var=servers.devboard=%v", devboardStr))
+
+	dutIndex := len(expectedArgList)
+	expectedArgList = append(expectedArgList, "-")
+	expectedArgList = append(expectedArgList, test1)
+	expectedArgList = append(expectedArgList, test2)
+
+	argList := genArgList(&args)
+
+	// Sort both lists so that we can compare them.
+	sort.Strings(expectedArgList[0:runIndex])
+	sort.Strings(argList[0:runIndex])
+	sort.Strings(expectedArgList[runIndex+1 : dutIndex])
+	sort.Strings(argList[runIndex+1 : dutIndex])
+
+	if diff := cmp.Diff(argList, expectedArgList, cmp.AllowUnexported(runArgs{})); diff != "" {
+		t.Errorf("Got unexpected argument from genArgList (-got %v +want %v):\n%s", argList, expectedArgList, diff)
+	}
+}
+
 // TestgenHostInfoYAML tests memes.
 func TestGenHostInfoYAML(t *testing.T) {
 	primary := &device.DutInfo{
