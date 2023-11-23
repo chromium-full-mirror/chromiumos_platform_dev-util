@@ -1,0 +1,39 @@
+# Copyright 2023 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# OpenSSH sshd_config
+# Manual: https://man.openbsd.org/sshd_config
+
+# Only log basic connection information by default. This can be switched to
+# DEBUG to include many more ssh logs, including session information, to debug
+# access issues.
+LogLevel INFO
+
+# Include our generated ssh banner with device and image info.
+Banner /etc/cros/ssh_banner.txt
+
+# Allow for many ssh sessions at once, as tests configure device and collect
+# logs over ssh.
+MaxSessions 100
+
+# Close ssh sessions after 24 hours of inactivity.
+ChannelTimeout session:*=24H
+
+# Close connections with no active sessions for 24 hours.
+UnusedConnectionTimeout 24H
+
+# Only allow private key auth by disabling password auth.
+# The testing_rsa pub key is included to /root/.ssh/authorized_keys as part of
+# the image and should be used for all ssh connections.
+PasswordAuthentication no
+PermitEmptyPasswords no
+PermitRootLogin prohibit-password
+
+# Allow SCP (SFTP through SSH) using sftp-server bundled within OpenSSH.
+Subsystem sftp internal-sftp
+
+# Other settings from default OpenWrt sshd_config that this file overrides.
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+AuthorizedKeysFile .ssh/authorized_keys

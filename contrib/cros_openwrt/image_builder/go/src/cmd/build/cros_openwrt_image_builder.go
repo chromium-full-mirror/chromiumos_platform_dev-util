@@ -6,6 +6,7 @@ package build
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -47,6 +48,16 @@ type CrosOpenWrtImageBuilderOptions struct {
 	SdkConfigOverrides           map[string]string
 	ImageFeatureNames            []string
 	ImageFeatures                []labapi.WifiRouterFeature
+	SkipSdkCompile               bool
+}
+
+// String returns the options as a pretty JSON string that can be logged.
+func (o *CrosOpenWrtImageBuilderOptions) String() string {
+	optionsJSON, err := json.MarshalIndent(o, "", "  ")
+	if err != nil {
+		panic(fmt.Sprintf("failed to marshall CrosOpenWrtImageBuilderOptions to JSON: %v", err))
+	}
+	return string(optionsJSON)
 }
 
 // CrosOpenWrtImageBuilder is a utility that can preform different steps related
@@ -105,7 +116,7 @@ func (ib *CrosOpenWrtImageBuilder) prepareSdk(ctx context.Context) error {
 			}
 		} else {
 			log.Logger.Printf("Downloading OpenWrt SDK archive from %q\n", ib.options.SdkURL)
-			sdkArchivePath, err = fileutils.DownloadFileFromURL(ctx, ib.options.SdkURL, ib.wd.SdkDownloadsDirPath)
+			sdkArchivePath, err = fileutils.DownloadFileFromURL(ctx, ib.options.SdkURL, ib.wd.SdkDownloadsDirPath, ib.isSnapshotURL(ib.options.SdkURL))
 			if err != nil {
 				return fmt.Errorf("failed to download sdk archive from %q: %w", ib.options.SdkURL, err)
 			}
@@ -148,7 +159,7 @@ func (ib *CrosOpenWrtImageBuilder) prepareBuilder(ctx context.Context) error {
 			}
 		} else {
 			log.Logger.Printf("Downloading OpenWrt image builder archive from %q\n", ib.options.ImageBuilderURL)
-			builderArchivePath, err = fileutils.DownloadFileFromURL(ctx, ib.options.ImageBuilderURL, ib.wd.ImageBuilderDownloadsDirPath)
+			builderArchivePath, err = fileutils.DownloadFileFromURL(ctx, ib.options.ImageBuilderURL, ib.wd.ImageBuilderDownloadsDirPath, ib.isSnapshotURL(ib.options.ImageBuilderURL))
 			if err != nil {
 				return fmt.Errorf("failed to download image builder archive from %q: %w", ib.options.ImageBuilderURL, err)
 			}
@@ -180,13 +191,13 @@ func (ib *CrosOpenWrtImageBuilder) prepareBuilder(ctx context.Context) error {
 	}
 
 	// Copy the shared test key to included files as an authorized key so that it
-	// may be used for ssh access to the router.
-	dropbearDirPath := path.Join(ib.wd.ImageBuilderIncludedFilesDirPath, "etc/dropbear")
-	if err := os.MkdirAll(dropbearDirPath, fileutils.DefaultDirPermissions); err != nil {
-		return fmt.Errorf("failed to make dir %q: %w", dropbearDirPath, err)
+	// may be used for ssh access to the router with openssh-server (sshd).
+	sshdUserConfigDir := path.Join(ib.wd.ImageBuilderIncludedFilesDirPath, "root/.ssh")
+	if err := os.MkdirAll(sshdUserConfigDir, fileutils.DefaultDirPermissions); err != nil {
+		return fmt.Errorf("failed to make dir %q: %w", sshdUserConfigDir, err)
 	}
-	crosPubKeyPath := path.Join(ib.src.ChromiumosDirPath, "chromeos-admin/puppet/modules/profiles/files/user-common/ssh/testing_rsa.pub")
-	if err := fileutils.CopyFile(ctx, crosPubKeyPath, path.Join(dropbearDirPath, "authorized_keys")); err != nil {
+	crosPubKeyPath := path.Join(ib.src.ChromiumosDirPath, "src/third_party/chromiumos-overlay/chromeos-base/chromeos-ssh-testkeys/files/testing_rsa.pub")
+	if err := fileutils.CopyFile(ctx, crosPubKeyPath, path.Join(sshdUserConfigDir, "authorized_keys")); err != nil {
 		return err
 	}
 
@@ -203,6 +214,10 @@ func (ib *CrosOpenWrtImageBuilder) prepareBuilder(ctx context.Context) error {
 
 	log.Logger.Println("Successfully prepared OpenWrt image builder")
 	return nil
+}
+
+func (ib *CrosOpenWrtImageBuilder) isSnapshotURL(openWrtDownloadsURL string) bool {
+	return strings.HasPrefix(openWrtDownloadsURL, "https://downloads.openwrt.org/snapshots/")
 }
 
 // CompileCustomPackages uses the OpenWrt sdk to compile custom/customized
@@ -224,9 +239,13 @@ func (ib *CrosOpenWrtImageBuilder) CompileCustomPackages(ctx context.Context) er
 		return err
 	}
 
-	log.Logger.Println("Compiling custom packages and their dependencies")
-	if err := ib.sdk.CompileCustomPackages(ctx, ib.options.SdkConfigOverrides, ib.options.SdkSourcePackageMakefileDirs, ib.options.AutoRetrySdkCompile, ib.options.SdkCompileMaxCPUs); err != nil {
-		return fmt.Errorf("failed to compile custom packages with sdk: %w", err)
+	if ib.options.SkipSdkCompile {
+		log.Logger.Println("Skipping compilation custom packages (SkipSdkCompile option is true)")
+	} else {
+		log.Logger.Println("Compiling custom packages and their dependencies")
+		if err := ib.sdk.CompileCustomPackages(ctx, ib.options.SdkConfigOverrides, ib.options.SdkSourcePackageMakefileDirs, ib.options.AutoRetrySdkCompile, ib.options.SdkCompileMaxCPUs); err != nil {
+			return fmt.Errorf("failed to compile custom packages with sdk: %w", err)
+		}
 	}
 
 	log.Logger.Printf("Exporting compiled custom package IPKs to %q\n", ib.wd.PackagesOutputDirPath)
@@ -302,14 +321,25 @@ func (ib *CrosOpenWrtImageBuilder) BuildCustomChromeOSTestImage(ctx context.Cont
 	if err != nil {
 		return fmt.Errorf("failed to fetch OSRelease from preliminary image build files: %w", err)
 	}
-	buildSummary, err := ib.prepareBuildSummaryJSON(ctx, makeImageArgs, ib.options.ImageFeatures, osRelease, standardBuildInfo)
+	buildInfo, err := ib.prepareBuildInfo(ctx, makeImageArgs, ib.options.ImageFeatures, osRelease, standardBuildInfo)
 	if err != nil {
-		return fmt.Errorf("failed to prepare build summary: %w", err)
+		return fmt.Errorf("failed to prepare build info: %w", err)
 	}
-	relativeImageBuildSummaryFilePath := "etc/cros/" + ImageBuildInfoFilename
-	log.Logger.Printf("Image build summary (available on image install at \"/%s\":\n%s\n", relativeImageBuildSummaryFilePath, buildSummary)
-	if err := fileutils.WriteStringToFile(ctx, buildSummary, path.Join(ib.wd.ImageBuilderIncludedFilesDirPath, relativeImageBuildSummaryFilePath)); err != nil {
-		return fmt.Errorf("failed to save build build summary in included image files: %w", err)
+	buildInfoJSON, err := ib.marshallBuildInfoJSON(buildInfo)
+	if err != nil {
+		return fmt.Errorf("failed to marshall build info: %w", err)
+	}
+	relativeImageBuildInfoFilePath := "etc/cros/" + ImageBuildInfoFilename
+	log.Logger.Printf("Image build info (available on image install at \"/%s\":\n%s\n", relativeImageBuildInfoFilePath, buildInfoJSON)
+	if err := fileutils.WriteStringToFile(ctx, buildInfoJSON, path.Join(ib.wd.ImageBuilderIncludedFilesDirPath, relativeImageBuildInfoFilePath)); err != nil {
+		return fmt.Errorf("failed to save build info in included image files: %w", err)
+	}
+
+	// Generate the ssh banner with build info.
+	sshBannerPath := path.Join(ib.wd.ImageBuilderIncludedFilesDirPath, "etc/cros/ssh_banner.txt")
+	sshBanner := ib.buildSSHBanner(buildInfo)
+	if err := fileutils.WriteStringToFile(ctx, sshBanner, sshBannerPath); err != nil {
+		return fmt.Errorf("failed to save ssh banner in included image files: %w", err)
 	}
 
 	// Make final image with build summary included.
@@ -322,7 +352,7 @@ func (ib *CrosOpenWrtImageBuilder) BuildCustomChromeOSTestImage(ctx context.Cont
 	// Export image.
 	log.Logger.Println("Exporting built image")
 	imageDirPath, err := ib.builder.ExportBuiltImage(ctx, ib.wd.ImagesOutputDirPath, map[string][]byte{
-		ImageBuildInfoFilename: []byte(buildSummary),
+		ImageBuildInfoFilename: []byte(buildInfoJSON),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to export built image: %w", err)
@@ -374,7 +404,7 @@ func (ib *CrosOpenWrtImageBuilder) promptForImageProfile(ctx context.Context) (s
 	return selectedProfile, nil
 }
 
-func (ib *CrosOpenWrtImageBuilder) prepareBuildSummaryJSON(ctx context.Context, makeImageArgs *openwrt.MakeImageArgs, routerFeatures []labapi.WifiRouterFeature, osRelease *labapi.CrosOpenWrtImageBuildInfo_OSRelease, standardBuildConfig *labapi.CrosOpenWrtImageBuildInfo_StandardBuildConfig) (string, error) {
+func (ib *CrosOpenWrtImageBuilder) prepareBuildInfo(ctx context.Context, makeImageArgs *openwrt.MakeImageArgs, routerFeatures []labapi.WifiRouterFeature, osRelease *labapi.CrosOpenWrtImageBuildInfo_OSRelease, standardBuildConfig *labapi.CrosOpenWrtImageBuildInfo_StandardBuildConfig) (*labapi.CrosOpenWrtImageBuildInfo, error) {
 	buildInfo := &labapi.CrosOpenWrtImageBuildInfo{
 		ImageUuid:                      uuid.New().String(),
 		CustomImageName:                makeImageArgs.ExtraImageName,
@@ -387,23 +417,24 @@ func (ib *CrosOpenWrtImageBuilder) prepareBuildSummaryJSON(ctx context.Context, 
 		ExcludedPackages:               makeImageArgs.ExcludePackages,
 		DisabledServices:               makeImageArgs.DisabledServices,
 	}
-
 	// Packages customizations.
 	packagesChecksums, err := fileutils.CollectFileChecksums(ctx, path.Join(ib.wd.ImageBuilderDirPath, "packages"))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	buildInfo.CustomPackages = packagesChecksums
-
 	// File customizations.
 	includedImageFileChecksums, err := fileutils.CollectFileChecksums(ctx, makeImageArgs.Files)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	buildInfo.CustomIncludedFiles = includedImageFileChecksums
+	return buildInfo, nil
+}
 
-	// Return as pretty marshalled JSON object to allow for easy script parsing
-	// and human reading from a terminal.
+// marshallBuildInfoJSON returns the buildInfo as a pretty marshalled JSON
+// string to allow for easy script parsing and human reading from a terminal.
+func (ib *CrosOpenWrtImageBuilder) marshallBuildInfoJSON(buildInfo *labapi.CrosOpenWrtImageBuildInfo) (string, error) {
 	marshaller := protojson.MarshalOptions{
 		Indent:          "  ",
 		Multiline:       true,
@@ -414,4 +445,18 @@ func (ib *CrosOpenWrtImageBuilder) prepareBuildSummaryJSON(ctx context.Context, 
 		return "", fmt.Errorf("failed to marshal build info to JSON: %w", err)
 	}
 	return string(buildInfoJSON) + "\n", nil
+}
+
+func (ib *CrosOpenWrtImageBuilder) buildSSHBanner(buildInfo *labapi.CrosOpenWrtImageBuildInfo) string {
+	return fmt.Sprintf(`
+------------------------------------------------------------
+ChromeOS OpenWrt Test Router
+ * Documentation: go/cros-openwrt
+ * Device: %q
+ * ImageUUID: %s
+------------------------------------------------------------
+`,
+		buildInfo.GetStandardBuildConfig().GetDeviceName(),
+		buildInfo.GetImageUuid(),
+	)
 }

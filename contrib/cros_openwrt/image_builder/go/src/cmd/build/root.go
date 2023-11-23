@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/cmd/common"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/openwrt"
 )
 
@@ -75,6 +76,7 @@ func RootCmd(rootCmdVersion string) (*cobra.Command, error) {
 					return errors.New("aborted by user")
 				}
 			}
+			log.Logger.Printf("CrosOpenWrtImageBuilderOptions: %s", builderOptions)
 			return nil
 		},
 	}
@@ -158,100 +160,40 @@ func RootCmd(rootCmdVersion string) (*cobra.Command, error) {
 	buildCmd.PersistentFlags().StringToStringVar(
 		&builderOptions.SdkConfigOverrides,
 		"sdk_config",
-		map[string]string{
-			"CONFIG_WPA_MBO_SUPPORT":     "y",
-			"CONFIG_WPA_ENABLE_WEP":      "y",
-			"CONFIG_DRIVER_11N_SUPPORT":  "y",
-			"CONFIG_DRIVER_11AC_SUPPORT": "y",
-			"CONFIG_DRIVER_11AX_SUPPORT": "y",
-		},
+		map[string]string{},
 		"Config options to set for the sdk when compiling custom packages.",
 	)
-	buildCmd.PersistentFlags().StringArrayVar(
+	buildCmd.PersistentFlags().StringSliceVar(
 		&builderOptions.SdkSourcePackageMakefileDirs,
 		"sdk_make",
-		[]string{
-			// Builds the cros-send-management-frame package.
-			"cros-send-management-frame",
-
-			// Builds hostapd*, wpa-supplicant*, wpad*, and eapol-test* packages.
-			"feeds/base/hostapd",
-		},
+		[]string{},
 		"The sdk package makefile paths to use to compile custom IPKs. Making a package with the sdk will build all the IPKs that package depends upon, but only need to be included if they are expected to differ from official versions.",
 	)
-	buildCmd.PersistentFlags().StringArrayVar(
+	buildCmd.PersistentFlags().StringSliceVar(
 		&builderOptions.ImageDisabledServices,
 		"disable_service",
-		[]string{
-			"wpad",
-			"dnsmasq",
-		},
+		[]string{},
 		"Services to disable in the built image.",
 	)
-	buildCmd.PersistentFlags().StringArrayVar(
+	buildCmd.PersistentFlags().StringSliceVar(
 		&builderOptions.IncludedCustomPackages,
 		"include_custom_package",
-		[]string{
-			"cros-send-management-frame",
-			"hostapd-common",
-			"hostapd-utils",
-			"wpad-openssl",
-			"wpa-cli",
-		},
+		[]string{},
 		"Names of packages that should be included in built images that are built using a local sdk and included in the image builder as custom IPKs. Only custom packages in this list are saved from sdk package compilation.",
 	)
-	buildCmd.PersistentFlags().StringArrayVar(
+	buildCmd.PersistentFlags().StringSliceVar(
 		&builderOptions.IncludedOfficialPackages,
 		"include_official_package",
 		[]string{
-			"iputils-ping",
-			"iputils-arping",
-			"kmod-veth",
-			"tcpdump",
-			"procps-ng-pkill",
-			"netperf",
-			"iperf",
-			"sudo",
-			"python3-email",
-			"python3-idna",
-			"python3-light",
-			"python3-urllib",
-			"tar",
+			"openssh-server",
 		},
 		"Names of packages that should be included in built images that are downloaded from official OpenWrt repositories.",
 	)
-	buildCmd.PersistentFlags().StringArrayVar(
+	buildCmd.PersistentFlags().StringSliceVar(
 		&builderOptions.ImagePackageExcludes,
 		"exclude_package",
 		[]string{
-			// Exclude other versions of packages built by feeds/base/hostapd not being
-			// used or that are redundant given those in IncludedCustomPackages.
-			"hostapd",
-			"hostapd-basic",
-			"hostapd-basic-openssl",
-			"hostapd-basic-wolfssl",
-			"hostapd-mini",
-			"hostapd-openssl",
-			"hostapd-wolfssl",
-			"wpad",
-			"wpad-mesh-openssl",
-			"wpad-mesh-wolfssl",
-			"wpad-basic",
-			"wpad-basic-mbedtls",
-			"wpad-basic-openssl",
-			"wpad-basic-wolfssl",
-			"wpad-mini",
-			"wpad-wolfssl",
-			"wpa-supplicant",
-			"wpa-supplicant-mesh-openssl",
-			"wpa-supplicant-mesh-wolfssl",
-			"wpa-supplicant-basic",
-			"wpa-supplicant-mini",
-			"wpa-supplicant-openssl",
-			"wpa-supplicant-p2p",
-			"eapol-test",
-			"eapol-test-openssl",
-			"eapol-test-wolfssl",
+			"dropbear",
 		},
 		"Packages to exclude from the built image.",
 	)
@@ -260,11 +202,17 @@ func RootCmd(rootCmdVersion string) (*cobra.Command, error) {
 	for i, name := range labapi.WifiRouterFeature_name {
 		possibleImageFeatureNames[i] = name
 	}
-	buildCmd.PersistentFlags().StringArrayVar(
+	buildCmd.PersistentFlags().StringSliceVar(
 		&builderOptions.ImageFeatureNames,
 		"image_feature",
 		[]string{},
 		fmt.Sprintf("Wifi router features this image supports for testing (possible features: [%s])", strings.Join(possibleImageFeatureNames, ", ")),
+	)
+	buildCmd.PersistentFlags().BoolVar(
+		&builderOptions.SkipSdkCompile,
+		"skip_sdk_compile",
+		false,
+		"Include to skip the sdk compilation step. Useful when IPKs have been compiled in a previous run and you are just debugging which need to be exported.",
 	)
 
 	buildCmd.AddCommand(

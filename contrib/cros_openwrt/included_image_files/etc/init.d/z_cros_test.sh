@@ -18,11 +18,12 @@ CROS_BOOT_LOG_DIR="/root/cros_boot_log"
 CROS_BOOT_STATE_FILE="${CROS_BOOT_LOG_DIR}/boot_state_log.csv"
 CROS_BOOT_STATE_PREV_FILE="${CROS_BOOT_LOG_DIR}/boot_state_log.prev.csv"
 LAST_BOOT_ID_FILE="${CROS_BOOT_LOG_DIR}/last_boot_id.txt"
-MAX_RECORDED_BOOTS=300
+MAX_RECORDED_BOOTS=10
 MAX_BOOT_STATE_ROWS=1000
 MAX_SEQUENTIAL_AUTO_REBOOTS=4
 MAX_UPTIME_WAIT_SECONDS=60
 PING_CHECK_IP="8.8.8.8"
+NTP_SERVER="time.google.com"
 
 prepare_tmp_test_dir() {
   if [ -d "${CROS_TMP_DIR}" ]; then
@@ -81,9 +82,9 @@ record_and_verify_boot() {
 
   # Wait for links to all be up or it times out.
   BOOT_CHECK_RESULT_FILE="${RECORD_DIR}/boot_check_result.csv"
-  BOOT_CHECK_RESULT_HEADER="PING_GOOGLE_DNS_ERROR,LINK_STATE_ETH0,LINK_STATE_LAN,LINK_STATE_BR_LAN"
+  BOOT_CHECK_RESULT_HEADER="PING_GOOGLE_DNS_ERROR,LINK_STATE_ETH0,LINK_STATE_BR_LAN"
   echo "${BOOT_CHECK_RESULT_HEADER}" > "${BOOT_CHECK_RESULT_FILE}"
-  SUCCESS_RESULT="0,up,up,up"
+  SUCCESS_RESULT="0,up,up"
   BOOT_CHECK_RESULT=""
   UPTIME_WAIT_SECONDS="${MAX_UPTIME_WAIT_SECONDS}"
   log "Starting boot check for ${BOOT_NAME}"
@@ -95,9 +96,8 @@ record_and_verify_boot() {
     ping -w 1 -c 1 "${PING_CHECK_IP}" > /dev/null 2> /dev/null
     PING_GOOGLE_DNS_ERROR=$?
     LINK_STATE_ETH0=$(cat "/sys/class/net/eth0/operstate")
-    LINK_STATE_LAN=$(cat "/sys/class/net/lan/operstate")
     LINK_STATE_BR_LAN=$(cat "/sys/class/net/br-lan/operstate")
-    BOOT_CHECK_RESULT="${PING_GOOGLE_DNS_ERROR},${LINK_STATE_ETH0},${LINK_STATE_LAN},${LINK_STATE_BR_LAN}"
+    BOOT_CHECK_RESULT="${PING_GOOGLE_DNS_ERROR},${LINK_STATE_ETH0},${LINK_STATE_BR_LAN}"
     echo "$(date -u -Is) : ${BOOT_CHECK_RESULT}" >> "${BOOT_CHECK_RESULT_FILE}"
     UPTIME_WAIT_SECONDS=$((UPTIME_WAIT_SECONDS-1))
     log "Boot check result for ${BOOT_NAME}: ${BOOT_CHECK_RESULT}"
@@ -154,6 +154,8 @@ record_and_verify_boot() {
   else
     log "Boot check result: SUCCESS"
     echo "${BOOT_NAME},SUCCESS,${BOOT_CHECK_RESULT}" >> "${CROS_BOOT_STATE_FILE}"
+    log "Updating system time with NTP server '${NTP_SERVER}'"
+    ntpd -dnq -p "${NTP_SERVER}"
   fi
 
   # Collect and archive logs.

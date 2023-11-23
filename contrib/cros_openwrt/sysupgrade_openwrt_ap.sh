@@ -24,7 +24,11 @@ BIN_PATH=$1
 shift
 for HOST in "$@"; do
   echo "Updating ${HOST}"
-  scp -O "${BIN_PATH}" "${HOST}":/tmp/openwrt_update.bin
+  scp "${BIN_PATH}" "${HOST}":/tmp/openwrt_update.bin
+  if [ "$?" -ne 0 ]; then
+    # Try it with the -O flag, may be an image without our OpenSSh customizations.
+    scp -O "${BIN_PATH}" "${HOST}":/tmp/openwrt_update.bin
+  fi
   ssh "${HOST}" "sysupgrade -n \"/tmp/openwrt_update.bin\""
   echo -e "Updated ${HOST}\n"
 done

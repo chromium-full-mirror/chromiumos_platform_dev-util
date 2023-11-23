@@ -28,7 +28,11 @@ BIN_PATH=$1
 shift
 for LOCALHOST_PORT in "$@"; do
   echo "Updating host through tunnel at localhost:${LOCALHOST_PORT}"
-  scp -i ~/.ssh/testing_rsa -P "${LOCALHOST_PORT}" -o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null" -O "${BIN_PATH}" root@localhost:/tmp/openwrt_update.bin
+  scp -i ~/.ssh/testing_rsa -P "${LOCALHOST_PORT}" -o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null" "${BIN_PATH}" root@localhost:/tmp/openwrt_update.bin
+  if [ "$?" -ne 0 ]; then
+    # Try it with the -O flag, may be an image without our OpenSSh customizations.
+    scp -O -i ~/.ssh/testing_rsa -P "${LOCALHOST_PORT}" -o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null" "${BIN_PATH}" root@localhost:/tmp/openwrt_update.bin
+  fi
   ssh -i ~/.ssh/testing_rsa -p "${LOCALHOST_PORT}" -o StrictHostKeyChecking="no" -o UserKnownHostsFile="/dev/null" root@localhost "sysupgrade -n \"/tmp/openwrt_update.bin\""
   echo -e "Updated host through tunnel at localhost${LOCALHOST_PORT}\n"
 done

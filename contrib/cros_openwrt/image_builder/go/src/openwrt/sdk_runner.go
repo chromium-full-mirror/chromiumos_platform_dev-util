@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -156,7 +157,7 @@ func (sdk *SdkRunner) ExportCompiledCustomPackageIPKs(ctx context.Context, packa
 	for _, packageName := range packageNames {
 		desiredPackageToIPKPath[packageName] = ""
 	}
-	err := filepath.Walk(path.Join(sdk.sdkDirPath, "bin/packages"), func(path string, info fs.FileInfo, err error) error {
+	err := filepath.Walk(path.Join(sdk.sdkDirPath, "bin"), func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -168,8 +169,7 @@ func (sdk *SdkRunner) ExportCompiledCustomPackageIPKs(ctx context.Context, packa
 				return nil
 			}
 			packageName := info.Name()[0:packageNameEndIndex]
-			_, ok := desiredPackageToIPKPath[packageName]
-			if ok {
+			if _, ok := desiredPackageToIPKPath[packageName]; ok {
 				// Is a desired package, store path for later.
 				desiredPackageToIPKPath[packageName] = path
 				log.Logger.Printf("Found custom IPK of desired package %q at %q\n", packageName, path)
@@ -180,10 +180,15 @@ func (sdk *SdkRunner) ExportCompiledCustomPackageIPKs(ctx context.Context, packa
 	if err != nil {
 		return fmt.Errorf("failed to search for IPKs built by the local sdk: %w", err)
 	}
+	var missingPackages []string
 	for packageName, filePath := range desiredPackageToIPKPath {
 		if filePath == "" {
-			return fmt.Errorf("failed to find custom built IPK for desired package %q", packageName)
+			missingPackages = append(missingPackages, packageName)
 		}
+	}
+	if len(missingPackages) > 0 {
+		sort.Strings(missingPackages)
+		return fmt.Errorf("failed to find custom built IPK for desired packages: %s", strings.Join(missingPackages, " "))
 	}
 
 	// Copy desired IPKs to dstDir.

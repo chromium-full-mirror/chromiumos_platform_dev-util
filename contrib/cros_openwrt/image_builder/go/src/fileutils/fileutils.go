@@ -55,7 +55,7 @@ func CleanDirectory(dirPath string) error {
 // The last path part of src is used as the filename.
 // If a file with the same name is already present in the destination folder,
 // the download is skipped and no files are modified.
-func DownloadFileFromURL(ctx context.Context, src, dstFolder string) (string, error) {
+func DownloadFileFromURL(ctx context.Context, src, dstFolder string, replaceExisting bool) (string, error) {
 	// Parse src for filename.
 	srcURL, err := url.Parse(src)
 	if err != nil {
@@ -68,8 +68,13 @@ func DownloadFileFromURL(ctx context.Context, src, dstFolder string) (string, er
 
 	// Do not re-download if file already exists, just re-use it.
 	if _, err := os.Stat(dstFilePath); err == nil {
-		log.Logger.Printf("Skipping download of %q, previous download exists at %q", src, dstFilePath)
-		return dstFilePath, nil
+		if !replaceExisting {
+			log.Logger.Printf("Skipping download of %q, previous download exists at %q", src, dstFilePath)
+			return dstFilePath, nil
+		}
+		if err := os.Remove(dstFilePath); err != nil {
+			return "", fmt.Errorf("failed to remove existing file at %q", dstFilePath)
+		}
 	}
 
 	// Download to temp file, then rename when complete.
