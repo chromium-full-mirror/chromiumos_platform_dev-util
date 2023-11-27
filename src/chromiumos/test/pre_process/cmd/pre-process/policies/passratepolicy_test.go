@@ -172,6 +172,31 @@ func TestPolicyFilterTestConfigsToMapNoBoardMatch(t *testing.T) {
 	}
 }
 
+func TestPolicyFilterTestConfigsAllBoard(t *testing.T) {
+	enabledTest := &api.FilterTestConfig{
+		Test:    "test1",
+		Board:   []string{"*"},
+		Setting: api.FilterTestConfig_ENABLED,
+	}
+	disabledTest := &api.FilterTestConfig{
+		Test:    "test2",
+		Board:   []string{"*"},
+		Setting: api.FilterTestConfig_DISABLED,
+	}
+
+	enabled, disabled := policyFilterTestConfigsToMap([]*api.FilterTestConfig{enabledTest, disabledTest}, "other")
+	enabledExpected := listToMap([]string{"test1"})
+	disabledExpected := listToMap([]string{"test2"})
+	eq := reflect.DeepEqual(enabled, enabledExpected)
+	if !eq {
+		t.Fatalf("got: %s did not match expected: %s", enabled, enabledExpected)
+	}
+	eq = reflect.DeepEqual(disabled, disabledExpected)
+	if !eq {
+		t.Fatalf("got: %s did not match expected: %s", disabled, disabledExpected)
+	}
+}
+
 func TestMaxFiltered(t *testing.T) {
 	r := &api.PassRatePolicy{MaxFilteredPercent: 20}
 	mf := maxAllowedToBeFiltered(r, 5)

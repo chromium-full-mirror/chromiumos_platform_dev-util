@@ -62,14 +62,14 @@ func listToMap(forced []string) map[string]struct{} {
 func policyFilterTestConfigsToMap(cfgs []*api.FilterTestConfig, board string) (map[string]struct{}, map[string]struct{}) {
 	enabled := make(map[string]struct{})
 	disabled := make(map[string]struct{})
-
 	for _, filterconfig := range cfgs {
+		fmt.Println(filterconfig.GetSetting())
 		if filterconfig.GetSetting() == api.FilterTestConfig_ENABLED {
-			if slices.Contains(filterconfig.GetBoard(), board) {
+			if slices.Contains(filterconfig.GetBoard(), board) || slices.Contains(filterconfig.GetBoard(), "*") {
 				enabled[filterconfig.GetTest()] = struct{}{}
 			}
 		} else if filterconfig.GetSetting() == api.FilterTestConfig_DISABLED {
-			if slices.Contains(filterconfig.GetBoard(), board) {
+			if slices.Contains(filterconfig.GetBoard(), board) || slices.Contains(filterconfig.GetBoard(), "*") {
 				disabled[filterconfig.GetTest()] = struct{}{}
 			}
 		}
