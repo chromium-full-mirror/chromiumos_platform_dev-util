@@ -89,6 +89,8 @@ REGISTERED_BUILDS = {
     "pre-process": {"prepper": PreProcessDockerPrepper, "cloud": False},
     "vm-provision": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "cros-hpt": {"prepper": CommonServiceDockerPrepper, "cloud": False},
+    "post-process": {"prepper": CommonServiceDockerPrepper, "cloud": False},
+
 }
 
 # There is a ~1 in 10000 err with the fetching of the base container
@@ -103,7 +105,7 @@ DO_NOT_BUILD = set(
 # NOTE: when promoting a service from DO_NOT_BUILD, it should be added to
 # NON_CRITICAL for atleast a short time to verify health.
 NON_CRITICAL = set(
-    ["cros-servod", "cros-publish", "android-provision", "cros-pvs"]
+    ["cros-servod", "cros-publish", "android-provision", "cros-pvs", "post-process"]
 )
 
 
