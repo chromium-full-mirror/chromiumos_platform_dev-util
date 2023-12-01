@@ -165,11 +165,17 @@ def compare_releases(r1, r2):
     return 1
 
 
+def getcommit(sha):
+    """Get commit message for given SHA"""
+
+    gitcommand = ['show', sha]
+    return _git(gitcommand)
+
+
 def get_patch_id(sha):
     """Get patch ID for given SHA"""
 
-    gitcommand = ['show', sha]
-    commit = _git(gitcommand)
+    commit = getcommit(sha)
     if not commit:
         return None
 
@@ -178,6 +184,15 @@ def get_patch_id(sha):
     if not spid:
         return None
     return spid.split(" ", 1)[0]
+
+
+def get_fixes(sha):
+
+    commit = getcommit(sha)
+    if not commit:
+        return None
+
+    return re.findall(r'Fixes: (.*)', commit)
 
 
 def findpatch(remote, branch, baseline, sha, subject):
@@ -327,6 +342,14 @@ def main(args):
         if integrated_branch:
             print(f'Upstream commit {ssha} ("{subject}")')
             print(f'  Integrated in {integrated_branch}')
+            fixes = get_fixes(ssha)
+            for fix in fixes:
+                print(f'  Fixes: {fix}')
+                isha = fix.split(' ')[0]
+                if isha:
+                    introduced = integrated(isha)
+                    if introduced:
+                        print(f'    Introduced in {introduced}')
         else:
             # If the patch is not upstream, do not bother trying to find
             # ChromeOS branches.
