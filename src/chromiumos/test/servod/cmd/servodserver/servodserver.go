@@ -40,7 +40,7 @@ func NewServodService(ctx context.Context, logger *log.Logger, commandexecutor c
 		manager:         lro.New(),
 		logger:          logger,
 		commandexecutor: commandexecutor,
-		sshPool:         ssh.New(ssh.Config()),
+		sshPool:         ssh.New(ssh.Config(), nil),
 		servodPool:      servod.NewPool(),
 	}
 
