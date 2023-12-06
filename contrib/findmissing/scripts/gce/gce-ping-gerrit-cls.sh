@@ -10,20 +10,30 @@ GERRIT="${WORKSPACE}/chromite/bin/gerrit"
 FINDMISSING="${WORKSPACE}/dev-util/contrib/findmissing"
 cd "${FINDMISSING}" || exit
 LOG_FILE="/var/log/findmissing/findmissing.log"
-# unit: day(s).
-THRESHOLD=7
 ROTATED_REVIEWERS="tzungbi@chromium.org"
 GERRIT_INTERFACE="./env/bin/python gerrit_interface.py"
 
-to_string() {
-    local delta days hours
+# Thresholds, unit: day(s).
+NO_UPDATE_THRESHOLD=7
+CQ_PLUS1_RETRY_THRESHOLD=1
 
-    delta="$1"
+has_elapsed() {
+    # Return 0 if `threshold` has elapsed from `from`.
+    local from threshold now diff
 
-    days="$((delta / 86400))"
-    hours="$(((delta - days * 86400) / 3600))"
+    if [[ -z "$1" ]] || [[ -z "$2" ]]; then
+        return 1
+    fi
+    from="$1"
+    threshold="$2"
 
-    echo "${days} day(s) ${hours} hours"
+    now="$(date +%s)"
+    diff="$((now - from))"
+
+    if [[ ${diff} -lt ${threshold} ]]; then
+        return 1
+    fi
+    return 0
 }
 
 get_chromium_reviewers() {
@@ -39,22 +49,16 @@ get_chromium_reviewers() {
 }
 
 check_no_update() {
-    local record cl_num last_updated now threshold diff
+    local record cl_num last_updated
 
     record="$1"
     cl_num="$(echo "${record}" | jq -r .cl_num)"
     last_updated="$(echo "${record}" | jq -r .last_updated)"
 
-    now="$(date +%s)"
-    threshold="$((86400 * THRESHOLD))"
-
-    diff="$((now - last_updated))"
-    if [[ ${diff} -le ${threshold} ]]; then
-        echo "..Age: $(to_string "${diff}")"
-    else
-        echo "..Hasn't been changed for more than ${THRESHOLD} day(s)"
+    if has_elapsed "${last_updated}" "$((86400 * NO_UPDATE_THRESHOLD))"; then
+        echo "..Hasn't been changed for more than ${NO_UPDATE_THRESHOLD} day(s)"
         "${GERRIT}" message "${cl_num}" \
-            "The CL hasn't been changed for more than ${THRESHOLD} day(s)"
+            "The CL hasn't been changed for more than ${NO_UPDATE_THRESHOLD} day(s)"
 
         if [[ -z "$(get_chromium_reviewers "${cl_num}")" ]]; then
             "${GERRIT}" reviewers "${cl_num}" "${ROTATED_REVIEWERS}"
@@ -63,8 +67,8 @@ check_no_update() {
 }
 
 check_cq_plus1() {
-    local record cl_num change_id branch cq v retries retry_threshold
-    local has_failed message now date mdate diff
+    local record cl_num change_id branch cq v retries has_failed message
+    local date mdate
 
     record="$1"
     cl_num="$(echo "${record}" | jq -r .cl_num)"
@@ -74,7 +78,6 @@ check_cq_plus1() {
     v="$(echo "${record}" | jq -r .v)"
 
     retries=2
-    retry_threshold=86400
     has_failed=0
 
     if [[ ${cq} != "0" ]] || [[ ${v} == "1" ]]; then
@@ -124,13 +127,11 @@ check_cq_plus1() {
                 continue
             fi
 
-            now="$(date +%s)"
             date="$(echo "${msg}" | jq -r .date)"
             mdate="$(date --date="${date}" +%s)"
 
-            diff="$((now - mdate))"
-            if [[ ${diff} -gt ${retry_threshold} ]]; then
-                echo "..Mark CQ+1 because of ${retry_threshold}s has elapsed"
+            if has_elapsed "${mdate}" "$((86400 * CQ_PLUS1_RETRY_THRESHOLD))"; then
+                echo "..Mark CQ+1 because of ${CQ_PLUS1_RETRY_THRESHOLD} day(s) has elapsed"
                 "${GERRIT}" label-cq "${cl_num}" 1
                 return
             else
