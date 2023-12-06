@@ -108,6 +108,10 @@ topic_patches["media"] = [
 topic_patches["cros_ec"] = [
     "fixups/FIXUP: Reland CHROMIUM: platform: x86: add ACPI driver for ChromeOS.patch",
 ]
+
+topic_patches["arch"] = [
+    "fixups/FIXUP: CHROMIUM: hrtimer: Add a sysctl to lower resolution of timers.patch",
+]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
