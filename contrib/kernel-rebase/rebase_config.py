@@ -58,6 +58,7 @@ topic_patches["block-fs"] = [
     "fixups/FIXUP: FROMLIST: fuse: Introduce passthrough for mmap.patch",
     "fixups/FIXUP: CHROMIUM: mm: per-process reclaim for block-fs topic.patch",
     "fixups/FIXUP: CHROMIUM: mm: Optionally limit per-process reclaim.patch",
+    "fixups/FIXUP: FROMLIST: fuse: Introduce passthrough for mmap - i_mtime.patch",
 ]
 
 topic_patches["gpu/other"] = [
