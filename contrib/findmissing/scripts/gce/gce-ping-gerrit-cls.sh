@@ -16,6 +16,9 @@ GERRIT_INTERFACE="./env/bin/python gerrit_interface.py"
 # Thresholds, unit: day(s).
 NO_UPDATE_THRESHOLD=7
 CQ_PLUS1_RETRY_THRESHOLD=1
+# Limits
+CQ_PLUS1_LIMIT_PER_DAY=2
+CQ_PLUS1_LIMIT=4
 
 has_elapsed() {
     # Return 0 if `threshold` has elapsed from `from`.
@@ -67,8 +70,7 @@ check_no_update() {
 }
 
 check_cq_plus1() {
-    local record cl_num change_id branch cq v retries has_failed message
-    local date mdate
+    local record cl_num change_id branch cq v has_failed message date mdate
 
     record="$1"
     cl_num="$(echo "${record}" | jq -r .cl_num)"
@@ -77,7 +79,6 @@ check_cq_plus1() {
     cq="$(echo "${record}" | jq -r .cq)"
     v="$(echo "${record}" | jq -r .v)"
 
-    retries=2
     has_failed=0
 
     if [[ ${cq} != "0" ]] || [[ ${v} == "1" ]]; then
@@ -120,23 +121,20 @@ check_cq_plus1() {
                 return
             fi
 
-            has_failed=1
-
-            retries="$((retries - 1))"
-            if [[ ${retries} -gt 0 ]]; then
-                continue
+            has_failed="$((has_failed + 1))"
+            if [[ ${has_failed} -ge ${CQ_PLUS1_LIMIT} ]]; then
+                echo "..Do nothing because the retries are over the limit"
+                return
             fi
 
             date="$(echo "${msg}" | jq -r .date)"
             mdate="$(date --date="${date}" +%s)"
 
-            if has_elapsed "${mdate}" "$((86400 * CQ_PLUS1_RETRY_THRESHOLD))"; then
-                echo "..Mark CQ+1 because of ${CQ_PLUS1_RETRY_THRESHOLD} day(s) has elapsed"
-                "${GERRIT}" label-cq "${cl_num}" 1
-                return
-            else
-                echo "..Do nothing because there is no more retries quota"
-                return
+            if ! has_elapsed "${mdate}" "$((86400 * CQ_PLUS1_RETRY_THRESHOLD))"; then
+                if [[ ${has_failed} -ge ${CQ_PLUS1_LIMIT_PER_DAY} ]]; then
+                    echo "..Do nothing because the retries are over the limit today"
+                    return
+                fi
             fi
         fi
     done < <(${GERRIT_INTERFACE} "${change_id}" "${branch}" |
