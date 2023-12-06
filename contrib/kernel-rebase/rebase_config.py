@@ -61,7 +61,6 @@ topic_patches["block-fs"] = [
 ]
 
 topic_patches["gpu/other"] = [
-    "fixups/CHROMIUM: gpu: mali: Apply r40p0 EAC release 1.patch",
     "fixups/CHROMIUM: gpu: mali: Apply r40p0 EAC release 2.patch",
 ]
 
