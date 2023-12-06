@@ -362,3 +362,6 @@ disp_overwrite["caf3dbdbbf4b"] = [
     "media",
 ]  # FROMGIT: media: cros-ec-cec: Get number of CEC ports from EC
 disp_overwrite["760f4cf674da"] = "drop"  # CHROMIUM: Introduce CONFIG_BPF_DYNPTR
+disp_overwrite[
+    "343cf85ba839"
+] = "drop"  # FROMLIST: overlayfs: handle XATTR_NOSECURITY flag for get xattr method
