@@ -63,8 +63,8 @@ check_no_update() {
 }
 
 check_cq_plus1() {
-    local record cl_num change_id branch cq v retries retry_threshold message
-    local now date mdate diff
+    local record cl_num change_id branch cq v retries retry_threshold
+    local has_failed message now date mdate diff
 
     record="$1"
     cl_num="$(echo "${record}" | jq -r .cl_num)"
