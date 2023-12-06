@@ -110,6 +110,13 @@ check_cq_plus1() {
         fi
 
         if echo "${message}" | grep -q "This CL has failed the run"; then
+            if echo "${message}" | grep -q "buildtest-cq"; then
+                echo "..CQ failed on buildtest"
+                echo "..Mark V-1"
+                "${GERRIT}" label-v "${cl_num}" -1
+                return
+            fi
+
             has_failed=1
 
             retries="$((retries - 1))"
