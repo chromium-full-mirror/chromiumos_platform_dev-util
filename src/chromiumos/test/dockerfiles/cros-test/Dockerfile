@@ -111,6 +111,9 @@ RUN chmod 755 /usr/bin/fsck.erofs
 # Mark for Autotest/Tast to know they are within the CFT environment.
 RUN touch /usr/local/f20container
 
+# Copy ChromeOS Omnilab Gateway Client
+COPY --chown=chromeos-test:chromeos-test chromeos_omnilab_gateway/gateway_go /usr/bin/
+
 # ###############################################################################
 # Everything above this point should not change per BOARD
 # Everything below this point is possible/likely to change per BOARD
@@ -129,6 +132,7 @@ RUN sudo ln -s /usr/local/autotest/site_utils/test_that.py /usr/bin/test_that
 
 # Do a final chown on /tmp/test
 RUN chmod 755 /usr/bin/cros-test
+RUN chmod 755 /usr/bin/gateway_go
 RUN chown -R chromeos-test:chromeos-test /tmp/test/
 
 

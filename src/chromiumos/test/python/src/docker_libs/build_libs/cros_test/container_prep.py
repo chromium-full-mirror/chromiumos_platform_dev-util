@@ -4,14 +4,13 @@
 
 """Prep everything for for the cros-test Docker Build Context."""
 
-
 import os
 import sys
 
 
 sys.path.append("../../../../")
 
-from src.docker_libs.build_libs.shared.common_artifact_prep import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
+from src.docker_libs.build_libs.shared.common_artifact_prep import (  # noqa: E402 pylint: disable=import-error,wrong-import-position,import-modules-only
     CrosArtifactPrep,
 )
 from src.tools import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
@@ -43,6 +42,7 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
 
     def prep(self):
         """Run the steps needed to prep the container artifacts."""
+        self.download_omnilab_gateway_client()
         self.create_tarball()
         self.copy_service()
         self.copy_metadata()
@@ -77,3 +77,15 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
     def remove_tarball(self):
         """Remove the autotest tarball post untaring."""
         os.system(f"rm -r {self.full_out}/autotest_server_package.tar.bz2")
+
+    def download_omnilab_gateway_client(self):
+        """Download Omnilab Gateway Client from CIPD"""
+        gateway_dir = "chromeos_omnilab_gateway"
+        pkg = f"chromeos_internal/infra/tools/{gateway_dir}"
+        gateway_full_path = os.path.join(self.full_out, gateway_dir)
+        ensure_file = os.path.join(self.full_out, "ensure.txt")
+        with open(ensure_file, "w", encoding="utf-8") as f:
+            f.write(f"{pkg} latest")
+        os.system(
+            f"cipd ensure -ensure-file {ensure_file} -root {gateway_full_path}"
+        )

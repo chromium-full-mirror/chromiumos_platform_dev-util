@@ -9,12 +9,14 @@
 """Generate mobly metadata for mobly_mh_test blaze targets"""
 
 import argparse
+import logging
 import pathlib
 
+# pylint: disable=import-error
 from chromiumos.test.api import test_case_metadata_pb2 as tc_metadata_pb
 from chromiumos.test.api import test_case_pb2 as tc_pb
 from chromiumos.test.api import test_harness_pb2 as th_pb
-from google.protobuf import json_format
+from google.protobuf import text_format
 
 
 def _test_case_exec_factory() -> th_pb.TestHarness:
@@ -43,26 +45,30 @@ def generate_test_case_metadata_list(
     # //testing/mobly/platforms/cros/examples:hello_world_test_adhoc_testbed
     #
     # Sample output:
-    # "values": [
-    #     {
-    #       "testCase": {
-    #         "id": {"value": "mobly.hello_world_test_adhoc_testbed"},
-    #         "name": "hello_world_test_adhoc_testbed",
-    #         "tags": [
-    #           {"value": "mobly_mh_target://testing/mobly/platforms/cros/examples:hello_world_test_adhoc_testbed"}
-    #         ]
-    #       },
-    #       "testCaseExec": {
-    #         "testHarness": {"mobly": {}}
-    #       },
-    #       "testCaseInfo": {
-    #         "owners": [
-    #           {"email": "chromeos-sw-engprod@google.com"}
-    #         ]
+    #
+    # values {
+    #   test_case {
+    #     id {
+    #       value: "mobly.hello_world_test_adhoc_testbed"
+    #     }
+    #     name: "hello_world_test_adhoc_testbed"
+    #     tags {
+    #       value: "mobly_mh_target://testing/mobly/platforms/cros/examples:hello_world_test_adhoc_testbed"
+    #     }
+    #   }
+    #   test_case_exec {
+    #     test_harness {
+    #       mobly {
     #       }
     #     }
-    #   ]
+    #   }
+    #   test_case_info {
+    #     owners {
+    #       email: "chromeos-sw-engprod@google.com"
+    #     }
+    #   }
     # }
+
     content = input_file.read_text()
     targets = content.split("\n")
 
@@ -101,17 +107,31 @@ def generate_test_case_metadata_list(
     return test_case_metadata_list_pb
 
 
-def main(input_file: pathlib.Path, output_file: pathlib.Path):
-    """Main entry point
+def generate_metadata_text_proto(
+    input_file: pathlib.Path, output_file: pathlib.Path
+):
+    """Generate metadata proto.
 
     Args:
         input_file: pathlib.Path object for mobly test metadata text file
         output_file: pathlib.Path object for storing generated metadata proto
+                     Supported proto format: 'pb','textproto'
     """
-
     test_case_metadata_list_pb = generate_test_case_metadata_list(input_file)
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    output_file.write_bytes(test_case_metadata_list_pb.SerializeToString())
+    proto_format = output_file.suffix
+    if proto_format == ".pb":
+        output_file.write_bytes(test_case_metadata_list_pb.SerializeToString())
+    elif proto_format == ".textproto":
+        txt_proto_str = text_format.MessageToString(
+            test_case_metadata_list_pb, as_utf8=True
+        )
+        logging.debug("Text Proto: %s", txt_proto_str)
+        output_file.write_text(txt_proto_str)
+    else:
+        raise argparse.ArgumentTypeError(
+            f"Unknown proto format: '{proto_format}'"
+        )
 
 
 def _argparse_existing_file_factory(path: str) -> pathlib.Path:
@@ -143,7 +163,7 @@ def _argparse_file_factory(path: str) -> pathlib.Path:
     return pathlib.Path(path)
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(
         description="Generate Mobly harness test case metadata"
     )
@@ -155,22 +175,21 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output_file",
-        help="Output file to write proto metadata",
+        help="Output file to write proto metadata. Supported format: 'pb','textproto'",
         type=_argparse_file_factory,
         required=True,
     )
     parser.add_argument(
-        "--dump",
-        help="Dump pretty printed protobuf to stdout. For debugging purposes",
-        action="store_true",
-        default=False,
-        required=False,
+        "--log_level",
+        help="Log level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        default="INFO",
     )
     args = parser.parse_args()
+    logging.basicConfig(level=args.log_level)
 
-    main(args.input_file, args.output_file)
+    generate_metadata_text_proto(args.input_file, args.output_file)
 
-    if args.dump:
-        metadata_list = tc_metadata_pb.TestCaseMetadataList()
-        metadata_list.ParseFromString(args.output_file.read_bytes())
-        print(json_format.MessageToJson(metadata_list))
+
+if __name__ == "__main__":
+    main()

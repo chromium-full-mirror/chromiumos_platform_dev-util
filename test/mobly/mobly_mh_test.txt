@@ -1,0 +1,2 @@
+//testing/mobly/platforms/cros/examples:hello_world_test_adhoc_testbed
+//testing/mobly/platforms/cros/examples:advanced_features_example_test
