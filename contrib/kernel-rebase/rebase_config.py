@@ -55,6 +55,7 @@ topic_patches["block-fs"] = [
 
 topic_patches["drivers"] = [
     "fixups/FIXUP: CHROMIUM: pci allowlist: sysfs attribute to lockdown external devices completely.patch",
+    "fixups/FIXUP: Revert 'staging: remove ashmem'.patch",
 ]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
