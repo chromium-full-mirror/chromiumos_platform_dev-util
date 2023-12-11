@@ -532,6 +532,13 @@ class Rebaser:
                         patch = os.getcwd() + "/" + patch_short
                         ret = apply_patch("kernel-upstream", patch, "[nosha]")
                         if ret.find("Patch already applied") != -1:
+                            print(
+                                "Patch: '"
+                                + patch_short
+                                + "' for "
+                                + topic
+                                + " already applied."
+                            )
                             continue
                         add_kcr_patch_tag(patch_short, True)
                         # No conflicts, check rerere and continue
@@ -545,7 +552,13 @@ class Rebaser:
                         call_hook("[nosha]", "post")
                         continue
                     except sh.ErrorReturnCode_128:
-                        print("Conflict found")
+                        print(
+                            "Conflict found: '"
+                            + patch_short
+                            + "' for "
+                            + topic
+                            + " topic branch."
+                        )
                         with sh.pushd("kernel-upstream"):
                             sh.git("am", "--abort")
                         fixup_manual += 1
