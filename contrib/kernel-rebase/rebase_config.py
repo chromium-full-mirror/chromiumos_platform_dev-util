@@ -83,3 +83,6 @@ patch_deps = {}
 disp_overwrite = {}
 # example
 # disp_overwrite['62b865c66db4'] = 'drop'
+disp_overwrite[
+    "4dac2b933823"
+] = "drop"  # FROMLIST: overlayfs: handle XATTR_NOSECURITY flag for get xattr method
