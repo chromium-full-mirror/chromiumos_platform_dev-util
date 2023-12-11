@@ -31,9 +31,10 @@ eval set -- "${FLAGS_ARGV}"
 set -e
 
 make_tar() {
-  local file=$1
-  local tar=$2
-  tar -cjvf "${tar}" -C "$(dirname "${file}")" "$(basename "${file}")"
+  local tar=$1
+  local dir=$2
+  local files=("${@:3}")
+  tar -cjvf "${tar}" -C "${dir}" "${files[@]}"
 }
 
 make_fw_tar() {
@@ -44,6 +45,7 @@ make_fw_tar() {
   local output=$4
   local ap="${fw_dir}/image-${model}.bin"
   local ec="${fw_dir}/${model}/ec.bin"
+  local ec_manifest="${fw_dir}/${model}/component_manifest.json"
   local ecrw="${ecrw_dir}/${model}/ec.bin"
   local model_uc="${model^}"
   local version
@@ -60,10 +62,19 @@ make_fw_tar() {
     "${SWAP_EC_RW}" --image "${ap}" --ec "${ecrw}" > /dev/null
   fi
 
+  # Make AP tar
   local ap_tar="${output}/${model_uc}.${version}.tbz2"
   local ec_tar="${output}/${model_uc}_EC.${version}.tbz2"
-  make_tar "${ap}" "${ap_tar}"
-  make_tar "${ec}" "${ec_tar}"
+  make_tar "${ap_tar}" "$(dirname "${ap}")" "$(basename "${ap}")"
+
+  # Make EC tar
+  local ec_files=("$(basename "${ec}")")
+  if [ -f "${ec_manifest}" ]; then
+    ec_files+=("$(basename "${ec_manifest}")")
+  else
+    warn "$(basename "${ec_manifest}") not found for ${model}"
+  fi
+  make_tar "${ec_tar}" "$(dirname "${ec}")" "${ec_files[@]}"
 }
 
 main() {
@@ -87,17 +98,24 @@ main() {
   temp_dir=$(mktemp -d)
   local ap_temp_dir="${temp_dir}/ap"
 
-  local ap_files=()
-  local ec_files=()
-  for model in "${models[@]}"; do
-    ap_files+=("image-${model}.bin")
-    ec_files+=("${model}/ec.bin")
+  # Files such as component_manifest.json may not exist in the tarball,
+  # so we cannot pass the file name to tar as "tar -xjf ${tarball} FILES".
+  # Instead, we exclude a few patterns to save some space.
+  local excluded_files=(
+    "cbfs-ro-compress/*"
+    "*/coreboot*/*"
+    "*/depthcharge/*"
+    "*/libpayload*/*"
+  )
+  local opts=()
+
+  for file in "${excluded_files[@]}"; do
+    opts+=("--exclude" "${file}")
   done
 
   info "Extracting images to ${ap_temp_dir}..."
   mkdir "${ap_temp_dir}"
-  (cd "${ap_temp_dir}" &&
-    tar -xjf "${tarball}" "${ap_files[@]}" "${ec_files[@]}")
+  (cd "${ap_temp_dir}" && tar -xjf "${tarball}" "${opts[@]}")
 
   # Extract from EC tarball
   local ecrw_temp_dir
@@ -107,7 +125,7 @@ main() {
     info "Extracting EC images to ${ecrw_temp_dir}..."
     mkdir "${ecrw_temp_dir}"
     ecrw_tarball=$(readlink -f "${FLAGS_ecrw}")
-    (cd "${ecrw_temp_dir}" && tar -xjf "${ecrw_tarball}" "${ec_files[@]}")
+    (cd "${ecrw_temp_dir}" && tar -xjf "${ecrw_tarball}" "${opts[@]}")
   fi
 
   for model in "${models[@]}"; do
