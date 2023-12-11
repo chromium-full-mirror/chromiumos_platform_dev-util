@@ -50,6 +50,7 @@ topic_patches["block-fs"] = [
     "fixups/FIXUP: FROMLIST: fuse: Introduce passthrough for mmap - i_mtime.patch",
     "fixups/FIXUP: FROMLIST: overlayfs: handle XATTR_NOSECURITY flag for get xattr method.patch",
     "fixups/FIXUP: FROMLIST: fuse: Handle asynchronous read and write in passthrough.patch",
+    "fixups/CHROMIUM: trace: rename events fs_trace - events fs.patch",
 ]
 
 topic_patches["drivers"] = [
