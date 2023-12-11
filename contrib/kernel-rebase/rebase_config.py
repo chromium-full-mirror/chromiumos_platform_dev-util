@@ -111,3 +111,11 @@ disp_overwrite = {}
 disp_overwrite[
     "4dac2b933823"
 ] = "drop"  # FROMLIST: overlayfs: handle XATTR_NOSECURITY flag for get xattr method
+disp_overwrite["f2968dcf8e73"] = [
+    "move",
+    "bluetooth",
+]  # FROMLIST: devcoredump: Add per device sysfs entry to enable/disable coredump
+disp_overwrite["01f2b9195659"] = [
+    "move",
+    "media",
+]  # FROMGIT: usb: core: Allow subclassed USB drivers to override usb_choose_configuration()
