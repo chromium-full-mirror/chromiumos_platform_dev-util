@@ -61,6 +61,10 @@ topic_patches["drivers"] = [
 topic_patches["arch"] = [
     "fixups/FIXUP: CHROMIUM: hrtimer: Add a sysctl to lower resolution of timers.patch",
 ]
+
+topic_patches["bluetooth"] = [
+    "fixups/FIXUP: CHROMIUM: bluetooth: Support userspace SCO.patch",
+]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
