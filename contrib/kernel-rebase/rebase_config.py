@@ -74,6 +74,10 @@ topic_patches["cros_ec"] = [
 topic_patches["gpu/other"] = [
     "fixups/FIXUP: CHROMIUM: gpu: mali: Apply r40p0 EAC release.patch",
 ]
+
+topic_patches["drm"] = [
+    "fixups/FIXUP: CHROMIUM: drm img-rogue: Add 1.17 IMG PowerVR Rogue driver.patch",
+]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
