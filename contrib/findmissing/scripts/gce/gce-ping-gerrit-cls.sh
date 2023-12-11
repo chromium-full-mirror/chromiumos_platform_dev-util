@@ -162,15 +162,31 @@ check_cq_plus1() {
             [$flags[] | select(.type == "COMR")] as $cqs |
             [$flags[] | select(.type == "VRIF")] as $vs |
             . += {
-                cr: ($crs | max_by(.value) | .value),
-                cq: ($cqs | max_by(.value) | .value),
-                v: (
-                    ($vs | min_by(.value) | .value) as $min |
-                    ($vs | max_by(.value) | .value) as $max |
-                    if ($min | tonumber) < 0 then
-                        $min
+                cr: (
+                    if (isempty($crs | .[])) then
+                        "0"
                     else
-                        $max
+                        ($crs | max_by(.value) | .value)
+                    end
+                ),
+                cq: (
+                    if (isempty($cqs | .[])) then
+                        "0"
+                    else
+                        ($cqs | max_by(.value) | .value)
+                    end
+                ),
+                v: (
+                    if (isempty($vs | .[])) then
+                        "0"
+                    else
+                        ($vs | min_by(.value) | .value) as $min |
+                        ($vs | max_by(.value) | .value) as $max |
+                        if ($min | tonumber) < 0 then
+                            $min
+                        else
+                            $max
+                        end
                     end
                 )
             } |
