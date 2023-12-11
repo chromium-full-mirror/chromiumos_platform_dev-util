@@ -51,6 +51,52 @@ get_chromium_reviewers() {
         grep -v "commit-bot"
 }
 
+url_encoded() {
+        python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' "$1"
+}
+
+send_ping_msg() {
+    local record title link branch q url
+
+    record="$1"
+    title="$(echo "${record}" | jq -r .subject)"
+    link="$(echo "${record}" | jq -r .url)"
+    branch="$(echo "${record}" | jq -r .branch)"
+
+    q="component=167278"
+    q="${q}&format=PLAIN"
+    q="${q}&type=BUG&priority=P2&severity=S2"
+    q="${q}&hotlistIds=5435871"
+    q="${q}&title=$(url_encoded "Kernel: fix build failure for (\"${title}\")")"
+
+    read -r -d '' description <<EOF
+Fix build failure for ("${title}").
+
+Link: ${link}
+Branch: ${branch}
+EOF
+    q="${q}&description=$(url_encoded "${description}")"
+    url="http://b.corp.google.com/createIssue?${q}"
+
+    read -r -d '' msg <<EOF
+Dear Reviewer,
+
+You have been selected because this bot believes you are the best owner for this CL.
+
+- If you think you are not the right person for handling the CL:
+    - Please add chromeos-kernel-findmissing-reviewers@google.com as a reviewer.
+    - Please remove yourself from the reviewer list.
+- If the CL is irrelevant to ChromeOS, feel free to abandon it.
+- If the CL makes sense to you:
+    - If the CQ tests passed and the robot has marked V+1 and AS+1, please provide CR+2 and CQ+2.
+    - If the CQ tests failed due to build failures, please provide V-1 and file a bug via [the template](${url}).
+- Otherwise, please provide CR-1 and your comments.
+
+Thank you for contributing to ChromeOS kernel stability.
+EOF
+    "${GERRIT}" message "${cl_num}" "${msg}"
+}
+
 check_no_update() {
     local record cl_num last_updated
 
@@ -60,8 +106,8 @@ check_no_update() {
 
     if has_elapsed "${last_updated}" "$((86400 * NO_UPDATE_THRESHOLD))"; then
         echo "..Hasn't been changed for more than ${NO_UPDATE_THRESHOLD} day(s)"
-        "${GERRIT}" message "${cl_num}" \
-            "The CL hasn't been changed for more than ${NO_UPDATE_THRESHOLD} day(s)"
+
+        send_ping_msg "${record}" "${cl_num}"
 
         if [[ -z "$(get_chromium_reviewers "${cl_num}")" ]]; then
             "${GERRIT}" reviewers "${cl_num}" "${ROTATED_REVIEWERS}"
@@ -194,6 +240,8 @@ check_cq_plus1() {
                 cl_num: .number,
                 last_updated: .lastUpdated,
                 change_id: .id,
+                subject: .subject,
+                url: .url,
                 branch: .branch,
                 cr, cq, v,
             }' |
