@@ -577,6 +577,12 @@ class Rebaser:
         query = "select subject, topic from commits where sha='%s'" % commit
         self.cur.execute(query)
         ret = self.cur.fetchall()
+        if not ret:
+            print(
+                f"Warning commit {commit} not found for move to '{dst}' disposition."
+                "Fix rebase_config.py"
+            )
+            return
         src_gid = ret[0][1]
         src = ""
         for topic_name in self.topics:
