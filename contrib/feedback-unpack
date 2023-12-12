@@ -6,49 +6,70 @@
 #
 # Maintainer: Ross Zwisler <zwisler@google.com>
 #
-# feedback-unpack: Unpack a zipped feedback report into individual log files
-# for easy viewing.
+# feedback-unpack: Unpack a feedback report into individual log files for easy
+# viewing.  Supports .zip files from listnr/ and .txt files from
+# go/feedbackmon.
 #
-# Usage: feedback-unpack <${feedback_report}.zip>
+# Usage: feedback-unpack <${feedback_report}.(zip|txt)>
 #
 # This will create a ${feedback_report} directory and fill it with the log
-# files found in the zipped feedback report.
+# files found in the feedback report.
 
 use strict;
 use warnings;
 use IO::Uncompress::Unzip qw(unzip $UnzipError);
 
 if (scalar(@ARGV) == 0) {
-    print "Usage: feedback-unpack <\${feedback_report}.zip>\n";
+    print "Usage: feedback-unpack <\${feedback_report}.(zip|txt)>\n";
     exit 1;
 }
 
-while (my $zip_file = shift(@ARGV)) {
-    die "'$zip_file' is not a file\n" if ( ! -f $zip_file );
+while (my $file = shift(@ARGV)) {
+    die "'$file' is not a file\n" if ( ! -f $file );
 
-    my $output_dir = $zip_file;
-    $output_dir =~ s/.zip$//;
+    my $output_dir = $file;
+    $output_dir =~ s/.(zip|txt)$//;
 
     die "$output_dir already exists\n" if -e $output_dir;
     mkdir $output_dir;
 
-    my $z = new IO::Uncompress::Unzip $zip_file or die "unzip failed: $UnzipError\n";
+    if ($file =~ m/zip$/) {
+        my $z = new IO::Uncompress::Unzip $file or die "unzip failed: $UnzipError\n";
 
-    while (my $line = $z->getline()) {
-        if ($line =~ /^(Profile\[.*\] )?(.*)=<multiline>$/) {
-            my $new_log = "$output_dir/$2";
-            $new_log =~ s/ /_/g;
-            open (my $fh, ">", $new_log) or die "Cannot open $new_log: $!";
-            while (my $line = $z->getline()) {
-                next if ($line =~ /---------- START ----------/);
-                last if ($line =~ /---------- END ----------/);
-                print $fh $line;
+        while (my $line = $z->getline()) {
+            if ($line =~ /^(Profile\[.*\] )?(.*)=<multiline>$/) {
+                my $new_log = "$output_dir/$2";
+                $new_log =~ s/ /_/g;
+                open (my $fh, ">", $new_log) or die "Cannot open $new_log: $!";
+                while (my $line = $z->getline()) {
+                    next if ($line =~ /---------- START ----------/);
+                    last if ($line =~ /---------- END ----------/);
+                    print $fh $line;
+                }
+                close ($fh) or warn "Couldn't close $new_log: $!";
             }
-            close ($fh) or warn "Couldn't close $new_log: $!";
         }
-    }
 
-    $z->close() or die "close failed: $UnzipError\n";
+        $z->close() or die "close failed: $UnzipError\n";
+    } else { # assume .txt
+        open(INPUT, "<", "$file") or die "Couldn't open file $file: $!";
+
+        while (my $line = <INPUT>) {
+            if ($line =~ /^(Profile\[.*\] )?(.*)=<multiline>$/) {
+                my $new_log = "$output_dir/$2";
+                $new_log =~ s/ /_/g;
+                open (my $fh, ">", $new_log) or die "Cannot open $new_log: $!";
+                while (my $line = <INPUT>) {
+                    next if ($line =~ /---------- START ----------/);
+                    last if ($line =~ /---------- END ----------/);
+                    print $fh $line;
+                }
+                close ($fh) or warn "Couldn't close $new_log: $!";
+            }
+        }
+
+        close(INPUT) or die "Couldn't close file $file: $!";
+    }
 
     print "Feedback report unpacked at $output_dir\n";
 }
