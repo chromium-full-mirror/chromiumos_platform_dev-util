@@ -353,6 +353,33 @@ def create_change(
     return fixer_changeid
 
 
+def _label_flag(flag, cl_num, value):
+    try:
+        cmd = [common.GERRIT_PATH, flag, cl_num, value]
+        subprocess.run(
+            cmd,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except subprocess.CalledProcessError:
+        return False
+
+    return True
+
+
+def label_cq(cl_num, value):
+    return _label_flag("label-cq", cl_num, value)
+
+
+def label_as(cl_num, value):
+    return _label_flag("label-as", cl_num, value)
+
+
+def label_v(cl_num, value):
+    return _label_flag("label-v", cl_num, value)
+
+
 def label_cq_plus1(branch, changeid):
     """Label CQ+1 for the given branch and changeid.
 
@@ -379,18 +406,50 @@ def label_cq_plus1(branch, changeid):
     except (json.decoder.JSONDecodeError, IndexError, KeyError):
         return False
 
+    return label_cq(cl_num, "1")
+
+
+def inspect(cl_num=None):
+    """Inspect CL.
+
+    If `cl_num` is None, `gerrit --json mine`.
+    Otherwise, `gerrit --json inspect [cl_num]`.
+
+    Return the JSON as a dictionary.
+    """
     try:
-        cmd = [common.GERRIT_PATH, "label-cq", cl_num, "1"]
+        cmd = [common.GERRIT_PATH, "--json"]
+        if cl_num:
+            cmd += ["inspect", cl_num]
+        else:
+            cmd += ["mine"]
+
+        output = subprocess.check_output(
+            cmd, encoding="utf-8", errors="ignore", stderr=subprocess.DEVNULL
+        )
+        return json.loads(output)
+    except subprocess.CalledProcessError:
+        return None
+
+
+def send_message(cl_num, msg):
+    """Send message.
+
+    `gerrit message [cl_num] [msg]`.
+
+    Return True on success.
+    """
+    try:
+        cmd = [common.GERRIT_PATH, "message", cl_num, msg]
         subprocess.run(
             cmd,
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+        return True
     except subprocess.CalledProcessError:
         return False
-
-    return True
 
 
 if __name__ == "__main__":
