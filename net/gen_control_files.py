@@ -251,7 +251,7 @@ for carrier in [
     )
 
     tests = single_test_template.format(
-        test_exprs='[\'("group:cellular" && "cellular_sim_active" && "cellular_unstable" && "cellular_e2e")\']'
+        test_exprs=f'[\'("group:cellular" && "cellular_sim_active" && "cellular_unstable" && "cellular_e2e" && (!"cellular_carrier_dependent" || "cellular_carrier_{carrier}"))\']'
     )
     write_control_file(
         out_dir,
@@ -263,7 +263,7 @@ for carrier in [
     )
 
     tests = single_test_template.format(
-        test_exprs='[\'("group:cellular" && "cellular_sim_active" && !"cellular_unstable" && "cellular_e2e")\']'
+        test_exprs=f'[\'("group:cellular" && "cellular_sim_active" && !"cellular_unstable" && "cellular_e2e" && (!"cellular_carrier_dependent" || "cellular_carrier_{carrier}"))\']'
     )
     write_control_file(
         out_dir, ["cellular_ota"], carrier, extra_dependencies, "e2e", tests
