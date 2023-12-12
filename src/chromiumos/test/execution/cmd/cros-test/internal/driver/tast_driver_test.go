@@ -43,6 +43,7 @@ func TestNewTastArgs(t *testing.T) {
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
 			{varsFile, varsFileValue},
+			{systemServicesTimeout, defaultSysServicesTimeout},
 			{buildArtifactsURL, buildArtifactsURLValue},
 		},
 	}
@@ -102,6 +103,7 @@ func TestNewTastArgsCompanions(t *testing.T) {
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
 			{varsFile, varsFileValue},
+			{systemServicesTimeout, defaultSysServicesTimeout},
 			{buildArtifactsURL, buildArtifactsURLValue},
 		},
 		companions: companions,
@@ -167,6 +169,7 @@ func TestGenArgList(t *testing.T) {
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
 			{varsFile, varsFileValue},
+			{systemServicesTimeout, defaultSysServicesTimeout},
 			{buildArtifactsURL, buildArtifactsURLValue},
 		},
 		companions: companions,
@@ -256,6 +259,7 @@ func TestGenArgListWithServers(t *testing.T) {
 			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
+			{systemServicesTimeout, defaultSysServicesTimeout},
 		},
 		companions: companions,
 	}
@@ -347,6 +351,7 @@ func TestGenArgListWithDevboard(t *testing.T) {
 			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
+			{systemServicesTimeout, defaultSysServicesTimeout},
 		},
 		companions: companions,
 	}

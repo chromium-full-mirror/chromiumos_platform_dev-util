@@ -200,6 +200,8 @@ const (
 	varFlag                    = "-var"
 	varsFile                   = "-varsfile"
 	buildArtifactsURL          = "-buildartifactsurl"
+	systemServicesTimeout      = "-systemservicestimeout"
+	defaultSysServicesTimeout  = "600"
 )
 
 type flagValue struct {
@@ -232,6 +234,7 @@ func newTastArgs(primary *device.DutInfo,
 		{resultsDirFlag, resultsDir},
 		{reportsServerFlag, rsAddress},
 		{varsFile, varsFilePath},
+		{systemServicesTimeout, defaultSysServicesTimeout}, // Longer timeout for VMs.
 	}
 	for _, a := range customTastArgs {
 		if a.GetFlag() == "" {
