@@ -10,7 +10,6 @@ GERRIT="${WORKSPACE}/chromite/bin/gerrit"
 FINDMISSING="${WORKSPACE}/dev-util/contrib/findmissing"
 cd "${FINDMISSING}" || exit
 LOG_FILE="/var/log/findmissing/findmissing.log"
-ROTATED_REVIEWERS="tzungbi@chromium.org"
 GERRIT_INTERFACE="./env/bin/python gerrit_interface.py"
 
 # Thresholds, unit: day(s).
@@ -37,18 +36,6 @@ has_elapsed() {
         return 1
     fi
     return 0
-}
-
-get_chromium_reviewers() {
-    local cl_num
-
-    cl_num="$1"
-
-    # Filter out commit-bot@chromium.org.
-    "${GERRIT}" --json inspect "${cl_num}" |
-        jq -c -r '.[].currentPatchSet.approvals | .[] | select(.type == "CRVW") | .by.email |
-                    select(contains("chromium.org"))' |
-        grep -v "commit-bot"
 }
 
 url_encoded() {
@@ -108,10 +95,6 @@ check_no_update() {
         echo "..Hasn't been changed for more than ${NO_UPDATE_THRESHOLD} day(s)"
 
         send_ping_msg "${record}" "${cl_num}"
-
-        if [[ -z "$(get_chromium_reviewers "${cl_num}")" ]]; then
-            "${GERRIT}" reviewers "${cl_num}" "${ROTATED_REVIEWERS}"
-        fi
     fi
 }
 

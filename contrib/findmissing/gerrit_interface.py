@@ -327,6 +327,9 @@ def create_change(
             reviewers = emails
             cc = None
 
+    if not reviewers:
+        reviewers = ["chromeos-kernel-findmissing-reviewers@google.com"]
+
     try:
         # Cherry pick changes and generate commit message indicating fix from upstream
         handler = git_interface.commitHandler(
