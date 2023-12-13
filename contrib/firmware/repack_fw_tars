@@ -45,36 +45,43 @@ make_fw_tar() {
   local output=$4
   local ap="${fw_dir}/image-${model}.bin"
   local ec="${fw_dir}/${model}/ec.bin"
-  local ec_manifest="${fw_dir}/${model}/component_manifest.json"
+  local ec_manifest_fn="component_manifest.json"
   local ecrw="${ecrw_dir}/${model}/ec.bin"
   local model_uc="${model^}"
-  local version
-  version="$(futility update --manifest -i "${ap}" |
+  local ap_version
+  local ec_version
+  local ec_suffix
+  ap_version="$(futility update --manifest -i "${ap}" |
     jq -r -c .default.host.versions.ro)"
-  version="$(cut -d "." -f2- <<< "${version}")"
+  ap_version="$(cut -d "." -f2- <<< "${ap_version}")"
+  ec_version="${ap_version}"
 
   # Swap ecrw in AP
   if [[ -n "${ecrw_dir}" ]]; then
-    local ecrw_version
-    ecrw_version="$(futility update --manifest -e "${ecrw}" |
+    ec_version="$(futility update --manifest -e "${ecrw}" |
       jq -r -c .default.ec.versions.rw)"
-    info "Swapping ecrw with version ${ecrw_version}"
+    ec_version="$(cut -d "-" -f2 <<< "${ec_version}")"
+    info "Swapping ecrw with version ${ec_version}"
     "${SWAP_EC_RW}" --image "${ap}" --ec "${ecrw}" > /dev/null
+    ec_suffix="_${model_uc}_EC.${ec_version}"
+    ec="${ecrw}"
   fi
 
   # Make AP tar
-  local ap_tar="${output}/${model_uc}.${version}.tbz2"
-  local ec_tar="${output}/${model_uc}_EC.${version}.tbz2"
+  local ap_tar="${output}/${model_uc}.${ap_version}${ec_suffix}.tbz2"
   make_tar "${ap_tar}" "$(dirname "${ap}")" "$(basename "${ap}")"
 
   # Make EC tar
+  local ec_tar="${output}/${model_uc}_EC.${ec_version}.tbz2"
   local ec_files=("$(basename "${ec}")")
-  if [ -f "${ec_manifest}" ]; then
-    ec_files+=("$(basename "${ec_manifest}")")
+  local ec_dir
+  ec_dir="$(dirname "${ec}")"
+  if [ -f "${ec_dir}/${ec_manifest_fn}" ]; then
+    ec_files+=("${ec_manifest_fn}")
   else
-    warn "$(basename "${ec_manifest}") not found for ${model}"
+    warn "${ec_manifest_fn} not found for ${model}"
   fi
-  make_tar "${ec_tar}" "$(dirname "${ec}")" "${ec_files[@]}"
+  make_tar "${ec_tar}" "${ec_dir}" "${ec_files[@]}"
 }
 
 main() {
