@@ -135,7 +135,7 @@ def check_cq_plus1(obj):
             if has_failed == 0:
                 print("CQ+1 has passed")
                 print("Mark V+1 and AS+1")
-                gerrit_interface.label_cq(cl_num, "1")
+                gerrit_interface.label_v(cl_num, "1")
                 gerrit_interface.label_as(cl_num, "1")
                 return
 
