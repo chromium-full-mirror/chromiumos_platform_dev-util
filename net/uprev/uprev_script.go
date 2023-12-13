@@ -21,7 +21,7 @@ import (
 const (
 	cqCommitText = "\n" +
 		"Cros-Add-Test-Suites: cellular_ota,cellular_ota_flaky\n" +
-		"Cros-Add-TS-Boards-BuildTarget: trogdor,brya,octopus,herobrine\n" +
+		"Cros-Add-TS-Boards-BuildTarget: trogdor,brya,octopus,nissa\n" +
 		"Cros-Add-TS-Pool: cellular\n"
 	colorGreen = "\033[32m"
 	colorRed   = "\033[31m"
