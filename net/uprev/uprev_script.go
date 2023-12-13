@@ -217,9 +217,9 @@ func compile(compileBoardFlag string) {
 	for _, repoName := range repoNames {
 		cBoards := strings.Split(compileBoardFlag, ",")
 		for _, c := range cBoards {
-			runCmd(exec.Command("cros_workon", "--board="+c, "start", repoName), true)
-			runCmd(exec.Command("emerge-"+c, repoName), true)
-			defer runCmd(exec.Command("cros_workon", "--board="+c, "stop", repoName), false)
+			runCmd(exec.Command("cros_sdk", "cros_workon", "--board="+c, "start", repoName), true)
+			runCmd(exec.Command("cros_sdk", "emerge-"+c, repoName), true)
+			defer runCmd(exec.Command("cros_sdk", "cros_workon", "--board="+c, "stop", repoName), false)
 		}
 	}
 }
@@ -331,18 +331,6 @@ func lookupCheckout() string {
 	}
 }
 
-func ensureOutChroot() {
-	if _, err := os.Stat("/etc/cros_chroot_version"); !errors.Is(err, os.ErrNotExist) {
-		logPanic("Please run out of the chroot.")
-	}
-}
-
-func ensureInChroot() {
-	if _, err := os.Stat("/etc/cros_chroot_version"); errors.Is(err, os.ErrNotExist) {
-		logPanic("Please run inside the chromeos chroot.")
-	}
-}
-
 func printUsageAndExit(exitcode int) {
 	fmt.Printf("Usage: %s [ACTION] ...\n", filepath.Base(os.Args[0]))
 	fmt.Printf("  ACTION is one of 'empty-cl', 'merge', 'post-merge' or 'help'\n")
@@ -363,21 +351,22 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: action not specified\n\n")
 		printUsageAndExit(1)
 	}
+
+	if _, err := os.Stat("/etc/cros_chroot_version"); !errors.Is(err, os.ErrNotExist) {
+		logPanic("Please run out of the chroot.")
+	}
+
 	switch os.Args[1] {
 	case "empty-cl":
-		ensureOutChroot()
 		uploadEmptyCL()
 
 	case "merge":
-		ensureOutChroot()
 		mergeSubCmd()
 
 	case "compile":
-		ensureInChroot()
 		compileSubCmd()
 
 	case "post-merge":
-		ensureOutChroot()
 		postMergeSubCmd()
 
 	case "help":
@@ -460,7 +449,7 @@ func compileSubCmd() {
 	if !*skipSetupBoardFlag {
 		cBoards := strings.Split(*compileBoardFlag, ",")
 		for _, c := range cBoards {
-			cmd := exec.Command("setup_board", "--board="+c)
+			cmd := exec.Command("cros_sdk", "setup_board", "--board="+c)
 			runCmd(cmd, true)
 		}
 	}
