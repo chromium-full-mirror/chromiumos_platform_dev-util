@@ -434,7 +434,10 @@ def inspect(cl_num=None):
     if not data:
         return None
 
-    return json.loads(data)
+    try:
+        return json.loads(data)
+    except json.decoder.JSONDecodeError:
+        return None
 
 
 def send_message(cl_num, msg):
