@@ -327,9 +327,6 @@ def create_change(
             reviewers = emails
             cc = None
 
-    if not reviewers:
-        reviewers = ["chromeos-kernel-findmissing-reviewers@google.com"]
-
     try:
         # Cherry pick changes and generate commit message indicating fix from upstream
         handler = git_interface.commitHandler(
@@ -448,6 +445,16 @@ def send_message(cl_num, msg):
     Return True on success.
     """
     return gerrit_cmd(["message", cl_num, msg])
+
+
+def add_reviewer(cl_num, reviewer):
+    """Add reviewer.
+
+    `gerrit reviewers [cl_num] [reviewer]`.
+
+    Return True on success.
+    """
+    return gerrit_cmd(["reviewers", cl_num, reviewer])
 
 
 if __name__ == "__main__":

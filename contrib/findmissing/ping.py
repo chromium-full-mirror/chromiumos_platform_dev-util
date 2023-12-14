@@ -16,6 +16,8 @@ CQ_PLUS1_RETRY_THRESHOLD = 1
 CQ_PLUS1_LIMIT_PER_DAY = 2
 CQ_PLUS1_LIMIT = 4
 
+GWSQ = "chromeos-kernel-findmissing-reviewers@google.com"
+
 
 def parse(obj):
     ret = {}
@@ -29,9 +31,15 @@ def parse(obj):
     ret["branch"] = obj["branch"].split("-")[1]
 
     max_cr = max_cq = max_v = min_v = 0
+    reviewers = set()
     for approval in obj["currentPatchSet"]["approvals"]:
         if approval["type"] == "CRVW":
             max_cr = max(max_cr, int(approval["value"]))
+            email = approval["by"]["email"]
+            if (
+                email.endswith("@chromium.org") or email.endswith("@google.com")
+            ) and email != GWSQ:
+                reviewers.add(email)
 
         if approval["type"] == "COMR":
             max_cq = max(max_cq, int(approval["value"]))
@@ -46,6 +54,7 @@ def parse(obj):
         ret["v"] = min_v
     else:
         ret["v"] = max_v
+    ret["reviewers"] = list(reviewers)
 
     return ret
 
@@ -134,21 +143,40 @@ def check_cq_plus1(obj):
             # Make sure the latest result passes CQ.
             if has_failed == 0:
                 print("CQ+1 has passed")
-                print("Mark V+1 and AS+1")
-                gerrit_interface.label_v(cl_num, "1")
-                gerrit_interface.label_as(cl_num, "1")
+
+                if obj["reviewers"]:
+                    print("Send ping message, V+1, and AS+1")
+                    send_ping_msg(obj)
+                    gerrit_interface.label_v(cl_num, "1")
+                    gerrit_interface.label_as(cl_num, "1")
+                else:
+                    print("Deferred, loop in gwsq")
+                    gerrit_interface.add_reviewer(cl_num, GWSQ)
                 return
 
         if "This CL has failed the run" in msg:
             if "buildtest-cq" in msg:
                 print("CQ failed on buildtest")
-                print("Mark V-1")
-                gerrit_interface.label_v(cl_num, "-1")
+
+                if obj["reviewers"]:
+                    print("Send ping message, and V-1")
+                    send_ping_msg(obj)
+                    gerrit_interface.label_v(cl_num, "-1")
+                else:
+                    print("Deferred, loop in gwsq")
+                    gerrit_interface.add_reviewer(cl_num, GWSQ)
                 return
 
             has_failed += 1
             if has_failed >= CQ_PLUS1_LIMIT:
                 print("Do nothing because the retries are over the limit")
+
+                if obj["reviewers"]:
+                    print("Send ping message")
+                    send_ping_msg(obj)
+                else:
+                    print("Deferred, loop in gwsq")
+                    gerrit_interface.add_reviewer(cl_num, GWSQ)
                 return
 
             mtime = time.strptime(m["date"], "%Y-%m-%d %H:%M:%S.000000000")
