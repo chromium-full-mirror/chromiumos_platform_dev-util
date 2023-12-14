@@ -380,6 +380,17 @@ def label_v(cl_num, value):
     return gerrit_cmd(["label-v", cl_num, value])
 
 
+def gerrit_output(args):
+    """Return None on fail."""
+    cmd = [common.GERRIT_PATH] + args
+    try:
+        return subprocess.check_output(
+            cmd, encoding="utf-8", errors="ignore", stderr=subprocess.DEVNULL
+        )
+    except subprocess.CalledProcessError:
+        return None
+
+
 def label_cq_plus1(branch, changeid):
     """Label CQ+1 for the given branch and changeid.
 
@@ -392,12 +403,8 @@ def label_cq_plus1(branch, changeid):
     q = f"branch:{chromeos_branch} {changeid}"
     logging.info('Query CL number via query string "%s"', q)
 
-    try:
-        cmd = [common.GERRIT_PATH, "--json", "search", q]
-        data = subprocess.check_output(
-            cmd, encoding="utf-8", errors="ignore", stderr=subprocess.DEVNULL
-        )
-    except subprocess.CalledProcessError:
+    data = gerrit_output(["--json", "search", q])
+    if data is None:
         return False
 
     try:
@@ -417,19 +424,17 @@ def inspect(cl_num=None):
 
     Return the JSON as a dictionary.
     """
-    try:
-        cmd = [common.GERRIT_PATH, "--json"]
-        if cl_num:
-            cmd += ["inspect", cl_num]
-        else:
-            cmd += ["mine"]
+    args = ["--json"]
+    if cl_num:
+        args += ["inspect", cl_num]
+    else:
+        args += ["mine"]
 
-        output = subprocess.check_output(
-            cmd, encoding="utf-8", errors="ignore", stderr=subprocess.DEVNULL
-        )
-        return json.loads(output)
-    except subprocess.CalledProcessError:
+    data = gerrit_output(args)
+    if not data:
         return None
+
+    return json.loads(data)
 
 
 def send_message(cl_num, msg):
