@@ -20,7 +20,7 @@ func GetFwInfo(logger *log.Logger, dutClient api.DutServiceClient) (*api.GetFWIn
 		logger.Printf("get ro_fwid cmd FAILED: %s\n", err)
 		roFWID = ""
 	}
-	rwFWID, err := common.RunCmd(context.Background(), "crossystem", []string{"rw_fwid"}, dutClient)
+	rwFWID, err := common.RunCmd(context.Background(), "crossystem", []string{"fwid"}, dutClient)
 	if err != nil {
 		logger.Printf("get rw_fwid cmd FAILED: %s\n", err)
 		rwFWID = ""
