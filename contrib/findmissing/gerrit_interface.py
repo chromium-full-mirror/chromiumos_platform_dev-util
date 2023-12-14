@@ -353,31 +353,31 @@ def create_change(
     return fixer_changeid
 
 
-def _label_flag(flag, cl_num, value):
+def gerrit_cmd(args):
+    """Return True on success."""
+    cmd = [common.GERRIT_PATH] + args
     try:
-        cmd = [common.GERRIT_PATH, flag, cl_num, value]
         subprocess.run(
             cmd,
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+        return True
     except subprocess.CalledProcessError:
         return False
 
-    return True
-
 
 def label_cq(cl_num, value):
-    return _label_flag("label-cq", cl_num, value)
+    return gerrit_cmd(["label-cq", cl_num, value])
 
 
 def label_as(cl_num, value):
-    return _label_flag("label-as", cl_num, value)
+    return gerrit_cmd(["label-as", cl_num, value])
 
 
 def label_v(cl_num, value):
-    return _label_flag("label-v", cl_num, value)
+    return gerrit_cmd(["label-v", cl_num, value])
 
 
 def label_cq_plus1(branch, changeid):
@@ -439,17 +439,7 @@ def send_message(cl_num, msg):
 
     Return True on success.
     """
-    try:
-        cmd = [common.GERRIT_PATH, "message", cl_num, msg]
-        subprocess.run(
-            cmd,
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        return True
-    except subprocess.CalledProcessError:
-        return False
+    return gerrit_cmd(["message", cl_num, msg])
 
 
 if __name__ == "__main__":
