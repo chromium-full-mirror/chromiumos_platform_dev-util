@@ -4,18 +4,21 @@
 
 """Prep everything for for the cros-test Docker Build Context."""
 
-
+import os
 import sys
 
 
 sys.path.append("../../../../")
 
-from src.docker_libs.build_libs.shared.common_artifact_prep import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
-    CrosArtifactPrep,
+from src.docker_libs.build_libs.shared import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
+    common_artifact_prep,
+)
+from src.tools import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
+    suite_set_utils,
 )
 
 
-class CrosTestFinderArtifactPrep(CrosArtifactPrep):
+class CrosTestFinderArtifactPrep(common_artifact_prep.CrosArtifactPrep):
     """Prep Needed files for the Test Execution Container Docker Build."""
 
     def __init__(
@@ -41,3 +44,8 @@ class CrosTestFinderArtifactPrep(CrosArtifactPrep):
         self.copy_service()
         self.copy_metadata()
         self.copy_dockercontext()
+
+        suite_file = os.path.join(self.full_out, "suites")
+        suite_set_utils.copy_suites(suite_file, self.full_out)
+        suite_set_file = os.path.join(self.full_out, "suite_sets")
+        suite_set_utils.copy_suite_sets(suite_set_file)

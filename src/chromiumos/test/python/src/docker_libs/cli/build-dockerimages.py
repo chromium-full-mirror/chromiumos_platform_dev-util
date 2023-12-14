@@ -1,9 +1,17 @@
-#!/usr/bin/env python3
+#!/usr/bin/env vpython3
 # Copyright 2022 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """Entry point for cros-test cloudbuild."""
+
+# [VPYTHON:BEGIN]
+# python_version: "3.8"
+# wheel: <
+#   name: "infra/python/wheels/protobuf-py2_py3"
+#   version: "version:3.18.1"
+# >
+# [VPYTHON:END]
 
 import argparse
 import os
