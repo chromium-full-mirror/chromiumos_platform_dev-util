@@ -117,5 +117,5 @@ disp_overwrite["f2968dcf8e73"] = [
 ]  # FROMLIST: devcoredump: Add per device sysfs entry to enable/disable coredump
 disp_overwrite["01f2b9195659"] = [
     "move",
-    "media",
+    "net",
 ]  # FROMGIT: usb: core: Allow subclassed USB drivers to override usb_choose_configuration()
