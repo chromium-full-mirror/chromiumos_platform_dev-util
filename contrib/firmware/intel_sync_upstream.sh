@@ -12,7 +12,7 @@ declare -A SOC_FSP_STAGING_REPO_MAP=( ["adl"]="ccg-adl-generic-full" ["adln"]="a
 
 # If edk2/edk2-platforms are using a branch prefix that does not follow the format chromeos-${SOC},
 # then add the mapping here.
-declare -A SOC_EDK_BRANCH_PREFIX_MAP=( ["adln"]="chromeos-adl-n" )
+declare -A SOC_EDK_BRANCH_PREFIX_MAP=( ["adln"]="chromeos-adl-n" ["rpl"]="firmware-brya-14505.B-chromeos-rpl")
 
 # If edk2/edk2-platforms are using a repo name with a suffix (e.g. are not edk-staging or edk-platforms-staging)
 declare -A SOC_EDK_REPO_SUFFIX_MAP=( ["mtl"]="intelcollab" ["rpl"]="intelcollab" )
