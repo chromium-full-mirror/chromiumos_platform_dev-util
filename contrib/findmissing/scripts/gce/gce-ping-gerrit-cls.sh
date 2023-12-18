@@ -20,6 +20,6 @@ fi
 
 {
     echo "Triggered ping Gerrit CLs at $(date)"
-    env/bin/python3 ping.py
+    env/bin/python3 -u ping.py
     echo "End of ping Gerrit CLs at $(date)"
 } >> "${LOG_FILE}" 2>&1
