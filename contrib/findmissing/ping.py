@@ -23,12 +23,14 @@ def parse(obj):
     ret = {}
 
     ret["cl_num"] = obj["number"]
-    ret["last_updated"] = obj["lastUpdated"]
     ret["change_id"] = obj["id"]
     ret["subject"] = obj["subject"]
     ret["url"] = obj["url"]
     # Example to parse: chromeos-6.6
     ret["branch"] = obj["branch"].split("-")[1]
+    ret["messages"] = gerrit_interface.get_messages(
+        ret["change_id"], ret["branch"]
+    )[::-1]
 
     max_cr = max_cq = max_v = min_v = 0
     reviewers = set()
@@ -109,12 +111,39 @@ Thank you for contributing to ChromeOS kernel stability.
     return gerrit_interface.send_message(obj["cl_num"], msg)
 
 
-def check_no_update(obj):
-    if has_elapsed(int(obj["last_updated"]), 86400 * NO_UPDATE_THRESHOLD):
-        print(f"Hasn't been changed for more than {NO_UPDATE_THRESHOLD} day(s)")
+def to_mtimestamp(msg):
+    """Convert a message date to timestamp."""
+    mtime = time.strptime(msg["date"], "%Y-%m-%d %H:%M:%S.000000000")
+    return int(time.mktime(mtime))
 
-        if not send_ping_msg(obj):
-            print("Failed to send ping message")
+
+def check_no_update(obj):
+    for last, m in enumerate(obj["messages"]):
+        if m["author"]["name"] != "gwsq":
+            break
+    else:
+        print("Failed to find the last non-gwsq message")
+        return
+
+    if not has_elapsed(
+        to_mtimestamp(obj["messages"][last]), 86400 * NO_UPDATE_THRESHOLD
+    ):
+        return
+
+    print(f"Hasn't been changed for more than {NO_UPDATE_THRESHOLD} day(s)")
+
+    # Don't try to loop in gwsq if a CL has V-1.
+    if obj["v"] != -1:
+        for m in obj["messages"]:
+            if m["author"]["name"] == "gwsq":
+                break
+        else:
+            print("Deferred, loop in gwsq")
+            gerrit_interface.add_reviewer(obj["cl_num"], GWSQ)
+            return
+
+    if not send_ping_msg(obj):
+        print("Failed to send ping message")
 
 
 def check_cq_plus1(obj):
@@ -128,9 +157,7 @@ def check_cq_plus1(obj):
 
     cl_num = obj["cl_num"]
     has_failed = 0
-    for m in reversed(
-        gerrit_interface.get_messages(obj["change_id"], obj["branch"])
-    ):
+    for m in obj["messages"]:
         msg = m["message"]
 
         # If a new PS has uploaded, retry CQ+1 anyway.
@@ -179,9 +206,8 @@ def check_cq_plus1(obj):
                     gerrit_interface.add_reviewer(cl_num, GWSQ)
                 return
 
-            mtime = time.strptime(m["date"], "%Y-%m-%d %H:%M:%S.000000000")
             if not has_elapsed(
-                int(time.mktime(mtime)), 86400 * CQ_PLUS1_RETRY_THRESHOLD
+                to_mtimestamp(m), 86400 * CQ_PLUS1_RETRY_THRESHOLD
             ):
                 if has_failed >= CQ_PLUS1_LIMIT_PER_DAY:
                     print(
