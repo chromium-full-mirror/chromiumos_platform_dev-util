@@ -43,6 +43,10 @@ class Generate_Gtest_Metadata_Test(TestCase):
                 gtc.VALID_YAML_SINGLE_CASE_NO_TAG_PROTOBUF,
             ),
             Yaml_Proto(
+                gtc.VALID_YAML_SINGLE_CASE_CROSIER_NO_TAG,
+                gtc.VALID_YAML_SINGLE_CASE_CROSIER_NO_TAG_PROTOBUF,
+            ),
+            Yaml_Proto(
                 gtc.VALID_YAML_SINGLE_CASE_ONE_TAG,
                 gtc.VALID_YAML_SINGLE_CASE_ONE_TAG_PROTOBUF,
             ),
@@ -76,7 +80,7 @@ class Generate_Gtest_Metadata_Test(TestCase):
             ),
         ]
 
-        with open("gtest_schema.yaml", "r", encoding='utf-8') as f:
+        with open("gtest_schema.yaml", "r", encoding="utf-8") as f:
             cls._yaml_schema = f.read()
 
         Bad_Yaml = collections.namedtuple("Bad_Yaml", ["yaml", "msg"])
@@ -199,7 +203,7 @@ class Generate_Gtest_Metadata_Test(TestCase):
             tce = tc_metadata_pb.TestCaseExec(
                 test_harness=th_pb.TestHarness(
                     gtest=th_pb.TestHarness.Gtest(
-                        target_bin_location=f["target_bin_location"]
+                        target_bin_location=f.get("target_bin_location", "")
                     )
                 )
             )

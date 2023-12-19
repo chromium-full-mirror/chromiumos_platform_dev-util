@@ -2,7 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# This file defines the schema for gtest functional test metadata
+# This file defines the schema for gtest and crosier functional test metadata
+# Both these test types use the same metadata format and geenratino scripts.
 #
 # Metadata files are here:
 #
@@ -19,10 +20,11 @@ properties:
     description: "Name of test"
     type: string
   harness:
-    description: "Test harness required (should always be gtest)"
+    description: "Test harness required (gtest or crosier)"
     type: string
     enum:
       - gtest
+      - crosier
   category:
     description: "Type of testing this test represents"
     type: string
@@ -90,5 +92,11 @@ required:
   - category
   - owners
   - cases
-  - target_bin_location
   - criteria
+if:
+  properties:
+    harness:
+      const: gtest
+then:
+  required:
+    - target_bin_location

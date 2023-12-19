@@ -97,7 +97,9 @@ def _test_case_metadata_factory(
 def _test_case_list_factory(input_data: dict) -> list:
     """Factory method for batch building TestCaseMetadata objects"""
     suite_name = input_data["name"]
-    test_case_exec = _test_case_exec_factory(input_data["target_bin_location"])
+    test_case_exec = _test_case_exec_factory(
+        input_data.get("target_bin_location", "")
+    )
     test_case_info = _test_case_info_factory(
         input_data["owners"],
         input_data["criteria"],
