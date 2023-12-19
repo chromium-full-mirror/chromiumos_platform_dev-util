@@ -77,8 +77,8 @@ def normalize():
 
     configs = [
         (
-            "arm64-chromiumos-arm64.flavour.config",
-            "arm64/chromiumos-arm64.flavour.config",
+            "arm64-chromiumos-arm64-generic.flavour.config",
+            "arm64/chromiumos-arm64-generic.flavour.config",
         ),
         (
             "arm64-chromiumos-mediatek.flavour.config",
@@ -93,8 +93,8 @@ def normalize():
             "arm64/chromiumos-rockchip64.flavour.config",
         ),
         (
-            "armel-chromiumos-arm.flavour.config",
-            "armel/chromiumos-arm.flavour.config",
+            "armel-chromiumos-arm-generic.flavour.config",
+            "armel/chromiumos-arm-generic.flavour.config",
         ),
         (
             "armel-chromiumos-rockchip.flavour.config",
@@ -113,8 +113,8 @@ def normalize():
             "x86_64/chromeos-intel-pineview.flavour.config",
         ),
         (
-            "x86_64-chromiumos-x86_64.flavour.config",
-            "x86_64/chromiumos-x86_64.flavour.config",
+            "x86_64-chromiumos-x86_64-generic.flavour.config",
+            "x86_64/chromiumos-x86_64-generic.flavour.config",
         ),
     ]
     iwls = [
