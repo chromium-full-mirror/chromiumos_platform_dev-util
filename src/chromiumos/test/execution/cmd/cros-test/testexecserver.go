@@ -27,6 +27,7 @@ func driverToTestsMapping(logger *log.Logger, mdList []*api.TestCaseMetadata) (m
 	tastDriver := driver.NewTastDriver(logger)
 	tautoDriver := driver.NewTautoDriver(logger)
 	gtestDriver := driver.NewGtestDriver(logger)
+	crosierDriver := driver.NewCrosierDriver(logger)
 	moblyDriver := driver.NewMoblyDriver(logger)
 
 	driverToTests := make(map[driver.Driver][]*api.TestCaseMetadata)
@@ -46,6 +47,8 @@ func driverToTestsMapping(logger *log.Logger, mdList []*api.TestCaseMetadata) (m
 			driverToTests[tautoDriver] = append(driverToTests[tautoDriver], md)
 		} else if md.TestCaseExec.TestHarness.GetGtest() != nil {
 			driverToTests[gtestDriver] = append(driverToTests[gtestDriver], md)
+		} else if md.TestCaseExec.TestHarness.GetCrosier() != nil {
+			driverToTests[crosierDriver] = append(driverToTests[crosierDriver], md)
 		} else if md.TestCaseExec.TestHarness.GetMobly() != nil {
 			driverToTests[moblyDriver] = append(driverToTests[moblyDriver], md)
 		} else {

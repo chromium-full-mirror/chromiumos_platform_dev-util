@@ -89,6 +89,31 @@ var mdList = &api.TestCaseMetadataList{
 				},
 			},
 		},
+		{
+			TestCase: &api.TestCase{
+				Id: &api.TestCase_Id{
+					Value: "yet_another_unique_id",
+				},
+				Name: "test_case_crosier",
+				Tags: []*api.TestCase_Tag{
+					{Value: "attr1"},
+					{Value: "attr2"},
+					{Value: "attr3"},
+				},
+			},
+			TestCaseExec: &api.TestCaseExec{
+				TestHarness: &api.TestHarness{
+					TestHarnessType: &api.TestHarness_Crosier_{
+						Crosier: &api.TestHarness_Crosier{},
+					},
+				},
+			},
+			TestCaseInfo: &api.TestCaseInfo{
+				Owners: []*api.Contact{
+					{Email: "someone1@chromium.org"},
+				},
+			},
+		},
 	},
 }
 
