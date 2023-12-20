@@ -186,7 +186,7 @@ for carrier in [
     )
 
     tests = single_test_template.format(
-        test_exprs="['cellular.ShillEnableAndConnect','cellular.HostStressEnableDisable','cellular.ModemmanagerEnableAndConnect','cellular.ShillSafetyDance','cellular.ModemSSRVerification']"
+        test_exprs="['cellular.ShillEnableAndConnect','cellular.HostStressEnableDisable','cellular.ModemmanagerEnableAndConnect','cellular.ShillSafetyDance','cellular.ModemSSRVerification','cellular.ModemRebootVerification']"
     )
     write_control_file(
         out_dir,
