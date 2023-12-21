@@ -12,7 +12,6 @@ import (
 	"chromiumos/test/execution/cmd/cros-test/internal/device"
 
 	"github.com/google/go-cmp/cmp"
-	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
 // TestNewTautoArgs makes sure newTautoArgs creates the correct arguments for tauto.
@@ -51,14 +50,16 @@ func TestNewTautoArgs(t *testing.T) {
 		CacheServer:         "cache:9001",
 		HWID:                "Atlas 123-34",
 	}
-	customAutotestArgs := &api.AutotestExecutionMetadata{
-		Args: []*api.AutotestExecutionMetadata_Arg{
-			{
-				Flag:  "tast_list",
-				Value: "tast.example.Pass",
-			},
-		},
-	}
+	// _ := &api.AutotestExecutionMetadata{
+	// 	Args: []*api.AutotestExecutionMetadata_Arg{
+	// 		{
+	// 			Flag:  "tast_list",
+	// 			Value: "tast.example.Pass",
+	// 		},
+	// 	},
+	// }
+
+	processedArgs := " tast_list=tast.example.Pass"
 
 	expectedArgs := tautoRunArgs{
 		target:   primary,
@@ -78,7 +79,7 @@ func TestNewTautoArgs(t *testing.T) {
 
 	dut := primary
 	tests := []string{test1, test2, test3, test4, test5}
-	args, err := newTautoArgs(dut, companions, tests, dutServers, workDir1, libsServer, customAutotestArgs)
+	args, err := newTautoArgs(dut, companions, tests, dutServers, workDir1, libsServer, processedArgs)
 	if err != nil {
 		t.Errorf("Got err ")
 	}

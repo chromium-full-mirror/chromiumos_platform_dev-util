@@ -83,13 +83,14 @@ func (td *TautoDriver) RunTests(ctx context.Context, resultsDir string, req *api
 	}
 
 	// Get autotest execution args.
-	md, err := common.UnpackMetadata(req)
+	customArgs, err := processArgs(req)
+	// Args are not going to be formally supported; so if unpacking fails, log the error
+	// and continue.
 	if err != nil {
-		return nil, err
-	}
-	customAutotestArgs, _ := md.(*api.AutotestExecutionMetadata)
+		td.logger.Println("Error during args Parsing, will continue: ", err)
 
-	args, err := newTautoArgs(primary, companions, testNames, dutServers, resultsDir, libsServer, customAutotestArgs)
+	}
+	args, err := newTautoArgs(primary, companions, testNames, dutServers, resultsDir, libsServer, customArgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tauto args: %v", err)
 	}
@@ -176,7 +177,7 @@ type tautoRunArgs struct {
 }
 
 // newTautoArgs created an argument structure for invoking tauto
-func newTautoArgs(dut *device.DutInfo, companionDuts []*device.DutInfo, tests, dutServers []string, resultsDir string, libsServer string, customAutotestArgs *api.AutotestExecutionMetadata) (*tautoRunArgs, error) {
+func newTautoArgs(dut *device.DutInfo, companionDuts []*device.DutInfo, tests, dutServers []string, resultsDir string, libsServer string, customArgs string) (*tautoRunArgs, error) {
 	args := tautoRunArgs{
 		target: dut,
 		runFlags: map[string]string{
@@ -208,8 +209,8 @@ func newTautoArgs(dut *device.DutInfo, companionDuts []*device.DutInfo, tests, d
 		tautoArgsStr = tautoArgsStr + fmt.Sprintf(" %v=%v", "cache_endpoint", dut.CacheServer)
 	}
 
-	for _, customAutotestArg := range customAutotestArgs.GetArgs() {
-		tautoArgsStr = tautoArgsStr + fmt.Sprintf(" %v=%v", customAutotestArg.GetFlag(), customAutotestArg.GetValue())
+	if customArgs != "" {
+		tautoArgsStr = tautoArgsStr + customArgs
 	}
 
 	args.runFlags[tautoArgs] = tautoArgsStr
@@ -247,4 +248,36 @@ func genTautoArgList(args *tautoRunArgs) (argList []string) {
 	argList = append(argList, args.target.Addr)
 	argList = append(argList, args.patterns...)
 	return argList
+}
+
+func processArgs(req *api.CrosTestRequest) (string, error) {
+	customArgs := ""
+	suites := req.GetTestSuites()
+	// In reality; we should never have an empty suite.
+	if len(suites) > 0 {
+		rawArgs := suites[0].GetExecutionMetadata()
+		if rawArgs != nil {
+			subCustomArgs := ""
+			for _, customAutotestArg := range rawArgs.GetArgs() {
+				subCustomArgs += subCustomArgs + fmt.Sprintf(" %v=%v", customAutotestArg.GetFlag(), customAutotestArg.GetValue())
+			}
+			return subCustomArgs, nil
+		}
+	}
+
+	// Backwards compatibility.
+	if customArgs == "" {
+		md, err := common.UnpackMetadata(req)
+		if err != nil {
+			return "", err
+		}
+		customAutotestArgs, _ := md.(*api.AutotestExecutionMetadata)
+		subCustomArgs := ""
+		for _, customAutotestArg := range customAutotestArgs.GetArgs() {
+			subCustomArgs += subCustomArgs + fmt.Sprintf(" %v=%v", customAutotestArg.GetFlag(), customAutotestArg.GetValue())
+		}
+		customArgs = subCustomArgs
+
+	}
+	return customArgs, nil
 }
