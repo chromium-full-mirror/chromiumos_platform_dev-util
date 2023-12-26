@@ -388,6 +388,30 @@ def gerrit_output(args):
         return None
 
 
+def get_cl_nums(changeid):
+    """Get all CL numbers for the given changeid.
+
+    Return a dict that maps from branch to changeid.
+    """
+    q = f"project:chromiumos/third_party/kernel change:{changeid}"
+    logging.info('Query CL numbers via query string "%s"', q)
+
+    data = gerrit_output(["--json", "search", q])
+    if data is None:
+        return {}
+
+    ret = {}
+    try:
+        for obj in json.loads(data):
+            # Example to parse: chromeos-6.6
+            branch = obj["branch"].split("-")[1]
+            ret[branch] = obj["number"]
+    except (json.decoder.JSONDecodeError, IndexError, KeyError):
+        pass
+
+    return ret
+
+
 def label_cq_plus1(branch, changeid):
     """Label CQ+1 for the given branch and changeid.
 
@@ -395,19 +419,10 @@ def label_cq_plus1(branch, changeid):
 
     Returns True if CQ+1 success; otherwise False.
     """
-    chromeos_branch = common.chromeos_branch(branch)
-
-    q = f"branch:{chromeos_branch} {changeid}"
-    logging.info('Query CL number via query string "%s"', q)
-
-    data = gerrit_output(["--json", "search", q])
-    if data is None:
-        return False
-
     try:
-        cl_num = json.loads(data)[0]["number"]
+        cl_num = get_cl_nums(changeid)[branch]
         logging.info("CL number: %s", cl_num)
-    except (json.decoder.JSONDecodeError, IndexError, KeyError):
+    except KeyError:
         return False
 
     return label_cq(cl_num, "1")
