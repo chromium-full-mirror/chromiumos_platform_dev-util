@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import re
 import sys
 import time
 import urllib.parse
@@ -17,6 +18,7 @@ CQ_PLUS1_LIMIT_PER_DAY = 2
 CQ_PLUS1_LIMIT = 4
 
 GWSQ = "chromeos-kernel-findmissing-reviewers@google.com"
+RE_GWSQ_REVIEWER = re.compile(rf"(\w+) is from group\({GWSQ}\)")
 
 
 def parse(obj):
@@ -32,6 +34,14 @@ def parse(obj):
         ret["change_id"], ret["branch"]
     )[::-1]
 
+    for m in ret["messages"]:
+        if m["author"]["name"] == "gwsq":
+            ret["gwsq_message"] = m
+            break
+    else:
+        ret["gwsq_message"] = None
+    ret["gwsq_in_progress"] = False
+
     max_cr = max_cq = max_v = min_v = 0
     reviewers = set()
     for approval in obj["currentPatchSet"]["approvals"]:
@@ -42,6 +52,9 @@ def parse(obj):
                 email.endswith("@chromium.org") or email.endswith("@google.com")
             ) and email != GWSQ:
                 reviewers.add(email)
+
+            if email == GWSQ:
+                ret["gwsq_in_progress"] = True
 
         if approval["type"] == "COMR":
             max_cq = max(max_cq, int(approval["value"]))
@@ -117,6 +130,44 @@ def to_mtimestamp(msg):
     return int(time.mktime(mtime))
 
 
+def add_backup_reviewer(obj):
+    """Add a backup reviewer from CLs (with the same Change-Id) in other branches or GWSQ.
+
+    Return True if a backup reviewer (excluding GWSQ) has added.
+    """
+    if obj["gwsq_in_progress"]:
+        print("Deferred, gwsq is still in progress")
+        return False
+    if obj["gwsq_message"]:
+        print("gwsq has involved")
+        return False
+
+    cl_nums = gerrit_interface.get_cl_nums(obj["change_id"])
+    cl_nums.pop(obj["branch"], None)
+
+    for cl_num in cl_nums.values():
+        o = gerrit_interface.inspect(cl_num)[0]
+        o = parse(o)
+
+        if o["gwsq_in_progress"]:
+            print(f"Deferred, gwsq is still in progress in {cl_num}")
+            return False
+
+        if o["gwsq_message"]:
+            match = RE_GWSQ_REVIEWER.search(o["gwsq_message"]["message"])
+            if match:
+                gwsq_reviewer = match.group(1)
+                gerrit_interface.add_reviewer(
+                    obj["cl_num"], f"{gwsq_reviewer}@chromium.org"
+                )
+                print(f"Add {gwsq_reviewer} as a reviewer from {cl_num}")
+                return True
+
+    print("Deferred, loop in gwsq")
+    gerrit_interface.add_reviewer(obj["cl_num"], GWSQ)
+    return False
+
+
 def check_no_update(obj):
     for last, m in enumerate(obj["messages"]):
         if m["author"]["name"] != "gwsq":
@@ -134,12 +185,11 @@ def check_no_update(obj):
 
     # Don't try to loop in gwsq if a CL has V-1.
     if obj["v"] != -1:
-        for m in obj["messages"]:
-            if m["author"]["name"] == "gwsq":
-                break
-        else:
-            print("Deferred, loop in gwsq")
-            gerrit_interface.add_reviewer(obj["cl_num"], GWSQ)
+        if obj["gwsq_message"]:
+            # gwsq has involved.
+            pass
+        elif not add_backup_reviewer(obj):
+            # gwsq is in progress.
             return
 
     if not send_ping_msg(obj):
@@ -171,39 +221,30 @@ def check_cq_plus1(obj):
             if has_failed == 0:
                 print("CQ+1 has passed")
 
-                if obj["reviewers"]:
+                if obj["reviewers"] or add_backup_reviewer(obj):
                     print("Send ping message, V+1, and AS+1")
                     send_ping_msg(obj)
                     gerrit_interface.label_v(cl_num, "1")
                     gerrit_interface.label_as(cl_num, "1")
-                else:
-                    print("Deferred, loop in gwsq")
-                    gerrit_interface.add_reviewer(cl_num, GWSQ)
                 return
 
         if "This CL has failed the run" in msg:
             if "buildtest-cq" in msg:
                 print("CQ failed on buildtest")
 
-                if obj["reviewers"]:
+                if obj["reviewers"] or add_backup_reviewer(obj):
                     print("Send ping message, and V-1")
                     send_ping_msg(obj)
                     gerrit_interface.label_v(cl_num, "-1")
-                else:
-                    print("Deferred, loop in gwsq")
-                    gerrit_interface.add_reviewer(cl_num, GWSQ)
                 return
 
             has_failed += 1
             if has_failed >= CQ_PLUS1_LIMIT:
                 print("Do nothing because the retries are over the limit")
 
-                if obj["reviewers"]:
+                if obj["reviewers"] or add_backup_reviewer(obj):
                     print("Send ping message")
                     send_ping_msg(obj)
-                else:
-                    print("Deferred, loop in gwsq")
-                    gerrit_interface.add_reviewer(cl_num, GWSQ)
                 return
 
             if not has_elapsed(
