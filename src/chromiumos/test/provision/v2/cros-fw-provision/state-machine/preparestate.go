@@ -35,17 +35,17 @@ func (s FirmwarePrepareState) Execute(ctx context.Context, log *log.Logger) (*an
 
 	if mainRw := s.service.GetMainRwPath(); len(mainRw) > 0 {
 		if err := s.service.DownloadAndProcess(ctx, mainRw); err != nil {
-			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 		}
 	}
 	if mainRo := s.service.GetMainRoPath(); len(mainRo) > 0 {
 		if err := s.service.DownloadAndProcess(ctx, mainRo); err != nil {
-			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 		}
 	}
 	if ecRoPath := s.service.GetEcRoPath(); len(ecRoPath) > 0 {
 		if err := s.service.DownloadAndProcess(ctx, ecRoPath); err != nil {
-			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 		}
 	}
 	return nil, api.InstallResponse_STATUS_OK, nil

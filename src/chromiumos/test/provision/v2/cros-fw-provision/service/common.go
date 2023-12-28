@@ -11,6 +11,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 const FirmwarePathTmp = "/tmp/cros-fw-provisioning-service/"
@@ -122,7 +124,7 @@ func GetFlashECScript(ctx context.Context, s common_utils.ServiceAdapterInterfac
 	_, err = s.RunCmd(ctx, "", []string{"cd " + prefix + ";", "git", "clone",
 		"https://chromium.googlesource.com/chromiumos/platform/ec", "ec-repo"})
 	if err != nil {
-		return "", fmt.Errorf("falied to checkout platform/ec repo: %w", err)
+		return "", errors.Errorf("falied to checkout platform/ec repo: %w", err)
 	}
 
 	// TODO: mv ec-repo to some location and try it before downloading.

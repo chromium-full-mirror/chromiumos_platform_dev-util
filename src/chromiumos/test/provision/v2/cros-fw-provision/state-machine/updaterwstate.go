@@ -34,14 +34,14 @@ func (s FirmwareUpdateRwState) Execute(ctx context.Context, log *log.Logger) (*a
 	log.Printf("[FW Provisioning: Update RW] extracting AP image to flash\n")
 	mainRwPath, err := firmwareservice.PickAndExtractMainImage(ctx, connection, mainRwMetadata, s.service.GetBoard(), s.service.GetModel())
 	if err != nil {
-		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
+		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 	}
 	futilityImageArgs = []string{fmt.Sprint("--image=", mainRwPath)}
 
 	log.Printf("[FW Provisioning: Update RW] flashing RW firmware with futility\n")
 	err = s.service.FlashWithFutility(ctx, true /* WP */, futilityImageArgs)
 	if err != nil {
-		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err.Error())
+		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 	}
 	return nil, api.InstallResponse_STATUS_OK, nil
 }

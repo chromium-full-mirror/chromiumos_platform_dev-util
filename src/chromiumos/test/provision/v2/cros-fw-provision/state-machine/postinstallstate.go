@@ -26,11 +26,11 @@ func (s FirmwarePostInstallState) Execute(ctx context.Context, log *log.Logger) 
 	s.service.DeleteArchiveDirectories()
 	err := s.service.RestartDut(ctx, false)
 	if err != nil {
-		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UnreachablePostProvisionErr(err.Error())
+		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UnreachablePostProvisionErr(err)
 	}
 
 	// TODO(sfrolov): if Firmware Version Mismatched:
-	// return FirmwareMismatchPostProvisionErr("expected fw version: %v, got: %v")
+	// return FirmwareMismatchPostProvisionErr(fmt.Errorf("expected fw version: %v, got: %v"))
 	return nil, api.InstallResponse_STATUS_OK, nil
 }
 

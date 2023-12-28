@@ -9,8 +9,6 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
-type any interface{}
-
 type FirmwareProvisionError struct {
 	Status api.InstallResponse_Status
 	Err    error
@@ -20,37 +18,37 @@ func (fe *FirmwareProvisionError) Error() string {
 	return fmt.Sprintf("%v: %v", fe.Status.String(), fe.Err)
 }
 
-func InvalidRequestErr(format string, a ...any) *FirmwareProvisionError {
+func InvalidRequestErr(err error) *FirmwareProvisionError {
 	return &FirmwareProvisionError{
 		Status: api.InstallResponse_STATUS_INVALID_REQUEST,
-		Err:    fmt.Errorf(format, a),
+		Err:    err,
 	}
 }
 
-func UnreachablePreProvisionErr(format string, a ...any) *FirmwareProvisionError {
+func UnreachablePreProvisionErr(err error) *FirmwareProvisionError {
 	return &FirmwareProvisionError{
 		Status: api.InstallResponse_STATUS_DUT_UNREACHABLE_PRE_PROVISION,
-		Err:    fmt.Errorf(format, a),
+		Err:    err,
 	}
 }
 
-func UpdateFirmwareFailedErr(format string, a ...any) *FirmwareProvisionError {
+func UpdateFirmwareFailedErr(err error) *FirmwareProvisionError {
 	return &FirmwareProvisionError{
 		Status: api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED,
-		Err:    fmt.Errorf(format, a),
+		Err:    err,
 	}
 }
 
-func FirmwareMismatchPostProvisionErr(format string, a ...any) *FirmwareProvisionError {
+func FirmwareMismatchPostProvisionErr(err error) *FirmwareProvisionError {
 	return &FirmwareProvisionError{
 		Status: api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
-		Err:    fmt.Errorf(format, a),
+		Err:    err,
 	}
 }
 
-func UnreachablePostProvisionErr(format string, a ...any) *FirmwareProvisionError {
+func UnreachablePostProvisionErr(err error) *FirmwareProvisionError {
 	return &FirmwareProvisionError{
 		Status: api.InstallResponse_STATUS_DUT_UNREACHABLE_POST_FIRMWARE_UPDATE,
-		Err:    fmt.Errorf(format, a),
+		Err:    err,
 	}
 }

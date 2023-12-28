@@ -82,7 +82,7 @@ func (ps *FWProvisionServer) Provision(ctx context.Context, req *api.ProvisionFi
 	if err := ps.validateProtoInputs(req); err != nil {
 		response.Status = api.InstallResponse_STATUS_OK
 		ps.manager.SetResult(op.Name, &response)
-		return nil, firmwareservice.InvalidRequestErr(err.Error())
+		return nil, firmwareservice.InvalidRequestErr(err)
 	}
 
 	var dutAdapter *common_utils.ServiceAdapter
@@ -95,7 +95,7 @@ func (ps *FWProvisionServer) Provision(ctx context.Context, req *api.ProvisionFi
 			response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
 			ps.manager.SetResult(op.Name, &response)
 			log.Fatalln(err)
-			return nil, firmwareservice.InvalidRequestErr(err.Error())
+			return nil, firmwareservice.InvalidRequestErr(err)
 		}
 		ps.dutAdapter = dutAdapter
 	}
@@ -109,7 +109,7 @@ func (ps *FWProvisionServer) Provision(ctx context.Context, req *api.ProvisionFi
 			response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
 			ps.manager.SetResult(op.Name, &response)
 			log.Fatalln(err)
-			return nil, firmwareservice.InvalidRequestErr(err.Error())
+			return nil, firmwareservice.InvalidRequestErr(err)
 		}
 		ps.servoClient = servodServiceClient
 	}
@@ -119,7 +119,7 @@ func (ps *FWProvisionServer) Provision(ctx context.Context, req *api.ProvisionFi
 		response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
 		ps.manager.SetResult(op.Name, &response)
 		log.Fatalf("Failed to initialize Firmware Service: %v", err)
-		return nil, firmwareservice.InvalidRequestErr(err.Error())
+		return nil, firmwareservice.InvalidRequestErr(err)
 	}
 
 	// Execute state machine

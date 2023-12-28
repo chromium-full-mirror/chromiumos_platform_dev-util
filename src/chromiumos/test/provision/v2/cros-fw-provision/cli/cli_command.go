@@ -10,7 +10,6 @@ import (
 	firmwareservice "chromiumos/test/provision/v2/cros-fw-provision/service"
 	state_machine "chromiumos/test/provision/v2/cros-fw-provision/state-machine"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -19,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/pkg/errors"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -152,7 +152,7 @@ func (cc *CLICommand) Run() error {
 		return nil
 	}
 	out.Status = statusResponse
-	return fmt.Errorf("failed to provision: %s", err)
+	return errors.Wrap(err, "failed to provision")
 }
 
 // saveCLIOutput saves response to the output file.

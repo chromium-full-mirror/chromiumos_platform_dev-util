@@ -6,7 +6,6 @@ package firmwareservice
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"chromiumos/test/provision/lib/servoadapter"
 	common_utils "chromiumos/test/provision/v2/common-utils"
 
+	"github.com/pkg/errors"
 	conf "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -53,16 +53,16 @@ type FirmwareService struct {
 func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdapterInterface, servoClient api.ServodServiceClient, req *api.ProvisionFirmwareRequest) (*FirmwareService, error) {
 	detailedRequest := req.GetDetailedRequest()
 	if detailedRequest == nil {
-		return nil, InvalidRequestErr("Specify DetailedRequest")
+		return nil, InvalidRequestErr(errors.New("Specify DetailedRequest"))
 	}
 
 	board := req.GetBoard()
 	if len(board) == 0 {
-		return nil, InvalidRequestErr("FirmwareProvisionRequest: \"board\" field is required")
+		return nil, InvalidRequestErr(errors.New("FirmwareProvisionRequest: \"board\" field is required"))
 	}
 	model := req.GetModel()
 	if len(model) == 0 {
-		return nil, InvalidRequestErr("FirmwareProvisionRequest: \"model\" field is required")
+		return nil, InvalidRequestErr(errors.New("FirmwareProvisionRequest: \"model\" field is required"))
 	}
 
 	force := req.GetForce()
@@ -97,7 +97,7 @@ func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdap
 	fws.PrintRequestInfo()
 
 	if !fws.UpdateRo() && !fws.UpdateRw() {
-		return nil, InvalidRequestErr("no paths to images specified")
+		return nil, InvalidRequestErr(errors.New("no paths to images specified"))
 	}
 
 	return &fws, nil
@@ -111,7 +111,7 @@ func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdap
 //   - servoPort
 func (fws *FirmwareService) prepareServoConnection(ctx context.Context, servoClient api.ServodServiceClient) error {
 	if servoClient == nil {
-		return InvalidRequestErr("servo use is requested, but servo client not provided")
+		return InvalidRequestErr(errors.New("servo use is requested, but servo client not provided"))
 	}
 
 	// Note: dut.GetChromeos().Servo.ServodAddress.Port is the port of cros-servod
@@ -130,9 +130,9 @@ func (fws *FirmwareService) prepareServoConnection(ctx context.Context, servoCli
 	// and servo connection is working.
 	servoTypeStr, err := fws.servoConnection.GetVariable(ctx, "servo_type")
 	if err != nil {
-		return UnreachablePreProvisionErr("failed to get servo_type: %w. "+
+		return UnreachablePreProvisionErr(errors.Errorf("failed to get servo_type: %w. "+
 			"Is servod running on port %v and connected to the DUT?",
-			err, fws.servoPort) // TODO(sfrolov): add UnreachableCrosServodErr
+			err, fws.servoPort)) // TODO(sfrolov): add UnreachableCrosServodErr
 	}
 
 	// ask servod for serial number of the connected DUT.
@@ -151,18 +151,18 @@ func (fws *FirmwareService) prepareServoConnection(ctx context.Context, servoCli
 
 	serial, err := fws.servoConnection.GetVariable(ctx, servoType.GetSerialNumberOption())
 	if err != nil {
-		return UnreachablePreProvisionErr("failed to get serial number variable: %w", err.Error()) // TODO: cros-servod is unreachable
+		return UnreachablePreProvisionErr(errors.Errorf("failed to get serial number variable: %w", err.Error())) // TODO: cros-servod is unreachable
 	}
 
 	// finally, get the correct config
 	fws.servoConfig, err = servo_lib.GetServoConfig(fws.board, serial, servoType)
 	if err != nil {
-		return UnreachablePreProvisionErr("failed to get servo config: %w", err.Error()) // TODO: cros-servod is unreachable
+		return UnreachablePreProvisionErr(errors.Errorf("failed to get servo config: %w", err.Error())) // TODO: cros-servod is unreachable
 	}
 
 	fws.ecChip, err = fws.servoConnection.GetVariable(ctx, "ec_chip")
 	if err != nil {
-		return UnreachablePreProvisionErr("failed to get ec_chip variable: %w", err.Error()) // TODO: cros-servod is unreachable
+		return UnreachablePreProvisionErr(errors.Errorf("failed to get ec_chip variable: %w", err.Error())) // TODO: cros-servod is unreachable
 	}
 	return nil
 }
@@ -338,7 +338,7 @@ func (fws FirmwareService) sshFlash(ctx context.Context, rwOnly bool, futilityIm
 func (fws FirmwareService) servoFlash(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
 	dutOnErr := fws.servoConnection.RunAllDutControls(ctx, fws.servoConfig.DutOn)
 	if dutOnErr != nil {
-		return fmt.Errorf("failed to run pre-flashing dut-controls: %w", dutOnErr)
+		return errors.Errorf("failed to run pre-flashing dut-controls: %w", dutOnErr)
 	}
 
 	flashErr := fws.runFutility(ctx, rwOnly, futilityImageArgs)
@@ -349,14 +349,14 @@ func (fws FirmwareService) servoFlash(ctx context.Context, rwOnly bool, futility
 		return flashErr
 	}
 	if dutOffErr != nil {
-		return fmt.Errorf("failed to run post-flashing dut-controls: %w", dutOffErr)
+		return errors.Errorf("failed to run post-flashing dut-controls: %w", dutOffErr)
 	}
 	return nil
 }
 
 func (fws FirmwareService) runFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
 	if len(futilityImageArgs) == 0 {
-		return fmt.Errorf("unable to flash: no futility Image args provided")
+		return errors.New("unable to flash: no futility Image args provided")
 	}
 
 	futilityArgs := futilityImageArgs
