@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -30,9 +31,10 @@ type ServerCommand struct {
 	// crosDutAddr and crosServodAddr from it, but not the request.
 	// Users that want it to parse both the address and the request
 	// are looking for `cli` mode, not `server`.
-	inputFilename  string
-	crosDutAddr    *lab_api.IpEndpoint
-	crosServodAddr *lab_api.IpEndpoint
+	inputFilename   string
+	crosDutAddr     *lab_api.IpEndpoint
+	crosServodAddr  *lab_api.IpEndpoint
+	cacheServerAddr *lab_api.IpEndpoint
 
 	port int
 
@@ -82,6 +84,7 @@ func (sc *ServerCommand) Init(args []string) error {
 		}
 		sc.crosDutAddr = req.DutServerAddress
 		sc.crosServodAddr = req.CrosServodAddress
+		sc.cacheServerAddr = req.CacheServerAddress
 	}
 
 	return nil
@@ -111,8 +114,16 @@ func (sc *ServerCommand) Run() error {
 			return err
 		}
 	}
+	cacheServerHost, err := ipEndpointToHostPort(sc.cacheServerAddr)
+	if err != nil {
+		return err
+	}
+	cacheServerURL := url.URL{
+		Scheme: "http",
+		Host:   cacheServerHost,
+	}
 
-	ps, closer, err := NewFWProvisionServer(sc.port, sc.log, dutAdapter, servodServiceClient)
+	ps, closer, err := NewFWProvisionServer(sc.port, sc.log, dutAdapter, servodServiceClient, cacheServerURL)
 	defer closer()
 	if err != nil {
 		sc.log.Fatalln("failed to create provision: ", err)

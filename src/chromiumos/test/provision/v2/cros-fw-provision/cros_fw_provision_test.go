@@ -11,6 +11,7 @@ import (
 	state_machine "chromiumos/test/provision/v2/cros-fw-provision/state-machine"
 	mock_common_utils "chromiumos/test/provision/v2/mock-common-utils"
 	"context"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -97,10 +98,15 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		ctx := context.Background()
 		req := makeRequest(testCase.main_rw, testCase.main_ro, testCase.ec_ro)
 		log.Printf("  Test Case: %#v\n  Detailed Request: %#v", testCase, req)
+		cacheServer, err := url.Parse("http://localhost:8081")
+		if err != nil {
+			t.Fatal("Failed to parse url: ", err)
+		}
 		fws, err := firmwareservice.NewFirmwareService(
 			ctx,
 			sam,
 			nil,
+			*cacheServer,
 			req,
 		)
 		// Check if init error is expected/got.

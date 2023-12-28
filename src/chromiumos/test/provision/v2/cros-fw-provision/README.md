@@ -34,9 +34,9 @@ Outside chroot
 cd ~/chromiumos
 cros workon --host start local-cft && cros_sdk -- sudo emerge local-cft
 
-./chroot/usr/bin/local-cft board $BOARD -host $D -stayalive -port cros-dut=8123
-# If you made changes in another service like cros-dut add
-# --chroot ~/chromiumos/chroot --localservices cros-dut
+./chroot/usr/bin/local-cft -board ${BOARD?} -host ${D?} -stayalive -port cros-dut=8123 -port cache-server=8181
+# If you made changes in another service like cros-dut run
+# ./chroot/usr/bin/local-cft -board ${BOARD?} -host ${D?} -stayalive -port cros-dut=8123 -port cache-server=8181 --chroot ~/chromiumos/chroot --localservices cros-dut
 ```
 
 To test detailed request via ssh
@@ -49,6 +49,10 @@ cat >/tmp/input.json <<EOF && ~/go/bin/cros-fw-provision cli -input /tmp/input.j
         "dut_server_address": {
                 "address": "localhost",
                 "port": 8123
+        },
+        "cache_server_address": {
+                "address": "localhost",
+                "port": 8181
         },
         "useServo": false,
         "detailedRequest": {
@@ -81,3 +85,11 @@ cros-fw-provision will need the cache server started.
 
 `cros-servod` is needed if provisioning over
 [servo]("https://chromium.googlesource.com/chromiumos/third_party/hdctools/+/HEAD/README.md").
+
+## Testing
+
+Run the test with fast_build.sh:
+
+```
+~/chromiumos/src/platform/dev/fast_build.sh -t chromiumos/test/provision/v2/cros-fw-provision
+```

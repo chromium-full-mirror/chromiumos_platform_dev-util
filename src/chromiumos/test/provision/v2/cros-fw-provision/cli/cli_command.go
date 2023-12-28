@@ -13,6 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,8 +125,17 @@ func (cc *CLICommand) Run() error {
 	out := &api.InstallResponse{}
 	defer saveCLIOutput(cc.outputFile, out)
 
+	cacheServerHost, err := ipEndpointToHostPort(cc.inputProto.GetCacheServerAddress())
+	if err != nil {
+		return err
+	}
+	cacheServerURL := url.URL{
+		Scheme: "http",
+		Host:   cacheServerHost,
+	}
+
 	ctx := context.Background()
-	fwService, err := firmwareservice.NewFirmwareService(ctx, dutAdapter, servodServiceClient, cc.inputProto)
+	fwService, err := firmwareservice.NewFirmwareService(ctx, dutAdapter, servodServiceClient, cacheServerURL, cc.inputProto)
 	if err != nil {
 		if fwErr, ok := err.(*firmwareservice.FirmwareProvisionError); ok {
 			out.Status = fwErr.Status

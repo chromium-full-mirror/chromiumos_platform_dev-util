@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	api1 "go.chromium.org/chromiumos/config/go/test/lab/api"
@@ -38,6 +39,8 @@ type FWProvisionServer struct {
 	listenPort int
 
 	manager *lro.Manager
+
+	cacheServer url.URL
 }
 
 func ipEndpointToHostPort(i *api1.IpEndpoint) (string, error) {
@@ -50,12 +53,13 @@ func ipEndpointToHostPort(i *api1.IpEndpoint) (string, error) {
 	return fmt.Sprintf("%v:%v", i.GetAddress(), i.GetPort()), nil
 }
 
-func NewFWProvisionServer(listenPort int, log *log.Logger, dutAdapter common_utils.ServiceAdapterInterface, servoClient api.ServodServiceClient) (*FWProvisionServer, func(), error) {
+func NewFWProvisionServer(listenPort int, log *log.Logger, dutAdapter common_utils.ServiceAdapterInterface, servoClient api.ServodServiceClient, cacheServer url.URL) (*FWProvisionServer, func(), error) {
 	return &FWProvisionServer{
 		listenPort:  listenPort,
 		log:         log,
 		dutAdapter:  dutAdapter,
 		servoClient: servoClient,
+		cacheServer: cacheServer,
 	}, nil, nil
 }
 
@@ -114,7 +118,7 @@ func (ps *FWProvisionServer) Provision(ctx context.Context, req *api.ProvisionFi
 		ps.servoClient = servodServiceClient
 	}
 
-	fwService, err := firmwareservice.NewFirmwareService(ctx, ps.dutAdapter, ps.servoClient, req)
+	fwService, err := firmwareservice.NewFirmwareService(ctx, ps.dutAdapter, ps.servoClient, ps.cacheServer, req)
 	if err != nil {
 		response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
 		ps.manager.SetResult(op.Name, &response)

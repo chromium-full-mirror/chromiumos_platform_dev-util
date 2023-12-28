@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
 	"strings"
 	"time"
 
@@ -47,10 +48,12 @@ type FirmwareService struct {
 	// wrapper around servoClient connection with extra servod-related functions
 	servoConnection servoadapter.ServoHostInterface
 	servoPort       int
+
+	CacheServer url.URL
 }
 
 // NewFirmwareService initializes a FirmwareService.
-func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdapterInterface, servoClient api.ServodServiceClient, req *api.ProvisionFirmwareRequest) (*FirmwareService, error) {
+func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdapterInterface, servoClient api.ServodServiceClient, cacheServer url.URL, req *api.ProvisionFirmwareRequest) (*FirmwareService, error) {
 	detailedRequest := req.GetDetailedRequest()
 	if detailedRequest == nil {
 		return nil, InvalidRequestErr(errors.New("Specify DetailedRequest"))
@@ -75,6 +78,7 @@ func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdap
 		force:          force,
 		useServo:       useServo,
 		imagesMetadata: make(map[string]ImageArchiveMetadata),
+		CacheServer:    cacheServer,
 	}
 
 	// Firmware may be updated in write-protected mode, where only 'rw' regions

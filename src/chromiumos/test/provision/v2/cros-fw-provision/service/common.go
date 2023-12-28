@@ -8,9 +8,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"net/url"
 
 	"github.com/pkg/errors"
 )
@@ -191,4 +194,41 @@ func PickAndExtractECImage(ctx context.Context, s common_utils.ServiceAdapterInt
 	return "", fmt.Errorf(`could not find an EC image named any of: %v.
 List of files in archive: %v.
 Specifying board and model may help`, candidates, imageMetadata.ListOfFiles)
+}
+
+func StageFile(ctx context.Context, gsPath string, cacheServer url.URL) error {
+	stagingURL := cacheServer
+	stagingURL.Path = "/stage"
+	v := url.Values{}
+	v.Set("archive_url", path.Dir(gsPath))
+	v.Set("files", path.Base(gsPath))
+	stagingURL.RawQuery = v.Encode()
+
+	log.Printf("[FW Provisioning: Stage FW] staging %q\n", stagingURL.String())
+	var client http.Client
+	resp, err := client.Get(stagingURL.String())
+	if err != nil {
+		return errors.Wrapf(err, "failed to stage %q", stagingURL.String())
+	}
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("error %s to stage %q", resp.Status, stagingURL.String())
+	}
+
+	return nil
+}
+
+func ExtractFile(ctx context.Context, gsPath, fileInArchive string, cacheServer url.URL) error {
+	gsPathURL, err := url.Parse(gsPath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse %q", gsPath)
+	}
+	extractURL := cacheServer
+	extractURL.Path = fmt.Sprintf("/extract/%s", gsPathURL.Path)
+	v := url.Values{}
+	v.Set("file", fileInArchive)
+	extractURL.RawQuery = v.Encode()
+
+	log.Printf("[FW Provisioning: Stage FW] extract %q\n", extractURL.String())
+
+	return errors.New("not implemented yet")
 }
