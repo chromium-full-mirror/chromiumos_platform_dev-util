@@ -78,6 +78,6 @@ make sure to abandon the CLs using the gerrit interface.
 
 # References
 
-* [Working with coreboot Upstream and Chromium](https://chromium.googlesource.com/chromiumos/docs/+/refs/heads/master/firmware/coreboot_upstream.md)
+* [Working with coreboot Upstream and Chromium](https://chromium.googlesource.com/chromiumos/docs/+/HEAD/firmware/coreboot_upstream.md)
 * [How To: Building coreboot-upstream within Chromium OS](https://docs.google.com/document/d/1H7u99Pk0EGqcsROciFyoXIdpsL-AwcpfJG7VI2UDNFw/)
 * [ChromeOS Unibuild New Variant Design Doc](https://docs.google.com/document/d/1nAJblS29W4SMsGPPijfZED1QRYFMHeW2w_9ooPvEO_U)
