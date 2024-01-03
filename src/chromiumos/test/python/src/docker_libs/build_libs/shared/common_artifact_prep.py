@@ -171,6 +171,8 @@ class CrosArtifactPrep:
             )
         ]
 
+        _GTEST_METADATA_PATH = "usr/local/build/gtest/"
+
         for f, d in _BUILD_METADATA_FILES:
             full_md_path = FromSysrootPath(self.build_path, f)
             if not os.path.exists(full_md_path):
@@ -183,6 +185,13 @@ class CrosArtifactPrep:
             if not os.path.exists(full_md_path):
                 print("Path %s does not exist, skipping" % full_md_path)
                 continue
+
+        full_gtest_path = FromSysrootPath(self.build_path, _GTEST_METADATA_PATH)
+        if os.path.exists(full_gtest_path):
+            for f in os.listdir(full_gtest_path):
+                s = os.path.join(full_gtest_path, f)
+                d = os.path.join(self.full_out, f)
+                shutil.copyfile(s, d)
             shutil.copyfile(full_md_path, os.path.join(self.full_out, d))
 
     def copy_private_key(self):
