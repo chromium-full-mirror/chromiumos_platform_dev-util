@@ -30,11 +30,18 @@ eval set -- "${FLAGS_ARGV}"
 # when that is turned on first.
 set -e
 
+declare -a manifest=()
+
 make_tar() {
   local tar=$1
   local dir=$2
   local files=("${@:3}")
+  local line=()
   tar -cjvf "${tar}" -C "${dir}" "${files[@]}"
+  line=("$(basename "${tar}")" "$(stat -c '%s' "${tar}")" \
+        "BLAKE2B" "$(b2sum "${tar}" | awk '{print $1}')" \
+        "SHA512" "$(sha512sum "${tar}" | awk '{print $1}')")
+  manifest+=("$(printf '%s ' "${line[@]}")")
 }
 
 make_fw_tar() {
@@ -140,6 +147,7 @@ main() {
   done
 
   info "Output files saved to ${FLAGS_output}/"
+  printf "%s\n" "${manifest[@]}"
   info "Done"
 }
 
