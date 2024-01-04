@@ -11,8 +11,11 @@ import (
 	state_machine "chromiumos/test/provision/v2/cros-fw-provision/state-machine"
 	mock_common_utils "chromiumos/test/provision/v2/mock-common-utils"
 	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -22,18 +25,47 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
+type curlMatcher struct {
+	target      string
+	fileMatcher gomock.Matcher
+	log         *log.Logger
+}
+
+func newCurlMatcher(target string, fileMatcher gomock.Matcher, log *log.Logger) curlMatcher {
+	return curlMatcher{
+		target:      target,
+		fileMatcher: fileMatcher,
+		log:         log,
+	}
+}
+func (c curlMatcher) Matches(x interface{}) bool {
+	args, ok := x.([]string)
+	if ok {
+		if len(args) != 4 {
+			return false
+		}
+		if args[0] != "-S" || args[1] != "-o" || args[2] != c.target {
+			return false
+		}
+		idx := strings.Index(args[3], "?file=")
+		if idx < 0 {
+			return false
+		}
+		return c.fileMatcher.Matches(args[3][idx+6:])
+	}
+	return false
+}
+
+func (c curlMatcher) String() string {
+	return fmt.Sprintf("-S -o %s url(%s)", c.target, c.fileMatcher)
+}
+
 func TestDetailedRequestSSHStates(t *testing.T) {
 	fakeGSPath := "gs://test-archive.tar.gz"
-	fakeGSFilename := filepath.Base(fakeGSPath)
 
 	apImageWithinArchive := "image.bin"
 	ecImageWithinArchive := "ec.bin"
-	imagesWithinArchive := strings.Join([]string{
-		"foo",
-		apImageWithinArchive,
-		"bar",
-		ecImageWithinArchive,
-	}, "\n") // as reported by tar
+	npcxImageWithinArchive := "npcx_monitor.bin"
 
 	makeRequest := func(main_rw, main_ro, ec_ro bool) *api.ProvisionFirmwareRequest {
 		fakePayload := &build_api.FirmwarePayload{FirmwareImage: &build_api.FirmwarePayload_FirmwareImagePath{FirmwareImagePath: &conf.StoragePath{HostType: conf.StoragePath_GS, Path: fakeGSPath}}}
@@ -97,8 +129,20 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		// Create FirmwareService.
 		ctx := context.Background()
 		req := makeRequest(testCase.main_rw, testCase.main_ro, testCase.ec_ro)
-		log.Printf("  Test Case: %#v\n  Detailed Request: %#v", testCase, req)
-		cacheServer, err := url.Parse("http://localhost:8081")
+		log.Printf("  Test Case: %#v\n  Request: {%s}", testCase, req.String())
+		fakeCacheServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasPrefix(r.URL.String(), "/stage?") {
+				fmt.Fprintf(w, "ok\r\n")
+				return
+			}
+			if r.URL.String() == "/extract/test-archive.tar.gz?file=config.yaml" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			t.Fatalf("Unexpected cache server call to %q", r.URL.String())
+		}))
+		defer fakeCacheServer.Close()
+		cacheServer, err := url.Parse(fakeCacheServer.URL)
 		if err != nil {
 			t.Fatal("Failed to parse url: ", err)
 		}
@@ -134,9 +178,12 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 
 		// Set mock expectations.
 		gomock.InOrder(
-			sam.EXPECT().RunCmd(gomock.Any(), "mktemp", gomock.Any()).Return("", nil),
-			sam.EXPECT().CopyData(gomock.Any(), gomock.Eq(fakeGSPath), gomock.Eq(fakeGSFilename)).Return(nil),
-			sam.EXPECT().RunCmd(gomock.Any(), "tar", gomock.Any()).Return(imagesWithinArchive, nil),
+			sam.EXPECT().RunCmd(gomock.Any(), "mktemp", gomock.Any()).Return("/tmp/someTempDir\n", nil),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Not(apImageWithinArchive), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq(apImageWithinArchive), log)).MaxTimes(2).Return("success\n", nil),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Not(ecImageWithinArchive), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq(ecImageWithinArchive), log)).MaxTimes(1).Return("success\n", nil),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/npcx_monitor.bin", gomock.Eq(npcxImageWithinArchive), log)).MaxTimes(1).Return("success\n", nil),
 		)
 
 		// Execute the state and proceed.
@@ -153,16 +200,10 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			// Set mock expectations.
 			expectedFutilityImageArgs := []string{}
 			if testCase.main_ro {
-				expectedFutilityImageArgs = append(expectedFutilityImageArgs, "--image="+apImageWithinArchive)
-				gomock.InOrder(
-					sam.EXPECT().RunCmd(gomock.Any(), "cd", gomock.Any()).Return("", nil), // tar
-				)
+				expectedFutilityImageArgs = append(expectedFutilityImageArgs, "--image=/tmp/someTempDir/bios.bin")
 			}
 			if testCase.ec_ro {
-				expectedFutilityImageArgs = append(expectedFutilityImageArgs, "--ec_image="+ecImageWithinArchive)
-				gomock.InOrder(
-					sam.EXPECT().RunCmd(gomock.Any(), "cd", gomock.Any()).Return("", nil), // tar
-				)
+				expectedFutilityImageArgs = append(expectedFutilityImageArgs, "--ec_image=/tmp/someTempDir/ec.bin")
 			}
 			expectedFutilityArgs := append([]string{"update", "--mode=recovery"}, expectedFutilityImageArgs...)
 			expectedFutilityArgs = append(expectedFutilityArgs, "--wp=0")
@@ -183,9 +224,8 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			checkStateName(st, state_machine.UpdateRwStateName)
 
 			// Set mock expectations.
-			expectedFutilityArgs := []string{"update", "--mode=recovery", "--image=" + apImageWithinArchive, "--wp=1"}
+			expectedFutilityArgs := []string{"update", "--mode=recovery", "--image=/tmp/someTempDir/bios.bin", "--wp=1"}
 			gomock.InOrder(
-				sam.EXPECT().RunCmd(gomock.Any(), "cd", gomock.Any()).Return("", nil), // tar
 				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityArgs).Return("", nil),
 			)
 
@@ -201,7 +241,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		checkStateName(st, state_machine.PostInstallStateName)
 		// Set mock expectations.
 		gomock.InOrder(
-			sam.EXPECT().DeleteDirectory(gomock.Any(), "").Return(nil),
+			sam.EXPECT().DeleteDirectory(gomock.Any(), "/tmp/someTempDir").Return(nil),
 			sam.EXPECT().Restart(gomock.Any()).Return(nil),
 			sam.EXPECT().RunCmd(gomock.Any(), "true", nil).Return("", nil),
 		)

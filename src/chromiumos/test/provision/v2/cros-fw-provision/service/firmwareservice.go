@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	conf "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"gopkg.in/yaml.v3"
 )
 
 // FirmwareService implements ServiceInterface
@@ -328,18 +330,18 @@ func (fws *FirmwareService) DeleteArchiveDirectories() error {
 //
 // If flashing over ssh, simply calls runFutility().
 // If flashing over servo, also runs pre- and post-flashing dut-controls.
-func (fws FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
+func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
 	if fws.useServo {
 		return fws.servoFlash(ctx, rwOnly, futilityImageArgs)
 	}
 	return fws.sshFlash(ctx, rwOnly, futilityImageArgs)
 }
 
-func (fws FirmwareService) sshFlash(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
+func (fws *FirmwareService) sshFlash(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
 	return fws.runFutility(ctx, rwOnly, futilityImageArgs)
 }
 
-func (fws FirmwareService) servoFlash(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
+func (fws *FirmwareService) servoFlash(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
 	dutOnErr := fws.servoConnection.RunAllDutControls(ctx, fws.servoConfig.DutOn)
 	if dutOnErr != nil {
 		return errors.Errorf("failed to run pre-flashing dut-controls: %w", dutOnErr)
@@ -358,7 +360,7 @@ func (fws FirmwareService) servoFlash(ctx context.Context, rwOnly bool, futility
 	return nil
 }
 
-func (fws FirmwareService) runFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
+func (fws *FirmwareService) runFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
 	if len(futilityImageArgs) == 0 {
 		return errors.New("unable to flash: no futility Image args provided")
 	}
@@ -392,7 +394,7 @@ func (fws FirmwareService) runFutility(ctx context.Context, rwOnly bool, futilit
 // GetConnectionToFlashingDevice returns connection to the device that stores the
 // firmware image and runs futility.
 // Returns connection to ServoHost if fws.useServo, connection to DUT otherwise.
-func (fws FirmwareService) GetConnectionToFlashingDevice() common_utils.ServiceAdapterInterface {
+func (fws *FirmwareService) GetConnectionToFlashingDevice() common_utils.ServiceAdapterInterface {
 	if fws.useServo {
 		return fws.servoConnection
 	}
@@ -400,56 +402,140 @@ func (fws FirmwareService) GetConnectionToFlashingDevice() common_utils.ServiceA
 }
 
 // IsServoUsed returns whether servo is used during the provisioning.
-func (fws FirmwareService) IsServoUsed() bool {
+func (fws *FirmwareService) IsServoUsed() bool {
 	return fws.useServo
 }
 
 // IsForceUpdate returns whether an update is forced during the provisioning.
-func (fws FirmwareService) IsForceUpdate() bool {
+func (fws *FirmwareService) IsForceUpdate() bool {
 	return fws.force
 }
 
 // GetMainRwPath returns the path of the read/write part of the AP firmware.
-func (fws FirmwareService) GetMainRwPath() string {
+func (fws *FirmwareService) GetMainRwPath() string {
 	return fws.mainRwPath.GetPath()
 }
 
 // GetMainRoPath returns the path of readonly part of the AP firmware.
-func (fws FirmwareService) GetMainRoPath() string {
+func (fws *FirmwareService) GetMainRoPath() string {
 	return fws.mainRoPath.GetPath()
 }
 
 // GetEcRoPath returns the path for the readonly portion of the EC firmware.
-func (fws FirmwareService) GetEcRoPath() string {
+func (fws *FirmwareService) GetEcRoPath() string {
 	return fws.ecRoPath.GetPath()
+}
+
+type configData struct {
+	ChromeOS struct {
+		Configs []struct {
+			Firmware struct {
+				BuildTargets struct {
+					// AP image name, if missing fallback to ImageName
+					Coreboot string `yaml:"coreboot"`
+					EC       string `yaml:"ec"`
+					ZephyrEC string `yaml:"zephyr-ec"`
+				} `yaml:"build-targets"`
+				ImageName string `yaml:"image-name"`
+			} `yaml:"firmware"`
+			Identity struct {
+				PlatformName    string `yaml:"platform-ec"`
+				SKUID           int    `yaml:"sku-id"`
+				SmbiosNameMatch string `yaml:"smbios-name-match"`
+			}
+			Name string `yaml:"name"`
+		}
+	}
 }
 
 // DownloadAndProcess downloads the provided archive.
 // If DetailedRequest is used, DownloadAndProcess also extracts the archive and
 // enumerates its contents, storing the metadata in s.service.archiveFolders.
-func (fws FirmwareService) DownloadAndProcess(ctx context.Context, gspath string) error {
+func (fws *FirmwareService) DownloadAndProcess(ctx context.Context, gsPath string) error {
 	connection := fws.GetConnectionToFlashingDevice()
-	if _, alreadyDownloaded := fws.imagesMetadata[gspath]; !alreadyDownloaded {
-		archiveMetadata, err := downloadAndProcessArchive(ctx, connection, gspath, true)
-		if err != nil {
-			log.Printf("[FW Provisioning: Prepare FW] failed to download and process %v: %v\n", gspath, err)
-			return err
+	if _, alreadyDownloaded := fws.imagesMetadata[gsPath]; !alreadyDownloaded {
+		if err := stageFile(ctx, gsPath, fws.CacheServer); err != nil {
+			return errors.Wrap(err, "failed to stage")
 		}
-		log.Printf("[FW Provisioning: Prepare FW] downloaded %v to %v. Files in archive: %v\n",
-			gspath, archiveMetadata.ArchivePath, len(archiveMetadata.ListOfFiles))
-		fws.imagesMetadata[gspath] = *archiveMetadata
+		apImageName := ""
+		ecImageName := ""
+		config, err := extractFile(ctx, gsPath, "config.yaml", fws.CacheServer)
+		if err != nil {
+			log.Printf("No config.yaml in %q: %v", gsPath, err)
+		} else {
+			defer config.Close()
+			configYaml := configData{}
+			yamlDecoder := yaml.NewDecoder(config)
+			err = yamlDecoder.Decode(&configYaml)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse config.yaml")
+			}
+			model := fws.GetModel()
+			for _, config := range configYaml.ChromeOS.Configs {
+				if config.Name == model {
+					thisAPName := config.Firmware.BuildTargets.Coreboot
+					if thisAPName == "" {
+						thisAPName = config.Firmware.ImageName
+					}
+					if thisAPName != "" {
+						if apImageName != "" && apImageName != thisAPName {
+							return errors.Errorf("ambiguous AP name for model %q, could be %q or %q", model, apImageName, thisAPName)
+						}
+						apImageName = thisAPName
+					}
+					thisECName := config.Firmware.BuildTargets.ZephyrEC
+					if thisECName == "" {
+						thisECName = config.Firmware.BuildTargets.EC
+					}
+					if thisECName != "" {
+						if ecImageName != "" && ecImageName != thisECName {
+							return errors.Errorf("ambiguous EC name for model %q, could be %q or %q", model, ecImageName, thisECName)
+						}
+						ecImageName = thisECName
+					}
+				}
+			}
+			log.Printf("config.yaml image names AP: %s EC: %s", apImageName, ecImageName)
+		}
+
+		// Infer names for the local files and folders from basename of gsPath.
+		archiveFilename := filepath.Base(gsPath)
+
+		// Try to get a descriptive name for the temporary folder.
+		archiveSubfolder := archiveFilename
+		if strings.HasPrefix(archiveSubfolder, "firmware_from_source") {
+			splitGsPath := strings.Split(gsPath, "/")
+			nameIdx := len(splitGsPath) - 2
+			if nameIdx < 0 {
+				nameIdx = 0
+			}
+			archiveSubfolder = splitGsPath[nameIdx]
+		}
+
+		// Use mktemp to safely create a unique temp directory.
+		archiveDir, err := connection.RunCmd(ctx, "mktemp", []string{"-d", "--tmpdir", "cros-fw-provision.XXXXXXXXX." + archiveSubfolder})
+		if err != nil {
+			return errors.Errorf("remote mktemp failed: %w", err)
+		}
+		archiveDir = strings.Trim(archiveDir, "\n")
+
+		fws.imagesMetadata[gsPath] = ImageArchiveMetadata{
+			CorebootName: apImageName,
+			ECName:       ecImageName,
+			ArchiveDir:   archiveDir,
+		}
 	}
 	return nil
 }
 
 // GetImageMetadata returns (ImageArchiveMetadata, IsImageMetadataPresent)
-func (fws FirmwareService) GetImageMetadata(gspath string) (ImageArchiveMetadata, bool) {
+func (fws *FirmwareService) GetImageMetadata(gspath string) (ImageArchiveMetadata, bool) {
 	metadata, ok := fws.imagesMetadata[gspath]
 	return metadata, ok
 }
 
 // ProvisionWithFlashEC flashes EC image using flash_ec script.
-func (fws FirmwareService) ProvisionWithFlashEC(ctx context.Context, ecImage, flashECScriptPath string) error {
+func (fws *FirmwareService) ProvisionWithFlashEC(ctx context.Context, ecImage, flashECScriptPath string) error {
 	customBitbangRate := ""
 	if fws.ecChip == "stm32" {
 		customBitbangRate = "--bitbang_rate=57600"

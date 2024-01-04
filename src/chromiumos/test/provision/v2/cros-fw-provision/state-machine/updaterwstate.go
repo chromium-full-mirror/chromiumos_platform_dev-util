@@ -32,7 +32,7 @@ func (s FirmwareUpdateRwState) Execute(ctx context.Context, log *log.Logger) (*a
 		panic(ok) // if nil, current state of the statemachine should not started
 	}
 	log.Printf("[FW Provisioning: Update RW] extracting AP image to flash\n")
-	mainRwPath, err := firmwareservice.PickAndExtractMainImage(ctx, connection, mainRwMetadata, s.service.GetBoard(), s.service.GetModel())
+	mainRwPath, err := firmwareservice.PickAndExtractMainImage(ctx, connection, mainRwMetadata, s.service.GetMainRwPath(), s.service.GetBoard(), s.service.GetModel(), s.service.CacheServer)
 	if err != nil {
 		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 	}

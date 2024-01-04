@@ -31,7 +31,7 @@ func (s FirmwarePrepareState) Execute(ctx context.Context, log *log.Logger) (*an
 	if s.service.IsServoUsed() {
 		firmwareImageDestination = "ServoHost"
 	}
-	log.Printf("[FW Provisioning: Prepare FW] downloading Firmware Images onto %v\n", firmwareImageDestination)
+	log.Printf("[FW Provisioning: Prepare FW] staging Firmware Images for %v\n", firmwareImageDestination)
 
 	if mainRw := s.service.GetMainRwPath(); len(mainRw) > 0 {
 		if err := s.service.DownloadAndProcess(ctx, mainRw); err != nil {

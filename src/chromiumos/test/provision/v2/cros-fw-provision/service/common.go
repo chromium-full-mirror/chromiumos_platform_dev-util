@@ -7,10 +7,10 @@ import (
 	common_utils "chromiumos/test/provision/v2/common-utils"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"net/url"
@@ -24,85 +24,9 @@ const CurlWithRetriesArgsFW = "-S -s -v -# -C - --retry 3 --retry-delay 60"
 // ImageArchiveMetadata will be the value of the map in which the key is the
 // gsPath, so we can avoid downloading/reprocessing same archives.
 type ImageArchiveMetadata struct {
-	ArchivePath string
-	ArchiveDir  string
-	ListOfFiles map[string]struct{}
-}
-
-func MakeImageArchiveMetadata(archivePath string, archiveDir string, listOfFiles []string) *ImageArchiveMetadata {
-	m := &ImageArchiveMetadata{ArchivePath: archivePath, ArchiveDir: archiveDir, ListOfFiles: make(map[string]struct{})}
-	for _, f := range listOfFiles {
-		m.ListOfFiles[f] = struct{}{}
-	}
-	return m
-}
-
-func (m *ImageArchiveMetadata) IncludesFile(filename string) bool {
-	_, isPresent := m.ListOfFiles[filename]
-	return isPresent
-}
-
-// extractFileFromImage extracts a single file from an archive to a provided folder.
-// Returns (extractedFilePath, error)
-func extractFileFromImage(ctx context.Context, fileInArchive string, imageMetadata ImageArchiveMetadata, s common_utils.ServiceAdapterInterface) (string, error) {
-	// tar throws a strange "Cannot open: Read-only file system" error, if
-	// --directory is used. cd to the directory instead.
-	out, err := s.RunCmd(ctx, "cd", []string{imageMetadata.ArchiveDir, "&&", "tar", "-xvf", imageMetadata.ArchivePath, fileInArchive})
-	if err != nil {
-		err = fmt.Errorf("failed to extract file from image: %w\nOutput:\n%v", err, out)
-	}
-	return path.Join(imageMetadata.ArchiveDir, fileInArchive), err
-}
-
-// downloadAndProcessArchive downloads image from gsPath onto whatever device
-// is connected to |s|.
-// Returns ImageArchiveMetadata with metadata about the archive.
-// If |enumerateFilesInArchive| is true, will enumerate all files in every
-// downloaded archivem and store that in ImageArchiveMetadata.
-func downloadAndProcessArchive(ctx context.Context, s common_utils.ServiceAdapterInterface, gsPath string, enumerateFilesInArchive bool) (*ImageArchiveMetadata, error) {
-	// Infer names for the local files and folders from basename of gsPath.
-	archiveFilename := filepath.Base(gsPath)
-
-	// Try to get a descriptive name for the temporary folder.
-	archiveSubfolder := archiveFilename
-	// The base filename of gspath will vary depending on the bucket:
-	//  chromeos-releases: gs://.../ChromeOS-firmware-R98-14382.0.0-hatch.tar.bz2
-	//  chromeos-image-archive: gs://.../R98-14382.0.0/firmware_from_source.tar.bz2
-	// In the latter case, basename of gsPath will be "firmware_from_source.tar.bz2",
-	// so use second-to-last directory in the gsPath (R98-14382.0.0).
-	if strings.HasPrefix(archiveSubfolder, "firmware_from_source") {
-		splitGsPath := strings.Split(gsPath, "/")
-		nameIdx := len(splitGsPath) - 2
-		if nameIdx < 0 {
-			nameIdx = 0
-		}
-		archiveSubfolder = splitGsPath[nameIdx]
-	}
-
-	// Use mktemp to safely create a unique temp directory.
-	archiveDir, err := s.RunCmd(ctx, "mktemp", []string{"-d", "--tmpdir", "cros-fw-provision.XXXXXXXXX." + archiveSubfolder})
-	if err != nil {
-		return nil, fmt.Errorf("remote mktemp failed: %w", err)
-	}
-	archiveDir = strings.Trim(archiveDir, "\n")
-
-	// Download the archive.
-	archivePath := path.Join(archiveDir, archiveFilename)
-	if err := s.CopyData(ctx, gsPath, archivePath); err != nil {
-		s.DeleteDirectory(ctx, archiveDir)
-		return nil, fmt.Errorf("remote CopyData() failed: %w", err)
-	}
-
-	var listOfFiles []string
-	if enumerateFilesInArchive {
-		listOfFiles, err = listFilesInArchive(ctx, archivePath, s)
-		if err != nil {
-			s.DeleteDirectory(ctx, archiveDir)
-			return nil, fmt.Errorf("failed to list archive contents: %w", err)
-		}
-	}
-
-	return MakeImageArchiveMetadata(archivePath, archiveDir, listOfFiles), nil
+	ArchiveDir   string
+	CorebootName string
+	ECName       string
 }
 
 // GetFlashECScript finds flash_ec script locally and returns path to it.
@@ -147,8 +71,12 @@ func listFilesInArchive(ctx context.Context, archivePath string, s common_utils.
 // PickAndExtractMainImage uses provided list of |filesInArchive| to pick a main
 // image to use, extracts only it, and returns a path to extracted image.
 // board and model(aka variant) are optional.
-func PickAndExtractMainImage(ctx context.Context, s common_utils.ServiceAdapterInterface, imageMetadata ImageArchiveMetadata, board, model string) (string, error) {
+func PickAndExtractMainImage(ctx context.Context, s common_utils.ServiceAdapterInterface, imageMetadata ImageArchiveMetadata, gsPath, board, model string, cacheServer url.URL) (string, error) {
 	candidates := []string{}
+	if imageMetadata.CorebootName != "" {
+		filePath := path.Join(fmt.Sprintf("image-%v.bin", imageMetadata.CorebootName))
+		candidates = append(candidates, filePath)
+	}
 	if len(model) > 0 {
 		filePath := path.Join(fmt.Sprintf("image-%v.bin", model))
 		candidates = append(candidates, filePath)
@@ -161,20 +89,34 @@ func PickAndExtractMainImage(ctx context.Context, s common_utils.ServiceAdapterI
 	candidates = append(candidates, path.Join("bios.bin"))
 
 	for i := 0; i < len(candidates); i++ {
-		if imageMetadata.IncludesFile(candidates[i]) {
-			return extractFileFromImage(ctx, candidates[i], imageMetadata, s)
+		log.Printf("Trying %q", candidates[i])
+		url, err := createExtractURL(ctx, gsPath, candidates[i], cacheServer)
+		if err != nil {
+			return "", errors.Wrapf(err, "no url for %q", candidates[i])
 		}
+		destPath := fmt.Sprintf("%s/bios.bin", imageMetadata.ArchiveDir)
+		args := []string{"-S", "-o", destPath, url.String()}
+		out, err := s.RunCmd(ctx, "curl", args)
+		if err != nil {
+			log.Printf("Failed to download %q: %s", candidates[i], string(out))
+			continue
+		}
+		log.Printf("Extracted %q as %q", candidates[i], destPath)
+		return destPath, nil
 	}
 	return "", fmt.Errorf(`could not find an AP image named any of: %v.
-List of files in archive: %v.
-Specifying board and model may help`, candidates, imageMetadata.ListOfFiles)
+Specifying board and model may help`, candidates)
 }
 
 // PickAndExtractECImage uses provided list of |filesInArchive| to pick an EC
 // image to use, extracts only it, and returns a path to extracted image.
 // board and model(aka variant) are optional.
-func PickAndExtractECImage(ctx context.Context, s common_utils.ServiceAdapterInterface, imageMetadata ImageArchiveMetadata, board, model string) (string, error) {
+func PickAndExtractECImage(ctx context.Context, s common_utils.ServiceAdapterInterface, imageMetadata ImageArchiveMetadata, gsPath, board, model string, cacheServer url.URL) (string, error) {
 	candidates := []string{}
+	if imageMetadata.ECName != "" {
+		filePath := path.Join(fmt.Sprintf("%v/ec.bin", imageMetadata.ECName))
+		candidates = append(candidates, filePath)
+	}
 	if len(model) > 0 {
 		filePath := path.Join(model, "ec.bin")
 		candidates = append(candidates, filePath)
@@ -186,17 +128,41 @@ func PickAndExtractECImage(ctx context.Context, s common_utils.ServiceAdapterInt
 	candidates = append(candidates, path.Join("ec.bin"))
 
 	for i := 0; i < len(candidates); i++ {
-		if imageMetadata.IncludesFile(candidates[i]) {
-			return extractFileFromImage(ctx, candidates[i], imageMetadata, s)
+		log.Printf("Trying %q", candidates[i])
+		url, err := createExtractURL(ctx, gsPath, candidates[i], cacheServer)
+		if err != nil {
+			return "", errors.Wrapf(err, "no url for %q", candidates[i])
 		}
-
+		destPath := fmt.Sprintf("%s/ec.bin", imageMetadata.ArchiveDir)
+		args := []string{"-S", "-o", destPath, url.String()}
+		out, err := s.RunCmd(ctx, "curl", args)
+		if err != nil {
+			log.Printf("Failed to download %q: %s", candidates[i], string(out))
+			continue
+		}
+		log.Printf("Extracted %q as %q", candidates[i], destPath)
+		// Try to get npcx_monitor.bin also
+		npcxCandidate := strings.Replace(candidates[i], "ec.bin", "npcx_monitor.bin", 1)
+		log.Printf("Trying %q", npcxCandidate)
+		url, err = createExtractURL(ctx, gsPath, npcxCandidate, cacheServer)
+		if err != nil {
+			return "", errors.Wrapf(err, "no url for %q", npcxCandidate)
+		}
+		npcxPath := fmt.Sprintf("%s/npcx_monitor.bin", imageMetadata.ArchiveDir)
+		args = []string{"-S", "-o", npcxPath, url.String()}
+		out, err = s.RunCmd(ctx, "curl", args)
+		if err != nil {
+			log.Printf("Failed to download %q: %s", npcxCandidate, string(out))
+		} else {
+			log.Printf("Extracted %q as %q", npcxCandidate, npcxPath)
+		}
+		return destPath, nil
 	}
 	return "", fmt.Errorf(`could not find an EC image named any of: %v.
-List of files in archive: %v.
-Specifying board and model may help`, candidates, imageMetadata.ListOfFiles)
+Specifying board and model may help`, candidates)
 }
 
-func StageFile(ctx context.Context, gsPath string, cacheServer url.URL) error {
+func stageFile(ctx context.Context, gsPath string, cacheServer url.URL) error {
 	stagingURL := cacheServer
 	stagingURL.Path = "/stage"
 	v := url.Values{}
@@ -217,18 +183,34 @@ func StageFile(ctx context.Context, gsPath string, cacheServer url.URL) error {
 	return nil
 }
 
-func ExtractFile(ctx context.Context, gsPath, fileInArchive string, cacheServer url.URL) error {
+func createExtractURL(ctx context.Context, gsPath, fileInArchive string, cacheServer url.URL) (url.URL, error) {
 	gsPathURL, err := url.Parse(gsPath)
 	if err != nil {
-		return errors.Wrapf(err, "failed to parse %q", gsPath)
+		return url.URL{}, errors.Wrapf(err, "failed to parse %q", gsPath)
 	}
 	extractURL := cacheServer
-	extractURL.Path = fmt.Sprintf("/extract/%s", gsPathURL.Path)
+	extractURL.Path = fmt.Sprintf("/extract/%s%s", gsPathURL.Host, gsPathURL.Path)
 	v := url.Values{}
 	v.Set("file", fileInArchive)
 	extractURL.RawQuery = v.Encode()
+	return extractURL, nil
+}
 
+func extractFile(ctx context.Context, gsPath, fileInArchive string, cacheServer url.URL) (io.ReadCloser, error) {
+	extractURL, err := createExtractURL(ctx, gsPath, fileInArchive, cacheServer)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate url")
+	}
 	log.Printf("[FW Provisioning: Stage FW] extract %q\n", extractURL.String())
 
-	return errors.New("not implemented yet")
+	var client http.Client
+	resp, err := client.Get(extractURL.String())
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to extract %q", extractURL.String())
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.Errorf("error %s to extract %q", resp.Status, extractURL.String())
+	}
+
+	return resp.Body, nil
 }
