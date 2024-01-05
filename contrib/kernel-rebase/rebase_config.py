@@ -118,7 +118,3 @@ disp_overwrite["c4b7214921e3"] = [
     "move",
     "block-fs",
 ]  # CHROMIUM: trace: rename events/fs_trace/ -> events/fs/
-disp_overwrite["01f2b9195659"] = [
-    "move",
-    "net",
-]  # FROMGIT: usb: core: Allow subclassed USB drivers to override usb_choose_configuration()
