@@ -114,6 +114,10 @@ disp_overwrite["f2968dcf8e73"] = [
     "move",
     "bluetooth",
 ]  # FROMLIST: devcoredump: Add per device sysfs entry to enable/disable coredump
+disp_overwrite["c4b7214921e3"] = [
+    "move",
+    "block-fs",
+]  # CHROMIUM: trace: rename events/fs_trace/ -> events/fs/
 disp_overwrite["01f2b9195659"] = [
     "move",
     "net",
