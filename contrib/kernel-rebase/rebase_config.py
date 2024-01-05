@@ -118,3 +118,7 @@ disp_overwrite["c4b7214921e3"] = [
     "move",
     "block-fs",
 ]  # CHROMIUM: trace: rename events/fs_trace/ -> events/fs/
+disp_overwrite["b92a48381564"] = [
+    "move",
+    "drivers",
+]  # FROMGIT: r8152: Choose our USB config with choose_configuration() rather than probe()
