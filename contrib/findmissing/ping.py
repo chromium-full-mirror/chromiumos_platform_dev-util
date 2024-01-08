@@ -149,6 +149,14 @@ def add_backup_reviewer(obj):
         o = gerrit_interface.inspect(cl_num)[0]
         o = parse(o)
 
+        # Only take chromium accounts into consideration.
+        chromium_reviewers = [r for r in o["reviewers"] if "@chromium.org" in r]
+        if chromium_reviewers:
+            for r in chromium_reviewers:
+                gerrit_interface.add_reviewer(obj["cl_num"], r)
+                print(f"Add {r} as a reviewer from {cl_num}")
+            return True
+
         if o["gwsq_in_progress"]:
             print(f"Deferred, gwsq is still in progress in {cl_num}")
             return False
