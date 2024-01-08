@@ -253,6 +253,11 @@ def check_cq_plus1(obj):
                 if obj["reviewers"] or add_backup_reviewer(obj):
                     print("Send ping message")
                     send_ping_msg(obj)
+                    gerrit_interface.send_message(
+                        cl_num,
+                        "Won't CQ+1 again because the retries are over the limit",
+                    )
+                    gerrit_interface.label_v(cl_num, "-1")
                 return
 
             if not has_elapsed(
