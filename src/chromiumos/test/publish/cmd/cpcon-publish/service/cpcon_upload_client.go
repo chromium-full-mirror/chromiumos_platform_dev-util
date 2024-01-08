@@ -8,7 +8,7 @@ import (
 )
 
 // Path to python binary inside the container.
-const pythonPath = "/usr/local/bin/python3"
+const pythonPath = "python3"
 
 // Path to upload results script inside the container.
 const uploadResultsPath = "/usr/local/autotest/contrib/upload_results.py"
@@ -17,6 +17,9 @@ const uploadResultsPath = "/usr/local/autotest/contrib/upload_results.py"
 type CpconUploadRequest struct {
 	// Path to test results to upload
 	ResultsDir string
+
+	Bucket string
+	ServiceAccountCredsFilePath string
 }
 
 // uploadResultsCmd constructs upload_results command with all necessary args
@@ -26,8 +29,10 @@ func uploadResultsCmd(ctx context.Context, req CpconUploadRequest) (*exec.Cmd, e
 	}
 	args := []string{
 		uploadResultsPath,
-		"upload", "-d",
-		req.ResultsDir,
+		"upload",
+		"-d", req.ResultsDir,
+		"--bucket", req.Bucket,
+		"--sa_path", req.ServiceAccountCredsFilePath,
 	}
 	cmd := exec.CommandContext(ctx, pythonPath, args...)
 	return cmd, nil

@@ -1,0 +1,15 @@
+artifact_dir_path:{
+    path: "/tmp/test_that_latest"
+},
+metadata:{
+    [type.googleapis.com/chromiumos.test.api.PublishGcsMetadata]:{
+        gcs_path:{
+            host_type:GS
+            path:"gs://chromeos-moblab-pvs-dev/results/testing-1-2-3"
+        },
+        service_account_creds_file_path:{
+            host_type:LOCAL
+            path:"/keys/.service_account.json"
+        }
+    }
+}

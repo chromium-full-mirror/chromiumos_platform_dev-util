@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 
 	common_utils "chromiumos/test/publish/cmd/common-utils"
 
@@ -19,9 +20,21 @@ import (
 type CpconPublishService struct {
 	LocalArtifactPath string
 	RetryCount        int
+	ServiceAccountCredsFilePath string
+	Bucket string
 }
 
 func NewCpconPublishService(req *api.PublishRequest) (*CpconPublishService, error) {
+	var m api.PublishGcsMetadata
+	if err := req.Metadata.UnmarshalTo(&m); err != nil {
+		return nil, fmt.Errorf("improperly formatted input proto metadata, received %v, expected PublishGcsMetadata: %s", req, err)
+	}
+
+	bucket, err := resolveGcsPathToBucket(m.GcsPath.GetPath())
+	if err != nil {
+		return nil, fmt.Errorf("improperly formatted gcspath: %s", err)
+	}
+
 	retryCount := 0
 	if req.GetRetryCount() > 0 {
 		retryCount = int(req.GetRetryCount())
@@ -30,11 +43,17 @@ func NewCpconPublishService(req *api.PublishRequest) (*CpconPublishService, erro
 	return &CpconPublishService{
 		LocalArtifactPath: req.GetArtifactDirPath().GetPath(),
 		RetryCount:        retryCount,
+		ServiceAccountCredsFilePath: m.GetServiceAccountCredsFilePath().GetPath(),
+		Bucket: bucket,
 	}, nil
 }
 
 func (ts *CpconPublishService) UploadToCpcon(ctx context.Context) error {
-	cmd, err := uploadResultsCmd(ctx, CpconUploadRequest{ResultsDir: ts.LocalArtifactPath})
+	cmd, err := uploadResultsCmd(ctx, CpconUploadRequest{
+		ResultsDir: ts.LocalArtifactPath,
+		ServiceAccountCredsFilePath: ts.ServiceAccountCredsFilePath,
+		Bucket: ts.Bucket,
+	})
 	if err != nil {
 		log.Printf("error while creating upload results command: %s", err)
 		return fmt.Errorf("error while creating upload results command: %s", err)
@@ -45,4 +64,15 @@ func (ts *CpconPublishService) UploadToCpcon(ctx context.Context) error {
 		return fmt.Errorf("error in cpcon upload results: %s", err)
 	}
 	return nil
+}
+
+// resolveGcsPathToBucket translate the gcsUrl for the gcs upload to a bucket
+// name which can be used for the cpcon upload tool
+func resolveGcsPathToBucket(gcsUrl string) (string, error){
+	re := regexp.MustCompile(`gs:\/\/([^\/]*)\/(.*)`)
+	gcsPathMatches := re.FindStringSubmatch(gcsUrl)
+	if len(gcsPathMatches) != 3 {
+		return "", fmt.Errorf("must be in format gs://bucket-name/results/path/here")
+	}
+	return gcsPathMatches[1], nil
 }
