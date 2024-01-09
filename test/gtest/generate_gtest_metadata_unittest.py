@@ -200,11 +200,16 @@ class Generate_Gtest_Metadata_Test(TestCase):
         for f in input_data:
             s_name = f["name"]
 
-            tce = tc_metadata_pb.TestCaseExec(
+            tce_gtest = tc_metadata_pb.TestCaseExec(
                 test_harness=th_pb.TestHarness(
                     gtest=th_pb.TestHarness.Gtest(
                         target_bin_location=f.get("target_bin_location", "")
                     )
+                )
+            )
+            tce_crosier = tc_metadata_pb.TestCaseExec(
+                test_harness=th_pb.TestHarness(
+                    crosier=th_pb.TestHarness.Crosier()
                 )
             )
             tci = tc_metadata_pb.TestCaseInfo(
@@ -227,7 +232,9 @@ class Generate_Gtest_Metadata_Test(TestCase):
 
             for c in f["cases"]:
                 tags = [tc_pb.TestCase.Tag(value=t) for t in c["tags"]]
-                tc_id = tc_pb.TestCase.Id(value=f'gtest.{s_name}.{c["id"]}')
+                tc_id = tc_pb.TestCase.Id(
+                    value=f'{f["harness"]}.{s_name}.{c["id"]}'
+                )
                 c_name = f'{s_name}.{c["id"]}'
                 deps = [
                     tc_pb.TestCase.Dependency(value=t)
@@ -238,7 +245,11 @@ class Generate_Gtest_Metadata_Test(TestCase):
                 )
                 cases.append(
                     tc_metadata_pb.TestCaseMetadata(
-                        test_case=case, test_case_exec=tce, test_case_info=tci
+                        test_case=case,
+                        test_case_exec=tce_crosier
+                        if f["harness"] == "crosier"
+                        else tce_gtest,
+                        test_case_info=tci,
                     )
                 )
 

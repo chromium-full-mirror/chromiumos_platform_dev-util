@@ -23,20 +23,25 @@ import six
 import yaml
 
 
-def _test_case_exec_factory(target_bin_location: str) -> th_pb.TestHarness:
+def _test_case_exec_factory(
+    harness: str, target_bin_location: str
+) -> th_pb.TestHarness:
     """Factory method to build TestCaseExec proto objects
 
     Args:
+        harness: String representing test harness: 'gtest' or 'crosier'.
         target_bin_location: String representing the path on the DUT to the
                              compiled gtest binary.
     """
-    return tc_metadata_pb.TestCaseExec(
-        test_harness=th_pb.TestHarness(
+    if harness == "gtest":
+        test_harness = th_pb.TestHarness(
             gtest=th_pb.TestHarness.Gtest(
                 target_bin_location=target_bin_location
             )
         )
-    )
+    elif harness == "crosier":
+        test_harness = th_pb.TestHarness(crosier=th_pb.TestHarness.Crosier())
+    return tc_metadata_pb.TestCaseExec(test_harness=test_harness)
 
 
 def _test_case_info_factory(
@@ -64,15 +69,20 @@ def _test_case_info_factory(
     )
 
 
-def _test_case_factory(case_data: dict, suite_name: str) -> tc_pb.TestCase:
+def _test_case_factory(
+    case_data: dict,
+    harness: str,
+    suite_name: str,
+) -> tc_pb.TestCase:
     """Factory method for build TestCase proto objects
 
     Args:
         case_data: dict representing the 'cases' yaml data
+        harness: string representing test harness: 'gtest' or 'crosier'
         suite_name: string representing the 'name' yaml field
     """
     tags = [tc_pb.TestCase.Tag(value=t) for t in case_data["tags"]]
-    tc_id = tc_pb.TestCase.Id(value=f'gtest.{suite_name}.{case_data["id"]}')
+    tc_id = tc_pb.TestCase.Id(value=f'{harness}.{suite_name}.{case_data["id"]}')
     name = f'{suite_name}.{case_data["id"]}'
     testBedDeps = [
         tc_pb.TestCase.Dependency(value=t)
@@ -97,8 +107,9 @@ def _test_case_metadata_factory(
 def _test_case_list_factory(input_data: dict) -> list:
     """Factory method for batch building TestCaseMetadata objects"""
     suite_name = input_data["name"]
+    harness = input_data["harness"]
     test_case_exec = _test_case_exec_factory(
-        input_data.get("target_bin_location", "")
+        harness, input_data.get("target_bin_location", "")
     )
     test_case_info = _test_case_info_factory(
         input_data["owners"],
@@ -109,7 +120,8 @@ def _test_case_list_factory(input_data: dict) -> list:
     )
 
     test_cases = [
-        _test_case_factory(tc, suite_name) for tc in input_data["cases"]
+        _test_case_factory(tc, harness, suite_name)
+        for tc in input_data["cases"]
     ]
 
     test_case_metadata = [
@@ -196,7 +208,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     parser = argparse.ArgumentParser(
-        description="Generate Gtest harness test case metadata"
+        description="Generate Gtest-based harness test case metadata"
     )
     parser.add_argument(
         "--output_file",
