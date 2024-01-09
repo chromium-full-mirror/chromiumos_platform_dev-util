@@ -219,7 +219,7 @@ def check_cq_plus1(obj):
         msg = m["message"]
 
         # If a new PS has uploaded, retry CQ+1 anyway.
-        if "Uploaded patch set" in msg:
+        if "Uploaded patch set" in msg or "was rebased" in msg:
             print("Mark CQ+1 because of a new patchset")
             gerrit_interface.label_cq(cl_num, "1")
             return
