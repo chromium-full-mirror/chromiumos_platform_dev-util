@@ -21,7 +21,7 @@ ENV UPLOAD_CONFIG_DIR=${PVS_OUTPUT_DIR}/upload_config
 ENV HISTFILE=${PVS_OUTPUT_DIR}/.bash_history
 
 # Install gosu to allow user to be the same both inside and outside the container
-RUN echo "@testing http://nl.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && apk add --update git bash bash-completion less shadow gosu@testing
+RUN echo "@testing http://nl.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && apk add --update git bash bash-completion less shadow gosu@testing && apk add --no-cache libc6-compat
 
 # Install upload_results.py dependencies
 RUN python3 -m pip install google.cloud google.cloud.pubsub google.cloud.storage \
