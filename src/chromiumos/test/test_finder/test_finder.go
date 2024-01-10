@@ -21,6 +21,7 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 
 	"chromiumos/test/execution/errors"
+	"chromiumos/test/test_finder/centralizedsuite"
 	"chromiumos/test/util/finder"
 	"chromiumos/test/util/metadata"
 	"chromiumos/test/util/portdiscovery"
@@ -32,6 +33,9 @@ const (
 	defaultOutputFileName  = "result.json"
 	defaultTestMetadataDir = "/tmp/test/metadata"
 )
+
+var errInvalidRequest = fmt.Errorf("invalid cros-test-finder input request")
+var errMissingTestMetadata = fmt.Errorf("test has no metadata")
 
 // createLogFile creates a file and its parent directory for logging purpose.
 func createLogFile(fullPath string) (*os.File, error) {
@@ -128,6 +132,59 @@ func metadataToTestSuite(name string, mdList []*api.TestCaseMetadata, metadataRe
 
 }
 
+// testsToMetadata converts the given set of tests to a list of metadata for the
+// tests; returns errMissingTestMetadata if a test is not in the given metadata
+// list.
+func testsToMetadata(tests map[string]struct{}, metadataList []*api.TestCaseMetadata) ([]*api.TestCaseMetadata, error) {
+	metadataMap := make(map[string]*api.TestCaseMetadata, len(metadataList))
+	for _, metadata := range metadataList {
+		testID := metadata.GetTestCase().GetId().GetValue()
+		metadataMap[testID] = metadata
+	}
+
+	filteredMetadata := make([]*api.TestCaseMetadata, len(tests))
+	for test := range tests {
+		metadata, ok := metadataMap[test]
+		if !ok {
+			return nil, fmt.Errorf("%w: %v", errMissingTestMetadata, test)
+		}
+		filteredMetadata = append(filteredMetadata, metadata)
+	}
+	return filteredMetadata, nil
+}
+
+// matchedTestsForCentralizedSuite returns a list of testMetadata for all the tests in
+// the given centralized suite.
+func matchedTestsForCentralizedSuite(mappingsLoader centralizedsuite.MappingsLoader, metadataList []*api.TestCaseMetadata, centralizedSuiteID string) ([]*api.TestCaseMetadata, error) {
+	mappings, err := mappingsLoader.Load()
+	if err != nil {
+		return nil, err
+	}
+	tests, err := mappings.TestsIn(centralizedSuiteID)
+	if err != nil {
+		return nil, err
+	}
+	return testsToMetadata(tests, metadataList)
+}
+
+// getSelectedTestMetadata will get the tests & their metadata from the provided
+// suite OR centralized suite, cannot be both.
+func getSelectedTestMetadata(mappingsLoader centralizedsuite.MappingsLoader, metadataList []*api.TestCaseMetadata, req *api.CrosTestFinderRequest) (string, []*api.TestCaseMetadata, error) {
+	testSuites := req.GetTestSuites()
+	centralizedSuiteID := req.GetCentralizedSuite()
+	if len(testSuites) > 0 && centralizedSuiteID != "" {
+		return "", nil, fmt.Errorf("%w, cannot provide both a SuiteSet and Suites in the same request, must provide one or the other", errInvalidRequest)
+	}
+
+	if req.GetCentralizedSuite() != "" {
+		selectedTestMetadata, err := matchedTestsForCentralizedSuite(mappingsLoader, metadataList, centralizedSuiteID)
+		return centralizedSuiteID, selectedTestMetadata, err
+	}
+
+	selectedTestMetadata, err := finder.MatchedTestsForSuites(metadataList, testSuites)
+	return combineTestSuiteNames(testSuites), selectedTestMetadata, err
+}
+
 // Version is the version info of this command. It is filled in during emerge.
 var Version = "<unknown>"
 var defaultPort = 8010
@@ -154,9 +211,8 @@ func FindTests(logger *log.Logger, req *api.CrosTestFinderRequest, metadataDir s
 			fmt.Errorf("failed to read directory %v: %w", metadataDir, err))
 	}
 
-	suiteName := combineTestSuiteNames(req.TestSuites)
-
-	selectedTestMetadata, err := finder.MatchedTestsForSuites(allTestMetadata.Values, req.TestSuites)
+	mappingsLoader := centralizedsuite.NewFileLoader()
+	suiteName, selectedTestMetadata, err := getSelectedTestMetadata(mappingsLoader, allTestMetadata.Values, req)
 	if err != nil {
 		logger.Println("Error: ", err)
 		return nil, err

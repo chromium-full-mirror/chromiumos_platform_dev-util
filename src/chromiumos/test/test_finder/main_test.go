@@ -5,6 +5,8 @@
 package test_finder
 
 import (
+	"chromiumos/test/test_finder/centralizedsuite"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -356,5 +358,191 @@ func TestMetadataToTestSuiteWithMetaData(t *testing.T) {
 
 	if !proto.Equal(suites, &expected) {
 		t.Errorf("Got unexpected test suite from metadataToTestSuite (-got +want):\n%v\n--\n%v\n", suites, &expected)
+	}
+}
+
+func convertToMetadataMap(metadataList []*api.TestCaseMetadata) map[string]*api.TestCaseMetadata {
+	metadataMap := make(map[string]*api.TestCaseMetadata, len(metadataList))
+	for _, metadata := range metadataList {
+		metadataMap[metadata.GetTestCase().GetId().GetValue()] = metadata
+	}
+	return metadataMap
+}
+
+func metadataMapsAreEqual(mapA, mapB map[string]*api.TestCaseMetadata) bool {
+	if len(mapA) != len(mapB) {
+		return false
+	}
+	for testID, metadataA := range mapA {
+		metadataB, ok := mapB[testID]
+		if !ok {
+			return false
+		}
+		if !proto.Equal(metadataA, metadataB) {
+			return false
+		}
+	}
+	return true
+}
+
+func TestGetSelectedTestMetadata(t *testing.T) {
+	suiteSetList := &api.SuiteSetList{
+		SuiteSets: []*api.SuiteSet{
+			{
+				Id: &api.SuiteSet_Id{Value: "power"},
+				Suites: []*api.Suite_Id{
+					{Value: "battery"},
+					{Value: "boot"},
+				},
+			},
+			{
+				Id: &api.SuiteSet_Id{Value: "evt"},
+				SuiteSets: []*api.SuiteSet_Id{
+					{Value: "power"},
+				},
+				Suites: []*api.Suite_Id{
+					{Value: "display"},
+				},
+			},
+		},
+	}
+	suiteList := &api.SuiteList{
+		Suites: []*api.Suite{
+			{
+				Id: &api.Suite_Id{Value: "battery"},
+				Tests: []*api.TestCase_Id{
+					{Value: "bat-life"},
+				},
+			},
+			{
+				Id: &api.Suite_Id{Value: "boot"},
+				Tests: []*api.TestCase_Id{
+					{Value: "boot-perf"},
+					{Value: "power-load"},
+				},
+			},
+			{
+				Id: &api.Suite_Id{Value: "display"},
+				Tests: []*api.TestCase_Id{
+					{Value: "video-out"},
+					{Value: "external-disp"},
+					{Value: "power-load"},
+				},
+			},
+		},
+	}
+	metadataList := []*api.TestCaseMetadata{
+		{
+			TestCase: &api.TestCase{
+				Id:   &api.TestCase_Id{Value: "power-load"},
+				Tags: []*api.TestCase_Tag{{Value: "suite:power-per-build"}},
+			},
+			TestCaseInfo: &api.TestCaseInfo{
+				Criteria: &api.Criteria{Value: "validates device under high compute load"},
+			},
+		},
+		{
+			TestCase: &api.TestCase{
+				Id:   &api.TestCase_Id{Value: "bat-life"},
+				Tags: []*api.TestCase_Tag{{Value: "suite:power_per-build"}},
+			},
+			TestCaseInfo: &api.TestCaseInfo{
+				Criteria: &api.Criteria{Value: "validates device battery life"},
+			},
+		},
+		{
+			TestCase: &api.TestCase{
+				Id: &api.TestCase_Id{Value: "boot-perf"},
+			},
+			TestCaseInfo: &api.TestCaseInfo{
+				Criteria: &api.Criteria{Value: "validate boot speed"},
+			},
+		},
+	}
+	testCases := []struct {
+		name          string
+		loader        centralizedsuite.MappingsLoader
+		req           *api.CrosTestFinderRequest
+		wantSuiteName string
+		wantMetadata  []*api.TestCaseMetadata
+		wantErr       error
+	}{
+		{
+			name: "valid suites request",
+			req: &api.CrosTestFinderRequest{
+				TestSuites: []*api.TestSuite{
+					{
+						Name: "power-per-build",
+						Spec: &api.TestSuite_TestCaseTagCriteria_{
+							TestCaseTagCriteria: &api.TestSuite_TestCaseTagCriteria{
+								Tags: []string{"suite:power-per-build"},
+							},
+						},
+					},
+				},
+			},
+			wantSuiteName: "power-per-build",
+			wantMetadata:  metadataList[:2],
+		},
+		{
+			name:   "valid suiteSet request",
+			loader: centralizedsuite.NewInMemoryLoader(suiteSetList, suiteList),
+			req: &api.CrosTestFinderRequest{
+				CentralizedSuite: "power",
+			},
+			wantSuiteName: "power",
+			wantMetadata:  metadataList,
+		},
+		{
+			name:          "empty request",
+			req:           &api.CrosTestFinderRequest{},
+			wantSuiteName: "CombinedSuite",
+			wantMetadata:  []*api.TestCaseMetadata{},
+		},
+		{
+			name: "both suites and SuiteSet provided",
+			req: &api.CrosTestFinderRequest{
+				TestSuites: []*api.TestSuite{
+					{
+						Name: "power-per-build",
+						Spec: &api.TestSuite_TestCaseTagCriteria_{
+							TestCaseTagCriteria: &api.TestSuite_TestCaseTagCriteria{
+								Tags: []string{"suite:power-per-build"},
+							},
+						},
+					},
+				},
+				CentralizedSuite: "power",
+			},
+			wantErr: errInvalidRequest,
+		},
+		{
+			name:   "test missing metadata",
+			loader: centralizedsuite.NewInMemoryLoader(suiteSetList, suiteList),
+			req: &api.CrosTestFinderRequest{
+				CentralizedSuite: "evt",
+			},
+			wantErr: errMissingTestMetadata,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			gotSuiteName, gotMetadata, gotErr := getSelectedTestMetadata(testCase.loader, metadataList, testCase.req)
+			if !errors.Is(gotErr, testCase.wantErr) {
+				t.Fatalf("returned error does not match expected: want %v, got %v", testCase.wantErr, gotErr)
+			}
+			if testCase.wantErr != nil {
+				return
+			}
+			if gotSuiteName != testCase.wantSuiteName {
+				t.Fatalf("computed suite name does not match expected, want: %v, got %v", testCase.wantSuiteName, gotSuiteName)
+			}
+			wantMetadataMap := convertToMetadataMap(testCase.wantMetadata)
+			gotMetadataMap := convertToMetadataMap(gotMetadata)
+			if len(gotMetadata) != len(testCase.wantMetadata) && metadataMapsAreEqual(wantMetadataMap, gotMetadataMap) {
+				t.Fatalf("computed test list not match expected, want: %v, got %v", testCase.wantMetadata, gotMetadata)
+			}
+		})
 	}
 }
