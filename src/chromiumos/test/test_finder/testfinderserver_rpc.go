@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package main
+package test_finder
 
 import (
 	"context"
@@ -45,7 +45,7 @@ func NewServer(logger *log.Logger, metadatadir string) (*grpc.Server, func()) {
 func (s *TestFinderServiceServer) FindTests(ctx context.Context, req *api.CrosTestFinderRequest) (*api.CrosTestFinderResponse, error) {
 	s.logger.Println("Received api.CacheRequest: ", req)
 
-	rspn, err := innerMain(s.logger, req, s.metadatadir)
+	rspn, err := FindTests(s.logger, req, s.metadatadir)
 	if err != nil {
 		return nil, errors.Annotate(err, "FindTests: failed to find tests").Err()
 	}
