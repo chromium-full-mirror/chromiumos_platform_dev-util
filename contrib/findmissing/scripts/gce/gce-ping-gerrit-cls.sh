@@ -7,7 +7,7 @@
 
 FINDMISSING="$(cd "$(dirname "$0")/../.." || exit; pwd)"
 cd "${FINDMISSING}" || exit
-LOG_FILE="/var/log/findmissing/findmissing.log"
+LOG_FILE="/var/log/findmissing/$(basename -s .sh "$0").log"
 
 if [[ ! -e env/bin/activate ]]; then
     echo "Virtual environment not set up."

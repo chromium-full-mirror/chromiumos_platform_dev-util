@@ -6,7 +6,7 @@
 
 
 FINDMISSING_DIR="${HOME}/findmissing_workspace/findmissing"
-LOG_FILE="/var/log/findmissing/findmissing.log"
+LOG_FILE="/var/log/findmissing/$(basename -s .sh "$0").log"
 LAST_RUN="/tmp/synchronize-lastrun"
 RUNNING="/tmp/synchronize-running"
 

@@ -7,7 +7,7 @@
 
 KERNEL_REPOS_DIR="${HOME}/findmissing_workspace/kernel_repositories"
 LINUX_CHROME="${KERNEL_REPOS_DIR}/linux_chrome"
-LOG_FILE="/var/log/findmissing/findmissing.log"
+LOG_FILE="/var/log/findmissing/$(basename -s .sh "$0").log"
 RUNNING="/tmp/synchronize-running"
 
 {

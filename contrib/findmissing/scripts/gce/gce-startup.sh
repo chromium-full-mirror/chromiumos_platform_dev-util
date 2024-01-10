@@ -81,11 +81,11 @@ chmod +x "${WORKSPACE}/git-hooks/commit-msg"
 
 # Logs
 sudo mkdir -p /var/log/findmissing/
-sudo touch /var/log/findmissing/findmissing.log
-sudo chown -R "${USER}:${USER}" /var/log/findmissing/
-
-sudo sh -c "cat >/etc/logrotate.d/findmissing" <<EOF
-/var/log/findmissing/findmissing.log {
+sudo sh -c ">/etc/logrotate.d/findmissing"
+for name in "full_sync_and_patch_create" "gce-clean" "gce-ping-gerrit-cls"; do
+    sudo touch "/var/log/findmissing/${name}.log"
+    sudo sh -c "cat >>/etc/logrotate.d/findmissing" <<EOF
+/var/log/findmissing/${name}.log {
     daily
     rotate 7
     missingok
@@ -93,6 +93,8 @@ sudo sh -c "cat >/etc/logrotate.d/findmissing" <<EOF
     create 640 ${USER} ${USER}
 }
 EOF
+done
+sudo chown -R "${USER}:${USER}" /var/log/findmissing/
 
 # Python environment setup
 rm -rf "${FINDMISSING}/env"
