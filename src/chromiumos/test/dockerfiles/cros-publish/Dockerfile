@@ -39,3 +39,4 @@ COPY rdb_cipd_metadata.json /tmp/rdb-publish/rdb_cipd_metadata.json
 
 COPY autotest/ /usr/local/autotest
 COPY contrib/ /usr/local/autotest/contrib/
+COPY tko_pb2.py /usr/local/autotest/tko/

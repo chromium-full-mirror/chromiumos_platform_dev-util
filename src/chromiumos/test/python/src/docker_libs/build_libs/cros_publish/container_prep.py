@@ -114,3 +114,4 @@ class CrosPublishArtifactPrep(CrosArtifactPrep):
             src, "third_party", "autotest", "files", "contrib"
         )
         shutil.copytree(autotest_contrib, self.full_out + "/contrib/")
+        shutil.copy(os.path.join(src, "config", "python", "chromiumos", "test", "artifact", "tko_pb2.py"), self.full_out)
