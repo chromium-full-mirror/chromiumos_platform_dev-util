@@ -34,6 +34,12 @@ class GitModule(NamedTuple):
     commit: str
 
 
+def commit_exists(gitdir: Path, commit: str) -> bool:
+    """See if commit exists in a project."""
+    result = git.RunGit(gitdir, ["cat-file", "-t", commit], capture_output=True)
+    return result.returncode == 0 and result.stdout.strip() == "commit"
+
+
 def read_gitmodules(gitmodules: Path) -> List[GitModule]:
     # Read current statuses.
     known_modules = {}
@@ -77,14 +83,22 @@ def process(output: Path, uri: str, commit: Optional[str] = None) -> None:
     if uri.endswith(".git"):
         uri = uri[:-4]
     gitname = re.sub(r"[:/]", "_", uri.split("://", 1)[1])
-    logging.info("Cloning %s into %s", uri, gitname)
+    logging.info("Cloning %s into %s @ %s", uri, gitname, commit)
     gitdir = output / "git" / gitname
     if not gitdir.is_dir():
         gitdir.mkdir(parents=True, exist_ok=True)
         git.ShallowFetch(gitdir, uri, commit=commit)
 
+    current_commit = git.GetGitRepoRevision(gitdir)
     if commit is None:
-        commit = git.GetGitRepoRevision(gitdir)
+        commit = current_commit
+    if not commit_exists(gitdir, commit):
+        logging.info("Fetching new commit %s", commit)
+        git.RunGit(gitdir, ["fetch", "origin", commit])
+    if current_commit != commit:
+        # Switch to the requested commit to read gitmodules files.
+        git.RunGit(gitdir, ["checkout", commit])
+
     pn = uri.rsplit("/", 1)[1]
     tarball = output / f"{pn}-{commit}.tar.gz"
     archive_uri = f"{uri}/archive/{commit}.tar.gz"
