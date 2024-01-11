@@ -98,6 +98,7 @@ REGISTERED_BUILDS = {
     "vm-provision": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "cros-hpt": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "post-process": {"prepper": CommonServiceDockerPrepper, "cloud": False},
+    "provision-filter": {"prepper": CommonServiceDockerPrepper, "cloud": False},
 
 }
 
