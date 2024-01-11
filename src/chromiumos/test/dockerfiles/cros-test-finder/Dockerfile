@@ -4,6 +4,7 @@
 
 FROM us-docker.pkg.dev/cros-registry/test-services/base_images:ubuntuProd
 COPY cros-test-finder /usr/bin/
+COPY test_finder_filter /usr/bin/
 
 
 RUN mkdir -p /tmp/test
@@ -13,6 +14,8 @@ COPY suite_sets /tmp/test/suite_sets.pb
 COPY suites /tmp/test/suites.pb
 
 
-# Own cros-test-finder & metadata
+# Own cros-test-finder/test_finder_filter & metadata
 RUN chmod 755 /usr/bin/cros-test-finder
+RUN chmod 755 /usr/bin/test_finder_filter
+
 RUN chmod 644 /tmp/test/metadata/*.pb /tmp/test/*.pb

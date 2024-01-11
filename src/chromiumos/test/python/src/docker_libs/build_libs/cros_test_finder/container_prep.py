@@ -5,6 +5,7 @@
 """Prep everything for for the cros-test Docker Build Context."""
 
 import os
+import shutil
 import sys
 
 
@@ -42,6 +43,9 @@ class CrosTestFinderArtifactPrep(common_artifact_prep.CrosArtifactPrep):
     def prep(self):
         """Run the steps needed to prep the container artifacts."""
         self.copy_service()
+        shutil.copy(
+            os.path.join(self.chroot_bin, "test_finder_filter"), self.full_out
+            )
         self.copy_metadata()
         self.copy_dockercontext()
 
