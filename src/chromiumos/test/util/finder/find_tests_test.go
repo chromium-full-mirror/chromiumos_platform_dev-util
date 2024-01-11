@@ -97,7 +97,7 @@ func TestMatchedTestsForSuites(t *testing.T) {
 			Spec: &api.TestSuite_TestCaseIds{
 				TestCaseIds: &api.TestCaseIdList{
 					TestCaseIds: []*api.TestCase_Id{
-						{Value: "test.tast.001"},
+						{Value: "tast.test.001"},
 					},
 				},
 			},
