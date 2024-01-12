@@ -308,6 +308,16 @@ def create_change(
     try:
         if fixee_changeid:
             cl_reviewers = get_reviewers(fixee_changeid, branch)
+
+            def excluding_rule(email):
+                if not email.endswith("google.com") and not email.endswith(
+                    "chromium.org"
+                ):
+                    return False
+                return email != common.GWSQ_EMAIL
+
+            cl_reviewers = list(filter(excluding_rule, cl_reviewers))
+
             if cl_reviewers:
                 reviewers = cl_reviewers
                 cc = None

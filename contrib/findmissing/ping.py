@@ -7,6 +7,7 @@ import sys
 import time
 import urllib.parse
 
+import common
 import gerrit_interface
 
 
@@ -17,8 +18,7 @@ CQ_PLUS1_RETRY_THRESHOLD = 1
 CQ_PLUS1_LIMIT_PER_DAY = 2
 CQ_PLUS1_LIMIT = 4
 
-GWSQ = "chromeos-kernel-findmissing-reviewers@google.com"
-RE_GWSQ_REVIEWER = re.compile(rf"(\w+) is from group\({GWSQ}\)")
+RE_GWSQ_REVIEWER = re.compile(rf"(\w+) is from group\({common.GWSQ_EMAIL}\)")
 
 
 def parse(obj):
@@ -50,10 +50,10 @@ def parse(obj):
             email = approval["by"]["email"]
             if (
                 email.endswith("@chromium.org") or email.endswith("@google.com")
-            ) and email != GWSQ:
+            ) and email != common.GWSQ_EMAIL:
                 reviewers.add(email)
 
-            if email == GWSQ:
+            if email == common.GWSQ_EMAIL:
                 ret["gwsq_in_progress"] = True
 
         if approval["type"] == "COMR":
@@ -172,7 +172,7 @@ def add_backup_reviewer(obj):
                 return True
 
     print("Deferred, loop in gwsq")
-    gerrit_interface.add_reviewer(obj["cl_num"], GWSQ)
+    gerrit_interface.add_reviewer(obj["cl_num"], common.GWSQ_EMAIL)
     return False
 
 

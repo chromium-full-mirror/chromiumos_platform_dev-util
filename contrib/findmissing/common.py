@@ -53,6 +53,8 @@ connect_db = functools.partial(
     MySQLdb.Connect, user="linux_patches_robot", host="127.0.0.1", db="linuxdb"
 )
 
+GWSQ_EMAIL = "chromeos-kernel-findmissing-reviewers@google.com"
+
 
 class Status(Enum):
     """Text representation of database enum to track status of gerrit CL."""
