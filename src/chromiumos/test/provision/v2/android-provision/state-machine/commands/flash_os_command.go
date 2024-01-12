@@ -129,5 +129,6 @@ func (c *FlashOsCommand) fetchOSInfo() error {
 		IncrementalVersion: incrementalVersion,
 		OsVersion:          osVersion,
 	}
+	log.Printf("Installed Android OS: version=%s, build ID=%s", osVersion, buildId)
 	return nil
 }

@@ -92,6 +92,7 @@ func (c *FetchDutInfoCommand) fetchOSInfo() error {
 		OsVersion:          osVersion,
 		IncrementalVersion: incrementalVersion,
 	}
+	log.Printf("Android OS on DUT: version=%s, build ID=%s", osVersion, buildId)
 	return nil
 }
 
