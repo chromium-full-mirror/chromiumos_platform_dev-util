@@ -47,6 +47,7 @@ type DutInfo struct {
 	PowerUnitHostName   string
 	PowerUnitOutlet     string
 	HydraHostName       string
+	SimInfos            []string
 }
 
 // joinHostAndPort joins host and port to a single address.
@@ -103,8 +104,12 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 	}
 
 	cacheInfo := dut.GetCacheServer()
-
 	addr := joinHostAndPort(chromeOS.Ssh)
+
+	var SimInfos []string
+	if chromeOS.GetSimInfos() != nil && len(chromeOS.GetSimInfos()) > 0 {
+		SimInfos = simInfoConverter(chromeOS.GetSimInfos())
+	}
 
 	// Servo address.
 	var servo string
@@ -273,6 +278,7 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 		PowerUnitHostName:   powerUnitHostName,
 		PowerUnitOutlet:     powerUnitOutlet,
 		HydraHostName:       hydraHostName,
+		SimInfos:            SimInfos,
 	}, nil
 }
 
@@ -359,7 +365,63 @@ func AppendChromeOsLabels(dut *DutInfo) (map[string]string, []string, error) {
 		labels = append(labels, fmt.Sprintf("working_bluetooth_btpeer:%v", dut.BTPeers))
 	}
 
+	if dut.SimInfos != nil && len(dut.SimInfos) > 0 {
+		labels = append(labels, dut.SimInfos...)
+	}
+
 	return attrMap, labels, nil
+}
+
+// simInfoConverter converts SIMInfo labels to Autotest labels
+// converter logic is copied from go/src/infra/libs/skylab/inventory/autotest/labels/siminfo.go
+func simInfoConverter(simInfos []*labapi.SIMInfo) []string {
+	var labels []string
+	for _, s := range simInfos {
+		sim_id := ""
+		if v := s.GetSlotId(); v != 0 {
+			sim_id = strconv.Itoa(int(v))
+			lv := "sim_slot_id:" + sim_id
+			labels = append(labels, lv)
+		}
+		if v := s.GetType(); v != *labapi.SIMType_SIM_UNKNOWN.Enum() {
+			lv := "sim_" + sim_id + "_type:" + v.String()
+			labels = append(labels, lv)
+		}
+		if eid := s.GetEid(); eid != "" {
+			lv := "sim_" + sim_id + "_eid:" + eid
+			labels = append(labels, lv)
+		}
+		if s.GetTestEsim() {
+			lv := "sim_" + sim_id + "_test_esim:True"
+			labels = append(labels, lv)
+		}
+		lv := "sim_" + sim_id + "_num_profiles:" + strconv.Itoa(len(s.GetProfileInfo()))
+		labels = append(labels, lv)
+		for j, p := range s.GetProfileInfo() {
+			profile_id := strconv.Itoa(j)
+			if k := p.GetIccid(); k != "" {
+				lv := "sim_" + sim_id + "_" + profile_id + "_iccid:" + k
+				labels = append(labels, lv)
+			}
+			if k := p.GetSimPin(); k != "" {
+				lv := "sim_" + sim_id + "_" + profile_id + "_pin:" + k
+				labels = append(labels, lv)
+			}
+			if k := p.GetSimPuk(); k != "" {
+				lv := "sim_" + sim_id + "_" + profile_id + "_puk:" + k
+				labels = append(labels, lv)
+			}
+			if k := p.GetCarrierName(); k != *labapi.NetworkProvider_NETWORK_OTHER.Enum() {
+				lv := "sim_" + sim_id + "_" + profile_id + "_carrier_name:" + k.String()
+				labels = append(labels, lv)
+			}
+			if k := p.GetOwnNumber(); k != "" {
+				lv := "sim_" + sim_id + "_" + profile_id + "_own_number:" + k
+				labels = append(labels, lv)
+			}
+		}
+	}
+	return labels
 }
 
 // FillAndroidInfo extraction Android information from a device.
