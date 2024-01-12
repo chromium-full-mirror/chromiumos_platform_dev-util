@@ -7,20 +7,15 @@ package cli
 
 import (
 	common_utils "chromiumos/test/provision/v2/common-utils"
-	firmwareservice "chromiumos/test/provision/v2/cros-fw-provision/service"
-	state_machine "chromiumos/test/provision/v2/cros-fw-provision/state-machine"
 	"context"
 	"flag"
 	"fmt"
 	"log"
-	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/pkg/errors"
 
+	"go.chromium.org/chromiumos/config/go/longrunning"
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
@@ -35,20 +30,19 @@ const (
 type CLICommand struct {
 	logFileName string
 	log         *log.Logger
-	inputFile   string
-	inputProto  *api.ProvisionFirmwareRequest
-	outputFile  string
+	startupFile string
+	installFile string
 	flagSet     *flag.FlagSet
 }
 
 func NewCLICommand() *CLICommand {
 	cc := &CLICommand{
-		flagSet: flag.NewFlagSet("server", flag.ContinueOnError),
+		flagSet: flag.NewFlagSet("cli", flag.ContinueOnError),
 	}
 
 	cc.flagSet.StringVar(&cc.logFileName, "log-path", defaultLogDirectory, fmt.Sprintf("Path to record execution logs. Default value is %s", defaultLogDirectory))
-	cc.flagSet.StringVar(&cc.inputFile, "input", "", "Specify the request jsonproto input file. Provide service paths and ProvisionState.")
-	cc.flagSet.StringVar(&cc.outputFile, "output", "", "Specify the response jsonproto output file. Empty placeholder file to provide result from provisioning the DUT.")
+	cc.flagSet.StringVar(&cc.startupFile, "startup", "", "Specify the StartUp ProvisionStartupRequest jsonproto input file.")
+	cc.flagSet.StringVar(&cc.installFile, "install", "", "Specify the Install InstallRequest jsonproto input file.")
 	return cc
 }
 
@@ -75,11 +69,6 @@ func (cc *CLICommand) Init(args []string) error {
 		return err
 	}
 
-	cc.inputProto, err = common_utils.ParseProvisionFirmwareRequest(cc.inputFile)
-	if err != nil {
-		return fmt.Errorf("unable to parse ProvisionFirmwareRequest proto: %s", err)
-	}
-
 	return nil
 }
 
@@ -90,99 +79,73 @@ func (cc *CLICommand) Logger() *log.Logger {
 
 // validate checks if inputs are ok
 func (cc *CLICommand) validate() error {
-	if cc.inputFile == "" {
-		return errors.New("input file not specified, use -input")
+	if cc.startupFile == "" {
+		return errors.New("startup file not specified, use -startup")
 	}
 
-	if cc.outputFile == "" {
-		return errors.New("output file not specified, use -output")
+	if cc.installFile == "" {
+		return errors.New("install file not specified, use -install")
 	}
 	return nil
 }
 
-var DefaultServodPort = 9999
-
+// Run starts the firmware provision and does a single provision.
 func (cc *CLICommand) Run() error {
 	cc.log.Printf("Running CLI Mode (V2) - Firmware Provision:")
 
-	var dutAdapter *common_utils.ServiceAdapter
-	var err error
-	if !cc.inputProto.GetUseServo() {
-		dutAdapter, err = connectToDutServer(cc.inputProto.GetDutServerAddress())
-		if err != nil {
-			return err
-		}
-	}
-
-	var servodServiceClient api.ServodServiceClient
-	if cc.inputProto.GetUseServo() {
-		servodServiceClient, err = connectToCrosServod(cc.inputProto.GetCrosServodAddress())
-		if err != nil {
-			return err
-		}
-	}
-
-	out := &api.InstallResponse{}
-	defer saveCLIOutput(cc.outputFile, out)
-
-	cacheServerHost, err := ipEndpointToHostPort(cc.inputProto.GetCacheServerAddress())
+	ps, closer, err := NewFWProvisionServer(0, cc.log)
+	defer closer()
 	if err != nil {
+		cc.log.Fatalln("Failed to create provision server: ", err)
 		return err
 	}
-	cacheServerURL := url.URL{
-		Scheme: "http",
-		Host:   cacheServerHost,
+
+	startupProto, err := common_utils.ParseProvisionStartupRequest(cc.startupFile)
+	if err != nil {
+		return errors.Wrap(err, "unable to parse ProvisionStartupRequest proto")
+	}
+	installProto, err := common_utils.ParseInstallRequest(cc.installFile)
+	if err != nil {
+		return errors.Wrap(err, "unable to parse InstallRequest proto")
 	}
 
 	ctx := context.Background()
-	fwService, err := firmwareservice.NewFirmwareService(ctx, dutAdapter, servodServiceClient, cacheServerURL, cc.inputProto)
+	startupRes, err := ps.StartUp(ctx, startupProto)
 	if err != nil {
-		if fwErr, ok := err.(*firmwareservice.FirmwareProvisionError); ok {
-			out.Status = fwErr.Status
-		} else {
-			cc.log.Printf("expected FirmwareProvision to return error of type FirmwareProvisionError. got: %T", err)
-			out.Status = api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED
-		}
-		return err
+		return errors.Wrap(err, "failed to call StartUp")
 	}
+	cc.log.Printf("StartUp complete - %s", startupRes.String())
 
-	var statusResponse api.InstallResponse_Status
-
-	// Execute state machine
-	cs := state_machine.NewFirmwarePrepareState(fwService)
-	for cs != nil {
-		if _, statusResponse, err = cs.Execute(ctx, cc.log); err != nil {
-			break
-		}
-		cs = cs.Next()
+	op, err := ps.Install(ctx, installProto)
+	if err != nil {
+		return errors.Wrap(err, "failed to call Install")
 	}
-
-	if err == nil {
-		cc.log.Println("Finished Successfuly!")
-		return nil
+	cc.log.Printf("Install LRO - %s", op.String())
+	op, err = ps.manager.WaitOperation(ctx, &longrunning.WaitOperationRequest{
+		Name: op.Name,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to wait operation")
 	}
-	out.Status = statusResponse
-	return errors.Wrap(err, "failed to provision")
-}
-
-// saveCLIOutput saves response to the output file.
-func saveCLIOutput(outputPath string, out *api.InstallResponse) error {
-	if outputPath != "" && out != nil {
-		dir := filepath.Dir(outputPath)
-		// Create the directory if it doesn't exist.
-		if err := os.MkdirAll(dir, 0777); err != nil {
-			return fmt.Errorf("save output: fail to create directory for %q", outputPath)
-		}
-		w, err := os.Create(outputPath)
-		if err != nil {
-			return fmt.Errorf("save output: failed to create file %q", outputPath)
-		}
-		defer w.Close()
-
-		marshaler := jsonpb.Marshaler{}
-		if err := marshaler.Marshal(w, out); err != nil {
-			return fmt.Errorf("save output: failed to marshal output")
-		}
+	cc.log.Printf("Install complete - %s", op.String())
+	if !op.Done {
+		return errors.Errorf("operation not done: %s", op.String())
+	}
+	if op.GetError() != nil {
+		return errors.Errorf("installed failed: %s", op.GetError().String())
+	}
+	if op.GetResponse() == nil {
+		return errors.Errorf("no response returned: %s", op)
+	}
+	installResp := new(api.InstallResponse)
+	if !op.GetResponse().MessageIs(installResp) {
+		return errors.Errorf("unexpected response: %s", op.GetResponse().String())
+	}
+	if err := op.GetResponse().UnmarshalTo(installResp); err != nil {
+		return errors.Wrap(err, "failed to unmarshal response")
+	}
+	if installResp.Status != api.InstallResponse_STATUS_OK {
+		return errors.Errorf("install failed: %v", installResp.Status)
 	}
 	return nil
 }

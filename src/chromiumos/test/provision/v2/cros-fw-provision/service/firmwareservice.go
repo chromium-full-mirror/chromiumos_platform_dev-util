@@ -55,29 +55,22 @@ type FirmwareService struct {
 }
 
 // NewFirmwareService initializes a FirmwareService.
-func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdapterInterface, servoClient api.ServodServiceClient, cacheServer url.URL, req *api.ProvisionFirmwareRequest) (*FirmwareService, error) {
-	detailedRequest := req.GetDetailedRequest()
-	if detailedRequest == nil {
-		return nil, InvalidRequestErr(errors.New("Specify DetailedRequest"))
+func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdapterInterface,
+	servoClient api.ServodServiceClient, cacheServer url.URL, board, model string,
+	useServo bool, req *api.InstallRequest) (*FirmwareService, error) {
+	metadata := new(api.FirmwareProvisionInstallMetadata)
+	if req.GetMetadata().MessageIs(metadata) {
+		if err := req.GetMetadata().UnmarshalTo(metadata); err != nil {
+			return nil, InvalidRequestErr(errors.Wrap(err, "unmarshalling metadata"))
+		}
 	}
-
-	board := req.GetBoard()
-	if len(board) == 0 {
-		return nil, InvalidRequestErr(errors.New("FirmwareProvisionRequest: \"board\" field is required"))
-	}
-	model := req.GetModel()
-	if len(model) == 0 {
-		return nil, InvalidRequestErr(errors.New("FirmwareProvisionRequest: \"model\" field is required"))
-	}
-
-	force := req.GetForce()
-	useServo := req.GetUseServo()
+	detailedRequest := metadata.FirmwareConfig
 
 	fws := FirmwareService{
 		connection:     dutAdapter,
 		board:          board,
 		model:          model,
-		force:          force,
+		force:          false,
 		useServo:       useServo,
 		imagesMetadata: make(map[string]ImageArchiveMetadata),
 		CacheServer:    cacheServer,

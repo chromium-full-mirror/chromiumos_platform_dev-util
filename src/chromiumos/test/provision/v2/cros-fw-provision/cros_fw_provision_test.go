@@ -23,6 +23,7 @@ import (
 	conf "go.chromium.org/chromiumos/config/go"
 	build_api "go.chromium.org/chromiumos/config/go/build/api"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type curlMatcher struct {
@@ -67,7 +68,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 	ecImageWithinArchive := "ec.bin"
 	npcxImageWithinArchive := "npcx_monitor.bin"
 
-	makeRequest := func(main_rw, main_ro, ec_ro bool) *api.ProvisionFirmwareRequest {
+	makeRequest := func(main_rw, main_ro, ec_ro bool) *api.InstallRequest {
 		fakePayload := &build_api.FirmwarePayload{FirmwareImage: &build_api.FirmwarePayload_FirmwareImagePath{FirmwareImagePath: &conf.StoragePath{HostType: conf.StoragePath_GS, Path: fakeGSPath}}}
 		FirmwareConfig := build_api.FirmwareConfig{}
 		if main_rw {
@@ -79,10 +80,15 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		if ec_ro {
 			FirmwareConfig.EcRoPayload = fakePayload
 		}
-		req := &api.ProvisionFirmwareRequest{
-			Board:           "test_board",
-			Model:           "test_model",
-			DetailedRequest: &FirmwareConfig,
+		any, err := anypb.New(&api.FirmwareProvisionInstallMetadata{
+			FirmwareConfig: &FirmwareConfig,
+		})
+		if err != nil {
+			t.Fatal("any.new failed: ", err)
+		}
+
+		req := &api.InstallRequest{
+			Metadata: any,
 		}
 
 		return req
@@ -151,6 +157,9 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			sam,
 			nil,
 			*cacheServer,
+			"test_board",
+			"test_model",
+			false,
 			req,
 		)
 		// Check if init error is expected/got.

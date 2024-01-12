@@ -5,10 +5,10 @@
 package common_utils
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/pkg/errors"
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
@@ -18,14 +18,14 @@ func ParseCrosProvisionRequest(path string) (*api.CrosProvisionRequest, error) {
 	in := &api.CrosProvisionRequest{}
 	r, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("read input: %s", err)
+		return nil, errors.Wrapf(err, "open file %q", path)
 	}
 
 	umrsh := jsonpb.Unmarshaler{}
 	umrsh.AllowUnknownFields = true
 	err = umrsh.Unmarshal(r, in)
 	if err != nil {
-		return nil, fmt.Errorf("read input: %s", err)
+		return nil, errors.Wrapf(err, "invalid json in %q", path)
 	}
 
 	return in, nil
@@ -37,33 +37,52 @@ func ParseAndroidProvisionRequest(path string) (*api.AndroidProvisionRequest, er
 	in := &api.AndroidProvisionRequest{}
 	r, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("read input: %s", err)
+		return nil, errors.Wrapf(err, "open file %q", path)
 	}
 
 	umrsh := jsonpb.Unmarshaler{}
 	umrsh.AllowUnknownFields = true
 	err = umrsh.Unmarshal(r, in)
 	if err != nil {
-		return nil, fmt.Errorf("read input: %s", err)
+		return nil, errors.Wrapf(err, "invalid json in %q", path)
 	}
 
 	return in, nil
 }
 
-// ParseProvisionFirmwareRequest parses ProvisionFirmwareRequest input request data from
+// ParseInstallRequest parses InstallRequest input request data from
 // the input file.
-func ParseProvisionFirmwareRequest(path string) (*api.ProvisionFirmwareRequest, error) {
-	in := &api.ProvisionFirmwareRequest{}
+func ParseInstallRequest(path string) (*api.InstallRequest, error) {
+	in := &api.InstallRequest{}
 	r, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("read input: %s", err)
+		return nil, errors.Wrapf(err, "open file %q", path)
 	}
 
 	umrsh := jsonpb.Unmarshaler{}
 	umrsh.AllowUnknownFields = false
 	err = umrsh.Unmarshal(r, in)
 	if err != nil {
-		return nil, fmt.Errorf("read input: %s", err)
+		return nil, errors.Wrapf(err, "invalid json in %q", path)
+	}
+
+	return in, nil
+}
+
+// ParseProvisionStartupRequest parses ProvisionStartupRequest input request data from
+// the input file.
+func ParseProvisionStartupRequest(path string) (*api.ProvisionStartupRequest, error) {
+	in := &api.ProvisionStartupRequest{}
+	r, err := os.Open(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "open file %q", path)
+	}
+
+	umrsh := jsonpb.Unmarshaler{}
+	umrsh.AllowUnknownFields = false
+	err = umrsh.Unmarshal(r, in)
+	if err != nil {
+		return nil, errors.Wrapf(err, "invalid json in %q", path)
 	}
 
 	return in, nil

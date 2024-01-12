@@ -34,43 +34,61 @@ Outside chroot
 cd ~/chromiumos
 cros workon --host start local-cft && cros_sdk -- sudo emerge local-cft
 
-./chroot/usr/bin/local-cft -board ${BOARD?} -host ${D?} -stayalive -port cros-dut=8123 -port cache-server=8181
+./chroot/usr/bin/local-cft -board ${BOARD?} -host ${D?} -stayalive -port cros-dut=8123 -port cache-server=8082
 # If you made changes in another service like cros-dut run
-# ./chroot/usr/bin/local-cft -board ${BOARD?} -host ${D?} -stayalive -port cros-dut=8123 -port cache-server=8181 --chroot ~/chromiumos/chroot --localservices cros-dut
+# ./chroot/usr/bin/local-cft -board ${BOARD?} -host ${D?} -stayalive -port cros-dut=8123 -port cache-server=8082 --chroot ~/chromiumos/chroot --localservices cros-dut
 ```
 
 To test detailed request via ssh
 ```
-~/chromiumos/src/platform/dev/fast_build.sh -b chromiumos/test/provision/v2/cros-fw-provision -o ~/go/bin && \
-cat >/tmp/input.json <<EOF && ~/go/bin/cros-fw-provision cli -input /tmp/input.json -output /tmp/output.json ; cat /tmp/output.json
+YOUR_IP_ADDRESS=192.168.100.1
+cat >/tmp/startup.json <<STARTUP
 {
-        "board": "${BOARD?}",
-        "model": "${MODEL?}",
-        "dut_server_address": {
+        "dut": {
+                "chromeos": {
+                        "dut_model": {
+                                "build_target": "${BOARD?}",
+                                "model_name": "${MODEL?}"
+                        }
+                }
+        },
+        "dut_server": {
                 "address": "localhost",
                 "port": 8123
         },
-        "cache_server_address": {
-                "address": "localhost",
-                "port": 8181
-        },
-        "useServo": false,
-        "detailedRequest": {
-                "mainRoPayload": {
-                        "firmwareImagePath": {
-                                "hostType": "GS",
-                                "path": "${FW_IMAGE?}"
-                        }
-                },
-                "ecRoPayload": {
-                        "firmwareImagePath": {
-                                "hostType": "GS",
-                                "path": "${FW_IMAGE?}"
+        "metadata": {
+                "@type": "chromiumos.test.api.FirmwareProvisionStartupMetadata",
+                "cache_server_address": {
+                        "address": "${YOUR_IP_ADDRESS?}",
+                        "port": 8082
+                }
+        }
+}
+STARTUP
+cat >/tmp/install.json <<INSTALL
+{
+        "metadata": {
+                "@type": "chromiumos.test.api.FirmwareProvisionInstallMetadata",
+                "firmware_config": {
+                        "mainRoPayload": {
+                                "firmwareImagePath": {
+                                        "hostType": "GS",
+                                        "path": "${FW_IMAGE?}"
+                                }
+                        },
+                        "ecRoPayload": {
+                                "firmwareImagePath": {
+                                        "hostType": "GS",
+                                        "path": "${FW_IMAGE?}"
+                                }
                         }
                 }
         }
 }
-EOF
+INSTALL
+~/chromiumos/src/platform/dev/fast_build.sh -b chromiumos/test/provision/v2/cros-fw-provision \
+        -o ~/go/bin/cros-fw-provision && \
+        ~/go/bin/cros-fw-provision cli -startup /tmp/startup.json -install /tmp/install.json
 ```
 
 ## Dependencies

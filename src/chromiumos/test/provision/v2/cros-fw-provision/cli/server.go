@@ -8,17 +8,18 @@ package cli
 import (
 	"chromiumos/lro"
 	common_utils "chromiumos/test/provision/v2/common-utils"
-	firmwareservice "chromiumos/test/provision/v2/cros-fw-provision/service"
-	state_machine "chromiumos/test/provision/v2/cros-fw-provision/state-machine"
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net"
 	"net/url"
 
+	"github.com/pkg/errors"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	api1 "go.chromium.org/chromiumos/config/go/test/lab/api"
+
+	firmwareservice "chromiumos/test/provision/v2/cros-fw-provision/service"
+	state_machine "chromiumos/test/provision/v2/cros-fw-provision/state-machine"
 
 	"go.chromium.org/chromiumos/config/go/longrunning"
 	"google.golang.org/grpc"
@@ -41,6 +42,9 @@ type FWProvisionServer struct {
 	manager *lro.Manager
 
 	cacheServer url.URL
+
+	board string
+	model string
 }
 
 func ipEndpointToHostPort(i *api1.IpEndpoint) (string, error) {
@@ -53,111 +57,141 @@ func ipEndpointToHostPort(i *api1.IpEndpoint) (string, error) {
 	return fmt.Sprintf("%v:%v", i.GetAddress(), i.GetPort()), nil
 }
 
-func NewFWProvisionServer(listenPort int, log *log.Logger, dutAdapter common_utils.ServiceAdapterInterface, servoClient api.ServodServiceClient, cacheServer url.URL) (*FWProvisionServer, func(), error) {
+// NewFWProvisionServer returns a new FWProvisionServer, a closer function, and an error.
+func NewFWProvisionServer(listenPort int, log *log.Logger) (*FWProvisionServer, func(), error) {
+	manager := lro.New()
 	return &FWProvisionServer{
-		listenPort:  listenPort,
-		log:         log,
-		dutAdapter:  dutAdapter,
-		servoClient: servoClient,
-		cacheServer: cacheServer,
-	}, nil, nil
+		listenPort: listenPort,
+		log:        log,
+		manager:    manager,
+	}, manager.Close, nil
 }
 
+// Start starts the grpc server.
 func (ps *FWProvisionServer) Start() error {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", ps.listenPort))
 	if err != nil {
 		return fmt.Errorf("failed to create listener at %d", ps.listenPort)
 	}
-	ps.manager = lro.New()
-	defer ps.manager.Close()
 	server := grpc.NewServer()
-	api.RegisterFirmwareProvisionServiceServer(server, ps)
+	api.RegisterGenericProvisionServiceServer(server, ps)
 	longrunning.RegisterOperationsServer(server, ps.manager)
 	ps.log.Println("provisionservice listen to request at ", l.Addr().String())
 	return server.Serve(l)
 }
 
-func (ps *FWProvisionServer) Provision(ctx context.Context, req *api.ProvisionFirmwareRequest) (*longrunning.Operation, error) {
-	ps.log.Printf("Received api.ProvisionFirmwareRequest: %#v\n", req)
-	log.Printf("Received api.ProvisionFirmwareRequest: %#v\n", req)
+// StartUp handles the initialization of the GenericProvisionService by passing in parameters through the ProvisionStartupRequest.
+func (ps *FWProvisionServer) StartUp(ctx context.Context, req *api.ProvisionStartupRequest) (*api.ProvisionStartupResponse, error) {
+	ps.log.Println("Received api.ProvisionStartupRequest: ", req)
+	response := api.ProvisionStartupResponse{}
+
+	if err := ps.validateStartupRequest(req); err != nil {
+		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
+		return &response, err
+	}
+
+	ps.board = req.Dut.GetChromeos().DutModel.BuildTarget
+	ps.model = req.Dut.GetChromeos().DutModel.ModelName
+
+	dutServAddr, err := ipEndpointToHostPort(req.DutServer)
+	if err != nil {
+		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
+		return &response, errors.Wrap(err, "failed to parse IpEndpoint of Dut Server")
+	}
+	dutAdapter, err := connectToDutServer(dutServAddr)
+	if err != nil {
+		response.Status = api.ProvisionStartupResponse_STATUS_STARTUP_FAILED
+		return &response, errors.Wrap(err, "connect to dut server")
+	}
+	ps.dutAdapter = dutAdapter
+
+	metadata := new(api.FirmwareProvisionStartupMetadata)
+	if !req.Metadata.MessageIs(metadata) {
+		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
+		return &response, errors.New("ProvisionStartupRequest: metadata must be chromiumos.test.api.FirmwareProvisionStartupMetadata")
+	}
+	if err := req.Metadata.UnmarshalTo(metadata); err != nil {
+		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
+		return &response, errors.Wrap(err, "failed to parse metadata")
+	}
+	cacheServerAddr, err := ipEndpointToHostPort(metadata.CacheServerAddress)
+	if err != nil {
+		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
+		return &response, errors.Wrap(err, "failed to parse IpEndpoint of cache server")
+	}
+	ps.cacheServer.Scheme = "http"
+	ps.cacheServer.Host = cacheServerAddr
+	if metadata.CacheServerAddress.Address == "localhost" {
+		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
+		return &response, errors.New("ProvisionStartupRequest: cache_server_address must be visible from DUT, i.e. no localhost")
+	}
+
+	response.Status = api.ProvisionStartupResponse_STATUS_SUCCESS
+	return &response, nil
+}
+
+func (ps *FWProvisionServer) validateStartupRequest(req *api.ProvisionStartupRequest) error {
+	if req == nil {
+		return errors.New("ProvisionStartupRequest is required")
+	}
+	if req.Dut == nil {
+		return errors.New("ProvisionStartupRequest: dut is required")
+	}
+	if req.Dut.GetChromeos() == nil {
+		return errors.New("ProvisionStartupRequest: dut.chromeos is required")
+	}
+	if req.Dut.GetChromeos().DutModel == nil {
+		return errors.New("ProvisionStartupRequest: dut.chromeos.dut_model is required")
+	}
+	if req.Dut.GetChromeos().DutModel.BuildTarget == "" {
+		return errors.New("ProvisionStartupRequest: dut.chromeos.dut_model.build_target is required")
+	}
+	if req.Dut.GetChromeos().DutModel.ModelName == "" {
+		return errors.New("ProvisionStartupRequest: dut.chromeos.dut_model.model_name is required")
+	}
+	if req.DutServer == nil {
+		return errors.New("ProvisionStartupRequest: dut_server is required")
+	}
+	if req.Metadata == nil {
+		return errors.New("ProvisionStartupRequest: metadata is required")
+	}
+	return nil
+}
+
+// Install starts the firmware provisioning in the background, and returns a long running operation or an error.
+func (ps *FWProvisionServer) Install(ctx context.Context, req *api.InstallRequest) (*longrunning.Operation, error) {
+	ps.log.Println("Received api.InstallCrosRequest: ", req)
 	op := ps.manager.NewOperation()
+
+	go ps.doProvision(context.Background(), req, op.Name)
+
+	return op, nil
+}
+
+func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRequest, lroName string) {
 	response := api.InstallResponse{}
+	defer func() {
+		ps.manager.SetResult(lroName, &response)
+		ps.log.Printf("Provision set OP Response to:%s ", response.String())
+	}()
 
-	if err := ps.validateProtoInputs(req); err != nil {
-		response.Status = api.InstallResponse_STATUS_OK
-		ps.manager.SetResult(op.Name, &response)
-		return nil, firmwareservice.InvalidRequestErr(err)
-	}
-
-	var dutAdapter *common_utils.ServiceAdapter
-	var err error
-	if !req.GetUseServo() && ps.dutAdapter == nil {
-		// the (ps.dutAdapter == nil) check ensures that cros-dut address
-		// specified during cros-fw-provisioning startup is preferred.
-		dutAdapter, err = connectToDutServer(req.GetDutServerAddress())
-		if err != nil {
-			response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
-			ps.manager.SetResult(op.Name, &response)
-			log.Fatalln(err)
-			return nil, firmwareservice.InvalidRequestErr(err)
-		}
-		ps.dutAdapter = dutAdapter
-	}
-
-	var servodServiceClient api.ServodServiceClient
-	if req.GetUseServo() && ps.servoClient == nil {
-		// the (ps.servoClient == nil) check ensures that cros-servod address
-		// specified during cros-fw-provisioning startup is preferred.
-		servodServiceClient, err = connectToCrosServod(req.GetCrosServodAddress())
-		if err != nil {
-			response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
-			ps.manager.SetResult(op.Name, &response)
-			log.Fatalln(err)
-			return nil, firmwareservice.InvalidRequestErr(err)
-		}
-		ps.servoClient = servodServiceClient
-	}
-
-	fwService, err := firmwareservice.NewFirmwareService(ctx, ps.dutAdapter, ps.servoClient, ps.cacheServer, req)
+	fwService, err := firmwareservice.NewFirmwareService(ctx, ps.dutAdapter, ps.servoClient, ps.cacheServer,
+		ps.board, ps.model, false, req)
 	if err != nil {
 		response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
-		ps.manager.SetResult(op.Name, &response)
+		ps.manager.SetResult(lroName, &response)
 		log.Fatalf("Failed to initialize Firmware Service: %v", err)
-		return nil, firmwareservice.InvalidRequestErr(err)
+		return
 	}
 
+	response.Status = api.InstallResponse_STATUS_OK
 	// Execute state machine
 	cs := state_machine.NewFirmwarePrepareState(fwService)
-	var statusResponse api.InstallResponse_Status
 	for cs != nil {
-		if _, statusResponse, err = cs.Execute(ctx, ps.log); err != nil {
+		if _, response.Status, err = cs.Execute(ctx, ps.log); err != nil {
+			log.Fatalf("State machine failed: %v", err)
 			break
 		}
 		cs = cs.Next()
 	}
-
-	if err == nil {
-		log.Println("Finished Successfuly!")
-		response.Status = api.InstallResponse_STATUS_OK
-		ps.manager.SetResult(op.Name, &response)
-	} else {
-		response.Status = statusResponse
-		ps.manager.SetResult(op.Name, &response)
-		log.Println("Finished with error:", err)
-	}
-	return op, nil
-}
-
-// validateProtoInputs ensures the proto part of the CLI input is valid
-func (ps *FWProvisionServer) validateProtoInputs(req *api.ProvisionFirmwareRequest) error {
-	if len(req.Board) == 0 {
-		return errors.New("ProvisionFirmwareRequest: Board field is required ")
-	}
-	if len(req.Model) == 0 {
-		return errors.New("ProvisionFirmwareRequest: Model field is required ")
-	}
-	if req.GetDetailedRequest() == nil {
-		return errors.New("ProvisionFirmwareRequest: DetailedRequest is required")
-	}
-	return nil
 }
