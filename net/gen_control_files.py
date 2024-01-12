@@ -268,6 +268,7 @@ for carrier in [
     write_control_file(
         out_dir, ["cellular_ota"], carrier, extra_dependencies, "e2e", tests
     )
+
     tests = single_test_template.format(
         test_exprs='[\'("group:cellular_crosbolt" && "cellular_crosbolt_perf_nightly")\']'
     )
@@ -280,27 +281,17 @@ for carrier in [
         tests,
     )
 
-    if carrier in ["tmobile", "docomo", "softbank"]:
-        hotspot_tests = [
-            f"'network.HotspotUpdateConfiguration.{carrier}'",
-            f"'network.HotspotUpdateConfigurationWhenHotspotOn.{carrier}'",
-            f"'network.HotspotAutoDisable.{carrier}'",
-            f"'network.HotspotDisabledWhenNoUpstreamNetwork.{carrier}'",
-            f"'network.HotspotEnableDisableInLockScreen.{carrier}'",
-            f"'network.HotspotPolicy.{carrier}'",
-            f"'network.HotspotAbortEnable.{carrier}'",
-        ]
-        tests = single_test_template.format(
-            test_exprs=f"[{', '.join(hotspot_tests)}]"
-        )
-        write_control_file(
-            out_dir,
-            ["cellular_ota_flaky"],
-            carrier,
-            extra_dependencies,
-            "hotspot",
-            tests,
-        )
+    tests = single_test_template.format(
+        test_exprs=f'[\'("group:cellular" && "cellular_sim_active" && "cellular_unstable" && "cellular_hotspot" && (!"cellular_carrier_dependent" || "cellular_carrier_{carrier}"))\']'
+    )
+    write_control_file(
+        out_dir,
+        ["cellular_ota_flaky"],
+        carrier,
+        extra_dependencies,
+        "hotspot",
+        tests,
+    )
 
     # limit carrier independent cq tests to tmobile to save lab time.
     if carrier == "tmobile":
