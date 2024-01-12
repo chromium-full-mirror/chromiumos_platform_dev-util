@@ -72,6 +72,14 @@ func TestFillDUTInfo(t *testing.T) {
 			ServoHostname:   "c6-r9-r7-labstation",
 			ServoPort:       "9996",
 			Phase:           "PHASE_UNSPECIFIED",
+			SimInfos: []string{
+				"sim_slot_id:1", "sim_1_num_profiles:1", "sim_1_0_iccid:1", "sim_1_0_pin:1111",
+				"sim_1_0_puk:49830420", "sim_1_0_carrier_name:NETWORK_TMOBILE",
+				"sim_1_0_own_number:6507891159", "sim_slot_id:2", "sim_2_type:SIM_PHYSICAL",
+				"sim_2_num_profiles:1", "sim_2_0_iccid:2", "sim_2_0_pin:2222",
+				"sim_2_0_puk:49830420", "sim_2_0_carrier_name:NETWORK_ATT",
+				"sim_2_0_own_number:6507891159",
+			},
 		},
 		{
 			Addr:            "[0:0:0:0:0:ffff:7f00:1]:2",
@@ -124,6 +132,34 @@ func TestFillDUTInfo(t *testing.T) {
 							ServodAddress: &labapi.IpEndpoint{
 								Address: "c6-r9-r7-labstation",
 								Port:    9996,
+							},
+						},
+						SimInfos: []*labapi.SIMInfo{
+							{
+								SlotId: 1,
+								Type:   *labapi.SIMType_SIM_UNKNOWN.Enum(),
+								ProfileInfo: []*labapi.SIMProfileInfo{
+									{
+										Iccid:       "1",
+										SimPin:      "1111",
+										SimPuk:      "49830420",
+										CarrierName: *labapi.NetworkProvider_NETWORK_TMOBILE.Enum(),
+										OwnNumber:   "6507891159",
+									},
+								},
+							},
+							{
+								SlotId: 2,
+								Type:   *labapi.SIMType_SIM_PHYSICAL.Enum(),
+								ProfileInfo: []*labapi.SIMProfileInfo{
+									{
+										Iccid:       "2",
+										SimPin:      "2222",
+										SimPuk:      "49830420",
+										CarrierName: *labapi.NetworkProvider_NETWORK_ATT.Enum(),
+										OwnNumber:   "6507891159",
+									},
+								},
 							},
 						},
 					},
@@ -232,6 +268,14 @@ func TestFillDUTInfoExtended(t *testing.T) {
 			HwIDList:            []string{"hwid_component:hwid123"},
 			CacheServer:         "cache1:8001",
 			HWID:                "Atlas 123-34",
+			SimInfos: []string{
+				"sim_slot_id:1", "sim_1_num_profiles:1", "sim_1_0_iccid:1", "sim_1_0_pin:1111",
+				"sim_1_0_puk:49830420", "sim_1_0_carrier_name:NETWORK_TMOBILE",
+				"sim_1_0_own_number:6507891159", "sim_slot_id:2", "sim_2_type:SIM_PHYSICAL",
+				"sim_2_num_profiles:1", "sim_2_0_iccid:2", "sim_2_0_pin:2222",
+				"sim_2_0_puk:49830420", "sim_2_0_carrier_name:NETWORK_ATT",
+				"sim_2_0_own_number:6507891159",
+			},
 		},
 	}
 	input := []*api.CrosTestRequest_Device{
@@ -279,6 +323,34 @@ func TestFillDUTInfoExtended(t *testing.T) {
 						Sku:           "123",
 						HwidComponent: []string{"hwid123"},
 						Hwid:          "Atlas 123-34",
+						SimInfos: []*labapi.SIMInfo{
+							{
+								SlotId: 1,
+								Type:   *labapi.SIMType_SIM_UNKNOWN.Enum(),
+								ProfileInfo: []*labapi.SIMProfileInfo{
+									{
+										Iccid:       "1",
+										SimPin:      "1111",
+										SimPuk:      "49830420",
+										CarrierName: *labapi.NetworkProvider_NETWORK_TMOBILE.Enum(),
+										OwnNumber:   "6507891159",
+									},
+								},
+							},
+							{
+								SlotId: 2,
+								Type:   *labapi.SIMType_SIM_PHYSICAL.Enum(),
+								ProfileInfo: []*labapi.SIMProfileInfo{
+									{
+										Iccid:       "2",
+										SimPin:      "2222",
+										SimPuk:      "49830420",
+										CarrierName: *labapi.NetworkProvider_NETWORK_ATT.Enum(),
+										OwnNumber:   "6507891159",
+									},
+								},
+							},
+						},
 					},
 				},
 				CacheServer: &labapi.CacheServer{Address: &labapi.IpEndpoint{Address: "cache1", Port: 8001}},
