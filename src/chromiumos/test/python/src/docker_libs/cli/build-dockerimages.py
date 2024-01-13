@@ -65,6 +65,10 @@ from src.docker_libs.build_libs.pre_process.pre_process_prep import (
 from src.docker_libs.build_libs.shared.common_service_prep import (
     CommonServiceDockerPrepper,
 )
+from src.docker_libs.build_libs.shared.base_service_prep import (
+    BaseServicePrepper,
+)
+
 
 
 # pylint: enable=import-error,wrong-import-position
@@ -99,7 +103,7 @@ REGISTERED_BUILDS = {
     "cros-hpt": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "post-process": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "provision-filter": {"prepper": CommonServiceDockerPrepper, "cloud": False},
-
+    "cros-ddd-filter": {"prepper": BaseServicePrepper, "cloud": False},
 }
 
 # There is a ~1 in 10000 err with the fetching of the base container
@@ -112,9 +116,10 @@ DO_NOT_BUILD = set(
     ["cros-callbox", "cros-servod", "cros-fw-provision", "cros-hpt"]
 )
 # NOTE: when promoting a service from DO_NOT_BUILD, it should be added to
-# NON_CRITICAL for atleast a short time to verify health.
+# NON_CRITICAL for at least a short time to verify health.
 NON_CRITICAL = set(
-    ["cros-servod", "cros-publish", "android-provision", "cros-pvs", "post-process"]
+    ["cros-servod", "cros-publish", "android-provision", "cros-pvs",
+     "cros-ddd-filter"]
 )
 
 
