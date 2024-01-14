@@ -48,7 +48,7 @@ func runCrosierInitCmd(ctx context.Context, logger *log.Logger, dut api.DutServi
 	var err error
 
 	cmdExec := api.ExecCommandRequest{
-		Command: testRunScriptPath,
+		Command: testInitScriptPath,
 		Args:    []string{},
 	}
 
