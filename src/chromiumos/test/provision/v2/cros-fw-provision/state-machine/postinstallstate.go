@@ -12,6 +12,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/pkg/errors"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -26,11 +27,36 @@ func (s FirmwarePostInstallState) Execute(ctx context.Context, log *log.Logger) 
 	s.service.DeleteArchiveDirectories()
 	err := s.service.RestartDut(ctx, false)
 	if err != nil {
-		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UnreachablePostProvisionErr(err)
+		return nil, api.InstallResponse_STATUS_DUT_UNREACHABLE_POST_FIRMWARE_UPDATE, firmwareservice.UnreachablePostProvisionErr(err)
 	}
 
-	// TODO(sfrolov): if Firmware Version Mismatched:
-	// return FirmwareMismatchPostProvisionErr(fmt.Errorf("expected fw version: %v, got: %v"))
+	versions, err := s.service.ActiveFirmwareVersions(ctx)
+	if err != nil {
+		return nil, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE, firmwareservice.FirmwareMismatchPostProvisionErr(err)
+	}
+	log.Printf("[FW Provisioning: Post Install] want firmware version ap:%+v ec:%+v\n", s.service.ExpectedVersions.AP.Versions, s.service.ExpectedVersions.EC.Versions)
+	log.Printf("[FW Provisioning: Post Install]  got firmware version ap:%+v ec:%+v\n", versions.AP.Versions, versions.EC.Versions)
+	if s.service.ExpectedVersions.AP.Versions.RO != "" && s.service.ExpectedVersions.AP.Versions.RO != versions.AP.Versions.RO {
+		return nil, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
+			firmwareservice.FirmwareMismatchPostProvisionErr(errors.Errorf(
+				"incorrect ap ro version got %q, want %q", versions.AP.Versions.RO, s.service.ExpectedVersions.AP.Versions.RO))
+	}
+	if s.service.ExpectedVersions.AP.Versions.RW != "" && s.service.ExpectedVersions.AP.Versions.RW != versions.AP.Versions.RW {
+		return nil, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
+			firmwareservice.FirmwareMismatchPostProvisionErr(errors.Errorf(
+				"incorrect ap rw version got %q, want %q", versions.AP.Versions.RW, s.service.ExpectedVersions.AP.Versions.RW))
+	}
+	if s.service.ExpectedVersions.EC.Versions.RO != "" && s.service.ExpectedVersions.EC.Versions.RO != versions.EC.Versions.RO {
+		return nil, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
+			firmwareservice.FirmwareMismatchPostProvisionErr(errors.Errorf(
+				"incorrect ec ro version got %q, want %q", versions.EC.Versions.RO, s.service.ExpectedVersions.EC.Versions.RO))
+	}
+	if s.service.ExpectedVersions.EC.Versions.RW != "" && s.service.ExpectedVersions.EC.Versions.RW != versions.EC.Versions.RW {
+		return nil, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
+			firmwareservice.FirmwareMismatchPostProvisionErr(errors.Errorf(
+				"incorrect ec rw version got %q, want %q", versions.EC.Versions.RW, s.service.ExpectedVersions.EC.Versions.RW))
+	}
+
 	return nil, api.InstallResponse_STATUS_OK, nil
 }
 

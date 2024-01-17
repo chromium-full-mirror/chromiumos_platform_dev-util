@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -22,6 +23,22 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"gopkg.in/yaml.v3"
 )
+
+// FirmwareVersions holds the ro and rw versions read from a firmware binary.
+type FirmwareVersions struct {
+	AP struct {
+		Versions struct {
+			RO string `yaml:"ro"`
+			RW string `yaml:"rw"`
+		} `yaml:"versions"`
+	} `yaml:"host"`
+	EC struct {
+		Versions struct {
+			RO string `yaml:"ro"`
+			RW string `yaml:"rw"`
+		} `yaml:"versions"`
+	} `yaml:"ec"`
+}
 
 // FirmwareService implements ServiceInterface
 type FirmwareService struct {
@@ -51,7 +68,12 @@ type FirmwareService struct {
 	servoConnection servoadapter.ServoHostInterface
 	servoPort       int
 
-	CacheServer url.URL
+	CacheServer      url.URL
+	ExpectedVersions FirmwareVersions
+}
+
+type versionJSON struct {
+	Default FirmwareVersions `yaml:"default"`
 }
 
 // NewFirmwareService initializes a FirmwareService.
@@ -324,10 +346,93 @@ func (fws *FirmwareService) DeleteArchiveDirectories() error {
 // If flashing over ssh, simply calls runFutility().
 // If flashing over servo, also runs pre- and post-flashing dut-controls.
 func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
+	if err := fws.ExtractFirmwareVersions(ctx, rwOnly, futilityImageArgs); err != nil {
+		return errors.Wrap(err, "extract versions")
+	}
 	if fws.useServo {
 		return fws.servoFlash(ctx, rwOnly, futilityImageArgs)
 	}
 	return fws.sshFlash(ctx, rwOnly, futilityImageArgs)
+}
+
+// ExtractFirmwareVersions uses futility to get the version numbers from the images.
+func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
+	if len(futilityImageArgs) == 0 {
+		return errors.New("unable to gte version: no futility Image args provided")
+	}
+
+	futilityArgs := futilityImageArgs
+	futilityArgs = append([]string{"update", "--manifest"}, futilityArgs...)
+
+	connection := fws.GetConnectionToFlashingDevice()
+	out, err := connection.RunCmd(ctx, "futility", futilityArgs)
+	if err != nil {
+		return errors.Wrap(err, "failed to exec futility")
+	}
+	versions := versionJSON{}
+	err = yaml.Unmarshal([]byte(out), &versions)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse futility manifest")
+	}
+
+	if !rwOnly && versions.Default.AP.Versions.RO != "" {
+		fws.ExpectedVersions.AP.Versions.RO = versions.Default.AP.Versions.RO
+	}
+	if versions.Default.AP.Versions.RW != "" {
+		fws.ExpectedVersions.AP.Versions.RW = versions.Default.AP.Versions.RW
+	}
+	if !rwOnly && versions.Default.EC.Versions.RO != "" {
+		fws.ExpectedVersions.EC.Versions.RO = versions.Default.EC.Versions.RO
+	}
+	if versions.Default.EC.Versions.RW != "" {
+		fws.ExpectedVersions.EC.Versions.RW = versions.Default.EC.Versions.RW
+	}
+	return nil
+}
+
+// ActiveFirmwareVersions returns the firmware versions currently running on the DUT.
+func (fws *FirmwareService) ActiveFirmwareVersions(ctx context.Context) (*FirmwareVersions, error) {
+	var versions FirmwareVersions
+	// Run crossystem ro_fwid fwid to get AP versions
+	out, err := fws.connection.RunCmd(ctx, "crossystem", []string{"ro_fwid", "fwid"})
+	if err != nil {
+		return nil, errors.Wrap(err, "crossystem failed")
+	}
+	apVers := strings.SplitN(out, " ", 2)
+	if len(apVers) != 2 {
+		return nil, errors.Errorf("incorrect crossystem output: %q", out)
+	}
+	versions.AP.Versions.RO = apVers[0]
+	versions.AP.Versions.RW = apVers[1]
+
+	// Run ectool version to get EC versions
+	out, err = fws.connection.RunCmd(ctx, "ectool", []string{"version"})
+	if err != nil {
+		// Wilco, etc.
+		if strings.Contains(out, "Very likely this board doesn't have a Chromium EC") {
+			return &versions, nil
+		}
+		return nil, errors.Wrap(err, "ectool failed")
+	}
+	roRE, err := regexp.Compile(`RO version:\s*(\S+)\s*\n`)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid roRE")
+	}
+	rwRE, err := regexp.Compile(`RW version:\s*(\S+)\s*\n`)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid rwRE")
+	}
+	if m := roRE.FindStringSubmatch(out); m != nil {
+		versions.EC.Versions.RO = m[1]
+	} else {
+		return nil, errors.Errorf("EC RO version not found in %q", out)
+	}
+	if m := rwRE.FindStringSubmatch(out); m != nil {
+		versions.EC.Versions.RW = m[1]
+	} else {
+		return nil, errors.Errorf("EC RW version not found in %q", out)
+	}
+	return &versions, nil
 }
 
 func (fws *FirmwareService) sshFlash(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {

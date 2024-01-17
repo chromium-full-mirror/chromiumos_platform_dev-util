@@ -216,7 +216,9 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			}
 			expectedFutilityArgs := append([]string{"update", "--mode=recovery"}, expectedFutilityImageArgs...)
 			expectedFutilityArgs = append(expectedFutilityArgs, "--wp=0")
+			expectedFutilityManifestArgs := append([]string{"update", "--manifest"}, expectedFutilityImageArgs...)
 			gomock.InOrder(
+				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityManifestArgs).Return("", nil),
 				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityArgs).Return("", nil),
 			)
 
@@ -234,7 +236,9 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 
 			// Set mock expectations.
 			expectedFutilityArgs := []string{"update", "--mode=recovery", "--image=/tmp/someTempDir/bios.bin", "--wp=1"}
+			expectedFutilityManifestArgs := []string{"update", "--manifest", "--image=/tmp/someTempDir/bios.bin"}
 			gomock.InOrder(
+				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityManifestArgs).Return("", nil),
 				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityArgs).Return("", nil),
 			)
 
@@ -253,6 +257,8 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			sam.EXPECT().DeleteDirectory(gomock.Any(), "/tmp/someTempDir").Return(nil),
 			sam.EXPECT().Restart(gomock.Any()).Return(nil),
 			sam.EXPECT().RunCmd(gomock.Any(), "true", nil).Return("", nil),
+			sam.EXPECT().RunCmd(gomock.Any(), "crossystem", []string{"ro_fwid", "fwid"}).Return("roversion rwversion", nil),
+			sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"version"}).Return("RO version: ecroversion\nRW version: ecrwversion\n", nil),
 		)
 		// Execute the state and proceed.
 		_, _, err = st.Execute(ctx, log)
