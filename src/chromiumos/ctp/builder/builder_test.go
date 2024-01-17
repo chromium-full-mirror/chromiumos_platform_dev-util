@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/test_platform"
+	"go.chromium.org/chromiumos/infra/proto/go/test_platform/common"
 	"go.chromium.org/chromiumos/platform/dev-util/src/chromiumos/ctp/buildbucket"
 	"go.chromium.org/chromiumos/platform/dev-util/src/chromiumos/ctp/site"
 	"go.chromium.org/luci/auth"
@@ -49,6 +50,9 @@ var CmpOpts = cmpopts.IgnoreUnexported(
 	test_platform.Request_Params_Time{},
 	test_platform.Request_Suite{},
 	test_platform.Request_Params_ResultsUploadConfig{},
+	common.CftStepsConfig{},
+	common.CftStepsConfig_HwTestConfig{},
+	common.HwTestConfig{},
 )
 
 var testValidateAndAddDefaultsData = []struct {
@@ -546,11 +550,20 @@ func TestTestPlatformRequest(t *testing.T) {
 		ResultsUploadConfig: &test_platform.Request_Params_ResultsUploadConfig{
 			Mode: test_platform.Request_Params_ResultsUploadConfig_TEST_RESULTS_VISIBILITY_CUSTOM_REALM,
 		},
-		TRV2:        true,
-		TestPlan:    sampleTestPlan,
-		UseScheduke: true,
+		TRV2:         true,
+		CpconPublish: true,
+		TestPlan:     sampleTestPlan,
+		UseScheduke:  true,
 	}
 	buildTags := map[string]string{"foo-tag": "bar-tag"}
+
+	cftSteps := &common.CftStepsConfig{
+		ConfigType: &common.CftStepsConfig_HwTestConfig{
+			HwTestConfig: &common.HwTestConfig{
+				RunCpconPublish: true,
+			},
+		},
+	}
 	wantRequest := &test_platform.Request{
 		TestPlan: sampleTestPlan,
 		Params: &test_platform.Request_Params{
@@ -590,6 +603,7 @@ func TestTestPlatformRequest(t *testing.T) {
 			},
 			RunViaCft:           true,
 			RunViaTrv2:          true,
+			Trv2StepsConfig:     cftSteps,
 			ScheduleViaScheduke: true,
 			Results: &test_platform.Request_Params_ResultsUploadConfig{
 				Mode: test_platform.Request_Params_ResultsUploadConfig_TEST_RESULTS_VISIBILITY_CUSTOM_REALM,

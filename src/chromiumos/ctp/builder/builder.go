@@ -12,6 +12,7 @@ import (
 
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/test_platform"
+	test_platform_common "go.chromium.org/chromiumos/infra/proto/go/test_platform/common"
 	"go.chromium.org/luci/auth"
 	buildbucketpb "go.chromium.org/luci/buildbucket/proto"
 	"go.chromium.org/luci/common/errors"
@@ -45,6 +46,8 @@ type CTPBuilder struct {
 	CFT bool
 	// TRV2 determines whether we will use Test Runner V2
 	TRV2 bool
+	// CpconPublish determines whether we will upload to cpcon
+	CpconPublish bool
 	// CTPBuildTags are any tags that should be associated solely with the CTP
 	// build and not passed down to the test_runner builds.
 	CTPBuildTags map[string]string
@@ -299,6 +302,13 @@ func (c *CTPBuilder) TestPlatformRequest(buildTags map[string]string) (*test_pla
 	}
 	gsPath := fmt.Sprintf("gs://%s/%s", c.ImageBucket, c.Image)
 
+	cftSteps := &test_platform_common.CftStepsConfig{
+		ConfigType: &test_platform_common.CftStepsConfig_HwTestConfig{
+			HwTestConfig: &test_platform_common.HwTestConfig{
+				RunCpconPublish: c.CpconPublish,
+			},
+		},
+	}
 	request := &test_platform.Request{
 		TestPlan: c.TestPlan,
 		Params: &test_platform.Request_Params{
@@ -329,6 +339,7 @@ func (c *CTPBuilder) TestPlatformRequest(buildTags map[string]string) (*test_pla
 			},
 			RunViaCft:           c.CFT,
 			RunViaTrv2:          c.TRV2,
+			Trv2StepsConfig:     cftSteps,
 			ScheduleViaScheduke: c.UseScheduke,
 			Results:             c.ResultsUploadConfig,
 		},
