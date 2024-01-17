@@ -15,7 +15,7 @@ source "${SCRIPT_DIR}/lib/build.sh"
 
 # Configure options for model.
 image_profile='ubnt_unifi-6-lite'
-extra_image_name='standard-1.0.0'
+extra_image_name='standard-1.0.1'
 sdk_url='https://archive.openwrt.org/releases/23.05.0/targets/ramips/mt7621/openwrt-sdk-23.05.0-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz'
 image_builder_url='https://archive.openwrt.org/releases/23.05.0/targets/ramips/mt7621/openwrt-imagebuilder-23.05.0-ramips-mt7621.Linux-x86_64.tar.xz'
 image_feature+=(

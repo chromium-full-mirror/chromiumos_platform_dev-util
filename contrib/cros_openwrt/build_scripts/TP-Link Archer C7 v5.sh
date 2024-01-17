@@ -15,7 +15,7 @@ source "${SCRIPT_DIR}/lib/build.sh"
 
 # Configure options for model.
 image_profile='tplink_archer-c7-v5'
-extra_image_name='standard-1.0.0'
+extra_image_name='standard-1.0.1'
 sdk_url='https://downloads.openwrt.org/releases/23.05.0/targets/ath79/generic/openwrt-sdk-23.05.0-ath79-generic_gcc-12.3.0_musl.Linux-x86_64.tar.xz'
 image_builder_url='https://downloads.openwrt.org/releases/23.05.0/targets/ath79/generic/openwrt-imagebuilder-23.05.0-ath79-generic.Linux-x86_64.tar.xz'
 

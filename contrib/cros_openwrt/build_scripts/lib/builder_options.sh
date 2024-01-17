@@ -67,6 +67,10 @@ export include_official_package=(
 
   # This allows the iptables command to work with the nftables firewall.
   'iptables-nft'
+
+  # Allows the use of rsync instead of scp to avoid issues with different sftp
+  # server versions ("scp" vs "scp -O"). Required for Tauto tests (b/320702355).
+  'rsync'
 )
 export exclude_package=(
   # Exclude other versions of packages built by feeds/base/hostapd not being

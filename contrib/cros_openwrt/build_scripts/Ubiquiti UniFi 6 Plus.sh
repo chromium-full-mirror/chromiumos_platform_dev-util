@@ -15,7 +15,7 @@ source "${SCRIPT_DIR}/lib/build.sh"
 
 # Configure options for model.
 image_profile='ubnt_unifi-6-plus'
-extra_image_name='standard-0.1.0'
+extra_image_name='standard-0.1.1'
 sdk_url='https://downloads.openwrt.org/snapshots/targets/mediatek/filogic/openwrt-sdk-mediatek-filogic_gcc-12.3.0_musl.Linux-x86_64.tar.xz'
 image_builder_url='https://downloads.openwrt.org/snapshots/targets/mediatek/filogic/openwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.xz'
 image_feature+=(
