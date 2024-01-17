@@ -19,7 +19,7 @@ const (
 )
 
 type mockExecUtil struct {
-	fail   map[string]bool
+	fail   map[string]string
 	output map[string]string
 	cmds   []string
 	args   [][]string
@@ -38,8 +38,8 @@ func (m *mockExecUtil) RunCmd(ctx context.Context, cmd string, args []string, du
 		}
 	}
 	if m.fail != nil {
-		if _, ok := m.fail[cmd]; ok {
-			return "", fmt.Errorf("failing " + cmd)
+		if v, ok := m.fail[cmd]; ok {
+			return "", fmt.Errorf("failing " + cmd + " " + v)
 		}
 	}
 	return "", nil
@@ -49,20 +49,21 @@ func TestStart(t *testing.T) {
 	testCases := []struct {
 		name     string
 		wantErr  bool
-		fail     map[string]bool
+		fail     map[string]string
 		wantCmds []string
 	}{
 		{
 			name: "Fail mkdir",
-			fail: map[string]bool{
-				mkdir: true,
+			fail: map[string]string{
+				mkdir: "mkdir failed",
 			},
 			wantErr:  true,
 			wantCmds: []string{mkdir},
 		}, {
+
 			name: "Fail perf",
-			fail: map[string]bool{
-				perf: true,
+			fail: map[string]string{
+				perf: "perf failed",
 			},
 			wantErr:  true,
 			wantCmds: []string{mkdir, perf},
@@ -95,7 +96,7 @@ func TestKill(t *testing.T) {
 		name     string
 		wantErr  bool
 		wantCmds []string
-		fail     map[string]bool
+		fail     map[string]string
 	}{
 		{
 			name:     "Pass",
@@ -105,8 +106,8 @@ func TestKill(t *testing.T) {
 			name:     "Fail",
 			wantErr:  true,
 			wantCmds: []string{kill},
-			fail: map[string]bool{
-				kill: true,
+			fail: map[string]string{
+				kill: "kill failed",
 			},
 		},
 	}
@@ -134,14 +135,15 @@ func TestKillAllFail(t *testing.T) {
 		name     string
 		wantErr  bool
 		wantCmds []string
-		fail     map[string]bool
+		fail     map[string]string
 		output   map[string]string
 		wantArgs [][]string
 	}{
 		{
+
 			name: "Fail",
-			fail: map[string]bool{
-				pgrep: true,
+			fail: map[string]string{
+				pgrep: "pgrep failed",
 			},
 			wantErr:  true,
 			wantCmds: []string{pgrep},

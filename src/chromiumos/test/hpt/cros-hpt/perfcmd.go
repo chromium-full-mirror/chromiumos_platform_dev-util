@@ -63,7 +63,7 @@ func (p *perfCmd) startPerf(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	log.Printf("<cros-hpt> perf started with pid %s", pid)
+	log.Printf("<cros-hpt> perf started with pid %s\n", pid)
 	return pid, nil
 }
 
@@ -76,7 +76,7 @@ func (p *perfCmd) kill(ctx context.Context, pid string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("<cros-hpt> Successfully stopped perf: %s", result)
+	log.Printf("<cros-hpt> Successfully stopped perf: %s\n", result)
 	return nil
 }
 
