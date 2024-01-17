@@ -49,6 +49,9 @@ type DutInfo struct {
 	PowerUnitOutlet     string
 	HydraHostName       string
 	SimInfos            []string
+	WifiSecretSsid      string
+	WifiSecretSecurity  string
+	WifiSecretPassword  string
 }
 
 // joinHostAndPort joins host and port to a single address.
@@ -248,6 +251,17 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 
 	}
 
+	wifiSecret := dut.GetWifiSecret()
+	wifiSecretSsid := ""
+	wifiSecretSecurity := ""
+	wifiSecretPassword := ""
+
+	if wifiSecret != nil {
+		wifiSecretSsid = wifiSecret.GetSsid()
+		wifiSecretSecurity = wifiSecret.GetSecurity()
+		wifiSecretPassword = wifiSecret.GetPassword()
+	}
+
 	return &DutInfo{
 		Addr:                addr,
 		Role:                role,
@@ -280,6 +294,9 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 		PowerUnitOutlet:     powerUnitOutlet,
 		HydraHostName:       hydraHostName,
 		SimInfos:            SimInfos,
+		WifiSecretSsid:      wifiSecretSsid,
+		WifiSecretSecurity:  wifiSecretSecurity,
+		WifiSecretPassword:  wifiSecretPassword,
 	}, nil
 }
 
@@ -340,6 +357,19 @@ func AppendChromeOsLabels(dut *DutInfo) (map[string]string, []string, error) {
 	// - Camerabox
 	if dut.CameraboxFacing != "" {
 		labels = append(labels, "camerabox_facing:"+dut.CameraboxFacing)
+	}
+
+	// - WifiSecret
+	if dut.WifiSecretSsid != "" {
+		labels = append(labels, "wifisecret_ssid:"+dut.WifiSecretSsid)
+	}
+
+	if dut.WifiSecretSecurity != "" {
+		labels = append(labels, "wifisecret_security:"+dut.WifiSecretSecurity)
+	}
+
+	if dut.WifiSecretPassword != "" {
+		labels = append(labels, "wifisecret_password:"+dut.WifiSecretPassword)
 	}
 
 	if len(dut.CableList) > 0 {

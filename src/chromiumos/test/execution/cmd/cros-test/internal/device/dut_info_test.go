@@ -80,6 +80,9 @@ func TestFillDUTInfo(t *testing.T) {
 				"sim_2_0_puk:49830420", "sim_2_0_carrier_name:NETWORK_ATT",
 				"sim_2_0_own_number:6507891159",
 			},
+			WifiSecretSsid:     "thelabssid",
+			WifiSecretSecurity: "wpa",
+			WifiSecretPassword: "the_p@ssw0rd",
 		},
 		{
 			Addr:            "[0:0:0:0:0:ffff:7f00:1]:2",
@@ -163,6 +166,11 @@ func TestFillDUTInfo(t *testing.T) {
 							},
 						},
 					},
+				},
+				WifiSecret: &labapi.WifiSecret{
+					Ssid:     "thelabssid",
+					Security: "wpa",
+					Password: "the_p@ssw0rd",
 				},
 			},
 			DutServer:       &labapi.IpEndpoint{Address: "cros-dut0", Port: 80},
@@ -276,6 +284,9 @@ func TestFillDUTInfoExtended(t *testing.T) {
 				"sim_2_0_puk:49830420", "sim_2_0_carrier_name:NETWORK_ATT",
 				"sim_2_0_own_number:6507891159",
 			},
+			WifiSecretSsid:     "thelabssid",
+			WifiSecretSecurity: "wpa",
+			WifiSecretPassword: "the_p@ssw0rd",
 		},
 	}
 	input := []*api.CrosTestRequest_Device{
@@ -352,6 +363,11 @@ func TestFillDUTInfoExtended(t *testing.T) {
 							},
 						},
 					},
+				},
+				WifiSecret: &labapi.WifiSecret{
+					Ssid:     "thelabssid",
+					Security: "wpa",
+					Password: "the_p@ssw0rd",
 				},
 				CacheServer: &labapi.CacheServer{Address: &labapi.IpEndpoint{Address: "cache1", Port: 8001}},
 			},
