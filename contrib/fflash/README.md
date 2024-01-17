@@ -106,7 +106,7 @@ tools/bazel run //:gazelle
 
 to update the BUILD.bazel files.
 
-Bazel emits a warning and a `buildozer`` command to automatically fix the `MODULE.bazel`` file if
+Bazel emits a warning and a `buildozer` command to automatically fix the `MODULE.bazel` file if
 it is outdated.
 
 ## Troubleshooting
