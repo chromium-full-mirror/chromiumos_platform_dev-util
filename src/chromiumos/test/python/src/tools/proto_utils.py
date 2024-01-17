@@ -90,7 +90,10 @@ def load_proto_from_file(
     """
     proto = proto_constructor()
     with open(file, "rb") as f:
-        proto_parser(f.read(), proto)
+        try:
+            proto_parser(f.read(), proto)
+        except Exception as err:
+            raise RuntimeError(f"error parsing proto file: {file}") from err
     return proto
 
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright 2023 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -8,7 +7,9 @@
 import os
 import pathlib
 import sys
-from typing import List, NamedTuple, Set
+from typing import List, NamedTuple, Optional, Set
+
+from google.protobuf import json_format  # pylint: disable=import-error
 
 
 sys.path.insert(1, str(pathlib.Path(__file__).parent.resolve() / "../../"))
@@ -53,7 +54,7 @@ _SUITE_SET_PROTO_FILES = [
 ]
 
 
-class _Suite(NamedTuple):
+class Suite(NamedTuple):
     """Represents a collection of Tests."""
 
     suite_id: str
@@ -63,7 +64,7 @@ class _Suite(NamedTuple):
     tests: Set[str]
 
 
-class _SuiteSet(NamedTuple):
+class SuiteSet(NamedTuple):
     """Represents a collection of Suites."""
 
     suite_set_id: str
@@ -86,7 +87,7 @@ def copy_suites(dest: str, test_metadata_dir: str) -> None:
         test_metadata_dir: Path to directory containing test metadata proto
             files.
     """
-    suites = _load_suites()
+    suites = load_suites()
 
     # Merge Suites with the same name. This is needed support Suites that are
     # defined in both config and config-internal as a result of the Suite
@@ -110,7 +111,7 @@ def copy_suite_sets(dest: str):
     Args:
         dest: File path to write the resulting SuiteSetList proto to.
     """
-    suite_sets = _load_suite_sets()
+    suite_sets = load_suite_sets()
 
     # Merge SuiteSets with the same name. This is needed support SuiteSets that
     # are defined in both config and config-internal as a result of the SuiteSet
@@ -130,20 +131,26 @@ def _load_test_ids(test_metadata_dir):
     return _convert_to_test_ids(test_metadata_list_protos)
 
 
-def _load_suites() -> List[_Suite]:
+def load_suites(files: List[str] = None) -> List[Suite]:
     """Gets a list of Suites from the protos defined in the config repos."""
+    if files is None:
+        files = _SUITE_PROTO_FILES
+
     suite_list_protos = proto_utils.load_protos_from_files(
-        _SUITE_PROTO_FILES,
+        files,
         suite_set_pb2.SuiteList,
         proto_utils.json_proto_parser,
     )
     return _convert_to_suites(suite_list_protos)
 
 
-def _load_suite_sets():
+def load_suite_sets(files: List[str] = None):
     """Gets a list of SuiteSets from the protos defined in the config repos."""
+    if files is None:
+        files = _SUITE_SET_PROTO_FILES
+
     suite_set_list_protos = proto_utils.load_protos_from_files(
-        _SUITE_SET_PROTO_FILES,
+        files,
         suite_set_pb2.SuiteSetList,
         proto_utils.json_proto_parser,
     )
@@ -163,7 +170,7 @@ def _convert_to_test_ids(
 
 def _convert_to_suites(
     suite_list_protos: List[suite_set_pb2.SuiteList],
-) -> List[_Suite]:
+) -> List[Suite]:
     """Converts Suite protos to an internal representations of Suites."""
     return [
         _convert_to_suite(suite_proto)
@@ -174,7 +181,7 @@ def _convert_to_suites(
 
 def _convert_to_suite_sets(
     suite_set_list_protos: List[suite_set_pb2.SuiteSetList],
-) -> List[_SuiteSet]:
+) -> List[SuiteSet]:
     """Converts SuiteSet protos to an internal representations of SuiteSets."""
     return [
         _convert_to_suite_set(suite_set_proto)
@@ -183,9 +190,13 @@ def _convert_to_suite_sets(
     ]
 
 
-def _convert_to_suite(suite_proto: suite_set_pb2.Suite) -> _Suite:
+def _convert_to_suite(suite_proto: suite_set_pb2.Suite) -> Suite:
     """Converts a Suite proto to an internal representations of Suites."""
-    return _Suite(
+    validation_err = _validate_suite(suite_proto)
+    if validation_err:
+        raise RuntimeError(validation_err)
+
+    return Suite(
         suite_id=suite_proto.id.value,
         owners={owner.email for owner in suite_proto.metadata.owners},
         bug_component=suite_proto.metadata.bug_component.value,
@@ -194,9 +205,13 @@ def _convert_to_suite(suite_proto: suite_set_pb2.Suite) -> _Suite:
     )
 
 
-def _convert_to_suite_set(suite_set_proto: suite_set_pb2.SuiteSet) -> _SuiteSet:
+def _convert_to_suite_set(suite_set_proto: suite_set_pb2.SuiteSet) -> SuiteSet:
     """Converts a SuiteSet proto to an internal representations of SuiteSets."""
-    return _SuiteSet(
+    validation_err = _validate_suite_set(suite_set_proto)
+    if validation_err:
+        raise RuntimeError(validation_err)
+
+    return SuiteSet(
         suite_set_id=suite_set_proto.id.value,
         owners={owner.email for owner in suite_set_proto.metadata.owners},
         bug_component=suite_set_proto.metadata.bug_component.value,
@@ -208,7 +223,46 @@ def _convert_to_suite_set(suite_set_proto: suite_set_pb2.SuiteSet) -> _SuiteSet:
     )
 
 
-def _union_suites(suites: List[_Suite]) -> List[_Suite]:
+def _validate_suite(suite_proto: suite_set_pb2.Suite) -> Optional[str]:
+    suite_str = json_format.MessageToJson(suite_proto)
+
+    if not (suite_proto.id and suite_proto.id.value):
+        return f"Suite missing ID: {suite_str}"
+
+    metadata_err = _validate_metadata(suite_proto.metadata)
+    if metadata_err:
+        return f"{metadata_err} for Suite: {suite_str}"
+
+    if not suite_proto.tests:
+        return f"Suite must contain at least one test: {suite_str}"
+
+
+def _validate_suite_set(
+    suite_set_proto: suite_set_pb2.SuiteSet,
+) -> Optional[str]:
+    suite_set_str = json_format.MessageToJson(suite_set_proto)
+
+    if not (suite_set_proto.id and suite_set_proto.id.value):
+        return f"SuiteSet missing ID: {suite_set_str}"
+
+    metadata_err = _validate_metadata(suite_set_proto.metadata)
+    if metadata_err:
+        return f"{metadata_err} for SuiteSet: {suite_set_str}"
+
+    if not (suite_set_proto.suite_sets or suite_set_proto.suites):
+        return f"SuiteSet must contain a Suite or SuiteSet: {suite_set_str}"
+
+
+def _validate_metadata(metadata: suite_set_pb2.Metadata) -> Optional[str]:
+    if not metadata.owners:
+        return "metadata missing owners"
+    if not (metadata.bug_component and metadata.bug_component.value):
+        return "metadata missing bug component"
+    if not (metadata.criteria and metadata.criteria.value):
+        return "metadata missing criteria"
+
+
+def _union_suites(suites: List[Suite]) -> List[Suite]:
     """Dedupes Suites with the same id by unioning their test lists."""
     suite_id_to_suite = {}
     for suite in suites:
@@ -220,7 +274,7 @@ def _union_suites(suites: List[_Suite]) -> List[_Suite]:
     return suite_id_to_suite.values()
 
 
-def _union_suite_sets(suite_sets: List[_SuiteSet]) -> List[_SuiteSet]:
+def _union_suite_sets(suite_sets: List[SuiteSet]) -> List[SuiteSet]:
     """Dedupes SuiteSets with the same id by unioning their Suite(Set) lists."""
     suite_set_id_to_suite_set = {}
     for suite_set in suite_sets:
@@ -236,8 +290,8 @@ def _union_suite_sets(suite_sets: List[_SuiteSet]) -> List[_SuiteSet]:
 
 
 def _remove_tests_not_in_list(
-    suites: List[_Suite], test_ids: Set[str]
-) -> List[_Suite]:
+    suites: List[Suite], test_ids: Set[str]
+) -> List[Suite]:
     """Removes the tests from the Suites that are not in the test list."""
     return [
         suite._replace(tests=suite.tests.intersection(test_ids))
@@ -245,14 +299,14 @@ def _remove_tests_not_in_list(
     ]
 
 
-def _write_suites_to_file(suites: List[_Suite], dest: str) -> None:
+def _write_suites_to_file(suites: List[Suite], dest: str) -> None:
     """Writes the Suites to the given file as a SuiteList text proto."""
     suite_list_proto = _convert_to_suite_list_proto(suites)
     with open(dest, "wb") as f:
         f.write(suite_list_proto.SerializeToString())
 
 
-def _write_suite_sets_to_file(suite_sets: List[_SuiteSet], dest: str) -> None:
+def _write_suite_sets_to_file(suite_sets: List[SuiteSet], dest: str) -> None:
     """Writes the SuiteSets to the given file as a SuiteSetList text proto."""
     suite_set_list_proto = _convert_to_suite_set_list_proto(suite_sets)
     with open(dest, "wb") as f:
@@ -260,7 +314,7 @@ def _write_suite_sets_to_file(suite_sets: List[_SuiteSet], dest: str) -> None:
 
 
 def _convert_to_suite_list_proto(
-    suites: List[_Suite],
+    suites: List[Suite],
 ) -> suite_set_pb2.SuiteList:
     """Converts the internal representation of Suites to a proto message."""
     return suite_set_pb2.SuiteList(
@@ -269,7 +323,7 @@ def _convert_to_suite_list_proto(
 
 
 def _convert_to_suite_set_list_proto(
-    suite_sets: List[_SuiteSet],
+    suite_sets: List[SuiteSet],
 ) -> suite_set_pb2.SuiteSetList:
     """Converts the internal representation of SuiteSets to a proto message."""
     return suite_set_pb2.SuiteSetList(
@@ -279,7 +333,7 @@ def _convert_to_suite_set_list_proto(
     )
 
 
-def _convert_to_suite_proto(suite: _Suite) -> suite_set_pb2.Suite:
+def _convert_to_suite_proto(suite: Suite) -> suite_set_pb2.Suite:
     """Converts the internal representation of a Suite to a proto message."""
     return suite_set_pb2.Suite(
         id=suite_set_pb2.Suite.Id(value=suite.suite_id),
@@ -297,7 +351,7 @@ def _convert_to_suite_proto(suite: _Suite) -> suite_set_pb2.Suite:
     )
 
 
-def _convert_to_suite_set_proto(suite_set: _SuiteSet) -> suite_set_pb2.SuiteSet:
+def _convert_to_suite_set_proto(suite_set: SuiteSet) -> suite_set_pb2.SuiteSet:
     """Converts the internal representation of a SuiteSet to a proto message."""
     return suite_set_pb2.SuiteSet(
         id=suite_set_pb2.SuiteSet.Id(value=suite_set.suite_set_id),
