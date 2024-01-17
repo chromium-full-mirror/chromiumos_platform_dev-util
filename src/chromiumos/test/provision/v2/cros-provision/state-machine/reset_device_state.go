@@ -39,6 +39,7 @@ func (s CrOSResetDeviceState) Execute(ctx context.Context, log *log.Logger) (*an
 		commands.NewProvisionStatefulCommand(ctx, s.service),
 		commands.NewClearTPMCommand(ctx, s.service),
 		commands.NewRebootCommand(ctx, s.service),
+		commands.NewEnableChargeLimitCommand(ctx, s.service),
 	}
 
 	for _, comm := range comms {

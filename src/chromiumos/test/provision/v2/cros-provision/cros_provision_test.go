@@ -521,6 +521,9 @@ func TestSkipInstallAndResetDeviceState(t *testing.T) {
 		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
 		getRestartCommand(sam).Return(nil),
+		getRunCmdCommand(sam, chargeLimitEnabled).Return("", nil),
+		getRunCmdCommand(sam, chargePercentHold).Return("", nil),
+		getRunCmdCommand(sam, restartPowerd).Return("", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
