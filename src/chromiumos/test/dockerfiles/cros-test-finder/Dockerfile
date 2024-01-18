@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-FROM us-docker.pkg.dev/cros-registry/test-services/base_images:ubuntuProd
+FROM ubuntu:bionic
 COPY cros-test-finder /usr/bin/
 COPY test_finder_filter /usr/bin/
 

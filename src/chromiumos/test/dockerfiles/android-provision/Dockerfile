@@ -2,8 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-FROM us-docker.pkg.dev/cros-registry/test-services/base_images:ubuntuProd
-
+FROM ubuntu:bionic
 RUN apt-get update \
     && apt-get install -y ca-certificates \
     && apt-get clean \
