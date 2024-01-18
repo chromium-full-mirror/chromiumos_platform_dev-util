@@ -7,7 +7,7 @@ package driver
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"log"
 	"time"
@@ -73,17 +73,25 @@ func runCrosierInitCmd(ctx context.Context, logger *log.Logger, dut api.DutServi
 	return nil
 }
 
+// parseResultXml wraps parsing of XML test results to make it unit testable.
+func parseResultXml(res []byte, gtestResults *gtestResult) error {
+	if err := xml.Unmarshal(res, &gtestResults); err != nil {
+		return err
+	}
+	return nil
+}
+
 // runCrosierCmd executes a test on the DUT.
 // reasons for failure, if any. Empty reasons means command passed.
 func runCrosierCmd(ctx context.Context, logger *log.Logger, dut api.DutServiceClient, test *api.TestCaseMetadata) *executionData {
 	var err error
 
 	startTime := time.Now()
-	outFileName := fmt.Sprintf("/tmp/%v-%d.json", test.TestCase.Id.Value, startTime.Unix())
+	outFileName := fmt.Sprintf("/tmp/%v-%d.xml", test.TestCase.Id.Value, startTime.Unix())
 
 	// Execute the gtest on the DUT.
 	cmdArgs := []string{
-		fmt.Sprintf("--gtest_output=json:%v", outFileName),
+		fmt.Sprintf("--gtest_output=xml:%v", outFileName),
 		fmt.Sprintf("--gtest_filter=%v", test.TestCase.Name),
 	}
 	cmdExec := api.ExecCommandRequest{
@@ -132,8 +140,8 @@ func runCrosierCmd(ctx context.Context, logger *log.Logger, dut api.DutServiceCl
 
 	// Build the test results struct.
 	var gtestResults gtestResult
-	if err = json.Unmarshal(resp.Stdout, &gtestResults); err != nil {
-		return newExecutionData(startTime, invalidDuration, []string{fmt.Sprintf("failed to parse gtest json data: %v", err)})
+	if err = parseResultXml(resp.Stdout, &gtestResults); err != nil {
+		return newExecutionData(startTime, invalidDuration, []string{fmt.Sprintf("failed to parse gtest xml data: %v", err)})
 	}
 
 	return testResult(test.TestCase.Name, startTime, &gtestResults)
@@ -166,10 +174,11 @@ func (td *CrosierDriver) RunTests(ctx context.Context, resultsDir string, req *a
 	}
 
 	// Run tests and parse results.
+	harness := &api.TestHarness{TestHarnessType: &api.TestHarness_Gtest_{Gtest: &api.TestHarness_Gtest{}}}
 	for _, test := range tests {
 		results := runCrosierCmd(ctx, td.logger, dut, test)
 
-		tcResult := buildTestCaseResults(test.TestCase.Id.Value, results)
+		tcResult := buildTestCaseResults(test.TestCase.Id.Value, harness, results)
 		testCaseResults = append(testCaseResults, tcResult)
 	}
 	return &api.CrosTestResponse{TestCaseResults: testCaseResults}, nil

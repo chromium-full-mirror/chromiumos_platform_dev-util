@@ -7,7 +7,7 @@ package driver
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"log"
 	"strings"
@@ -43,147 +43,63 @@ func (td *GtestDriver) Name() string {
 // gtestFailure represents gtest failure information
 // ...
 //
-//		"failures": [
-//				  {
-//					"failure": "temp.cc:16\nExpected equality of these values:\n  0\n  1",
-//					"type": ""
-//				  }
-//	 ]
+//	<failure message="error message" type=""></failure>
 type gtestFailure struct {
-	Failure string
-	Type    string
+	Message string `xml:"message,attr"`
+	Type    string `xml:"type,attr"`
 }
 
 // gtestCase represents a test case execution
 // ...
 //
-//	  {
-//		"name": "Negative",
-//		"status": "RUN",
-//		"result": "COMPLETED",
-//		"timestamp": "2021-11-24T15:23:23Z",
-//		"time": "0s",
-//		"classname": "StubTest",
-//		"failures": [
-//		  {
-//			"failure": "temp.cc:16\nExpected equality of these values:\n  0\n  1",
-//			"type": ""
-//		  }
-//		]
-//	  }
+//	<testcase name="Positive" status="run" time="0.782"
+//				timestamp="2024-01-17T23:11:33" classname="StubTest">
+//		...
+//	</testcase>
 type gtestCase struct {
-	Name      string
-	Status    string
-	Result    string
-	Timestamp string
-	Time      string
-	Classname string
-	Failures  []gtestFailure
+	Name      string         `xml:"name,attr"`
+	Status    string         `xml:"status,attr"`
+	Time      float64        `xml:"time,attr"`
+	Timestamp string         `xml:"timestamp,attr"`
+	Classname string         `xml:"classname,attr"`
+	Failures  []gtestFailure `xml:"failure"`
 }
 
 // gtestSuite represents a gtest suite
 // ...
 //
-//	  {
-//		"name": "StubTest",
-//		"tests": 2,
-//		"failures": 1,
-//		"disabled": 0,
-//		"errors": 0,
-//		"timestamp": "2021-11-24T15:23:23Z",
-//		"time": "0s",
-//		"testsuite": [
-//		  {
-//			"name": "Positive",
-//			"status": "RUN",
-//			"result": "COMPLETED",
-//			"timestamp": "2021-11-24T15:23:23Z",
-//			"time": "0s",
-//			"classname": "StubTest"
-//		  },
-//		  {
-//			"name": "Negative",
-//			"status": "RUN",
-//			"result": "COMPLETED",
-//			"timestamp": "2021-11-24T15:23:23Z",
-//			"time": "0s",
-//			"classname": "StubTest",
-//			"failures": [
-//			  {
-//				"failure": "temp.cc:16\nExpected equality of these values:\n  0\n  1",
-//				"type": ""
-//			  }
-//			]
-//		  }
-//		]
-//	  }
+//	<testsuite name="StubTest" tests="1" failures="0" disabled="0" errors="0"
+//				time="0.782" timestamp="2024-01-17T23:11:33">
+//		...
+//	</testsuite>
 type gtestSuite struct {
-	Name      string
-	Tests     int
-	Failures  int
-	Disabled  int
-	Errors    int
-	Time      string
-	TestSuite []gtestCase
+	Name      string      `xml:"name,attr"`
+	Tests     int         `xml:"tests,attr"`
+	Failures  int         `xml:"failures,attr"`
+	Disabled  int         `xml:"disabled,attr"`
+	Errors    int         `xml:"errors,attr"`
+	Time      float64     `xml:"time,attr"`
+	Timestamp string      `xml:"timestamp,attr"`
+	TestCases []gtestCase `xml:"testcase"`
 }
 
 // gtestResult represents the entire gtest execution
 // ...
-// {
 //
-//	"tests": 2,
-//	"failures": 1,
-//	"disabled": 0,
-//	"errors": 0,
-//	"timestamp": "2021-11-24T15:23:23Z",
-//	"time": "0s",
-//	"name": "AllTests",
-//	"testsuites": [
-//	  {
-//		"name": "StubTest",
-//		"tests": 2,
-//		"failures": 1,
-//		"disabled": 0,
-//		"errors": 0,
-//		"timestamp": "2021-11-24T15:23:23Z",
-//		"time": "0s",
-//		"testsuite": [
-//		  {
-//			"name": "Positive",
-//			"status": "RUN",
-//			"result": "COMPLETED",
-//			"timestamp": "2021-11-24T15:23:23Z",
-//			"time": "0s",
-//			"classname": "StubTest"
-//		  },
-//		  {
-//			"name": "Negative",
-//			"status": "RUN",
-//			"result": "COMPLETED",
-//			"timestamp": "2021-11-24T15:23:23Z",
-//			"time": "0s",
-//			"classname": "StubTest",
-//			"failures": [
-//			  {
-//				"failure": "temp.cc:16\nExpected equality of these values:\n  0\n  1",
-//				"type": ""
-//			  }
-//			]
-//		  }
-//		]
-//	  }
-//	]
-//
-// }
+//	<testsuites name="AllTests" tests="1" failures="0" disabled="0" errors="0"
+//				time="0.782" timestamp="2024-01-17T23:11:33">
+//		...
+//	</testsuites>
 type gtestResult struct {
-	Tests      int
-	Failures   int
-	Disabled   int
-	Errors     int
-	Timestamp  string
-	Time       string
-	Name       string
-	TestSuites []gtestSuite
+	XMLName    xml.Name     `xml:"testsuites"`
+	Name       string       `xml:"name,attr"`
+	Tests      int          `xml:"tests,attr"`
+	Failures   int          `xml:"failures,attr"`
+	Disabled   int          `xml:"disabled,attr"`
+	Errors     int          `xml:"errors,attr"`
+	Time       float64      `xml:"time,attr"`
+	Timestamp  string       `xml:"timestamp,attr"`
+	TestSuites []gtestSuite `xml:"testsuite"`
 }
 
 // Data needed to convert a gtestResult into ResultMetadata
@@ -218,57 +134,23 @@ func testResult(testCaseName string, defaultStartTime time.Time, result *gtestRe
 	// Right now, only one result is expected, either pass or fail, this is just an
 	// example.
 	//
-	// {
-	// 	"tests": 2,
-	// 	"failures": 1,
-	// 	"disabled": 0,
-	// 	"errors": 0,
-	// 	"timestamp": "2021-11-24T15:23:23Z",
-	// 	"time": "0s",
-	// 	"name": "AllTests",
-	// 	"testsuites": [
-	// 	  {
-	// 		"name": "StubTest",
-	// 		"tests": 2,
-	// 		"failures": 1,
-	// 		"disabled": 0,
-	// 		"errors": 0,
-	// 		"timestamp": "2021-11-24T15:23:23Z",
-	// 		"time": "0s",
-	// 		"testsuite": [
-	// 		  {
-	// 			"name": "Positive",
-	// 			"status": "RUN",
-	// 			"result": "COMPLETED",
-	// 			"timestamp": "2021-11-24T15:23:23Z",
-	// 			"time": "0s",
-	// 			"classname": "StubTest"
-	// 		  },
-	// 		  {
-	// 			"name": "Negative",
-	// 			"status": "RUN",
-	// 			"result": "COMPLETED",
-	// 			"timestamp": "2021-11-24T15:23:23Z",
-	// 			"time": "0s",
-	// 			"classname": "StubTest",
-	// 			"failures": [
-	// 			  {
-	// 				"failure": "temp.cc:16\nExpected equality of these values:\n  0\n  1",
-	// 				"type": ""
-	// 			  }
-	// 			]
-	// 		  }
-	// 		]
-	// 	  }
-	// 	]
-	// }
+	// <?xml version="1.0" encoding="UTF-8"?>
+	// <testsuites name="AllTests" tests="2" failures="0" disabled="0" errors="0" time="0.782" timestamp="2024-01-17T23:11:33">
+	// 	 <testsuite name="StubTest" tests="2" failures="0" disabled="0" errors="0" time="0.782" timestamp="2024-01-17T23:11:33">
+	// 		<testcase name="Positive" status="run" time="0.782" timestamp="2024-01-17T23:11:33" classname="StubTest">
+	// 		</testcase>
+	// 		<testcase name="Negative" status="run" time="0.782" timestamp="2024-01-17T23:11:33" classname="StubTest">
+	// 			<failure message="error message" type=""></failure>
+	// 		</testcase>
+	// 	 </testsuite>
+	// </testsuites>
 	//
 	// Test case name is "classname"."name", in this case "StubTest.Positive"
 	//
 	// Var defaultStartTime is used when startTime cannot be read from the gtest output.
 
 	// First make sure we have results, should have one suite and one case.
-	if len(result.TestSuites) != 1 || len(result.TestSuites[0].TestSuite) != 1 {
+	if len(result.TestSuites) != 1 || len(result.TestSuites[0].TestCases) != 1 {
 		return newExecutionData(defaultStartTime, invalidDuration, []string{"no test results found"})
 	}
 
@@ -280,7 +162,7 @@ func testResult(testCaseName string, defaultStartTime time.Time, result *gtestRe
 	}
 	className, caseName := nameParts[0], nameParts[1]
 
-	testCase := result.TestSuites[0].TestSuite[0]
+	testCase := result.TestSuites[0].TestCases[0]
 	if testCase.Classname != className {
 		return newExecutionData(defaultStartTime, invalidDuration, []string{fmt.Sprintf("mismatched classname, got: '%v', want: '%v'", testCase.Classname, caseName[0])})
 	}
@@ -295,27 +177,19 @@ func testResult(testCaseName string, defaultStartTime time.Time, result *gtestRe
 		return newExecutionData(defaultStartTime, invalidDuration, []string{fmt.Sprintf("mismatched case status, got: '%v', want: 'run'", status)})
 	}
 
-	runResult := strings.ToLower(testCase.Result)
-	if runResult != "completed" {
-		return newExecutionData(defaultStartTime, invalidDuration, []string{fmt.Sprintf("mismatched case result, got: '%v', want: 'completed", runResult)})
-	}
-
-	startTime, err := time.Parse(time.RFC3339, result.TestSuites[0].TestSuite[0].Timestamp)
+	startTime, err := time.Parse(time.RFC3339, result.TestSuites[0].TestCases[0].Timestamp)
 	if err != nil {
-		return newExecutionData(defaultStartTime, invalidDuration, []string{fmt.Sprintf("Error parsing test start time, value '%v', err: %v", result.TestSuites[0].TestSuite[0].Timestamp, err)})
+		return newExecutionData(defaultStartTime, invalidDuration, []string{fmt.Sprintf("Error parsing test start time, value '%v', err: %v", result.TestSuites[0].TestCases[0].Timestamp, err)})
 	}
 
-	var duration int64
-	if count, err := fmt.Sscanf(result.TestSuites[0].TestSuite[0].Time, "%ds", &duration); err != nil || count != 1 {
-		return newExecutionData(defaultStartTime, invalidDuration, []string{fmt.Sprintf("Error parsing test duration, original value '%v', err: %v", result.TestSuites[0].TestSuite[0].Time, err)})
-	}
+	duration := int64(result.TestSuites[0].TestCases[0].Time)
 
 	// Grab any failures.
 	if len(testCase.Failures) > 0 {
 		var reasons []string
 
 		for _, failure := range testCase.Failures {
-			reasons = append(reasons, fmt.Sprintf("failure: '%v', type: '%v'", failure.Failure, failure.Type))
+			reasons = append(reasons, fmt.Sprintf("failure: '%v', type: '%v'", failure.Message, failure.Type))
 		}
 
 		return newExecutionData(startTime, duration, reasons)
@@ -331,10 +205,10 @@ func testResult(testCaseName string, defaultStartTime time.Time, result *gtestRe
 
 // buildTestCaseResults builds the api.TestCaseResult object for a given test result.
 // If err is populated, and ERROR status will be returned.
-func buildTestCaseResults(tcID string, results *executionData) *api.TestCaseResult {
+func buildTestCaseResults(tcID string, harness *api.TestHarness, results *executionData) *api.TestCaseResult {
 	tcResult := new(api.TestCaseResult)
 
-	tcResult.TestHarness = &api.TestHarness{TestHarnessType: &api.TestHarness_Gtest_{Gtest: &api.TestHarness_Gtest{}}}
+	tcResult.TestHarness = harness
 	tcResult.TestCaseId = &api.TestCase_Id{Value: tcID}
 	tcResult.StartTime = timestamppb.New(results.startTime)
 	tcResult.Duration = &durationpb.Duration{Seconds: results.duration}
@@ -357,11 +231,11 @@ func runGtestCmd(ctx context.Context, logger *log.Logger, dut api.DutServiceClie
 
 	targetBinLocation := test.TestCaseExec.GetTestHarness().GetGtest().GetTargetBinLocation()
 	startTime := time.Now()
-	outFileName := fmt.Sprintf("/tmp/%v-%d.json", test.TestCase.Id.Value, startTime.Unix())
+	outFileName := fmt.Sprintf("/tmp/%v-%d.xml", test.TestCase.Id.Value, startTime.Unix())
 
 	// Execute the gtest on the DUT.
 	cmdArgs := []string{
-		fmt.Sprintf("--gtest_output=json:%v", outFileName),
+		fmt.Sprintf("--gtest_output=xml:%v", outFileName),
 		fmt.Sprintf("--gtest_filter=%v", test.TestCase.Name),
 	}
 	cmdExec := api.ExecCommandRequest{
@@ -417,8 +291,8 @@ func runGtestCmd(ctx context.Context, logger *log.Logger, dut api.DutServiceClie
 
 	// Build the test results struct.
 	var gtestResults gtestResult
-	if err = json.Unmarshal(resp.Stdout, &gtestResults); err != nil {
-		return newExecutionData(startTime, invalidDuration, []string{fmt.Sprintf("failed to parse gtest json data: %v", err)})
+	if err = xml.Unmarshal(resp.Stdout, &gtestResults); err != nil {
+		return newExecutionData(startTime, invalidDuration, []string{fmt.Sprintf("failed to parse gtest xml data: %v", err)})
 	}
 
 	return testResult(test.TestCase.Name, startTime, &gtestResults)
@@ -444,11 +318,12 @@ func (td *GtestDriver) RunTests(ctx context.Context, resultsDir string, req *api
 	defer primaryDutConn.Close()
 
 	dut := api.NewDutServiceClient(primaryDutConn)
+	harness := &api.TestHarness{TestHarnessType: &api.TestHarness_Gtest_{Gtest: &api.TestHarness_Gtest{}}}
 
 	for _, test := range tests {
 		results := runGtestCmd(ctx, td.logger, dut, test)
 
-		tcResult := buildTestCaseResults(test.TestCase.Id.Value, results)
+		tcResult := buildTestCaseResults(test.TestCase.Id.Value, harness, results)
 		testCaseResults = append(testCaseResults, tcResult)
 	}
 	return &api.CrosTestResponse{TestCaseResults: testCaseResults}, nil

@@ -25,13 +25,12 @@ import (
 func getGtestResult() (string, gtestResult) {
 	gtestResult := gtestResult{}
 	gtestResult.TestSuites = append(gtestResult.TestSuites, gtestSuite{})
-	gtestResult.TestSuites[0].TestSuite = append(gtestResult.TestSuites[0].TestSuite, gtestCase{})
-	gtestResult.TestSuites[0].TestSuite[0].Classname = "fake"
-	gtestResult.TestSuites[0].TestSuite[0].Name = "case1"
-	gtestResult.TestSuites[0].TestSuite[0].Status = "RUN"
-	gtestResult.TestSuites[0].TestSuite[0].Result = "COMPLETED"
-	gtestResult.TestSuites[0].TestSuite[0].Timestamp = time.Now().Format(time.RFC3339)
-	gtestResult.TestSuites[0].TestSuite[0].Time = fmt.Sprintf("%ds", rand.Int63n(3600*10)) // Up to 10 hours
+	gtestResult.TestSuites[0].TestCases = append(gtestResult.TestSuites[0].TestCases, gtestCase{})
+	gtestResult.TestSuites[0].TestCases[0].Classname = "fake"
+	gtestResult.TestSuites[0].TestCases[0].Name = "case1"
+	gtestResult.TestSuites[0].TestCases[0].Status = "RUN"
+	gtestResult.TestSuites[0].TestCases[0].Timestamp = time.Now().Format(time.RFC3339)
+	gtestResult.TestSuites[0].TestCases[0].Time = float64(rand.Int63n(3600 * 10)) // Up to 10 hours
 	gtestResult.Failures = 0
 	gtestResult.Errors = 0
 	gtestResult.TestSuites[0].Failures = 0
@@ -281,7 +280,7 @@ func TestResultRunResultStatus(t *testing.T) {
 
 	testCaseName, gtestResult := getGtestResult()
 
-	gtestResult.TestSuites[0].TestSuite[0].Status = "NOT_RUN"
+	gtestResult.TestSuites[0].TestCases[0].Status = "NOT_RUN"
 
 	if result = testResult(testCaseName, startTime, &gtestResult); len(result.reasons) == 0 {
 		t.Error("expected failure but got pass with invalid status value")
@@ -301,9 +300,15 @@ func TestResultRunResultResult(t *testing.T) {
 	startTime := time.Now()
 
 	testCaseName, gtestResult := getGtestResult()
+	failures := []gtestFailure{
+		{
+			Message: "failure one",
+			Type:    "some type",
+		},
+	}
+	gtestResult.TestSuites[0].TestCases[0].Failures = failures
 
-	gtestResult.TestSuites[0].TestSuite[0].Result = "NOT_COMPLETED"
-
+	// If any failures present - test case result is "failed".
 	if result = testResult(testCaseName, startTime, &gtestResult); len(result.reasons) == 0 {
 		t.Error("expected failure but got pass with invalid result value")
 	}
@@ -322,16 +327,16 @@ func TestResultSingleFailure(t *testing.T) {
 
 	testCaseName, gtestResult := getGtestResult()
 	failure := gtestFailure{
-		Failure: "failure one",
+		Message: "failure one",
 		Type:    "some type",
 	}
-	gtestResult.TestSuites[0].TestSuite[0].Failures = append(gtestResult.TestSuites[0].TestSuite[0].Failures, failure)
+	gtestResult.TestSuites[0].TestCases[0].Failures = append(gtestResult.TestSuites[0].TestCases[0].Failures, failure)
 
 	if result = testResult(testCaseName, startTime, &gtestResult); len(result.reasons) == 0 {
 		t.Errorf("passing result when failure expected")
 	}
 
-	expectedReasons := []string{fmt.Sprintf("failure: '%v', type: '%v'", failure.Failure, failure.Type)}
+	expectedReasons := []string{fmt.Sprintf("failure: '%v', type: '%v'", failure.Message, failure.Type)}
 
 	if diff := cmp.Diff(result.reasons, expectedReasons); diff != "" {
 		t.Errorf("unexpected result for 'reasons' (-got +want):\n%s\n%v\n--\n%v\n", diff, result.reasons, expectedReasons)
@@ -346,19 +351,19 @@ func TestResultMultipleFailures(t *testing.T) {
 	testCaseName, gtestResult := getGtestResult()
 	failures := []gtestFailure{
 		{
-			Failure: "failure one",
+			Message: "failure one",
 			Type:    "some type",
 		},
 		{
-			Failure: "failure two",
+			Message: "failure two",
 			Type:    "some type two",
 		},
 		{
-			Failure: "failure three",
+			Message: "failure three",
 			Type:    "some type three",
 		},
 	}
-	gtestResult.TestSuites[0].TestSuite[0].Failures = failures
+	gtestResult.TestSuites[0].TestCases[0].Failures = failures
 
 	if result = testResult(testCaseName, startTime, &gtestResult); len(result.reasons) == 0 {
 		t.Errorf("passing result when failure expected")
@@ -366,7 +371,7 @@ func TestResultMultipleFailures(t *testing.T) {
 
 	expectedReasons := []string{}
 	for _, failure := range failures {
-		expectedReasons = append(expectedReasons, fmt.Sprintf("failure: '%v', type: '%v'", failure.Failure, failure.Type))
+		expectedReasons = append(expectedReasons, fmt.Sprintf("failure: '%v', type: '%v'", failure.Message, failure.Type))
 	}
 
 	if diff := cmp.Diff(result.reasons, expectedReasons); diff != "" {
@@ -476,24 +481,6 @@ func TestResultPass(t *testing.T) {
 	}
 }
 
-// TestBadTime ensures that an unparseable time value is handled
-// correctly
-func TestBadTime(t *testing.T) {
-	var result *executionData
-	startTime := time.Now()
-
-	testCaseName, gtestResult := getGtestResult()
-	gtestResult.TestSuites[0].TestSuite[0].Time = "this isn't a time"
-
-	if result = testResult(testCaseName, startTime, &gtestResult); len(result.reasons) == 0 {
-		t.Error("unexpected pass when expecting failure")
-	}
-
-	if result.duration != invalidDuration {
-		t.Errorf("Unexpected value for duration, want '%d', got '%d'", invalidDuration, result.duration)
-	}
-}
-
 // TestBadTimestamp ensures that an unparseable time value is handled
 // correctly
 func TestBadTimestamp(t *testing.T) {
@@ -501,7 +488,7 @@ func TestBadTimestamp(t *testing.T) {
 	startTime := time.Now()
 
 	testCaseName, gtestResult := getGtestResult()
-	gtestResult.TestSuites[0].TestSuite[0].Timestamp = "this isn't a time"
+	gtestResult.TestSuites[0].TestCases[0].Timestamp = "this isn't a time"
 
 	if result = testResult(testCaseName, startTime, &gtestResult); len(result.reasons) == 0 {
 		t.Error("unexpected pass when expecting failure")
@@ -516,17 +503,18 @@ func TestBuiltTestCaseResultsPass(t *testing.T) {
 	startTime := time.Now()
 	reasons := []string{}
 	duration := int64(100)
+	harness := api.TestHarness{TestHarnessType: &api.TestHarness_Gtest_{Gtest: &api.TestHarness_Gtest{}}}
 
 	result := newExecutionData(startTime, duration, reasons)
 
 	expectedResult.TestCaseId = &api.TestCase_Id{Value: tcID}
 	expectedResult.Verdict = &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}}
 	expectedResult.Reason = strings.Join(reasons, "\n")
-	expectedResult.TestHarness = &api.TestHarness{TestHarnessType: &api.TestHarness_Gtest_{Gtest: &api.TestHarness_Gtest{}}}
+	expectedResult.TestHarness = &harness
 	expectedResult.StartTime = timestamppb.New(startTime)
 	expectedResult.Duration = &durationpb.Duration{Seconds: duration}
 
-	actualResult := buildTestCaseResults(tcID, result)
+	actualResult := buildTestCaseResults(tcID, &harness, result)
 
 	if !proto.Equal(actualResult, expectedResult) {
 		t.Errorf("unexpected test results for 'pass' (-got +want):\n%v\n--\n%v\n", actualResult, expectedResult)
@@ -538,6 +526,7 @@ func TestBuiltTestCaseResultsPass(t *testing.T) {
 func TestBuiltTestCaseResultsFailSingleReason(t *testing.T) {
 	expectedResult := new(api.TestCaseResult)
 	tcID := "gtest.fake.test"
+	harness := api.TestHarness{TestHarnessType: &api.TestHarness_Gtest_{Gtest: &api.TestHarness_Gtest{}}}
 
 	startTime := time.Now()
 	reasons := []string{
@@ -550,11 +539,11 @@ func TestBuiltTestCaseResultsFailSingleReason(t *testing.T) {
 	expectedResult.TestCaseId = &api.TestCase_Id{Value: tcID}
 	expectedResult.Verdict = &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}}
 	expectedResult.Reason = strings.Join(reasons, "\n")
-	expectedResult.TestHarness = &api.TestHarness{TestHarnessType: &api.TestHarness_Gtest_{Gtest: &api.TestHarness_Gtest{}}}
+	expectedResult.TestHarness = &harness
 	expectedResult.Duration = &durationpb.Duration{Seconds: duration}
 	expectedResult.StartTime = timestamppb.New(startTime)
 
-	actualResult := buildTestCaseResults(tcID, result)
+	actualResult := buildTestCaseResults(tcID, &harness, result)
 
 	if !proto.Equal(actualResult, expectedResult) {
 		t.Errorf("unexpected test results for 'pass' (-got +want):\n%v\n--\n%v\n", actualResult, expectedResult)
@@ -566,6 +555,7 @@ func TestBuiltTestCaseResultsFailSingleReason(t *testing.T) {
 func TestBuiltTestCaseResultsFailMultipleReason(t *testing.T) {
 	expectedResult := new(api.TestCaseResult)
 	tcID := "gtest.fake.test"
+	harness := api.TestHarness{TestHarnessType: &api.TestHarness_Gtest_{Gtest: &api.TestHarness_Gtest{}}}
 
 	startTime := time.Now()
 	reasons := []string{
@@ -579,11 +569,11 @@ func TestBuiltTestCaseResultsFailMultipleReason(t *testing.T) {
 	expectedResult.TestCaseId = &api.TestCase_Id{Value: tcID}
 	expectedResult.Verdict = &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}}
 	expectedResult.Reason = strings.Join(reasons, "\n")
-	expectedResult.TestHarness = &api.TestHarness{TestHarnessType: &api.TestHarness_Gtest_{Gtest: &api.TestHarness_Gtest{}}}
+	expectedResult.TestHarness = &harness
 	expectedResult.Duration = &durationpb.Duration{Seconds: duration}
 	expectedResult.StartTime = timestamppb.New(startTime)
 
-	actualResult := buildTestCaseResults(tcID, result)
+	actualResult := buildTestCaseResults(tcID, &harness, result)
 
 	if !proto.Equal(actualResult, expectedResult) {
 		t.Errorf("unexpected test results for 'pass' (-got +want):\n%v\n--\n%v\n", actualResult, expectedResult)
