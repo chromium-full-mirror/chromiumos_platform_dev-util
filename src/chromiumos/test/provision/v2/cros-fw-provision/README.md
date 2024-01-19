@@ -121,4 +121,4 @@ cros workon --host start cros-fw-provision
 sudo USE="coverage" FEATURES="test noclean" emerge cros-fw-provision
 ```
 
-Then open the html file at `/var/tmp/portage/dev-util/cros-fw-provision-9999/temp/coverage_logs/cros-fw-provision.html`
+Then open the html file at `/var/lib/chromeos/package-artifacts/dev-util/cros-fw-provision-9999/cros-artifacts/coverage_logs/cros-fw-provision.html`
