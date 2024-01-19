@@ -151,9 +151,9 @@ func (fws *FirmwareService) prepareServoConnection(ctx context.Context, servoCli
 	// and servo connection is working.
 	servoTypeStr, err := fws.servoConnection.GetVariable(ctx, "servo_type")
 	if err != nil {
-		return UnreachablePreProvisionErr(errors.Errorf("failed to get servo_type: %w. "+
+		return UnreachablePreProvisionErr(errors.Wrapf(err, "failed to get servo_type. "+
 			"Is servod running on port %v and connected to the DUT?",
-			err, fws.servoPort)) // TODO(sfrolov): add UnreachableCrosServodErr
+			fws.servoPort)) // TODO(sfrolov): add UnreachableCrosServodErr
 	}
 
 	// ask servod for serial number of the connected DUT.
@@ -172,18 +172,18 @@ func (fws *FirmwareService) prepareServoConnection(ctx context.Context, servoCli
 
 	serial, err := fws.servoConnection.GetVariable(ctx, servoType.GetSerialNumberOption())
 	if err != nil {
-		return UnreachablePreProvisionErr(errors.Errorf("failed to get serial number variable: %w", err.Error())) // TODO: cros-servod is unreachable
+		return UnreachablePreProvisionErr(errors.Wrap(err, "failed to get serial number variable")) // TODO: cros-servod is unreachable
 	}
 
 	// finally, get the correct config
 	fws.servoConfig, err = servo_lib.GetServoConfig(fws.board, serial, servoType)
 	if err != nil {
-		return UnreachablePreProvisionErr(errors.Errorf("failed to get servo config: %w", err.Error())) // TODO: cros-servod is unreachable
+		return UnreachablePreProvisionErr(errors.Wrap(err, "failed to get servo config")) // TODO: cros-servod is unreachable
 	}
 
 	fws.ecChip, err = fws.servoConnection.GetVariable(ctx, "ec_chip")
 	if err != nil {
-		return UnreachablePreProvisionErr(errors.Errorf("failed to get ec_chip variable: %w", err.Error())) // TODO: cros-servod is unreachable
+		return UnreachablePreProvisionErr(errors.Wrap(err, "failed to get ec_chip variable")) // TODO: cros-servod is unreachable
 	}
 	return nil
 }
@@ -442,7 +442,7 @@ func (fws *FirmwareService) sshFlash(ctx context.Context, rwOnly bool, futilityI
 func (fws *FirmwareService) servoFlash(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
 	dutOnErr := fws.servoConnection.RunAllDutControls(ctx, fws.servoConfig.DutOn)
 	if dutOnErr != nil {
-		return errors.Errorf("failed to run pre-flashing dut-controls: %w", dutOnErr)
+		return errors.Wrap(dutOnErr, "failed to run pre-flashing dut-controls")
 	}
 
 	flashErr := fws.runFutility(ctx, rwOnly, futilityImageArgs)
@@ -453,7 +453,7 @@ func (fws *FirmwareService) servoFlash(ctx context.Context, rwOnly bool, futilit
 		return flashErr
 	}
 	if dutOffErr != nil {
-		return errors.Errorf("failed to run post-flashing dut-controls: %w", dutOffErr)
+		return errors.Wrap(dutOffErr, "failed to run post-flashing dut-controls")
 	}
 	return nil
 }
@@ -613,7 +613,7 @@ func (fws *FirmwareService) DownloadAndProcess(ctx context.Context, gsPath strin
 		// Use mktemp to safely create a unique temp directory.
 		archiveDir, err := connection.RunCmd(ctx, "mktemp", []string{"-d", "--tmpdir", "cros-fw-provision.XXXXXXXXX." + archiveSubfolder})
 		if err != nil {
-			return errors.Errorf("remote mktemp failed: %w", err)
+			return errors.Wrap(err, "remote mktemp failed")
 		}
 		archiveDir = strings.Trim(archiveDir, "\n")
 

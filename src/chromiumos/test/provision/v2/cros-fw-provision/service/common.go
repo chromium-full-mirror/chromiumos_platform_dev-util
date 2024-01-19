@@ -51,21 +51,12 @@ func GetFlashECScript(ctx context.Context, s common_utils.ServiceAdapterInterfac
 	_, err = s.RunCmd(ctx, "", []string{"cd " + prefix + ";", "git", "clone",
 		"https://chromium.googlesource.com/chromiumos/platform/ec", "ec-repo"})
 	if err != nil {
-		return "", errors.Errorf("falied to checkout platform/ec repo: %w", err)
+		return "", errors.Wrap(err, "falied to checkout platform/ec repo")
 	}
 
 	// TODO: mv ec-repo to some location and try it before downloading.
 
 	return path.Join(prefix, "ec-repo", "util", "flash_ec"), nil
-}
-
-func listFilesInArchive(ctx context.Context, archivePath string, s common_utils.ServiceAdapterInterface) ([]string, error) {
-	out, err := s.RunCmd(ctx, "tar", []string{"-tf", archivePath})
-	if err != nil {
-		return nil, err
-	}
-
-	return strings.Split(out, "\n"), nil
 }
 
 // PickAndExtractMainImage uses provided list of |filesInArchive| to pick a main
