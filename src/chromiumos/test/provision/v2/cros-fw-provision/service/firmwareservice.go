@@ -536,11 +536,6 @@ type configData struct {
 				} `yaml:"build-targets"`
 				ImageName string `yaml:"image-name"`
 			} `yaml:"firmware"`
-			Identity struct {
-				PlatformName    string `yaml:"platform-ec"`
-				SKUID           int    `yaml:"sku-id"`
-				SmbiosNameMatch string `yaml:"smbios-name-match"`
-			}
 			Name string `yaml:"name"`
 		}
 	}
