@@ -111,3 +111,14 @@ Run the test with fast_build.sh:
 ```
 ~/chromiumos/src/platform/dev/fast_build.sh -t chromiumos/test/provision/v2/cros-fw-provision
 ```
+
+### Generate coverage report
+
+Build the ebuild with coverage enabled:
+
+```
+cros workon --host start cros-fw-provision
+sudo USE="coverage" FEATURES="test noclean" emerge cros-fw-provision
+```
+
+Then open the html file at `/var/tmp/portage/dev-util/cros-fw-provision-9999/temp/coverage_logs/cros-fw-provision.html`
