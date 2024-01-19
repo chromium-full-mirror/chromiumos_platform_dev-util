@@ -25,34 +25,41 @@ import (
 const (
 	defaultRootPath          = "/tmp/cros-hpt"
 	defaultAuthTokenFilePath = "/tmp/cros-hpt/authToken.txt"
+	defaultPort              = 8010
 )
 
-// Version is the version info of this command. It is filled in during emerge.
-var Version = "<unknown>"
-var defaultPort = 8010
+var (
+	now = time.Now().Format("20060102-150405")
+)
 
-type args struct {
+type flags struct {
 	// Common input params.
 	logPath         string
 	version         bool
 	port            int
 	authFilePath    string
 	crosDutEndpoint string
+	projectId       string
+	topicId         string
+	bucket          string
 }
 
-func startServer(ctx context.Context, d []string) int {
-	a := args{}
-	t := time.Now()
-	defaultLogPath := filepath.Join(defaultRootPath, t.Format("20060102-150405"))
+func startServer(ctx context.Context, args []string) int {
+	f := flags{}
+	defaultLogPath := filepath.Join(defaultRootPath, now)
 	fs := flag.NewFlagSet("Run cros-hpt", flag.ExitOnError)
-	fs.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
-	fs.IntVar(&a.port, "port", defaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", defaultPort))
-	fs.StringVar(&a.authFilePath, "authFilePath", defaultAuthTokenFilePath, fmt.Sprintf("Path to auth token file. Default is %s", defaultAuthTokenFilePath))
-	fs.StringVar(&a.crosDutEndpoint, "crosDutEndpoint", "", fmt.Sprintf("Endpoint for cros dut."))
-	fs.Parse(d)
+	fs.StringVar(&f.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
+	fs.IntVar(&f.port, "port", defaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", defaultPort))
+	fs.StringVar(&f.authFilePath, "authFilePath", defaultAuthTokenFilePath, fmt.Sprintf("Path to auth token file. Default is %s", defaultAuthTokenFilePath))
+	fs.StringVar(&f.crosDutEndpoint, "crosDutEndpoint", "", fmt.Sprintf("Endpoint for cros dut."))
+	fs.StringVar(&f.projectId, "projectId", "", fmt.Sprintf("GCP projectID for perf processing pipeline."))
+	fs.StringVar(&f.topicId, "topicId", "", fmt.Sprintf("GCP pubsub topic for notifying perf processing pipeline about newly available data."))
+	fs.StringVar(&f.bucket, "bucket", "", fmt.Sprintf("GCS bucket where to upload the zipped perf data."))
+
+	fs.Parse(args)
 
 	// Configure log file
-	logFile, err := helpers.CreateLogFile(a.logPath)
+	logFile, err := helpers.CreateLogFile(f.logPath)
 	if err != nil {
 		log.Fatalln("Failed to create log file", err)
 		return 2
@@ -62,12 +69,12 @@ func startServer(ctx context.Context, d []string) int {
 
 	// Read and validate auth token required by vm-provision
 	authTokenFilePath := defaultAuthTokenFilePath
-	if a.authFilePath != "" {
-		authTokenFilePath = a.authFilePath
+	if f.authFilePath != "" {
+		authTokenFilePath = f.authFilePath
 	}
 
 	// Set up gRPC connection
-	conn, err := grpc.Dial(a.crosDutEndpoint, grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")))
+	conn, err := grpc.Dial(f.crosDutEndpoint, grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")))
 	if err != nil {
 		logger.Fatalln("Failed to connect: ", err)
 	}
@@ -76,23 +83,24 @@ func startServer(ctx context.Context, d []string) int {
 	// Create gRPC dut
 	dut := api.NewDutServiceClient(conn)
 
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", a.port))
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", f.port))
 	if err != nil {
 		logger.Fatalln("Failed to create a net listener: ", err)
 		return 2
 	}
 
-	logger.Println("Starting Service on port ", a.port)
+	logger.Println("Starting Service on port ", f.port)
 
-	server, closer, err := NewServer(ctx, logger, &dut, authTokenFilePath)
+	perfServer, closer, err := NewServer(ctx, logger, &dut, authTokenFilePath, f.projectId, f.topicId, f.bucket)
 	defer closer()
-
 	// Write port number to ~/.cftmeta for go/cft-port-discovery
 	err = portdiscovery.WriteServiceMetadata("cros-hpt", l.Addr().String(), logger)
 	if err != nil {
 		logger.Println("Warning: error when writing to metadata file: ", err)
 	}
-	err = server.Serve(l)
+	grpcServer := grpc.NewServer()
+	api.RegisterGenericServiceServer(grpcServer, perfServer)
+	err = grpcServer.Serve(l)
 	if err != nil {
 		logger.Fatalln("Failed to initialize server: ", err)
 		return 2
@@ -106,5 +114,4 @@ func mainInternal(ctx context.Context) int {
 
 func main() {
 	os.Exit(mainInternal(context.Background()))
-
 }
