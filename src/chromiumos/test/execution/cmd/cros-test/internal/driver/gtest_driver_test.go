@@ -490,8 +490,33 @@ func TestBadTimestamp(t *testing.T) {
 	testCaseName, gtestResult := getGtestResult()
 	gtestResult.TestSuites[0].TestCases[0].Timestamp = "this isn't a time"
 
-	if result = testResult(testCaseName, startTime, &gtestResult); len(result.reasons) == 0 {
-		t.Error("unexpected pass when expecting failure")
+	if result = testResult(testCaseName, startTime, &gtestResult); len(result.reasons) != 0 {
+		t.Error("unexpected fail when expecting to pass")
+	}
+
+	actualTime := result.startTime
+	if actualTime != startTime {
+		t.Errorf("invalid result timestamp: expected: %v, got: %v", startTime, actualTime)
+	}
+}
+
+// TestXmlTimestamp ensures that a time value in XML format is handled
+// correctly
+func TestXmlTimestamp(t *testing.T) {
+	var result *executionData
+	startTime := time.Now()
+
+	testCaseName, gtestResult := getGtestResult()
+	gtestResult.TestSuites[0].TestCases[0].Timestamp = "2024-01-17T23:11:33"
+
+	if result = testResult(testCaseName, startTime, &gtestResult); len(result.reasons) != 0 {
+		t.Error("unexpected fail when expecting to pass")
+	}
+
+	expectedTime, _ := time.Parse("2006-01-02T15:04:05", "2024-01-17T23:11:33")
+	actualTime := result.startTime
+	if !actualTime.Equal(expectedTime) {
+		t.Errorf("invalid result timestamp: expected: %v, got: %v", expectedTime, actualTime)
 	}
 }
 

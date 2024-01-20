@@ -177,9 +177,18 @@ func testResult(testCaseName string, defaultStartTime time.Time, result *gtestRe
 		return newExecutionData(defaultStartTime, invalidDuration, []string{fmt.Sprintf("mismatched case status, got: '%v', want: 'run'", status)})
 	}
 
-	startTime, err := time.Parse(time.RFC3339, result.TestSuites[0].TestCases[0].Timestamp)
-	if err != nil {
-		return newExecutionData(defaultStartTime, invalidDuration, []string{fmt.Sprintf("Error parsing test start time, value '%v', err: %v", result.TestSuites[0].TestCases[0].Timestamp, err)})
+	timeString := result.TestSuites[0].TestCases[0].Timestamp
+	startTime := defaultStartTime
+	layouts := []string{
+		time.RFC3339,
+		time.RFC3339Nano,
+		"2006-01-02T15:04:05",
+	}
+	for _, l := range layouts {
+		if t, err := time.Parse(l, timeString); err == nil {
+			startTime = t
+			break
+		}
 	}
 
 	duration := int64(result.TestSuites[0].TestCases[0].Time)
