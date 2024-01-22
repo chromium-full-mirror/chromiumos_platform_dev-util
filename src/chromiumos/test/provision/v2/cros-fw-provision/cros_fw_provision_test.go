@@ -12,6 +12,7 @@ import (
 	mock_common_utils "chromiumos/test/provision/v2/mock-common-utils"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -52,7 +53,11 @@ func (c curlMatcher) Matches(x interface{}) bool {
 		if idx < 0 {
 			return false
 		}
-		return c.fileMatcher.Matches(args[3][idx+6:])
+		filename, err := url.QueryUnescape(args[3][idx+6:])
+		if err != nil {
+			panic(err)
+		}
+		return c.fileMatcher.Matches(filename)
 	}
 	return false
 }
@@ -62,11 +67,7 @@ func (c curlMatcher) String() string {
 }
 
 func TestDetailedRequestSSHStates(t *testing.T) {
-	fakeGSPath := "gs://test-archive.tar.gz"
-
-	apImageWithinArchive := "image.bin"
-	ecImageWithinArchive := "ec.bin"
-	npcxImageWithinArchive := "npcx_monitor.bin"
+	fakeGSPath := "gs://chromeos-image-archive/board-firmware-branch/R123-12345.0.0/board/firmware_from_source.tar.bz2"
 
 	makeRequest := func(main_rw, main_ro, ec_ro bool) *api.InstallRequest {
 		fakePayload := &build_api.FirmwarePayload{FirmwareImage: &build_api.FirmwarePayload_FirmwareImagePath{FirmwareImagePath: &conf.StoragePath{HostType: conf.StoragePath_GS, Path: fakeGSPath}}}
@@ -110,19 +111,39 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 	type TestCase struct {
 		// inputs
 		main_rw, main_ro, ec_ro bool
+		configYAML              string
+		// These are the first files that will exist in the archive.
+		apImageWithinArchive   string
+		ecImageWithinArchive   string
+		npcxImageWithinArchive string
 		// expected outputs
 		updateRw, updateRo     bool
 		expectConstructorError bool
 	}
 
 	testCases := []TestCase{
-		{ /*in*/ false, false, false /*out*/, false, false /*err*/, true},
-		{ /*in*/ true, false, false /*out*/, true, false /*err*/, false},
-		{ /*in*/ false, true, false /*out*/, false, true /*err*/, false},
-		{ /*in*/ false, false, true /*out*/, false, true /*err*/, false},
-		{ /*in*/ false, true, true /*out*/, false, true /*err*/, false},
-		{ /*in*/ true, true, true /*out*/, true, true /*err*/, false},
-		{ /*in*/ true, true, false /*out*/, true, true /*err*/, false},
+		{ /*in*/ false, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, false /*err*/, true},
+		{ /*in*/ true, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, false /*err*/, false},
+		{ /*in*/ false, true, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false},
+		{ /*in*/ false, false, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false},
+		{ /*in*/ false, true, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false},
+		{ /*in*/ true, true, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, true /*err*/, false},
+		{ /*in*/ true, true, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, true /*err*/, false},
+		{ /*in*/ true, true, true, `{
+			"chromeos": {
+				"configs": [{
+					"firmware": {
+						"build-targets": {
+							"coreboot": "fromcoreboot",
+							"ec": "fromec",
+							"zephyr-ec": "fromzephyr"
+						},
+						"image-name": "fromimagename"
+					},
+					"name": "test_model"
+				}]
+			}
+		}`, "image-fromcoreboot.bin", "fromzephyr/ec.bin", "fromzephyr/npcx_monitor.bin" /*out*/, true, true /*err*/, false},
 	}
 
 	// Set up the mock.
@@ -141,8 +162,12 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 				fmt.Fprintf(w, "ok\r\n")
 				return
 			}
-			if r.URL.String() == "/extract/test-archive.tar.gz?file=config.yaml" {
-				w.WriteHeader(http.StatusNotFound)
+			if r.URL.String() == "/extract/chromeos-image-archive/board-firmware-branch/R123-12345.0.0/board/firmware_from_source.tar.bz2?file=config.yaml" {
+				if testCase.configYAML == "" {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				io.WriteString(w, testCase.configYAML)
 				return
 			}
 			t.Fatalf("Unexpected cache server call to %q", r.URL.String())
@@ -187,12 +212,14 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 
 		// Set mock expectations.
 		gomock.InOrder(
-			sam.EXPECT().RunCmd(gomock.Any(), "mktemp", gomock.Any()).Return("/tmp/someTempDir\n", nil),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Not(apImageWithinArchive), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq(apImageWithinArchive), log)).MaxTimes(2).Return("success\n", nil),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Not(ecImageWithinArchive), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq(ecImageWithinArchive), log)).MaxTimes(1).Return("success\n", nil),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/npcx_monitor.bin", gomock.Eq(npcxImageWithinArchive), log)).MaxTimes(1).Return("success\n", nil),
+			sam.EXPECT().RunCmd(gomock.Any(), "mktemp", []string{"-d", "--tmpdir", "cros-fw-provision.XXXXXXXXX.board"}).Return("/tmp/someTempDir\n", nil),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_model.bin"), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_board.bin"), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq(testCase.apImageWithinArchive), log)).MaxTimes(2).Return("success\n", nil),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq("test_board/ec.bin"), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq("test_model/ec.bin"), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq(testCase.ecImageWithinArchive), log)).MaxTimes(1).Return("success\n", nil),
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/npcx_monitor.bin", gomock.Eq(testCase.npcxImageWithinArchive), log)).MaxTimes(1).Return("success\n", nil),
 		)
 
 		// Execute the state and proceed.
@@ -218,7 +245,25 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			expectedFutilityArgs = append(expectedFutilityArgs, "--wp=0")
 			expectedFutilityManifestArgs := append([]string{"update", "--manifest"}, expectedFutilityImageArgs...)
 			gomock.InOrder(
-				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityManifestArgs).Return("", nil),
+				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityManifestArgs).Return(`{
+					"default": {
+						"host": {
+							"versions": { "ro": "roversion", "rw": "roversioninrw" }
+						},
+						"ec": {
+							"versions": { "ro": "ecroversion", "rw": "ecroversioninrw" }
+						}
+					}
+				}`, nil),
+			)
+			if testCase.main_ro {
+				gomock.InOrder(
+					sam.EXPECT().RunCmd(gomock.Any(), "cbfstool", []string{"/tmp/someTempDir/bios.bin", "extract", "-r", "FW_MAIN_A", "-n", "ecrw.hash", "-f", "/tmp/someTempDir/bios.bin-ecrw.hash"}).Return("", nil),
+					sam.EXPECT().RunCmd(gomock.Any(), "od", []string{"-A", "n", "-t", "x1", "/tmp/someTempDir/bios.bin-ecrw.hash"}).Return(
+						" 38 73 52 6f 4f f3 af 90 62 68 7c 30 91 13 09 ee\n 12 a5 ce ec 23 55 19 a8 ba f6 cd be 63 61 ba 92\n", nil),
+				)
+			}
+			gomock.InOrder(
 				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityArgs).Return("", nil),
 			)
 
@@ -238,9 +283,30 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			expectedFutilityArgs := []string{"update", "--mode=recovery", "--image=/tmp/someTempDir/bios.bin", "--wp=1"}
 			expectedFutilityManifestArgs := []string{"update", "--manifest", "--image=/tmp/someTempDir/bios.bin"}
 			gomock.InOrder(
-				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityManifestArgs).Return("", nil),
+				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityManifestArgs).Return(`{
+					"default": {
+						"host": {
+							"versions": { "ro": "wrongro", "rw": "rwversion" }
+						}
+					}
+				}`, nil),
+				sam.EXPECT().RunCmd(gomock.Any(), "cbfstool", []string{"/tmp/someTempDir/bios.bin", "extract", "-r", "FW_MAIN_A", "-n", "ecrw.hash", "-f", "/tmp/someTempDir/bios.bin-ecrw.hash"}).Return("", nil),
+				sam.EXPECT().RunCmd(gomock.Any(), "od", []string{"-A", "n", "-t", "x1", "/tmp/someTempDir/bios.bin-ecrw.hash"}).Return(
+					" 38 73 52 6f 4f f3 af 90 62 68 7c 30 91 13 09 ee\n 12 a5 ce ec 23 55 19 a8 ba f6 cd be 63 61 ba 92\n", nil),
 				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityArgs).Return("", nil),
 			)
+
+			/* OD output:
+			    38 73 52 6f 4f f3 af 90 62 68 7c 30 91 13 09 ee
+			    12 a5 ce ec 23 55 19 a8 ba f6 cd be 63 61 ba 92
+
+			    ectool output:
+			   status:  done
+			   type:    SHA-256
+			   offset:  0x00040000
+			   size:    0x00033b80
+			   hash:    3873526f4ff3af9062687c30911309ee12a5ceec235519a8baf6cdbe6361ba92
+			*/
 
 			// Execute the state and proceed.
 			_, _, err := st.Execute(ctx, log)
@@ -256,10 +322,31 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		gomock.InOrder(
 			sam.EXPECT().DeleteDirectory(gomock.Any(), "/tmp/someTempDir").Return(nil),
 			sam.EXPECT().Restart(gomock.Any()).Return(nil),
+			sam.EXPECT().RunCmd(gomock.Any(), "true", nil).Return("ssh timeout\n", fmt.Errorf("execution fail: 1")),
 			sam.EXPECT().RunCmd(gomock.Any(), "true", nil).Return("", nil),
-			sam.EXPECT().RunCmd(gomock.Any(), "crossystem", []string{"ro_fwid", "fwid"}).Return("roversion rwversion", nil),
-			sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"version"}).Return("RO version: ecroversion\nRW version: ecrwversion\n", nil),
 		)
+		if testCase.updateRo && testCase.updateRw {
+			gomock.InOrder(
+				sam.EXPECT().RunCmd(gomock.Any(), "crossystem", []string{"ro_fwid", "fwid"}).Return("roversion rwversion", nil),
+				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"version"}).Return("RO version: ecroversion\nRW version: ecrwversion\n", nil),
+				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"echash"}).Return(
+					"status:  done\ntype:    SHA-256\noffset:  0x00040000\nsize:    0x00033b80\nhash:    3873526f4ff3af9062687c30911309ee12a5ceec235519a8baf6cdbe6361ba92\n", nil),
+			)
+		} else if testCase.updateRo {
+			gomock.InOrder(
+				sam.EXPECT().RunCmd(gomock.Any(), "crossystem", []string{"ro_fwid", "fwid"}).Return("roversion roversioninrw", nil),
+				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"version"}).Return("RO version: ecroversion\nRW version: ecroversioninrw\n", nil),
+				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"echash"}).Return(
+					"status:  done\ntype:    SHA-256\noffset:  0x00040000\nsize:    0x00033b80\nhash:    3873526f4ff3af9062687c30911309ee12a5ceec235519a8baf6cdbe6361ba92\n", nil),
+			)
+		} else if testCase.updateRw {
+			gomock.InOrder(
+				sam.EXPECT().RunCmd(gomock.Any(), "crossystem", []string{"ro_fwid", "fwid"}).Return("roversion rwversion", nil),
+				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"version"}).Return("RO version: ecroversion\nRW version: ecrwversion\n", nil),
+				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"echash"}).Return(
+					"status:  done\ntype:    SHA-256\noffset:  0x00040000\nsize:    0x00033b80\nhash:    3873526f4ff3af9062687c30911309ee12a5ceec235519a8baf6cdbe6361ba92\n", nil),
+			)
+		}
 		// Execute the state and proceed.
 		_, _, err = st.Execute(ctx, log)
 		if err != nil {

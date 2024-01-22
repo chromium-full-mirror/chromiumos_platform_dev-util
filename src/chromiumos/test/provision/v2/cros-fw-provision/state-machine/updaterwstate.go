@@ -39,7 +39,7 @@ func (s FirmwareUpdateRwState) Execute(ctx context.Context, log *log.Logger) (*a
 	futilityImageArgs = []string{fmt.Sprint("--image=", mainRwPath)}
 
 	log.Printf("[FW Provisioning: Update RW] flashing RW firmware with futility\n")
-	err = s.service.FlashWithFutility(ctx, true /* WP */, futilityImageArgs)
+	err = s.service.FlashWithFutility(ctx, true /* WP */, futilityImageArgs, mainRwPath)
 	if err != nil {
 		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 	}

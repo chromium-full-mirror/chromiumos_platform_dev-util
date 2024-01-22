@@ -28,10 +28,12 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 	// form futility command args based on the request
 	var futilityImageArgs []string
 	// Detailed Request
+	var mainRoPath string
+	var err error
 	mainRoMetadata, ok := s.service.GetImageMetadata(s.service.GetMainRoPath())
 	if ok {
 		log.Printf("[FW Provisioning: Update RO] extracting AP image to flash\n")
-		mainRoPath, err := firmwareservice.PickAndExtractMainImage(ctx, connection, mainRoMetadata, s.service.GetMainRoPath(), s.service.GetBoard(), s.service.GetModel(), s.service.CacheServer)
+		mainRoPath, err = firmwareservice.PickAndExtractMainImage(ctx, connection, mainRoMetadata, s.service.GetMainRoPath(), s.service.GetBoard(), s.service.GetModel(), s.service.CacheServer)
 		if err != nil {
 			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 		}
@@ -65,7 +67,7 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 	}
 
 	log.Printf("[FW Provisioning: Update RO] flashing RO firmware with futility\n")
-	err := s.service.FlashWithFutility(ctx, false /* WP */, futilityImageArgs)
+	err = s.service.FlashWithFutility(ctx, false /* WP */, futilityImageArgs, mainRoPath)
 	if err != nil {
 		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 	}

@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"chromiumos/test/provision/lib/servo_lib"
 	"chromiumos/test/provision/lib/servoadapter"
@@ -34,8 +35,9 @@ type FirmwareVersions struct {
 	} `yaml:"host"`
 	EC struct {
 		Versions struct {
-			RO string `yaml:"ro"`
-			RW string `yaml:"rw"`
+			RO     string `yaml:"ro"`
+			RW     string `yaml:"rw"`
+			RWHash string
 		} `yaml:"versions"`
 	} `yaml:"ec"`
 }
@@ -342,11 +344,12 @@ func (fws *FirmwareService) DeleteArchiveDirectories() error {
 // if |rwOnly| is true, futility will flash only RW regions.
 // if |rwOnly| is false, futility will flash both RW and RO regions.
 // futilityArgs must include argument(s) that provide path(s) to the images.
+// apImagePath is the path to the AP image.
 //
 // If flashing over ssh, simply calls runFutility().
 // If flashing over servo, also runs pre- and post-flashing dut-controls.
-func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
-	if err := fws.ExtractFirmwareVersions(ctx, rwOnly, futilityImageArgs); err != nil {
+func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string, apImagePath string) error {
+	if err := fws.ExtractFirmwareVersions(ctx, rwOnly, futilityImageArgs, apImagePath); err != nil {
 		return errors.Wrap(err, "extract versions")
 	}
 	if fws.useServo {
@@ -356,7 +359,7 @@ func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, 
 }
 
 // ExtractFirmwareVersions uses futility to get the version numbers from the images.
-func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
+func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly bool, futilityImageArgs []string, apImagePath string) error {
 	if len(futilityImageArgs) == 0 {
 		return errors.New("unable to gte version: no futility Image args provided")
 	}
@@ -386,6 +389,21 @@ func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly 
 	}
 	if versions.Default.EC.Versions.RW != "" {
 		fws.ExpectedVersions.EC.Versions.RW = versions.Default.EC.Versions.RW
+	}
+
+	if apImagePath != "" {
+		// Get the EC RW hash from the AP image, since the version in the manifest may be wrong.
+		ecImagePath := fmt.Sprintf("%s-ecrw.hash", apImagePath)
+		_, err = connection.RunCmd(ctx, "cbfstool", []string{apImagePath, "extract", "-r", "FW_MAIN_A", "-n", "ecrw.hash", "-f", ecImagePath})
+		if err != nil {
+			return errors.Wrap(err, "failed to extract ecrw.hash")
+		}
+		out, err = connection.RunCmd(ctx, "od", []string{"-A", "n", "-t", "x1", ecImagePath})
+		if err != nil {
+			return errors.Wrap(err, "failed to get ecrw hash")
+		}
+		fws.ExpectedVersions.EC.Versions.RW = ""
+		fws.ExpectedVersions.EC.Versions.RWHash = strings.Join(strings.FieldsFunc(out, unicode.IsSpace), "")
 	}
 	return nil
 }
@@ -431,6 +449,32 @@ func (fws *FirmwareService) ActiveFirmwareVersions(ctx context.Context) (*Firmwa
 		versions.EC.Versions.RW = m[1]
 	} else {
 		return nil, errors.Errorf("EC RW version not found in %q", out)
+	}
+
+	// Run ectool echash to get EC RW hash
+	out, err = fws.connection.RunCmd(ctx, "ectool", []string{"echash"})
+	if err != nil {
+		// Wilco, etc.
+		if strings.Contains(out, "Very likely this board doesn't have a Chromium EC") {
+			return &versions, nil
+		}
+		return nil, errors.Wrap(err, "ectool failed")
+	}
+	statusRE, err := regexp.Compile(`status:\s*(\S+)\s*\n`)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid statusRE")
+	}
+	hashRE, err := regexp.Compile(`hash:\s*(\S+)\s*\n`)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid hashRE")
+	}
+	if m := statusRE.FindStringSubmatch(out); m == nil || m[1] != "done" {
+		return nil, errors.Errorf("EC hash not done in %q", out)
+	}
+	if m := hashRE.FindStringSubmatch(out); m != nil {
+		versions.EC.Versions.RWHash = m[1]
+	} else {
+		return nil, errors.Errorf("EC RW hash not found in %q", out)
 	}
 	return &versions, nil
 }
