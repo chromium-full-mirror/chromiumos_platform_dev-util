@@ -13,7 +13,6 @@ USER=chromeos_patches
 HOME="/home/${USER}"
 WORKSPACE="${HOME}/findmissing_workspace"
 FINDMISSING="${WORKSPACE}/dev-util/contrib/findmissing"
-GERRIT="${WORKSPACE}/chromite/bin/gerrit"
 DATABASE=us-central1:linux-patches-mysql-8
 
 if [[ -e /etc/systemd/system/cloud-sql-proxy.service ]]; then
