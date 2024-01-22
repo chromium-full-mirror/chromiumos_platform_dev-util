@@ -15,7 +15,7 @@ if [[ ! -e env/bin/activate ]]; then
     python3 -m venv env
 
     # pip install requirements line by line
-    env/bin/pip install -q "$(cat requirements.txt)"
+    env/bin/pip install --require-hashes -r requirements.txt
 fi
 
 {

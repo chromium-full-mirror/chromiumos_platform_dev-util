@@ -43,4 +43,4 @@ python3 -m venv env
 
 # pip install requirements line by line
 # shellcheck disable=SC2046
-./env/bin/pip install -q $(cat "${FINDMISSING}/requirements.txt")
+./env/bin/pip install --require-hashes -r "${FINDMISSING}/requirements.txt"
