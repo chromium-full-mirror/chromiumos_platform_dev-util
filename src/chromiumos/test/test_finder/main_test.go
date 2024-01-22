@@ -444,7 +444,7 @@ func TestGetSelectedTestMetadata(t *testing.T) {
 		{
 			TestCase: &api.TestCase{
 				Id:   &api.TestCase_Id{Value: "bat-life"},
-				Tags: []*api.TestCase_Tag{{Value: "suite:power_per-build"}},
+				Tags: []*api.TestCase_Tag{{Value: "suite:power-per-build"}},
 			},
 			TestCaseInfo: &api.TestCaseInfo{
 				Criteria: &api.Criteria{Value: "validates device battery life"},
@@ -540,8 +540,66 @@ func TestGetSelectedTestMetadata(t *testing.T) {
 			}
 			wantMetadataMap := convertToMetadataMap(testCase.wantMetadata)
 			gotMetadataMap := convertToMetadataMap(gotMetadata)
-			if len(gotMetadata) != len(testCase.wantMetadata) && metadataMapsAreEqual(wantMetadataMap, gotMetadataMap) {
+			if len(gotMetadata) != len(testCase.wantMetadata) || !metadataMapsAreEqual(wantMetadataMap, gotMetadataMap) {
 				t.Fatalf("computed test list not match expected, want: %v, got %v", testCase.wantMetadata, gotMetadata)
+			}
+		})
+	}
+}
+
+func TestTestsToMetadata(t *testing.T) {
+
+	testCases := []struct {
+		name         string
+		tests        map[string]struct{}
+		metadataList []*api.TestCaseMetadata
+		wantMetadata []*api.TestCaseMetadata
+		wantErr      error
+	}{
+		{
+			name: "happy path",
+			tests: map[string]struct{}{
+				"test_1": {},
+				"test_2": {},
+			},
+			metadataList: []*api.TestCaseMetadata{
+				{TestCase: &api.TestCase{Id: &api.TestCase_Id{Value: "test_2"}}},
+				{TestCase: &api.TestCase{Id: &api.TestCase_Id{Value: "test_4"}}},
+				{TestCase: &api.TestCase{Id: &api.TestCase_Id{Value: "test_1"}}},
+			},
+			wantMetadata: []*api.TestCaseMetadata{
+				{TestCase: &api.TestCase{Id: &api.TestCase_Id{Value: "test_2"}}},
+				{TestCase: &api.TestCase{Id: &api.TestCase_Id{Value: "test_1"}}},
+			},
+		},
+		{
+			name: "missing metadata",
+			tests: map[string]struct{}{
+				"test_1": {},
+				"test_3": {},
+			},
+			metadataList: []*api.TestCaseMetadata{
+				{TestCase: &api.TestCase{Id: &api.TestCase_Id{Value: "test_2"}}},
+				{TestCase: &api.TestCase{Id: &api.TestCase_Id{Value: "test_4"}}},
+				{TestCase: &api.TestCase{Id: &api.TestCase_Id{Value: "test_1"}}},
+			},
+			wantErr: errMissingTestMetadata,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			gotMetadata, gotErr := testsToMetadata(testCase.tests, testCase.metadataList)
+			if !errors.Is(gotErr, testCase.wantErr) {
+				t.Fatalf("returned error does not match expected: want %v, got %v", testCase.wantErr, gotErr)
+			}
+			if testCase.wantErr != nil {
+				return
+			}
+			wantMetadataMap := convertToMetadataMap(testCase.wantMetadata)
+			gotMetadataMap := convertToMetadataMap(gotMetadata)
+			if len(gotMetadata) != len(testCase.wantMetadata) || !metadataMapsAreEqual(wantMetadataMap, gotMetadataMap) {
+				t.Fatalf("computed metadata list not match expected, want: %v, got %v", testCase.wantMetadata, gotMetadata)
 			}
 		})
 	}

@@ -19,6 +19,7 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"golang.org/x/exp/maps"
 
 	"chromiumos/test/execution/errors"
 	"chromiumos/test/test_finder/centralizedsuite"
@@ -119,8 +120,8 @@ func metadataToTestSuite(name string, mdList []*api.TestCaseMetadata, metadataRe
 	testInfos := []*api.TestCase{}
 	for _, md := range mdList {
 		testInfos = append(testInfos, &api.TestCase{
-			Id:           md.TestCase.Id,
-			Dependencies: md.TestCase.Dependencies,
+			Id:           md.GetTestCase().GetId(),
+			Dependencies: md.GetTestCase().GetDependencies(),
 		})
 	}
 	return &api.TestSuite{
@@ -142,13 +143,14 @@ func testsToMetadata(tests map[string]struct{}, metadataList []*api.TestCaseMeta
 		metadataMap[testID] = metadata
 	}
 
-	filteredMetadata := make([]*api.TestCaseMetadata, len(tests))
-	for test := range tests {
+	testList := maps.Keys(tests)
+	filteredMetadata := make([]*api.TestCaseMetadata, len(testList))
+	for i, test := range testList {
 		metadata, ok := metadataMap[test]
 		if !ok {
 			return nil, fmt.Errorf("%w: %v", errMissingTestMetadata, test)
 		}
-		filteredMetadata = append(filteredMetadata, metadata)
+		filteredMetadata[i] = metadata
 	}
 	return filteredMetadata, nil
 }
