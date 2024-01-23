@@ -45,7 +45,7 @@ See http://go/arc-corp-ssh-helper-notes and http://go/chromeos-lab-duts-ssh to l
 To use corp-ssh-helper-helper, you need to start the server **outside** the chroot.
 
 ```shell
-(outside the chroot) ~/chromiumos % src/platform/dev/contrib/corp-ssh-helper-helper/corp-ssh-helper-helper-server.py
+(outside the chroot) ~/chromiumos$ src/platform/dev/contrib/corp-ssh-helper-helper/corp-ssh-helper-helper-server.py
 ```
 
 ### Use SSH
