@@ -32,11 +32,10 @@ import (
 //
 // The user should Close the pool after use, to free any SSH Clients in the pool.
 type Pool struct {
-	mu        sync.Mutex
-	pool      map[string][]*ssh.Client
-	config    *ssh.ClientConfig
-	tlsConfig *tls.Config
-	wg        sync.WaitGroup
+	mu     sync.Mutex
+	pool   map[string][]*ssh.Client
+	config Config
+	wg     sync.WaitGroup
 }
 
 // New returns a new Pool. The provided ssh config is used for new SSH
@@ -44,11 +43,10 @@ type Pool struct {
 //
 //	config: SSH configuration to configure the new clients.
 //	tlsConfig: Optional TLS configuration to establish SSH connections over TLS channel.
-func New(config *ssh.ClientConfig, tlsConfig *tls.Config) *Pool {
+func New(config Config) *Pool {
 	return &Pool{
-		pool:      make(map[string][]*ssh.Client),
-		config:    config,
-		tlsConfig: tlsConfig,
+		pool:   make(map[string][]*ssh.Client),
+		config: config,
 	}
 }
 
@@ -68,19 +66,20 @@ func (p *Pool) Get(host string) (*ssh.Client, error) {
 		s.Close()
 		return c, nil
 	}
-	if p.tlsConfig == nil {
-		return ssh.Dial("tcp", host, p.config)
+	sshConfig := p.config.SSHConfig(host)
+	if proxy := p.config.Proxy(host); proxy != nil && proxy.Config() != nil {
+		return p.proxyClient(sshConfig, proxy)
 	}
-	return p.getProxyClient(host)
+	return ssh.Dial("tcp", host, sshConfig)
 }
 
-// getProxyClient returns a new SSH client established over TLS connection.
-func (p *Pool) getProxyClient(host string) (*ssh.Client, error) {
-	conn, err := tls.Dial("tcp", host, p.tlsConfig)
+// proxyClient returns a new SSH client established over TLS connection.
+func (p *Pool) proxyClient(sshConfig *ssh.ClientConfig, proxy *proxyConfig) (*ssh.Client, error) {
+	conn, err := tls.Dial("tcp", proxy.Addr(), proxy.Config())
 	if err != nil {
 		return nil, err
 	}
-	c, chans, reqs, err := ssh.NewClientConn(conn, host, p.config)
+	c, chans, reqs, err := ssh.NewClientConn(conn, proxy.Addr(), sshConfig)
 	if err != nil {
 		conn.Close()
 		return nil, err
