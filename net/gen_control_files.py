@@ -147,22 +147,9 @@ for carrier in [
     )
 
     dut_check_suites = ["cellular_ota", "cellular_repair"]
-    if carrier in ["verizon", "tmobile", "att"]:
-        dut_check_suites.append(
-            "cellular-cq"
-        )  # other carriers are sparsely deployed in the lab, thus CQ may fail to find DUTs
-
     extra_dependencies = ", cellular_modem_state:NORMAL"
-    dut_check_test_names = [
-        "'cellular.Identifiers'",
-        f"'cellular.IsConnected.{carrier}'",
-        f"'cellular.Smoke.{carrier}'",
-        f"'cellular.SmokeIPConnectivity.{carrier}'",
-        "'cellular.IsModemUp'",
-    ]
-
     tests = single_test_template.format(
-        test_exprs=f"[{', '.join(dut_check_test_names)}]"
+        test_exprs=f'[\'("group:cellular" && "cellular_sim_active" && !"cellular_unstable" && "cellular_dut_check" && (!"cellular_carrier_dependent" || "cellular_carrier_{carrier}"))\']'
     )
     write_control_file(
         out_dir,
@@ -172,6 +159,14 @@ for carrier in [
         "dut_check",
         tests,
     )
+
+    # Trigger autoconnect on cq via a separate control file since they may
+    # interact with other tests.
+    # TODO(b/322063109): Merge these into the normal CQ control file.
+    if carrier in ["verizon", "tmobile", "att"]:
+        dut_check_suites.append(
+            "cellular-cq"
+        )  # other carriers are sparsely deployed in the lab, thus CQ may fail to find DUTs
 
     tests = single_test_template.format(
         test_exprs="['cellular.ShillAutoconnect','cellular.ShillEnableDisable']"
@@ -293,10 +288,10 @@ for carrier in [
         tests,
     )
 
-    # limit carrier independent cq tests to tmobile to save lab time.
-    if carrier == "tmobile":
+    # limit carrier independent cq tests to tmobile, verizon, and att to save lab time.
+    if carrier in ("tmobile", "verizon", "att"):
         tests = single_test_template.format(
-            test_exprs='[\'("group:cellular" && "cellular_sim_active" && !"cellular_run_isolated" && "cellular_cq")\']'
+                test_exprs=f'[\'("group:cellular" && "cellular_sim_active" && "cellular_cq" && (!"cellular_carrier_dependent" || "cellular_carrier_{carrier}"))\']'
         )
         write_control_file(
             out_dir, ["cellular-cq"], carrier, extra_dependencies, "cq", tests
