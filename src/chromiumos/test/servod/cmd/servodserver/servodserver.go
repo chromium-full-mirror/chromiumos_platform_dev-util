@@ -36,20 +36,11 @@ type ServodService struct {
 
 // NewServodService creates a new servod service.
 func NewServodService(ctx context.Context, logger *log.Logger, commandexecutor commandexecutor.CommandExecutorInterface) (*ServodService, func(), error) {
-	config, err := ssh.NewDefaultConfig()
-	if err != nil {
-		return nil, nil, err
-	}
-	if isCloudBot() {
-		if err = config.Load(defaultSSHConfigPathOnCloudBot); err != nil {
-			return nil, nil, err
-		}
-	}
 	servodService := &ServodService{
 		manager:         lro.New(),
 		logger:          logger,
 		commandexecutor: commandexecutor,
-		sshPool:         ssh.New(config),
+		sshPool:         ssh.New(ssh.Config(), nil),
 		servodPool:      servod.NewPool(),
 	}
 

@@ -9,9 +9,29 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
+
+const (
+	defaultSSHUser = "root"
+
+	// Some tasks such as running badblocks for USB-Drive audit can
+	// take quite long (2-3 hours). We need to set timeout limit to
+	// accommodate such tasks.
+	defaultSSHTimeout = time.Hour * 3
+)
+
+// Config provides default config for SSH.
+func Config() *ssh.ClientConfig {
+	return &ssh.ClientConfig{
+		User:            defaultSSHUser,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         defaultSSHTimeout,
+		Auth:            []ssh.AuthMethod{ssh.PublicKeys(SSHSigner)},
+	}
+}
 
 // RunResult represents result of executed command.
 type RunResult struct {
