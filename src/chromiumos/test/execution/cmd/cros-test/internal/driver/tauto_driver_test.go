@@ -9,6 +9,8 @@ import (
 	"sort"
 	"testing"
 
+	"go.chromium.org/chromiumos/config/go/test/api"
+
 	"chromiumos/test/execution/cmd/cros-test/internal/device"
 
 	"github.com/google/go-cmp/cmp"
@@ -125,5 +127,42 @@ func TestGenTautoArgList(t *testing.T) {
 
 	if diff := cmp.Diff(argList, expectedArgList, cmp.AllowUnexported(tautoRunArgs{})); diff != "" {
 		t.Errorf("Got unexpected argument from genTautoArgList (-got %v +want %v):\n%s", argList, expectedArgList, diff)
+	}
+}
+
+func TestProcessArgs(t *testing.T) {
+	req := &api.CrosTestRequest{
+		TestSuites: []*api.TestSuite{
+			{
+				Name: suite1,
+				ExecutionMetadata: &api.ExecutionMetadata{
+					Args: []*api.Arg{
+						{
+							Flag:  "retries",
+							Value: "2",
+						},
+						{
+							Flag:  "lacros_gcs_path",
+							Value: "gs://chrome-test-builds/lacros/8758550891523072705_with_patch/lacros_all_tast_tests",
+						},
+						{},
+						{},
+					},
+				},
+				Spec: &api.TestSuite_TestCaseIds{
+					TestCaseIds: &api.TestCaseIdList{
+						TestCaseIds: []*api.TestCase_Id{
+							{
+								Value: test1,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	args, _ := processArgs(req)
+	if args != "retries=2 lacros_gcs_path=gs://chrome-test-builds/lacros/8758550891523072705_with_patch/lacros_all_tast_tests" {
+		t.Error("Args wrong ", args)
 	}
 }

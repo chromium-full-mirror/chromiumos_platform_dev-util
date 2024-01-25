@@ -259,7 +259,12 @@ func processArgs(req *api.CrosTestRequest) (string, error) {
 		if rawArgs != nil {
 			subCustomArgs := ""
 			for _, customAutotestArg := range rawArgs.GetArgs() {
-				subCustomArgs += subCustomArgs + fmt.Sprintf(" %v=%v", customAutotestArg.GetFlag(), customAutotestArg.GetValue())
+				if customAutotestArg.GetFlag() != "" {
+					if subCustomArgs != "" {
+						subCustomArgs += " "
+					}
+					subCustomArgs += fmt.Sprintf("%v=%v", customAutotestArg.GetFlag(), customAutotestArg.GetValue())
+				}
 			}
 			return subCustomArgs, nil
 		}
