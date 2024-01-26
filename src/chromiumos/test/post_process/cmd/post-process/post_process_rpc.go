@@ -6,43 +6,85 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/luci/common/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // PostTestServiceServer implementation of dut_service.proto
 type PostTestServiceServer struct {
 	logger    *log.Logger
 	dutClient api.DutServiceClient
+	conns     []*grpc.ClientConn
 }
 
 // NewServer creates an execution server.
-func NewServer(logger *log.Logger, dutClient api.DutServiceClient) (*grpc.Server, func()) {
+func NewServer(logger *log.Logger, dutAddress string) (*grpc.Server, func(), error) {
 	s := &PostTestServiceServer{
-		logger:    logger,
-		dutClient: dutClient,
+		logger: logger,
+		conns:  []*grpc.ClientConn{},
+	}
+
+	if dutAddress != "" {
+		dutConn, err := grpc.Dial(dutAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Printf("DutConn Failed!")
+			return nil, s.closePostTestServer, fmt.Errorf("failed to connect to dut-service, %s", err)
+		}
+		s.conns = append(s.conns, dutConn)
+		s.dutClient = api.NewDutServiceClient(dutConn)
+		log.Printf("Dut Conn Established")
 	}
 
 	server := grpc.NewServer()
-	var conns []*grpc.ClientConn
-	closer := func() {
-		for _, conn := range conns {
-			conn.Close()
-		}
-		conns = nil
-	}
 	api.RegisterPostTestServiceServer(server, s)
 	// longrunning.RegisterOperationsServer(server, s.manager)
 	logger.Println("crostestservice listen to request at ")
-	return server, closer
+	return server, s.closePostTestServer, nil
+}
+
+func (s *PostTestServiceServer) closePostTestServer() {
+	for _, conn := range s.conns {
+		conn.Close()
+	}
+	s.conns = nil
+}
+
+// StartUp handles the initialization of the PostTestService.
+func (s *PostTestServiceServer) StartUp(ctx context.Context, req *api.PostTestStartUpRequest) (*api.PostTestStartUpResponse, error) {
+	s.logger.Println("Received StartUp: ", req)
+	response := api.PostTestStartUpResponse{}
+
+	if req.DutServer == nil || req.GetDutServer().GetAddress() == "" {
+		response.Status = api.PostTestStartUpResponse_STATUS_INVALID_REQUEST
+		return &response, fmt.Errorf("PostService: startup request missing DutServer")
+	}
+
+	dutAddr := fmt.Sprintf("%s:%d", req.GetDutServer().GetAddress(), req.GetDutServer().GetPort())
+	dutConn, err := grpc.Dial(dutAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		response.Status = api.PostTestStartUpResponse_STATUS_STARTUP_FAILED
+		return &response, fmt.Errorf("PostService: failed to connect to dut-service, %s", err)
+	}
+	s.conns = append(s.conns, dutConn)
+	s.dutClient = api.NewDutServiceClient(dutConn)
+	s.logger.Printf("PostService: Dut Conn Established")
+
+	response.Status = api.PostTestStartUpResponse_STATUS_SUCCESS
+	return &response, nil
 }
 
 // RunActivity calls the parseAndRunCmds (post-process flow) in main.
 func (s *PostTestServiceServer) RunActivity(ctx context.Context, req *api.RunActivityRequest) (*api.RunActivityResponse, error) {
 	s.logger.Printf("Received GetFWInfo: %s", req)
+
+	if s.dutClient == nil {
+		return nil, fmt.Errorf("PostService: missing DUT client")
+	}
 
 	rspn, err := parseAndRunCmds(req.Request, s.logger, s.dutClient)
 	s.logger.Printf("After Parse")
@@ -51,7 +93,7 @@ func (s *PostTestServiceServer) RunActivity(ctx context.Context, req *api.RunAct
 		return nil, errors.Annotate(err, "PostService: failed to run post service").Err()
 	}
 	s.logger.Printf("PostService RPC Command was successful")
-	s.logger.Printf("REturning %s", rspn)
+	s.logger.Printf("Returning %s", rspn)
 
 	return rspn, nil
 }

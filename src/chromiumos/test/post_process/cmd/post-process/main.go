@@ -99,15 +99,12 @@ func startServer(d []string) int {
 
 	logger := common.NewLogger(logFile)
 
+	// TODO(cdelagarza): Set to optional once
+	// StartUp added to rpc service definition.
 	if a.dutendpoint == "" {
 		log.Fatalln("need dut-server endpoint")
 		return 2
 	}
-	dutAddr := a.dutendpoint
-
-	dutConn, err := grpc.Dial(dutAddr, grpc.WithInsecure())
-	defer dutConn.Close()
-	dutClient := api.NewDutServiceClient(dutConn)
 
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", a.port))
 	if err != nil {
@@ -116,14 +113,12 @@ func startServer(d []string) int {
 	}
 	logger.Println("Starting PostTestService on port ", a.port)
 
+	server, closer, err := NewServer(logger, a.dutendpoint)
+	defer closer()
 	if err != nil {
-		log.Printf("DutConn Failed!")
+		log.Println(err)
 		return 2
 	}
-	log.Printf("Dut Conn Established")
-
-	server, closer := NewServer(logger, dutClient)
-	defer closer()
 	err = server.Serve(l)
 	if err != nil {
 		logger.Fatalln("Failed to initialize server: ", err)
