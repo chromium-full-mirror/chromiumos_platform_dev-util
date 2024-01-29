@@ -89,6 +89,10 @@ topic_patches["chromeos"] = [
 topic_patches["power-thermal"] = [
     "fixups/FIXUP: CHROMIUM: PM: hibernate: Add three ioctls for secure image transfer.patch",
 ]
+
+topic_patches["mm"] = [
+    "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr.patch",
+]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
