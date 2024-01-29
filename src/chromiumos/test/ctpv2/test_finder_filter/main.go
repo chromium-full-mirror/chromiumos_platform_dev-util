@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -19,10 +18,9 @@ import (
 )
 
 const (
-	address       = "localhost"
-	binName       = "test_finder_filter"
-	testFinderDir = "/tmp/test-finder"
-	mdDir         = "/tmp/test/metadata"
+	address = "localhost"
+	binName = "test_finder_filter"
+	mdDir   = "/tmp/test/metadata"
 )
 
 func toCTPTestCase(metadata *api.TestCaseMetadata) *api.CTPTestCase {
@@ -83,10 +81,6 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 }
 
 func startAndRunTestFinder(testPlan *api.InternalTestplan, log *log.Logger) (*api.CrosTestFinderResponse, error) {
-	err := os.Mkdir(testFinderDir, 0777)
-	if err != nil {
-		log.Fatal(err)
-	}
 	req, err := toTestFinderRequest(testPlan)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to Translate Request: %s", err)
@@ -106,11 +100,6 @@ func startAndRunTestFinder(testPlan *api.InternalTestplan, log *log.Logger) (*ap
 
 	return response, nil
 
-}
-
-func getLog() string {
-	fileContents, _ := ioutil.ReadFile(fmt.Sprintf("%s/log.txt", testFinderDir))
-	return string(fileContents)
 }
 
 // writeTestFinderInput writes a CrosTestFinderRequest json.
