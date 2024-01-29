@@ -56,6 +56,7 @@ topic_patches["block-fs"] = [
 topic_patches["drivers"] = [
     "fixups/FIXUP: CHROMIUM: pci allowlist: sysfs attribute to lockdown external devices completely.patch",
     "fixups/FIXUP: Revert 'staging: remove ashmem'.patch",
+    "fixups/FROMGIT: xhci: check for a pending command completion during command timeout.patch",
 ]
 
 topic_patches["arch"] = [
