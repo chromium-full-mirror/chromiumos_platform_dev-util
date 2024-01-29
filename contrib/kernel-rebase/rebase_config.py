@@ -115,7 +115,7 @@ merge_fixups = []
 # patch_deps = {
 #     '0d022b4a1e19': ['6e18e51a1c19']
 # }
-patch_deps = {}
+patch_deps = {"ddce70d74ef7": ["a9a10c006900", "ff5f250f00ad"]}
 
 # Add entry here to overwrite default disposition on particular commit
 # WARNING: lines can be automatically appended here when user chooses
