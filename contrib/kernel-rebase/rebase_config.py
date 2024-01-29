@@ -81,6 +81,10 @@ topic_patches["drm"] = [
     "fixups/FIXUP: CHROMIUM: drm img-rogue: Add 1.17 IMG PowerVR Rogue driver.patch",
     "fixups/FIXUP: CHROMIUM: drm print: Add tracefs support to the drm logging helpers.patch",
 ]
+
+topic_patches["chromeos"] = [
+    "fixups/FIXUP: CHROMIUM: LSM: chromiumos security module.patch",
+]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
