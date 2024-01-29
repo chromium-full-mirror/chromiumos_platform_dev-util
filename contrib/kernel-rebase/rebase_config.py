@@ -85,6 +85,10 @@ topic_patches["drm"] = [
 topic_patches["chromeos"] = [
     "fixups/FIXUP: CHROMIUM: LSM: chromiumos security module.patch",
 ]
+
+topic_patches["power-thermal"] = [
+    "fixups/FIXUP: CHROMIUM: PM: hibernate: Add three ioctls for secure image transfer.patch",
+]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
