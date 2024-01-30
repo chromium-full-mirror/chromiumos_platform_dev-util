@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -18,9 +19,10 @@ import (
 )
 
 const (
-	address = "localhost"
-	binName = "test_finder_filter"
-	mdDir   = "/tmp/test/metadata"
+	address                 = "localhost"
+	binName                 = "test_finder_filter"
+	mdDir                   = "/tmp/test/metadata"
+	centralizedSuitesPrefix = "centralizedsuite:"
 )
 
 func toCTPTestCase(metadata *api.TestCaseMetadata) *api.CTPTestCase {
@@ -32,12 +34,19 @@ func toCTPTestCase(metadata *api.TestCaseMetadata) *api.CTPTestCase {
 }
 func toTestFinderRequest(testPlan *api.InternalTestplan) (*api.CrosTestFinderRequest, error) {
 	// TODO... switch
-	testSuite, ok := testPlan.GetSuiteInfo().GetSuiteRequest().GetSuiteRequest().(*api.SuiteRequest_TestSuite)
+	requestedSuite, ok := testPlan.GetSuiteInfo().GetSuiteRequest().GetSuiteRequest().(*api.SuiteRequest_TestSuite)
 	if !ok {
 		return nil, errors.New("SuiteRequest is not TestSuite")
 	}
+	testSuite := requestedSuite.TestSuite
+	if testSuite != nil && strings.HasPrefix(testSuite.Name, centralizedSuitesPrefix) {
+		return &api.CrosTestFinderRequest{
+			CentralizedSuite: strings.TrimPrefix(testSuite.Name, centralizedSuitesPrefix),
+			MetadataRequired: true,
+		}, nil
+	}
 	return &api.CrosTestFinderRequest{
-		TestSuites:       []*api.TestSuite{testSuite.TestSuite},
+		TestSuites:       []*api.TestSuite{testSuite},
 		MetadataRequired: true,
 	}, nil
 }
