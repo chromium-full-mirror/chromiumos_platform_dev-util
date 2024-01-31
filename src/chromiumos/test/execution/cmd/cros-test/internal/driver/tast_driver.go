@@ -61,7 +61,7 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 			fmt.Errorf("cannot get address from primary device: %v", err))
 	}
 
-	chromeOSCompanions, AndriodCompanions, err := companions(req.Companions)
+	chromeOSCompanions, AndriodCompanions, err := common.Companions(req.Companions)
 	if err != nil {
 		return nil, errors.NewStatusError(errors.InvalidArgument,
 			fmt.Errorf("cannot get companion devices information: %v", err))
@@ -152,27 +152,6 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 	_ = common.PublishTkoStatusFile(resultsDir, results)
 
 	return &api.CrosTestResponse{TestCaseResults: results}, nil
-}
-
-func companions(devices []*api.CrosTestRequest_Device) (chromeOSCompanions []*device.DutInfo,
-	AndriodCompanions []*device.AndroidInfo, err error) {
-
-	for i, c := range devices {
-		if c.Dut.GetChromeos() != nil {
-			info, err := device.FillDUTInfo(c, fmt.Sprintf("cd%d", i+1))
-			if err != nil {
-				return nil, nil, errors.NewStatusError(errors.InvalidArgument,
-					fmt.Errorf("cannot get address from companion device: %v", c))
-			}
-			chromeOSCompanions = append(chromeOSCompanions, info)
-			continue
-		}
-		if c.Dut.GetAndroid() != nil {
-			androidInfo := device.FillAndroidInfo(c)
-			AndriodCompanions = append(AndriodCompanions, androidInfo)
-		}
-	}
-	return chromeOSCompanions, AndriodCompanions, nil
 }
 
 // Command name and flag names.

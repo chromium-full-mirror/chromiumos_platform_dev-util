@@ -13,6 +13,9 @@ import (
 	"log"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
+
+	"chromiumos/test/execution/cmd/cros-test/internal/device"
+	"chromiumos/test/execution/errors"
 )
 
 // TestScanner makes a scanner to read from test streams.
@@ -67,4 +70,26 @@ func unpackTastMetadata(req *api.CrosTestRequest) (*api.TastExecutionMetadata, e
 		return nil, fmt.Errorf("improperly formatted input proto metadata, %s", err)
 	}
 	return &m, nil
+}
+
+// Companions separates devices to ChromeOS devices and Android devices.
+func Companions(devices []*api.CrosTestRequest_Device) (chromeOSCompanions []*device.DutInfo,
+	AndriodCompanions []*device.AndroidInfo, err error) {
+
+	for i, c := range devices {
+		if c.Dut.GetChromeos() != nil {
+			info, err := device.FillDUTInfo(c, fmt.Sprintf("cd%d", i+1))
+			if err != nil {
+				return nil, nil, errors.NewStatusError(errors.InvalidArgument,
+					fmt.Errorf("cannot get address from companion device: %v", c))
+			}
+			chromeOSCompanions = append(chromeOSCompanions, info)
+			continue
+		}
+		if c.Dut.GetAndroid() != nil {
+			androidInfo := device.FillAndroidInfo(c)
+			AndriodCompanions = append(AndriodCompanions, androidInfo)
+		}
+	}
+	return chromeOSCompanions, AndriodCompanions, nil
 }

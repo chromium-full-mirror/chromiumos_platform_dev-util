@@ -21,7 +21,6 @@ import (
 	"chromiumos/test/execution/cmd/cros-test/internal/common"
 	"chromiumos/test/execution/cmd/cros-test/internal/device"
 	"chromiumos/test/execution/cmd/cros-test/internal/tautoresults"
-	"chromiumos/test/execution/errors"
 )
 
 // TautoDriver runs Tauto and report its results.
@@ -55,22 +54,14 @@ func (td *TautoDriver) RunTests(ctx context.Context, resultsDir string, req *api
 	testNames := getTestNames(tests)
 
 	primary, err := device.FillDUTInfo(req.Primary, "")
-	var companions []*device.DutInfo
-	for i, c := range req.Companions {
-		info, err := device.FillDUTInfo(c, fmt.Sprintf("cd%d", i+1))
-		if err != nil {
-			return nil, errors.NewStatusError(errors.InvalidArgument,
-				fmt.Errorf("cannot get address from companion device: %v", c))
-		}
-		companions = append(companions, info)
-	}
+	chromeOSCompanions, AndriodCompanions, err := common.Companions(req.Companions)
 
 	// Fill in DUT server var flags.
 	var dutServers []string
 	if primary.DutServer != "" {
 		dutServers = append(dutServers, fmt.Sprintf("%s", primary.DutServer))
 	}
-	for _, c := range companions {
+	for _, c := range chromeOSCompanions {
 		if c.DutServer != "" {
 			dutServers = append(dutServers, fmt.Sprintf("%s", c.DutServer))
 		}
@@ -90,7 +81,7 @@ func (td *TautoDriver) RunTests(ctx context.Context, resultsDir string, req *api
 		td.logger.Println("Error during args Parsing, will continue: ", err)
 
 	}
-	args, err := newTautoArgs(primary, companions, testNames, dutServers, resultsDir, libsServer, customArgs)
+	args, err := newTautoArgs(primary, chromeOSCompanions, AndriodCompanions, testNames, dutServers, resultsDir, libsServer, customArgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tauto args: %v", err)
 	}
@@ -177,7 +168,7 @@ type tautoRunArgs struct {
 }
 
 // newTautoArgs created an argument structure for invoking tauto
-func newTautoArgs(dut *device.DutInfo, companionDuts []*device.DutInfo, tests, dutServers []string, resultsDir string, libsServer string, customArgs string) (*tautoRunArgs, error) {
+func newTautoArgs(dut *device.DutInfo, companionDuts []*device.DutInfo, andriods []*device.AndroidInfo, tests, dutServers []string, resultsDir string, libsServer string, customArgs string) (*tautoRunArgs, error) {
 	args := tautoRunArgs{
 		target: dut,
 		runFlags: map[string]string{
@@ -185,11 +176,14 @@ func newTautoArgs(dut *device.DutInfo, companionDuts []*device.DutInfo, tests, d
 		},
 	}
 
-	if len(companionDuts) > 0 {
-		var companionsAddresses []string
-		for _, c := range companionDuts {
-			companionsAddresses = append(companionsAddresses, c.Addr)
-		}
+	var companionsAddresses []string
+	for _, c := range companionDuts {
+		companionsAddresses = append(companionsAddresses, c.Addr)
+	}
+	for _, a := range andriods {
+		companionsAddresses = append(companionsAddresses, a.AssoicateAddr)
+	}
+	if len(companionsAddresses) > 0 {
 		args.runFlags[companionFlag] = strings.Join(companionsAddresses, ",")
 	}
 

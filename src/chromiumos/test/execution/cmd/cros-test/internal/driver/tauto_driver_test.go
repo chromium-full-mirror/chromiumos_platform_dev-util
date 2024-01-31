@@ -26,6 +26,11 @@ func TestNewTautoArgs(t *testing.T) {
 			Addr: "companion2",
 		},
 	}
+	androids := []*device.AndroidInfo{
+		{
+			AssoicateAddr: "android1",
+		},
+	}
 	dutServers := []string{"localhost:2222", "localhost:2223", "localhost:2224"}
 	libsServer := "192.168.1.1:8675"
 	primary := &device.DutInfo{
@@ -69,7 +74,7 @@ func TestNewTautoArgs(t *testing.T) {
 		runFlags: map[string]string{
 			tautoResultsDirFlag: workDir1,
 			autotestDirFlag:     "/usr/local/autotest/",
-			companionFlag:       "companion1,companion2",
+			companionFlag:       "companion1,companion2,android1",
 			dutServerFlag:       "localhost:2222,localhost:2223,localhost:2224",
 			attributes:          `{"HWID":"Atlas 123-34","servo_host":"127.123.332.121","servo_port":"1337","servo_serial":"8675309"}`,
 			labels:              "board:fred model:flintstone servo chameleon audio_board chameleon:vga chameleon:hdmi atrus mimo camerabox_facing:front type:usbaudio sku:goat_4kb phase:CVT working_bluetooth_btpeer:3",
@@ -81,7 +86,7 @@ func TestNewTautoArgs(t *testing.T) {
 
 	dut := primary
 	tests := []string{test1, test2, test3, test4, test5}
-	args, err := newTautoArgs(dut, companions, tests, dutServers, workDir1, libsServer, processedArgs)
+	args, err := newTautoArgs(dut, companions, androids, tests, dutServers, workDir1, libsServer, processedArgs)
 	if err != nil {
 		t.Errorf("Got err ")
 	}
