@@ -71,17 +71,17 @@ def _git(args, stdin=None, encoding='utf-8'):
         return None
 
 
-def release_branches(baseline):
+def release_branches(chromeos_remote, baseline):
     """Return existing release branches."""
 
-    command = ['branch', '-r', '--list', 'origin/release-R*-chromeos-%s' % baseline]
+    command = ['branch', '-r', '--list', '%s/release-R*-chromeos-%s' % (chromeos_remote, baseline)]
 
     releases = []
 
     branches = _git(command).splitlines()
 
     for branch in branches:
-        release = re.match(r' *origin/release-(R([0-9]+)-[0-9]+\.B)-.*', branch)
+        release = re.match(r' *%s/release-(R([0-9]+)-[0-9]+\.B)-.*' % chromeos_remote, branch)
         if release and int(release[2]) >= MIN_RELEASE:
             releases += [release[1]]
 
@@ -232,7 +232,7 @@ def check_release_branches(baseline, sha, subject):
     if chromeos_remote:
         contained = []
         not_contained = []
-        for b in release_branches(baseline):
+        for b in release_branches(chromeos_remote, baseline):
             release = b.split('-', maxsplit=1)[0]
             if findpatch(chromeos_remote, b, baseline, sha, subject):
                 contained += [release]
