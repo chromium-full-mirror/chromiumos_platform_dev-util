@@ -1,0 +1,30 @@
+[package]
+name = "snag"
+version = "0.0.2"
+authors = ["George Engelbrecht <engeg@google.com>"]
+
+[dependencies]
+anyhow = "1.0.71"
+backoff = "0.4.0"
+console = "*"
+chrono = "0.4.26"
+clap = { version = "4.3.1", features = ["derive"] }
+crossterm = "0.26.1"
+env_logger = "0.10.0"
+futures = "0.3"
+git2 = "0.17.2"
+humantime = "2.1.0"
+indicatif = { version = "0.17.5", features = ["rayon"] }
+log = "0.4"
+num_cpus = "1.16.0"
+openssl = { version = "0.10.55", features = ["vendored"] }
+rayon = "1.7.0"
+regex = "1.8.4"
+serde = { version = "1.0.171", features = ["derive"] }
+serde_json = "1.0.102"
+shellexpand = "3.1.0"
+signal-hook = "0.3.15"
+tempfile = "3.5.0"
+url = "2.3.1"
+xml-rs = "0.8.14"
+thiserror = "1.0.44"

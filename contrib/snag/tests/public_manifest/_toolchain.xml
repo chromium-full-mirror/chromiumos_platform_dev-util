@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This is the manifest file for the llvm-project checkout.
+     This manifest should be updated for every LLVM release.
+
+     !!! WARNING !!!
+     Toolchain OWNERS is just for SHA updates.
+     DO NOT add repositories here without consulting CI. -->
+<manifest>
+  <!-- <project path="src/third_party/llvm-project"
+       name="external/github.com/llvm/llvm-project"
+       revision="98f5a340975bc00197c57e39eb4ca26e2da0e8a2"
+       groups="notdefault,toolchain,bazel" /> -->
+</manifest>

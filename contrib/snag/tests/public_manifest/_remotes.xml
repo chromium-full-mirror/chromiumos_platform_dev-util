@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Should you add new remotes?  Most likely not.  Please review:
+     https://chromium.googlesource.com/chromiumos/docs/+/HEAD/source_layout.md#mirror-repo -->
+<manifest>
+  <remote name="cros"
+          fetch="https://chromium.googlesource.com"
+          review="https://chromium-review.googlesource.com">
+    <annotation name="public" value="true" />
+  </remote>
+  <remote name="chromium"
+          alias="cros"
+          fetch="https://chromium.googlesource.com/">
+    <annotation name="public" value="true" />
+  </remote>
+  <remote name="aosp"
+          fetch="https://android.googlesource.com"
+          review="https://android-review.googlesource.com">
+    <annotation name="public" value="true" />
+  </remote>
+</manifest>
