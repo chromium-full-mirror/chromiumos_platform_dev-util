@@ -71,12 +71,12 @@ def main():
     * --continue
     * --board=BOARD --variant=VARIANT [--bug=BUG]
     """
-    board, variant, bug, branch, continue_flag, abort_flag = get_args()
+    board, variant, bug, branch, trunk, continue_flag, abort_flag = get_args()
 
     if not check_flags(board, variant, bug, continue_flag, abort_flag):
         return False
 
-    status = get_status(board, variant, bug, branch, continue_flag, abort_flag)
+    status = get_status(board, variant, bug, branch, trunk, continue_flag, abort_flag)
     if status is None:
         return False
 
@@ -114,6 +114,7 @@ def get_args():
         board             Name of the reference board
         variant           Name of the variant being created
         bug               Text for bug number, if any ('None' otherwise)
+        trunk             Root path within chroot
         continue_flag     Flag if --continue was specified
     """
     parser = argparse.ArgumentParser(
@@ -128,6 +129,9 @@ def get_args():
     )
     parser.add_argument(
         "--branch", type=str, help="Value for BRANCH= in commit messages"
+    )
+    parser.add_argument(
+        "--trunk", type=str, help="Trunk or root path name within chroot"
     )
     # Use a group so that we can enforce mutually-exclusive arguments.
     # argparse does not support nesting groups, so we can't put board,
@@ -169,8 +173,9 @@ def get_args():
 
     bug = args.bug or "None"
     branch = args.branch or "None"
+    trunk = args.trunk or "chromiumos"
 
-    return (board, variant, bug, branch, args.continue_flag, args.abort_flag)
+    return (board, variant, bug, branch, trunk, args.continue_flag, args.abort_flag)
 
 
 def check_flags(board, variant, bug, continue_flag, abort_flag):
@@ -216,7 +221,7 @@ def check_flags(board, variant, bug, continue_flag, abort_flag):
     return True
 
 
-def get_status(board, variant, bug, branch, continue_flag, abort_flag):
+def get_status(board, variant, bug, branch, trunk, continue_flag, abort_flag):
     """Create the status file or get the previous status
 
     This program can stop at several places as we have to wait for CLs
@@ -310,6 +315,9 @@ def get_status(board, variant, bug, branch, continue_flag, abort_flag):
     * branch - optional text for a BRANCH= value in the commit message for
         repos that use the BRANCH field (coreboot and EC). If not specified,
         then None.
+    * trunk - optional path for root folder within chroot.
+        Default path will be chromiumos but in case of multiple instance
+        path can be changed using --trunk argument.
     * step - internal state tracking, what step of the variant creation
         we are at.
     * yaml_file - internal, just the name of the file where all this data
@@ -378,6 +386,7 @@ def get_status(board, variant, bug, branch, continue_flag, abort_flag):
     status.variant = variant
     status.bug = bug
     status.branch = branch
+    status.trunk = trunk
 
     # Load the appropriate module and copy all the data from it.
     try:
@@ -774,7 +783,7 @@ def fw_build_config(status):
     logging.info("Running step fw_build_config")
     fw_build_config_sh = os.path.join(status.my_loc, "fw_build_config.sh")
     rc = run_process(
-        [fw_build_config_sh, status.base, status.variant, status.bug]
+        [fw_build_config_sh, status.base, status.variant, status.trunk, status.bug]
     )
     if rc:
         status.commits[step_names.FW_BUILD_CONFIG] = get_git_commit_data(
@@ -851,6 +860,7 @@ def create_coreboot_config(status):
             status.base,
             status.board,
             status.variant,
+            status.trunk,
             status.bug,
         ],
         env=environ,
@@ -896,6 +906,7 @@ def create_depthcharge_variant(status):
             status.depthcharge_base,  # base
             status.depthcharge_ref,  # reference
             status.variant,  # variant
+            status.trunk,
             status.bug,
         ],
         env=environ,
@@ -927,6 +938,7 @@ def copy_cras_config(status):
             status.base,
             status.board,
             status.variant,
+            status.trunk,
             status.bug,
         ]
     )
@@ -1103,6 +1115,7 @@ def create_initial_ec_image(status):
             create_initial_ec_image_sh,
             status.ec_board,
             status.variant,
+            status.trunk,
             status.bug,
         ],
         env=environ,
@@ -1149,6 +1162,7 @@ def create_zephyr_ec_image(status):
             status.base,
             status.ec_board,
             status.variant,
+            status.trunk,
             status.bug,
         ],
         env=environ,
@@ -1202,7 +1216,7 @@ def add_variant_to_public_yaml(status):
         status.my_loc, "add_variant_to_yaml.sh"
     )
     rc = run_process(
-        [add_variant_to_yaml_sh, status.base, status.variant, status.bug]
+        [add_variant_to_yaml_sh, status.base, status.variant, status.trunk, status.bug]
     )
     if rc:
         status.commits[step_names.ADD_PUB_YAML] = get_git_commit_data(

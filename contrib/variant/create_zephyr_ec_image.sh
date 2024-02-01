@@ -15,10 +15,11 @@ if [[ ! -e /etc/cros_chroot_version ]]; then
   exit 1
 fi
 
-if [[ "$#" -lt 2 ]]; then
-  echo "Usage: ${SCRIPT} base reference_name variant_name [bug_number]"
-  echo "e.g. ${SCRIPT} nissa nereid destiny b:229550821"
+if [[ "$#" -lt 3 ]]; then
+  echo "Usage: ${SCRIPT} base reference_name variant_name [trunk_name] [bug_number]"
+  echo "e.g. ${SCRIPT} nissa nereid destiny chromiumos b:229550821"
   echo "Creates the initial EC image as a copy of the reference board's EC."
+  echo "trunk_path is an optional parameter, script uses 'chromiumos' as default path"
   exit 1
 fi
 
@@ -39,15 +40,16 @@ BASE="${1,,}"
 REF="${2,,}"
 # This is the name of the variant that is being cloned.
 VARIANT="${3,,}"
-
+# This is the trunk path for the source. Default is "chromiumos" if not specified.
+TRUNK=${4:-"chromiumos"}
 # Assign BUG= text, or "None" if that parameter wasn't specified.
-BUG=${4:-None}
+BUG=${5:-None}
 
 # Assign the value for BRANCH= in the commit message, or use None if unspecified
 COMMIT_MSG_BRANCH="${NEW_VARIANT_BRANCH:-None}"
 
 # All of the necessary files are in platform/ec/zephyr/program
-WORKDIR="${HOME}/trunk/src/platform/ec/zephyr/program"
+WORKDIR="${HOME}/${TRUNK}/src/platform/ec/zephyr/program"
 cd "${WORKDIR}"
 
 # Make sure that the reference board exists.
@@ -64,16 +66,21 @@ check_pending_changes "$(pwd)"
 # Start a branch. Use YMD timestamp to avoid collisions.
 DATE=$(date +%Y%m%d)
 BRANCH="create_${VARIANT}_${DATE}"
-repo start "${BRANCH}" . "${NEW_VARIANT_WIP:+--head}"
-# ${parameter:+word}" substitutes "word" if $parameter is set to a non-null
-# value, or substitutes null if $parameter is null or unset.
+# Store current branch information to restore in case of failure
+CURRENT_BRANCH=`git describe --all | cut -d '/' -f 2-3`
+# Checkout new branch to work on.
+# In case script has already been running, skip new branch creation.
+if [ -z "${NEW_VARIANT_WIP}" ]; then
+    git checkout -b "${BRANCH}" -t "${CURRENT_BRANCH}"
+fi
 
 cleanup() {
   # If there is an error after the `repo start`, then remove the added files
   # and `repo abandon` the new branch.
   cd "${WORKDIR}"
   git restore "${BUILD_PY}" || true
-  repo abandon "${BRANCH}" .
+  git checkout "${CURRENT_BRANCH}"
+  git branch -D "${BRANCH}"
 }
 trap 'cleanup' ERR
 
@@ -82,12 +89,28 @@ mkdir -p "${BASE}"/"${VARIANT}"
 cp -r "${BASE}"/"${REF}"/* "${BASE}"/"${VARIANT}"
 
 # Add the new variant to BUILD.py
-echo "${VARIANT} = register_${REF}_project(project_name=\"${VARIANT}\",)" >> "${BUILD_PY}"
+echo "${VARIANT} = register_${BASE}_project(project_name=\"${VARIANT}\",)" >> "${BUILD_PY}"
+
+# Update Cmakelist.txt to include new variant
+CMAKE="elseif(DEFINED CONFIG_BOARD_${VARIANT^^})\n	project(${VARIANT})\n	add_subdirectory(${VARIANT})\nendif()"
+sed -i 's/.*endif.*/'"${CMAKE}"'/' "${BASE}/CMakeLists.txt"
+
+# Update Kconfig for new variant
+KCONF_PATH="${BASE}/Kconfig"
+CONFIG="config BOARD_${BASE^^}" # CONFIG string to be searched
+KCONFIG=`awk "/\<${CONFIG}\>/ {print}" RS= ${KCONF_PATH}`
+KCONFIG_NEW=`echo "${KCONFIG}" | sed -e "s/${BASE}/${VARIANT^^}/gI"`
+echo "${KCONFIG_NEW}" >> "${BASE}/Kconfig"
+
+# Add RW_FWID addr assertion line for build
+NEW_LINE=`grep -rsn "assert_rw_fwid_DO_NOT_EDIT(project_name=\"${REF}\"" | cut -d ':' -f3`
+UPDATED_FWID=${NEW_LINE//$REF/$VARIANT}
+echo "${UPDATED_FWID}" >> "${BUILD_PY}"
 
 # Regenarte for bazel targets.
-EC_DIR="${HOME}/trunk/src/platform/ec"
+EC_DIR="${HOME}/${TRUNK}/src/platform/ec"
 pushd "${EC_DIR}"
-./util/gen_bazel_targets.py
+./bazel/gen_bazel_targets.py
 popd
 
 # Format the code

@@ -15,10 +15,11 @@ if [[ ! -e /etc/cros_chroot_version ]]; then
 fi
 
 if [[ "$#" -lt 3 ]]; then
-  echo "Usage: ${SCRIPT} base_name reference_name variant_name [bug_number]"
-  echo "e.g. ${SCRIPT} hatch hatch kohaku b:140261109"
-  echo "e.g. ${SCRIPT} zork trembyle frobozz b:148161697"
+  echo "Usage: ${SCRIPT} base_name reference_name variant_name [trunk_path] [bug_number]"
+  echo "e.g. ${SCRIPT} hatch hatch kohaku chromiumos b:140261109"
+  echo "e.g. ${SCRIPT} zork trembyle frobozz chromiumos b:148161697"
   echo "Copies the cras config from the reference board to the new variant"
+  echo "trunk_path is an optional parameter, script uses 'chromiumos' as default path"
   exit 1
 fi
 
@@ -43,11 +44,12 @@ BASE="${1,,}"
 REFERENCE="${2,,}"
 # This is the name of the variant that is being cloned.
 VARIANT="${3,,}"
-
+# This is the trunk path. Default path is "chromiumos"
+TRUNK=${4:-"chromiumos"}
 # Assign BUG= text, or "None" if that parameter wasn't specified.
-BUG=${4:-None}
+BUG=${5:-None}
 
-CHROMEOS_BSP_DIR="${HOME}/trunk/src/overlays/overlay-${BASE}/chromeos-base/chromeos-bsp-${BASE}"
+CHROMEOS_BSP_DIR="${HOME}/${TRUNK}/src/overlays/overlay-${BASE}/chromeos-base/chromeos-bsp-${BASE}"
 
 if [[ -d "${CHROMEOS_BSP_DIR}/files/cras-config" ]]; then
   CRAS_DIR="files/cras-config"
@@ -65,9 +67,13 @@ check_pending_changes "$(pwd)"
 # Start a branch. Use YMD timestamp to avoid collisions.
 DATE=$(date +%Y%m%d)
 BRANCH="create_${VARIANT}_${DATE}"
-repo start "${BRANCH}" . "${NEW_VARIANT_WIP:+--head}"
-# ${parameter:+word}" substitutes "word" if $parameter is set to a non-null
-# value, or substitutes null if $parameter is null or unset.
+# Store current branch information to restore in case of failure
+CURRENT_BRANCH=`git describe --all | cut -d '/' -f 2-3`
+# Checkout new branch to work on.
+# In case script has already been running, skip new branch creation.
+if [ -z "${NEW_VARIANT_WIP}" ]; then
+    git checkout -b "${BRANCH}" -t "${CURRENT_BRANCH}"
+fi
 
 cleanup() {
   # If there is an error after the `repo start`, then restore modified files
@@ -85,7 +91,8 @@ cleanup() {
     # won't terminate the script before we can finish cleaning up.
     git restore --staged "${VARIANT}" || true
   fi
-  repo abandon "${BRANCH}" .
+  git checkout "${CURRENT_BRANCH}"
+  git branch -D "${BRANCH}"
 }
 trap 'cleanup' ERR
 

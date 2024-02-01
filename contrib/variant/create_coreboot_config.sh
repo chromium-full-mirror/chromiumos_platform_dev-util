@@ -15,11 +15,12 @@ if [[ ! -e /etc/cros_chroot_version ]]; then
 fi
 
 if [[ "$#" -lt 3 ]]; then
-  echo "Usage: ${SCRIPT} base_name reference_name variant_name [bug_number]"
-  echo "e.g. ${SCRIPT} hatch hatch kohaku b:140261109"
-  echo "e.g. ${SCRIPT} zork trembyle frobozz b:148161697"
+  echo "Usage: ${SCRIPT} base_name reference_name variant_name [trunk_path] [bug_number]"
+  echo "e.g. ${SCRIPT} hatch hatch kohaku chromiumos b:140261109"
+  echo "e.g. ${SCRIPT} zork trembyle frobozz chromiumos b:148161697"
   echo "Adds a new coreboot configuation for the variant by copying the"
   echo "baseboard config file and replaces the names in the config file."
+  echo "trunk_path is an optional parameter, script uses 'chromiumos' as default path"
   exit 1
 fi
 
@@ -43,14 +44,15 @@ VARIANT="${3,,}"
 # We need all uppercase version, too, so ${var^^}
 REFERENCE_UPPER="${REFERENCE^^}"
 VARIANT_UPPER="${VARIANT^^}"
-
+# This is the trunk path. Current default path is "chromiumos"
+TRUNK=${4:-"chromiumos"}
 # Assign BUG= text, or "None" if that parameter wasn't specified.
-BUG=${4:-None}
+BUG=${5:-None}
 
 # Work in third_party/chromiumos-overlay/sys-boot/coreboot/files/configs
 # unless CB_CONFIG_DIR is set, in which case work in that dir
 DEFAULT_CB_CONFIG_DIR="third_party/chromiumos-overlay/sys-boot/coreboot/files/configs"
-CB="${HOME}/trunk/src/${CB_CONFIG_DIR:-${DEFAULT_CB_CONFIG_DIR}}"
+CB="${HOME}/${TRUNK}/src/${CB_CONFIG_DIR:-${DEFAULT_CB_CONFIG_DIR}}"
 cd "${CB}"
 
 # Make sure the variant doesn't already exist.
@@ -66,9 +68,13 @@ check_pending_changes "$(pwd)"
 # Start a branch. Use YMD timestamp to avoid collisions.
 DATE=$(date +%Y%m%d)
 BRANCH="create_${VARIANT}_${DATE}"
-repo start "${BRANCH}" . "${NEW_VARIANT_WIP:+--head}"
-# ${parameter:+word}" substitutes "word" if $parameter is set to a non-null
-# value, or substitutes null if $parameter is null or unset.
+# Store current branch information to restore in case of failure
+CURRENT_BRANCH=`git describe --all | cut -d '/' -f 2-3`
+# Checkout new branch to work on.
+# In case script has already been running, skip new branch creation.
+if [ -z "${NEW_VARIANT_WIP}" ]; then
+    git checkout -b "${BRANCH}" -t "${CURRENT_BRANCH}"
+fi
 
 cleanup() {
   # If there is an error after the `repo start`, then remove the added files
@@ -80,7 +86,8 @@ cleanup() {
     # won't terminate the script before we can finish cleaning up.
     git restore --staged "config.${VARIANT}" || true
   fi
-  repo abandon "${BRANCH}" .
+  git checkout "${CURRENT_BRANCH}"
+  git branch -D "${BRANCH}"
 }
 trap 'cleanup' ERR
 

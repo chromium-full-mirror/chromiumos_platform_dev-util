@@ -50,7 +50,6 @@ BASE="$(to_lower "$1")"
 REFERENCE="$(to_lower "$2")"
 # This is the name of the variant that is being cloned.
 VARIANT="$(to_lower "$3")"
-
 # Assign BUG= text, or "None" if that parameter wasn't specified.
 BUG="${4:-None}"
 
@@ -76,9 +75,13 @@ check_pending_changes "$(pwd)"
 # Start a branch. Use YMD timestamp to avoid collisions.
 DATE="$(date +%Y%m%d)"
 BRANCH="depthcharge_${VARIANT}_${DATE}"
-repo start "${BRANCH}" . --head #"${NEW_VARIANT_WIP:+--head}"
-# ${parameter:+word}" substitutes "word" if $parameter is set to a non-null
-# value, or substitutes null if $parameter is null or unset.
+# Store current branch information to restore in case of failure
+CURRENT_BRANCH=`git describe --all | cut -d '/' -f 2-3`
+# Checkout new branch to work on.
+# In case script has already been running, skip new branch creation.
+if [ -z "${NEW_VARIANT_WIP}" ]; then
+    git checkout -b "${BRANCH}" -t "${CURRENT_BRANCH}"
+fi
 
 abandon() {
   # If there is an error after the `repo start` and before we start adding
@@ -86,7 +89,8 @@ abandon() {
     # the new branch.
   rm -rRf "${DC_SRC_DIR}/src/board/${BASE}/${VARIANT}"
   rm -Rf "${DC_SRC_DIR}/board/${VARIANT}/defconfig"
-  repo abandon "${BRANCH}" .
+  git checkout "${CURRENT_BRANCH}"
+  git branch -D "${BRANCH}"
 }
 trap 'abandon' ERR
 

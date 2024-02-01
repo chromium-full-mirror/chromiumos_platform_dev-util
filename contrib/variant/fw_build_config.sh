@@ -14,17 +14,11 @@ if [[ ! -e /etc/cros_chroot_version ]]; then
   exit 1
 fi
 
-if ! hash gen_config 2>/dev/null; then
-  echo "gen_config is not on your PATH."
-  echo "Run the following before continuing:"
-  echo "echo 'export PATH=\$PATH:~/trunk/src/config/bin' >> ~/.bashrc && source ~/.bashrc"
-  exit 1
-fi
-
 if [[ "$#" -lt 2 ]]; then
-  echo "Usage: ${SCRIPT} base_name variant_name [bug_number]"
-  echo "e.g. ${SCRIPT} puff wyvern b:158269582"
+  echo "Usage: ${SCRIPT} base_name variant_name [trunk_path] [bug_number]"
+  echo "e.g. ${SCRIPT} puff wyvern chromiumos b:158269582"
   echo "Updates the config.star to add a default _FW_BUILD_CONFIG"
+  echo "trunk_path is an optional parameter, script uses 'chromiumos' as default path"
   exit 1
 fi
 
@@ -44,12 +38,20 @@ BASE="${1,,}"
 VARIANT="${2,,}"
 # We need all uppercase version, too, so ${var^^}
 VARIANT_UPPER="${VARIANT^^}"
-
+# This is the trunk path. Default path is "chromiumos" in case not specified
+TRUNK=${3:-"chromiumos"}
 # Assign BUG= text, or "None" if that parameter wasn't specified.
-BUG="${3:-None}"
+BUG="${4:-None}"
+
+if ! hash gen_config 2>/dev/null; then
+  echo "gen_config is not on your PATH."
+  echo "Run the following before continuing:"
+  echo "echo 'export PATH=\$PATH:~/${TRUNK}/src/config/bin' >> ~/.bashrc && source ~/.bashrc"
+  exit 1
+fi
 
 # The config.star file will be located here
-cd "${HOME}/trunk/src/project/${BASE}/${VARIANT}"
+cd "${HOME}/${TRUNK}/src/project/${BASE}/${VARIANT}"
 
 # If there are pending changes, exit the script (unless overridden)
 check_pending_changes "$(pwd)"
@@ -57,9 +59,13 @@ check_pending_changes "$(pwd)"
 # Start a branch. Use YMD timestamp to avoid collisions.
 DATE=$(date +%Y%m%d)
 BRANCH="create_${VARIANT}_${DATE}"
-repo start "${BRANCH}" . "${NEW_VARIANT_WIP:+--head}"
-# ${parameter:+word}" substitutes "word" if $parameter is set to a non-null
-# value, or substitutes null if $parameter is null or unset.
+# Store current branch information to restore in case of failure
+CURRENT_BRANCH=`git describe --all | cut -d '/' -f 2-3`
+# Checkout new branch to work on.
+# In case script has already been running, skip new branch creation.
+if [ -z "${NEW_VARIANT_WIP}" ]; then
+    git checkout -b "${BRANCH}" -t "${CURRENT_BRANCH}"
+fi
 
 cleanup() {
   # If there is an error after the `repo start`, then restore modified files
@@ -72,7 +78,8 @@ cleanup() {
   git restore generated/config.jsonproto
   git restore --staged sw_build_config/platform/chromeos-config/generated/project-config.json
   git restore sw_build_config/platform/chromeos-config/generated/project-config.json
-  repo abandon "$1" .
+  git checkout "${CURRENT_BRANCH}"
+  git branch -D "${BRANCH}"
 }
 trap 'cleanup "${BRANCH}"' ERR
 

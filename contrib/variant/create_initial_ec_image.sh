@@ -15,9 +15,10 @@ if [[ ! -e /etc/cros_chroot_version ]]; then
 fi
 
 if [[ "$#" -lt 2 ]]; then
-  echo "Usage: ${SCRIPT} reference_name variant_name [bug_number]"
-  echo "e.g. ${SCRIPT} hatch kohaku b:140261109"
+  echo "Usage: ${SCRIPT} reference_name variant_name [trunk_name] [bug_number]"
+  echo "e.g. ${SCRIPT} hatch kohaku chromiumos b:140261109"
   echo "Creates the initial EC image as a copy of the reference board's EC."
+  echo "trunk_path is an optional parameter, script uses 'chromiumos' as default path"
   exit 1
 fi
 
@@ -35,15 +36,16 @@ source "${BASH_SOURCE%/*}/check_pending_changes.sh"
 REF="${1,,}"
 # This is the name of the variant that is being cloned.
 VARIANT="${2,,}"
-
+# This is the trunk path for the source. Default path will be 'chromiumos' if not specified
+TRUNK=${3:-"chromiumos"}
 # Assign BUG= text, or "None" if that parameter wasn't specified.
-BUG=${3:-None}
+BUG=${4:-None}
 
 # Assign the value for BRANCH= in the commit message, or use None if unspecified
 COMMIT_MSG_BRANCH="${NEW_VARIANT_BRANCH:-None}"
 
 # All of the necessary files are in platform/ec/board
-cd "${HOME}/trunk/src/platform/ec/board"
+cd "${HOME}/${TRUNK}/src/platform/ec/board"
 
 # Make sure that the reference board exists.
 if [[ ! -e "${REF}" ]]; then
@@ -63,21 +65,26 @@ check_pending_changes "$(pwd)"
 # Start a branch. Use YMD timestamp to avoid collisions.
 DATE=$(date +%Y%m%d)
 BRANCH="create_${VARIANT}_${DATE}"
-repo start "${BRANCH}" . "${NEW_VARIANT_WIP:+--head}"
-# ${parameter:+word}" substitutes "word" if $parameter is set to a non-null
-# value, or substitutes null if $parameter is null or unset.
+# Store current branch information to restore in case of failure
+CURRENT_BRANCH=`git describe --all | cut -d '/' -f 2-3`
+# Checkout new branch to work on.
+# In case script has already been running, skip new branch creation.
+if [ -z "${NEW_VARIANT_WIP}" ]; then
+    git checkout -b "${BRANCH}" -t "${CURRENT_BRANCH}"
+fi
 
 cleanup() {
   # If there is an error after the `repo start`, then remove the added files
   # and `repo abandon` the new branch.
-  cd "${HOME}/trunk/src/platform/ec/board"
+  cd "${HOME}/${TRUNK}/src/platform/ec/board"
   if [[ -e "${VARIANT}" ]] ; then
     rm -Rf "${VARIANT}"
     # Use || true so that if the new files haven't been added yet, the error
     # won't terminate the script before we can finish cleaning up.
     git restore --staged "${VARIANT}" || true
   fi
-  repo abandon "${BRANCH}" .
+  git checkout "${CURRENT_BRANCH}"
+  git branch -D "${BRANCH}"
 }
 trap 'cleanup' ERR
 

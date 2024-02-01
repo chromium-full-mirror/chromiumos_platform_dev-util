@@ -15,10 +15,11 @@ if [[ ! -e /etc/cros_chroot_version ]]; then
 fi
 
 if [[ "$#" -lt 2 ]]; then
-  echo "Usage: ${SCRIPT} base_name variant_name [bug_number]"
-  echo "e.g. ${SCRIPT} hatch kohaku b:140261109"
+  echo "Usage: ${SCRIPT} base_name variant_name [trunk_path] [bug_number]"
+  echo "e.g. ${SCRIPT} hatch kohaku chromeos b:140261109"
   echo "Adds a new device and unprovisioned SKU to the YAML file for"
   echo "the variant being created. Revbump the ebuild."
+  echo "trunk_path is an optional parameter. If not specified, default path 'chromiumos' will be used."
   exit 1
 fi
 
@@ -44,13 +45,14 @@ VARIANT="${2,,}"
 VARIANT_CAPITALIZED="${VARIANT^}"
 # We need all uppercase version, too, so ${var^^}
 BASE_UPPER="${BASE^^}"
-
+#Extract the trunk folder path. Default path will be "chromiumos" in case not specified.
+TRUNK=${3:-"chromiumos"}
 # Assign BUG= text, or "None" if that parameter wasn't specified.
-BUG=${3:-None}
+BUG=${4:-None}
 
 YAML=model.yaml
 
-cd "${HOME}/trunk/src/overlays/overlay-${BASE}/chromeos-base/chromeos-config-bsp/files"
+cd "${HOME}/${TRUNK}/src/overlays/overlay-${BASE}/chromeos-base/chromeos-config-bsp/files"
 
 if [[ ! -e "${YAML}" ]]; then
   echo "${YAML} does not exist."
@@ -70,14 +72,18 @@ check_pending_changes "$(pwd)"
 # Start a branch. Use YMD timestamp to avoid collisions.
 DATE=$(date +%Y%m%d)
 BRANCH="create_${VARIANT}_${DATE}"
-repo start "${BRANCH}" . "${NEW_VARIANT_WIP:+--head}"
-# ${parameter:+word}" substitutes "word" if $parameter is set to a non-null
-# value, or substitutes null if $parameter is null or unset.
+# Store current branch information to restore in case of failure
+CURRENT_BRANCH=`git describe --all | cut -d '/' -f 2-3`
+# Checkout new branch to work on.
+# In case script has already been running, skip new branch creation.
+if [ -z "${NEW_VARIANT_WIP}" ]; then
+    git checkout -b "${BRANCH}" -t "${CURRENT_BRANCH}"
+fi
 
 cleanup() {
   # If there is an error after the `repo start`, then restore modified files
   # to clean up and `repo abandon` the new branch.
-  cd "${HOME}/trunk/src/overlays/overlay-${BASE}/chromeos-base/chromeos-config-bsp"
+  cd "${HOME}/${TRUNK}/src/overlays/overlay-${BASE}/chromeos-base/chromeos-config-bsp"
   git restore --staged "*.ebuild"
   git restore "*.ebuild"
   if [[ ! -z "${NEWEBUILD}" ]] ; then
@@ -86,7 +92,9 @@ cleanup() {
   cd files
   git restore --staged "${YAML}"
   git restore "${YAML}"
-  repo abandon "${BRANCH}" .
+  # Fallback to original branch before deleting created branch.
+  git checkout ${CURRENT_BRANCH}
+  git branch -D "${BRANCH}"
 }
 trap 'cleanup' ERR
 
