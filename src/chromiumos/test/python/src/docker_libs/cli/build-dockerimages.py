@@ -104,6 +104,8 @@ REGISTERED_BUILDS = {
     "post-process": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "provision-filter": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "cros-ddd-filter": {"prepper": BaseServicePrepper, "cloud": False},
+    "cros-legacy-hw-filter": {"prepper": BaseServicePrepper, "cloud": False},
+
 }
 
 # There is a ~1 in 10000 err with the fetching of the base container
@@ -119,7 +121,7 @@ DO_NOT_BUILD = set(
 # NON_CRITICAL for at least a short time to verify health.
 NON_CRITICAL = set(
     ["cros-servod", "cros-publish", "android-provision", "cros-pvs",
-     "cros-ddd-filter"]
+     "cros-ddd-filter", "cros-legacy-hw-filter"]
 )
 
 
