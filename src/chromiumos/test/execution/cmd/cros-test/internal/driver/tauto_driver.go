@@ -204,6 +204,9 @@ func newTautoArgs(dut *device.DutInfo, companionDuts []*device.DutInfo, andriods
 	}
 
 	if customArgs != "" {
+		if string(customArgs[0]) != " " {
+			customArgs = fmt.Sprintf(" %v", customArgs)
+		}
 		tautoArgsStr = tautoArgsStr + customArgs
 	}
 
@@ -253,7 +256,7 @@ func processArgs(req *api.CrosTestRequest) (string, error) {
 		if rawArgs != nil {
 			subCustomArgs := ""
 			for _, customAutotestArg := range rawArgs.GetArgs() {
-				if customAutotestArg.GetFlag() != "" {
+				if customAutotestArg.GetFlag() != "" && customAutotestArg.GetValue() != "" {
 					if subCustomArgs != "" {
 						subCustomArgs += " "
 					}

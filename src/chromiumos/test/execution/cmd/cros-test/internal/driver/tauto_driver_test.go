@@ -66,7 +66,7 @@ func TestNewTautoArgs(t *testing.T) {
 	// 	},
 	// }
 
-	processedArgs := " tast_list=tast.example.Pass"
+	processedArgs := "tast_list=tast.example.Pass"
 
 	expectedArgs := tautoRunArgs{
 		target:   primary,
@@ -169,5 +169,35 @@ func TestProcessArgs(t *testing.T) {
 	args, _ := processArgs(req)
 	if args != "retries=2 lacros_gcs_path=gs://chrome-test-builds/lacros/8758550891523072705_with_patch/lacros_all_tast_tests" {
 		t.Error("Args wrong ", args)
+	}
+}
+
+func TestProcessArgsPartial(t *testing.T) {
+	req := &api.CrosTestRequest{
+		TestSuites: []*api.TestSuite{
+			{
+				Name: suite1,
+				ExecutionMetadata: &api.ExecutionMetadata{
+					Args: []*api.Arg{
+						{
+							Flag: "None",
+						},
+					},
+				},
+				Spec: &api.TestSuite_TestCaseIds{
+					TestCaseIds: &api.TestCaseIdList{
+						TestCaseIds: []*api.TestCase_Id{
+							{
+								Value: test1,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	args, _ := processArgs(req)
+	if args != "" {
+		t.Error("Args wrong:", args)
 	}
 }
