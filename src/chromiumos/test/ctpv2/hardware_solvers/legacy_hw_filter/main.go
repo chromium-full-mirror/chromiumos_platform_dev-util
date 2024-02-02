@@ -60,7 +60,11 @@ func generateTcHwReqs(hwTargets []*api.SwarmingDefinition, tcDeps []string) (tcH
 		// If we just set the field directly then it would change for all tests every time we change
 		// the field.
 		t := proto.Clone(target).(*api.SwarmingDefinition)
-		t.SwarmingLabels = tcDeps
+		if len(t.SwarmingLabels) > 0 {
+			t.SwarmingLabels = append(t.SwarmingLabels, tcDeps...)
+		} else {
+			t.SwarmingLabels = tcDeps
+		}
 		targ := &api.HWRequirements{
 			// For legacy solver, each HwDefinition is a list of 1
 			// This is because for a test dut matching will follow this logic:
