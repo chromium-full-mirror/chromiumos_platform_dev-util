@@ -23,7 +23,7 @@ pub fn level_filter_from_int(level: u32) -> LevelFilter {
 }
 
 pub fn str_is_sha1(s: &str) -> bool {
-    let sha1_regex = RegexBuilder::new(r"\b[0-9a-f]{5,40}\b").build().unwrap();
+    let sha1_regex = RegexBuilder::new(r"^[0-9a-f]{40}$").build().unwrap();
     sha1_regex.is_match(s)
 }
 
