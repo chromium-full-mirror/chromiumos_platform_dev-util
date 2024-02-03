@@ -59,6 +59,12 @@ COPY --chown=chromeos-test:chromeos-test *.pb /tmp/test/metadata/
 USER chromeos-test
 
 RUN mkdir -p ~/.ssh
+
+COPY --chown=chromeos-test:chromeos-test autotest/utils/frozen_chromite/ssh_keys/ /usr/local/autotest/utils/frozen_chromite/ssh_keys
+
+RUN cp /usr/local/autotest/utils/frozen_chromite/ssh_keys/testing_rsa ~/.ssh/
+RUN chmod 400 ~/.ssh/testing_rsa
+
 COPY --chown=chromeos-test:chromeos-test ssh/ /home/chromeos-test/.ssh/
 RUN chmod 400 /home/chromeos-test/.ssh/partner_testing_rsa || :
 
