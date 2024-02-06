@@ -177,6 +177,14 @@ RUN chmod 400 /home/chromeos-test/.ssh/partner_testing_rsa || :
 # This is empty currently, but might eventually need to be populated for different Envs.
 COPY shadow_config.ini .
 
+# Chromium tests, e.g. gtests, GPU tests, may need vpython3 support.
+# Install it to an uncommon path invisible to other users by default.
+RUN sudo mkdir -p /opt/browser-tools
+COPY --chown=chromeos-test:chromeos-test vpython3 /opt/browser-tools/vpython3
+COPY --chown=chromeos-test:chromeos-test 3.8/ /opt/browser-tools/3.8/
+# vpython3 relies on CIPD to activate virtual env.
+COPY --chown=chromeos-test:chromeos-test cipd /opt/browser-tools/cipd
+
 # The upstream autotest code that run in the container uses this to determine
 # it is running in a container.  Even though we are running docker not lxc
 # the check is for the string lxc.
