@@ -74,12 +74,12 @@ func (sc *ServerCommand) Run() error {
 	ps, closer, err := NewFWProvisionServer(sc.port, sc.log)
 	defer closer()
 	if err != nil {
-		sc.log.Fatalln("failed to create provision: ", err)
+		sc.log.Println("failed to create provision: ", err)
 		return err
 	}
 
 	if err := ps.Start(); err != nil {
-		sc.log.Fatalln("failed server execution: ", err)
+		sc.log.Println("failed server execution: ", err)
 		return err
 	}
 

@@ -187,8 +187,7 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 		ps.board, ps.model, false, req)
 	if err != nil {
 		response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
-		ps.manager.SetResult(lroName, &response)
-		log.Fatalf("Failed to initialize Firmware Service: %v", err)
+		ps.log.Printf("Failed to initialize Firmware Service: %v", err)
 		return
 	}
 
@@ -197,7 +196,7 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 	cs := state_machine.NewFirmwarePrepareState(fwService)
 	for cs != nil {
 		if _, response.Status, err = cs.Execute(ctx, ps.log); err != nil {
-			log.Fatalf("State machine failed: %v", err)
+			ps.log.Printf("State machine failed: %v", err)
 			break
 		}
 		cs = cs.Next()

@@ -96,7 +96,7 @@ func (cc *CLICommand) Run() error {
 	ps, closer, err := NewFWProvisionServer(0, cc.log)
 	defer closer()
 	if err != nil {
-		cc.log.Fatalln("Failed to create provision server: ", err)
+		cc.log.Println("Failed to create provision server: ", err)
 		return err
 	}
 
