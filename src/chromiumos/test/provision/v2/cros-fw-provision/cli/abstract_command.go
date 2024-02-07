@@ -29,7 +29,7 @@ type AbstractCommand interface {
 	Name() string
 }
 
-// SetUpLog sets up the logging for the CLI
+// SetUpLog sets up the golang default logging, and returns the logger
 func SetUpLog(dir string) (*log.Logger, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create directory %v: %v", dir, err)
@@ -39,7 +39,9 @@ func SetUpLog(dir string) (*log.Logger, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file %v: %v", lfp, err)
 	}
-	newLog := log.New(io.MultiWriter(lf, os.Stderr), "<cros-fw-provision>", log.LstdFlags|log.LUTC)
+	newLog := log.Default()
+	newLog.SetOutput(io.MultiWriter(lf, os.Stderr))
+	newLog.SetPrefix("<cros-fw-provision>")
 	newLog.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmsgprefix)
 	return newLog, nil
 }
