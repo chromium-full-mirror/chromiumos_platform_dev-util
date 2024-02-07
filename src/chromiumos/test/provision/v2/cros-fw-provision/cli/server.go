@@ -8,6 +8,7 @@ package cli
 import (
 	"chromiumos/lro"
 	common_utils "chromiumos/test/provision/v2/common-utils"
+	"chromiumos/test/util/portdiscovery"
 	"context"
 	"fmt"
 	"log"
@@ -77,6 +78,13 @@ func (ps *FWProvisionServer) Start() error {
 	api.RegisterGenericProvisionServiceServer(server, ps)
 	longrunning.RegisterOperationsServer(server, ps.manager)
 	ps.log.Println("provisionservice listen to request at ", l.Addr().String())
+
+	// Write port number to ~/.cftmeta for go/cft-port-discovery
+	err = portdiscovery.WriteServiceMetadata("provision", l.Addr().String(), ps.log)
+	if err != nil {
+		ps.log.Println("Warning: error when writing to metadata file: ", err)
+	}
+
 	return server.Serve(l)
 }
 
