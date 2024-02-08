@@ -113,23 +113,14 @@ func (ps *FWProvisionServer) StartUp(ctx context.Context, req *api.ProvisionStar
 	}
 	ps.dutAdapter = dutAdapter
 
-	metadata := new(api.FirmwareProvisionStartupMetadata)
-	if !req.Metadata.MessageIs(metadata) {
-		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
-		return &response, errors.New("ProvisionStartupRequest: metadata must be chromiumos.test.api.FirmwareProvisionStartupMetadata")
-	}
-	if err := req.Metadata.UnmarshalTo(metadata); err != nil {
-		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
-		return &response, errors.Wrap(err, "failed to parse metadata")
-	}
-	cacheServerAddr, err := ipEndpointToHostPort(metadata.CacheServerAddress)
+	cacheServerAddr, err := ipEndpointToHostPort(req.Dut.GetCacheServer().GetAddress())
 	if err != nil {
 		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
 		return &response, errors.Wrap(err, "failed to parse IpEndpoint of cache server")
 	}
 	ps.cacheServer.Scheme = "http"
 	ps.cacheServer.Host = cacheServerAddr
-	if metadata.CacheServerAddress.Address == "localhost" {
+	if req.Dut.GetCacheServer().GetAddress().Address == "localhost" {
 		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
 		return &response, errors.New("ProvisionStartupRequest: cache_server_address must be visible from DUT, i.e. no localhost")
 	}
@@ -160,8 +151,17 @@ func (ps *FWProvisionServer) validateStartupRequest(req *api.ProvisionStartupReq
 	if req.DutServer == nil {
 		return errors.New("ProvisionStartupRequest: dut_server is required")
 	}
-	if req.Metadata == nil {
-		return errors.New("ProvisionStartupRequest: metadata is required")
+	if req.Dut.GetCacheServer() == nil {
+		return errors.New("ProvisionStartupRequest: dut.cache_server is required")
+	}
+	if req.Dut.GetCacheServer().GetAddress() == nil {
+		return errors.New("ProvisionStartupRequest: dut.cache_server.address is required")
+	}
+	if req.Dut.GetCacheServer().GetAddress().Address == "" {
+		return errors.New("ProvisionStartupRequest: dut.cache_server.address.address is required")
+	}
+	if req.Dut.GetCacheServer().GetAddress().Port == 0 {
+		return errors.New("ProvisionStartupRequest: dut.cache_server.address.port is required")
 	}
 	return nil
 }
