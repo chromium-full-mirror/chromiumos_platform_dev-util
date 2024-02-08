@@ -746,6 +746,14 @@ def run_copybot(args, tmp_dir):
 
     skipped_revs = []
 
+    if args.limit > 0 and len(commits_to_copy) > args.limit:
+        logger.warning(
+            "Limiting commits to copy from %s to %s",
+            len(commits_to_copy),
+            args.limit,
+        )
+        commits_to_copy = commits_to_copy[-args.limit :]
+
     repo.checkout(downstream_rev)
     for i, rev in enumerate(reversed(commits_to_copy)):
         logger.info("(%s/%s) Cherry-pick %s", i + 1, len(commits_to_copy), rev)
@@ -906,6 +914,12 @@ def main(argv=None):
         action="append",
         dest="keep_pseudoheaders",
         default=[],
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=500,
+        help="Maximum number of CLs to downstream at once.  0 for infinite.",
     )
     parser.add_argument(
         "upstream",
