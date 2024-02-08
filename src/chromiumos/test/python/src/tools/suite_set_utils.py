@@ -44,14 +44,6 @@ _CONFIG_PROTO_DIR = os.path.join(
 _CONFIG_INTERNAL_PROTO_DIR = os.path.join(
     _CROS_SRC, "config-internal", "test", "suite_sets", "generated"
 )
-_SUITE_PROTO_FILES = [
-    os.path.join(_CONFIG_PROTO_DIR, "suites.jsonpb"),
-    os.path.join(_CONFIG_INTERNAL_PROTO_DIR, "suites.jsonpb"),
-]
-_SUITE_SET_PROTO_FILES = [
-    os.path.join(_CONFIG_PROTO_DIR, "suite_sets.jsonpb"),
-    os.path.join(_CONFIG_INTERNAL_PROTO_DIR, "suite_sets.jsonpb"),
-]
 
 
 class Suite(NamedTuple):
@@ -73,14 +65,6 @@ class SuiteSet(NamedTuple):
     criteria: str
     suite_sets: Set[str]
     suites: Set[str]
-
-
-def copy_suites(dest: str, test_metadata_dir: str) -> None:
-    return prep_suites(_SUITE_PROTO_FILES, dest, test_metadata_dir)
-
-
-def copy_suite_sets(dest: str):
-    return prep_suite_sets(_SUITE_SET_PROTO_FILES, dest)
 
 
 def prep_suites(src: List[str], dest: str, test_metadata_dir: str) -> None:

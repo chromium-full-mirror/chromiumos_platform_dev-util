@@ -5,14 +5,6 @@
 
 """Entry point for cros-test cloudbuild."""
 
-# [VPYTHON:BEGIN]
-# python_version: "3.8"
-# wheel: <
-#   name: "infra/python/wheels/protobuf-py2_py3"
-#   version: "version:3.18.1"
-# >
-# [VPYTHON:END]
-
 import argparse
 import os
 import pathlib
@@ -62,13 +54,12 @@ from src.docker_libs.build_libs.cros_test_finder.cros_test_finder_prep import (
 from src.docker_libs.build_libs.pre_process.pre_process_prep import (
     PreProcessDockerPrepper,
 )
-from src.docker_libs.build_libs.shared.common_service_prep import (
-    CommonServiceDockerPrepper,
-)
 from src.docker_libs.build_libs.shared.base_service_prep import (
     BaseServicePrepper,
 )
-
+from src.docker_libs.build_libs.shared.common_service_prep import (
+    CommonServiceDockerPrepper,
+)
 
 
 # pylint: enable=import-error,wrong-import-position
@@ -105,7 +96,6 @@ REGISTERED_BUILDS = {
     "provision-filter": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "cros-ddd-filter": {"prepper": BaseServicePrepper, "cloud": False},
     "cros-legacy-hw-filter": {"prepper": BaseServicePrepper, "cloud": False},
-
 }
 
 # There is a ~1 in 10000 err with the fetching of the base container
@@ -120,8 +110,14 @@ DO_NOT_BUILD = set(
 # NOTE: when promoting a service from DO_NOT_BUILD, it should be added to
 # NON_CRITICAL for at least a short time to verify health.
 NON_CRITICAL = set(
-    ["cros-servod", "cros-publish", "android-provision", "cros-pvs",
-     "cros-ddd-filter", "cros-legacy-hw-filter"]
+    [
+        "cros-servod",
+        "cros-publish",
+        "android-provision",
+        "cros-pvs",
+        "cros-ddd-filter",
+        "cros-legacy-hw-filter",
+    ]
 )
 
 

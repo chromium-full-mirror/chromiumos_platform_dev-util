@@ -14,9 +14,6 @@ sys.path.append("../../../../")
 from src.docker_libs.build_libs.shared import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
     common_artifact_prep,
 )
-from src.tools import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
-    suite_set_utils,
-)
 
 
 class CrosTestFinderArtifactPrep(common_artifact_prep.CrosArtifactPrep):
@@ -45,11 +42,18 @@ class CrosTestFinderArtifactPrep(common_artifact_prep.CrosArtifactPrep):
         self.copy_service()
         shutil.copy(
             os.path.join(self.chroot_bin, "test_finder_filter"), self.full_out
-            )
+        )
         self.copy_metadata()
         self.copy_dockercontext()
+        self.copy_centralized_suites()
 
-        suite_file = os.path.join(self.full_out, "suites")
-        suite_set_utils.copy_suites(suite_file, self.full_out)
-        suite_set_file = os.path.join(self.full_out, "suite_sets")
-        suite_set_utils.copy_suite_sets(suite_set_file)
+    def copy_centralized_suites(self):
+        csuite_dir = "usr/share/centralized-suites"
+        shutil.copyfile(
+            os.path.join(self.build_path, csuite_dir, "suites.pb"),
+            os.path.join(self.full_out, "suites"),
+        )
+        shutil.copyfile(
+            os.path.join(self.build_path, csuite_dir, "suite_sets.pb"),
+            os.path.join(self.full_out, "suite_sets"),
+        )
