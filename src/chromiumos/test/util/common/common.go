@@ -5,6 +5,7 @@
 package common
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -55,6 +56,9 @@ func GetFile(ctx context.Context, file string, dut api.DutServiceClient) (string
 		dutClient: dut,
 		fileName:  fileName,
 		destDir:   "/var/tmp/outputResult/",
+	}
+	if err := os.MkdirAll("/var/tmp/outputResult/", 0770); err != nil {
+		return "", fmt.Errorf("failed to create output dir: %v", err)
 	}
 	return gf.getFile()
 
@@ -132,6 +136,8 @@ func (f *FetchFile) readStream(stream api.DutService_FetchFileClient) error {
 
 func (f *FetchFile) untarContents() (string, error) {
 	lCmd := exec.CommandContext(f.ctx, "tar", "-xvf", f.tarFileName, "-C", f.destDir)
+	lCmd.Stdout = &bytes.Buffer{}
+	lCmd.Stderr = &bytes.Buffer{}
 	if err := lCmd.Run(); err != nil {
 		log.Printf("writeStreamToFile: Unable to untar file: %s %s %s %s", err, lCmd.Stdout, lCmd.Stderr, f.tarFileName)
 		return "", fmt.Errorf("writeStreamToFile: Unable to untar file: %s", err)
