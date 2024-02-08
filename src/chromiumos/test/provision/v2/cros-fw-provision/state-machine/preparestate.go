@@ -31,8 +31,10 @@ func (s FirmwarePrepareState) Execute(ctx context.Context, log *log.Logger) (*an
 	if s.service.IsServoUsed() {
 		firmwareImageDestination = "ServoHost"
 	}
-	log.Printf("[FW Provisioning: Prepare FW] staging Firmware Images for %v\n", firmwareImageDestination)
-
+	log.Printf("[FW Provisioning: Prepare FW] preparing for %v\n", firmwareImageDestination)
+	if err := s.service.ReadConfigYAML(ctx); err != nil {
+		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
+	}
 	if mainRw := s.service.GetMainRwPath(); len(mainRw) > 0 {
 		if err := s.service.DownloadAndProcess(ctx, mainRw); err != nil {
 			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)

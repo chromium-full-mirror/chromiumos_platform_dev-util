@@ -54,6 +54,9 @@ type FirmwareService struct {
 	ecRoPath   *conf.StoragePath
 
 	board, model string
+	// The name of the model's fw binary from config.yaml
+	CorebootName string
+	ECName       string
 
 	force bool
 
@@ -304,12 +307,6 @@ func (fws *FirmwareService) RestartDut(ctx context.Context, requireServoReset bo
 // GetModel returns model of the DUT to provision. Returns empty string if model is not known.
 func (fws *FirmwareService) GetModel() string {
 	return fws.model
-}
-
-// CleanupOnFailure is called if one of service's states failes to Execute() and
-// currenly cleans up the temporary files.
-func (fws *FirmwareService) CleanupOnFailure(states []common_utils.ServiceState, executionErr error) error {
-	return fws.DeleteArchiveDirectories()
 }
 
 // DeleteArchiveDirectories deletes files on the servo host or DUT.
@@ -585,56 +582,62 @@ type configData struct {
 	}
 }
 
-// DownloadAndProcess downloads the provided archive.
-// If DetailedRequest is used, DownloadAndProcess also extracts the archive and
-// enumerates its contents, storing the metadata in s.service.archiveFolders.
+// ReadConfigYAML downloads config.yaml from the DUT and find the firmware binary names that should be used.
+func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
+	yamlPath := "/usr/share/chromeos-config/yaml/config.yaml"
+	ok, err := fws.connection.PathExists(ctx, yamlPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to check config.yaml")
+	} else if !ok {
+		log.Printf("No config.yaml found on DUT at %q", yamlPath)
+		return nil
+	}
+
+	config, err := fws.connection.FetchFile(ctx, yamlPath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read %q", yamlPath)
+	}
+	defer config.Close()
+	configYaml := configData{}
+	parser := yaml.NewDecoder(config)
+	err = parser.Decode(&configYaml)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse config.yaml")
+	}
+	model := fws.GetModel()
+	for _, config := range configYaml.ChromeOS.Configs {
+		if config.Name == model {
+			thisAPName := config.Firmware.BuildTargets.Coreboot
+			if thisAPName == "" {
+				thisAPName = config.Firmware.ImageName
+			}
+			if thisAPName != "" {
+				if fws.CorebootName != "" && fws.CorebootName != thisAPName {
+					return errors.Errorf("ambiguous AP name for model %q, could be %q or %q", model, fws.CorebootName, thisAPName)
+				}
+				fws.CorebootName = thisAPName
+			}
+			thisECName := config.Firmware.BuildTargets.ZephyrEC
+			if thisECName == "" {
+				thisECName = config.Firmware.BuildTargets.EC
+			}
+			if thisECName != "" {
+				if fws.ECName != "" && fws.ECName != thisECName {
+					return errors.Errorf("ambiguous EC name for model %q, could be %q or %q", model, fws.ECName, thisECName)
+				}
+				fws.ECName = thisECName
+			}
+		}
+	}
+	log.Printf("config.yaml image names AP: %s EC: %s", fws.CorebootName, fws.ECName)
+	return nil
+}
+
+// DownloadAndProcess gets ready to extract the selected archive.
+// It doesn't actually do any downloading and should be renamed.
 func (fws *FirmwareService) DownloadAndProcess(ctx context.Context, gsPath string) error {
 	connection := fws.GetConnectionToFlashingDevice()
-	if _, alreadyDownloaded := fws.imagesMetadata[gsPath]; !alreadyDownloaded {
-		if err := stageFile(ctx, gsPath, fws.CacheServer); err != nil {
-			return errors.Wrap(err, "failed to stage")
-		}
-		apImageName := ""
-		ecImageName := ""
-		config, err := extractFile(ctx, gsPath, "config.yaml", fws.CacheServer)
-		if err != nil {
-			log.Printf("No config.yaml in %q: %v", gsPath, err)
-		} else {
-			defer config.Close()
-			configYaml := configData{}
-			yamlDecoder := yaml.NewDecoder(config)
-			err = yamlDecoder.Decode(&configYaml)
-			if err != nil {
-				return errors.Wrap(err, "failed to parse config.yaml")
-			}
-			model := fws.GetModel()
-			for _, config := range configYaml.ChromeOS.Configs {
-				if config.Name == model {
-					thisAPName := config.Firmware.BuildTargets.Coreboot
-					if thisAPName == "" {
-						thisAPName = config.Firmware.ImageName
-					}
-					if thisAPName != "" {
-						if apImageName != "" && apImageName != thisAPName {
-							return errors.Errorf("ambiguous AP name for model %q, could be %q or %q", model, apImageName, thisAPName)
-						}
-						apImageName = thisAPName
-					}
-					thisECName := config.Firmware.BuildTargets.ZephyrEC
-					if thisECName == "" {
-						thisECName = config.Firmware.BuildTargets.EC
-					}
-					if thisECName != "" {
-						if ecImageName != "" && ecImageName != thisECName {
-							return errors.Errorf("ambiguous EC name for model %q, could be %q or %q", model, ecImageName, thisECName)
-						}
-						ecImageName = thisECName
-					}
-				}
-			}
-			log.Printf("config.yaml image names AP: %s EC: %s", apImageName, ecImageName)
-		}
-
+	if _, alreadyProcessed := fws.imagesMetadata[gsPath]; !alreadyProcessed {
 		// Infer names for the local files and folders from basename of gsPath.
 		archiveFilename := filepath.Base(gsPath)
 
@@ -657,9 +660,7 @@ func (fws *FirmwareService) DownloadAndProcess(ctx context.Context, gsPath strin
 		archiveDir = strings.Trim(archiveDir, "\n")
 
 		fws.imagesMetadata[gsPath] = ImageArchiveMetadata{
-			CorebootName: apImageName,
-			ECName:       ecImageName,
-			ArchiveDir:   archiveDir,
+			ArchiveDir: archiveDir,
 		}
 	}
 	return nil

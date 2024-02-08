@@ -14,8 +14,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -43,17 +41,17 @@ func newCurlMatcher(target string, fileMatcher gomock.Matcher, log *log.Logger) 
 func (c curlMatcher) Matches(x interface{}) bool {
 	args, ok := x.([]string)
 	if ok {
-		if len(args) != 4 {
+		if len(args) != 6 {
 			return false
 		}
-		if args[0] != "-S" || args[1] != "-o" || args[2] != c.target {
+		if args[0] != "-f" || args[1] != "-s" || args[2] != "-S" || args[3] != "-o" || args[4] != c.target {
 			return false
 		}
-		idx := strings.Index(args[3], "?file=")
+		idx := strings.Index(args[5], "?file=")
 		if idx < 0 {
 			return false
 		}
-		filename, err := url.QueryUnescape(args[3][idx+6:])
+		filename, err := url.QueryUnescape(args[5][idx+6:])
 		if err != nil {
 			panic(err)
 		}
@@ -63,7 +61,15 @@ func (c curlMatcher) Matches(x interface{}) bool {
 }
 
 func (c curlMatcher) String() string {
-	return fmt.Sprintf("-S -o %s url(%s)", c.target, c.fileMatcher)
+	return fmt.Sprintf("-f -s -S -o %s url(%s)", c.target, c.fileMatcher)
+}
+
+type yamlReader struct {
+	*strings.Reader
+}
+
+func (yr yamlReader) Close() error {
+	return nil
 }
 
 func TestDetailedRequestSSHStates(t *testing.T) {
@@ -146,42 +152,26 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		}`, "image-fromcoreboot.bin", "fromzephyr/ec.bin", "fromzephyr/npcx_monitor.bin" /*out*/, true, true /*err*/, false},
 	}
 
-	// Set up the mock.
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	sam := mock_common_utils.NewMockServiceAdapterInterface(ctrl)
 	log, _ := cli.SetUpLog(cli.DefaultLogDirectory)
 
 	for _, testCase := range testCases {
+		// Set up the mock.
+		ctrl := gomock.NewController(t)
+		sam := mock_common_utils.NewMockServiceAdapterInterface(ctrl)
+
 		// Create FirmwareService.
 		ctx := context.Background()
 		req := makeRequest(testCase.main_rw, testCase.main_ro, testCase.ec_ro)
 		log.Printf("  Test Case: %#v\n  Request: {%s}", testCase, req.String())
-		fakeCacheServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasPrefix(r.URL.String(), "/stage?") {
-				fmt.Fprintf(w, "ok\r\n")
-				return
-			}
-			if r.URL.String() == "/extract/chromeos-image-archive/board-firmware-branch/R123-12345.0.0/board/firmware_from_source.tar.bz2?file=config.yaml" {
-				if testCase.configYAML == "" {
-					w.WriteHeader(http.StatusNotFound)
-					return
-				}
-				io.WriteString(w, testCase.configYAML)
-				return
-			}
-			t.Fatalf("Unexpected cache server call to %q", r.URL.String())
-		}))
-		defer fakeCacheServer.Close()
-		cacheServer, err := url.Parse(fakeCacheServer.URL)
-		if err != nil {
-			t.Fatal("Failed to parse url: ", err)
+		cacheServer := url.URL{
+			Scheme: "http",
+			Host:   "1.2.3.4:5678",
 		}
 		fws, err := firmwareservice.NewFirmwareService(
 			ctx,
 			sam,
 			nil,
-			*cacheServer,
+			cacheServer,
 			"test_board",
 			"test_model",
 			false,
@@ -211,16 +201,50 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		checkStateName(st, state_machine.PrepareStateName)
 
 		// Set mock expectations.
-		gomock.InOrder(
-			sam.EXPECT().RunCmd(gomock.Any(), "mktemp", []string{"-d", "--tmpdir", "cros-fw-provision.XXXXXXXXX.board"}).Return("/tmp/someTempDir\n", nil),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_model.bin"), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_board.bin"), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq(testCase.apImageWithinArchive), log)).MaxTimes(2).Return("success\n", nil),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq("test_board/ec.bin"), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq("test_model/ec.bin"), log)).AnyTimes().Return("not found\n", fmt.Errorf("execution fail: 1")),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq(testCase.ecImageWithinArchive), log)).MaxTimes(1).Return("success\n", nil),
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/npcx_monitor.bin", gomock.Eq(testCase.npcxImageWithinArchive), log)).MaxTimes(1).Return("success\n", nil),
-		)
+		if testCase.configYAML == "" {
+			gomock.InOrder(
+				sam.EXPECT().PathExists(gomock.Any(), "/usr/share/chromeos-config/yaml/config.yaml").Return(false, nil),
+			)
+		} else {
+			var reader io.ReadCloser
+			reader = &yamlReader{strings.NewReader(testCase.configYAML)}
+			gomock.InOrder(
+				sam.EXPECT().PathExists(gomock.Any(), "/usr/share/chromeos-config/yaml/config.yaml").Return(true, nil),
+				sam.EXPECT().FetchFile(gomock.Any(), "/usr/share/chromeos-config/yaml/config.yaml").Return(reader, nil),
+			)
+		}
+		stagingURL := "http://1.2.3.4:5678/stage?archive_url=gs%3A%2Fchromeos-image-archive%2Fboard-firmware-branch%2FR123-12345.0.0%2Fboard&files=firmware_from_source.tar.bz2"
+		mkdirCall := sam.EXPECT().RunCmd(gomock.Any(), "mktemp", gomock.Eq([]string{"-d", "--tmpdir", "cros-fw-provision.XXXXXXXXX.board"})).Return("/tmp/someTempDir\n", nil)
+
+		if testCase.main_ro {
+			stagingCall := sam.EXPECT().RunCmd(gomock.Any(), "curl", gomock.Eq([]string{"-f", "-s", "-S", stagingURL})).MinTimes(1).Return("", nil)
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_model.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_board.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq(testCase.apImageWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).Return("success\n", nil)
+		}
+		if testCase.ec_ro {
+			stagingCall := sam.EXPECT().RunCmd(gomock.Any(), "curl", gomock.Eq([]string{"-f", "-s", "-S", stagingURL})).MinTimes(1).Return("", nil)
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq("test_board/ec.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq("test_model/ec.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq(testCase.ecImageWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).Return("success\n", nil)
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/npcx_monitor.bin", gomock.Eq(testCase.npcxImageWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).Return("success\n", nil)
+		}
+		if testCase.main_rw {
+			stagingCall := sam.EXPECT().RunCmd(gomock.Any(), "curl", gomock.Eq([]string{"-f", "-s", "-S", stagingURL})).MinTimes(1).Return("", nil)
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_model.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_board.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
+			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq(testCase.apImageWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).Return("success\n", nil)
+		}
 
 		// Execute the state and proceed.
 		_, _, err = st.Execute(ctx, log)
@@ -356,5 +380,8 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 
 		// Confirm no states left.
 		checkStateName(st, "")
+
+		// Check for missing mock calls.
+		ctrl.Finish()
 	}
 }

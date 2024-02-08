@@ -33,7 +33,7 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 	mainRoMetadata, ok := s.service.GetImageMetadata(s.service.GetMainRoPath())
 	if ok {
 		log.Printf("[FW Provisioning: Update RO] extracting AP image to flash\n")
-		mainRoPath, err = firmwareservice.PickAndExtractMainImage(ctx, connection, mainRoMetadata, s.service.GetMainRoPath(), s.service.GetBoard(), s.service.GetModel(), s.service.CacheServer)
+		mainRoPath, err = firmwareservice.PickAndExtractMainImage(ctx, connection, mainRoMetadata, s.service.GetMainRoPath(), s.service)
 		if err != nil {
 			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 		}
@@ -43,7 +43,7 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 	ecRoMetadata, ok := s.service.GetImageMetadata(s.service.GetEcRoPath())
 	if ok {
 		log.Printf("[FW Provisioning: Update RO] extracting EC image to flash\n")
-		ecRoPath, err := firmwareservice.PickAndExtractECImage(ctx, connection, ecRoMetadata, s.service.GetEcRoPath(), s.service.GetBoard(), s.service.GetModel(), s.service.CacheServer)
+		ecRoPath, err := firmwareservice.PickAndExtractECImage(ctx, connection, ecRoMetadata, s.service.GetEcRoPath(), s.service)
 		if err != nil {
 			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 		}
