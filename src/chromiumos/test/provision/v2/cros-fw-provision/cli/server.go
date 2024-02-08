@@ -190,6 +190,8 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 		ps.log.Printf("Failed to initialize Firmware Service: %v", err)
 		return
 	}
+	// Clean up the temporary directories on the DUT.
+	defer fwService.DeleteArchiveDirectories()
 
 	response.Status = api.InstallResponse_STATUS_OK
 	// Execute state machine
