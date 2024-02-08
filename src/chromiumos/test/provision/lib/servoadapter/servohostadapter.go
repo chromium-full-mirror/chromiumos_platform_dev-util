@@ -7,6 +7,7 @@ import (
 	"chromiumos/test/provision/cmd/provisionserver/bootstrap/services"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"strconv"
 	"strings"
@@ -33,6 +34,9 @@ type ServoHostInterface interface {
 
 	GetBoard(ctx context.Context) string
 	GetModel(ctx context.Context) string
+
+	// FetchFile downloads a file from the servo host. Not implemented.
+	FetchFile(ctx context.Context, path string) (io.ReadCloser, error)
 }
 
 type ServoHostAdapter struct {
@@ -77,6 +81,11 @@ func (s *ServoHostAdapter) RunCmd(ctx context.Context, cmd string, args []string
 
 func (s *ServoHostAdapter) Restart(ctx context.Context) error {
 	return errors.New("attempted to restart the ServoHost")
+}
+
+// FetchFile downloads a file from the servo host.
+func (s *ServoHostAdapter) FetchFile(ctx context.Context, path string) (io.ReadCloser, error) {
+	return nil, errors.New("FetchFile not implemented")
 }
 
 // GetVariable reads value of varName from servo.

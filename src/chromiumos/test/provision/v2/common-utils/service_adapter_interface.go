@@ -3,14 +3,20 @@
 // found in the LICENSE file.
 
 // Files here concern a service adapter to communicate with CrosDUT
+
 package common_utils
 
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"time"
 
+	"chromiumos/test/util/common"
+
+	"github.com/pkg/errors"
 	"go.chromium.org/chromiumos/config/go/longrunning"
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -45,6 +51,8 @@ type ServiceAdapterInterface interface {
 	// As this uses "-p" option, subdirs are created regardless of whether parents
 	// exist or not.
 	CreateDirectories(ctx context.Context, dirs []string) error
+	// FetchFile downloads a file from the DUT.
+	FetchFile(ctx context.Context, path string) (io.ReadCloser, error)
 }
 
 type execCmdResult struct {
@@ -118,6 +126,18 @@ func (s ServiceAdapter) execCmd(ctx context.Context, cmd string, args []string, 
 		log.Printf("<cros-provision> execution finished with stderr: %s\n", string(execCmdResponse.Stderr))
 	}
 	ch <- execCmdResult{response: string(execCmdResponse.Stdout), err: err}
+}
+
+// FetchFile downloads a file from the DUT.
+func (s ServiceAdapter) FetchFile(ctx context.Context, path string) (io.ReadCloser, error) {
+	log.Printf("Running FetchFile cmd: %s\n", path)
+	filename, err := common.GetFile(ctx, path, s.dutClient)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetch file failed")
+	}
+
+	log.Printf("Local filename: %s\n", filename)
+	return os.Open(filename)
 }
 
 // Restart restarts a DUT

@@ -11,6 +11,7 @@ package mock_common_utils
 
 import (
 	context "context"
+	io "io"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -79,6 +80,21 @@ func (m *MockServiceAdapterInterface) DeleteDirectory(ctx context.Context, dir s
 func (mr *MockServiceAdapterInterfaceMockRecorder) DeleteDirectory(ctx, dir interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteDirectory", reflect.TypeOf((*MockServiceAdapterInterface)(nil).DeleteDirectory), ctx, dir)
+}
+
+// FetchFile mocks base method.
+func (m *MockServiceAdapterInterface) FetchFile(ctx context.Context, path string) (io.ReadCloser, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FetchFile", ctx, path)
+	ret0, _ := ret[0].(io.ReadCloser)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FetchFile indicates an expected call of FetchFile.
+func (mr *MockServiceAdapterInterfaceMockRecorder) FetchFile(ctx, path interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchFile", reflect.TypeOf((*MockServiceAdapterInterface)(nil).FetchFile), ctx, path)
 }
 
 // PathExists mocks base method.

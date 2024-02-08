@@ -114,6 +114,10 @@ func (s LocalDutServiceAdapter) PipeData(ctx context.Context, sourceUrl string, 
 	return errors.New("not implemented")
 }
 
+func (s LocalDutServiceAdapter) FetchFile(ctx context.Context, path string) (io.ReadCloser, error) {
+	return nil, errors.New("not implemented")
+}
+
 // CopyData mocks the caching service functionality.
 // It downloads the apk file from GCP to current directory and copy it remotely to the host.
 func (s LocalDutServiceAdapter) CopyData(ctx context.Context, sourceUrl string, destPath string) error {
