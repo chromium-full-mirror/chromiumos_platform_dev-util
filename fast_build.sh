@@ -60,6 +60,8 @@ Usage: ${CMD}                             Builds cros-test to ${CROS_TEST_OUT}.
        ${CMD} [-v] [-r <regex>] -t <pkg>  Tests <pkg>.
        ${CMD} -C                          Checks all code using "go vet".
        ${CMD} -c <pkg>                    Checks <pkg>'s code.
+       ${CMD} -G                          Generates using "go generate".
+       ${CMD} -g <pkg>                    Generates <pkg>.
 
 EOF
   exit 1
@@ -67,6 +69,17 @@ EOF
 
 # Prints all checkable packages.
 get_check_pkgs() {
+  local dir
+  for dir in "${SRCDIRS[@]}"; do
+    if [[ -d "${dir}/src" ]]; then
+      (cd "${dir}/src"
+       find . -name '*.go' | xargs dirname | sort | uniq | cut -b 3-)
+    fi
+  done
+}
+
+# Prints all go:generate packages.
+get_gen_pkgs() {
   local dir
   for dir in "${SRCDIRS[@]}"; do
     if [[ -d "${dir}/src" ]]; then
@@ -111,6 +124,11 @@ fmt.Sprint,fmt.Sprintf,sort.Reverse \
     -printf.funcs=Log,Logf,Error,Errorf,Fatal,Fatalf,Wrap,Wrapf "${@}"
 }
 
+# Generates one or more packages.
+run_gen() {
+  go generate "${@}"
+}
+
 # Tests one or more packages.
 run_test() {
   local args=("${@}" "${EXTRAARGS[@]}")
@@ -127,6 +145,9 @@ build_out=
 # Package to check via "go vet".
 check_pkg=
 
+# Package to generate via "go generate".
+gen_pkg=
+
 # Test package to build and run.
 test_pkg=
 
@@ -136,10 +157,13 @@ verbose_flag=
 # Test regex list for unit testing.
 test_regex=
 
-while getopts "CTb:c:ho:r:t:v-" opt; do
+while getopts "CGTb:c:g:ho:r:t:v-" opt; do
   case "${opt}" in
     C)
       check_pkg=all
+      ;;
+    G)
+      gen_pkg=all
       ;;
     T)
       test_pkg=all
@@ -149,6 +173,9 @@ while getopts "CTb:c:ho:r:t:v-" opt; do
       ;;
     c)
       check_pkg="${OPTARG}"
+      ;;
+    g)
+      gen_pkg="${OPTARG}"
       ;;
     o)
       build_out="${OPTARG}"
@@ -188,6 +215,12 @@ elif [ -n "${check_pkg}" ]; then
     run_vet $(get_check_pkgs)
   else
     run_vet "${check_pkg}"
+  fi
+elif [ -n "${gen_pkg}" ]; then
+  if [ "${gen_pkg}" = 'all' ]; then
+    run_gen $(get_gen_pkgs)
+  else
+    run_gen "${gen_pkg}"
   fi
 else
   run_build "${CROS_TEST_PKG}" "${CROS_TEST_OUT}"
