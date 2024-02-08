@@ -76,6 +76,14 @@ class SuiteSet(NamedTuple):
 
 
 def copy_suites(dest: str, test_metadata_dir: str) -> None:
+    return prep_suites(_SUITE_PROTO_FILES, dest, test_metadata_dir)
+
+
+def copy_suite_sets(dest: str):
+    return prep_suite_sets(_SUITE_SET_PROTO_FILES, dest)
+
+
+def prep_suites(src: List[str], dest: str, test_metadata_dir: str) -> None:
     """Aggregates all Suites and writes them to the given file.
 
     The Suites are aggregated from protos defined in the config and
@@ -83,11 +91,12 @@ def copy_suites(dest: str, test_metadata_dir: str) -> None:
     relevant to the board being built.
 
     Args:
+        src: Files to read the jsonpb SuiteList protos from.
         dest: File path to write the resulting SuiteList proto to.
         test_metadata_dir: Path to directory containing test metadata proto
             files.
     """
-    suites = load_suites()
+    suites = load_suites(src)
 
     # Merge Suites with the same name. This is needed support Suites that are
     # defined in both config and config-internal as a result of the Suite
@@ -102,16 +111,17 @@ def copy_suites(dest: str, test_metadata_dir: str) -> None:
     _write_suites_to_file(suites, dest)
 
 
-def copy_suite_sets(dest: str):
+def prep_suite_sets(src: List[str], dest: str):
     """Aggregates all SuiteSets and writes them to the given file.
 
     The SuiteSets are aggregated from protos defined in the config and
     config-internal repos.
 
     Args:
+        src: Files to read the jsonpb SuiteSetList protos from.
         dest: File path to write the resulting SuiteSetList proto to.
     """
-    suite_sets = load_suite_sets()
+    suite_sets = load_suite_sets(src)
 
     # Merge SuiteSets with the same name. This is needed support SuiteSets that
     # are defined in both config and config-internal as a result of the SuiteSet
@@ -131,11 +141,8 @@ def _load_test_ids(test_metadata_dir):
     return _convert_to_test_ids(test_metadata_list_protos)
 
 
-def load_suites(files: List[str] = None) -> List[Suite]:
+def load_suites(files: List[str]) -> List[Suite]:
     """Gets a list of Suites from the protos defined in the config repos."""
-    if files is None:
-        files = _SUITE_PROTO_FILES
-
     suite_list_protos = proto_utils.load_protos_from_files(
         files,
         suite_set_pb2.SuiteList,
@@ -146,8 +153,6 @@ def load_suites(files: List[str] = None) -> List[Suite]:
 
 def load_suite_sets(files: List[str] = None):
     """Gets a list of SuiteSets from the protos defined in the config repos."""
-    if files is None:
-        files = _SUITE_SET_PROTO_FILES
 
     suite_set_list_protos = proto_utils.load_protos_from_files(
         files,
