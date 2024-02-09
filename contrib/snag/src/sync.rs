@@ -277,6 +277,7 @@ pub fn sync_one(
     p: Project,
     root_path: PathBuf,
     fetch_url: &Url,
+    fetch_only: bool,
     remote_name: &str,
     force: bool,
 ) -> Result<SyncResult, Error> {
@@ -306,18 +307,25 @@ pub fn sync_one(
 
     match set_remote(&repo, fetch_url.as_str(), remote_name, &p.name, &refspec) {
         Ok(_) => match fetch(&repo, &p, remote_name) {
-            Ok(_) => match checkout(repo, &p, remote_name, &repo_path, force) {
-                Ok(_) => Ok(SyncResult {
+            Ok(_) => match fetch_only {
+                true => Ok(SyncResult {
                     outcome: SyncOutcome::Success,
                     duration_ms: op_duration_ms(s_time),
                     ..sync_result
                 }),
-                Err(e) => Ok(SyncResult {
-                    outcome: SyncOutcome::CheckoutFailed,
-                    err: Some(e),
-                    duration_ms: op_duration_ms(s_time),
-                    ..sync_result
-                }),
+                false => match checkout(repo, &p, remote_name, &repo_path, force) {
+                    Ok(_) => Ok(SyncResult {
+                        outcome: SyncOutcome::Success,
+                        duration_ms: op_duration_ms(s_time),
+                        ..sync_result
+                    }),
+                    Err(e) => Ok(SyncResult {
+                        outcome: SyncOutcome::CheckoutFailed,
+                        err: Some(e),
+                        duration_ms: op_duration_ms(s_time),
+                        ..sync_result
+                    }),
+                },
             },
             Err(e) => Ok(SyncResult {
                 outcome: SyncOutcome::FetchFailed,
@@ -339,6 +347,7 @@ pub fn sync(
     manifest: Manifest,
     root_path: PathBuf,
     force: bool,
+    fetch_only: bool,
     groups: Option<Vec<String>>,
 ) -> Result<Vec<SyncResult>, SyncError> {
     // Set up reporting, status, and multithreaded containers.
@@ -376,7 +385,14 @@ pub fn sync(
             Url::parse(&remotes.get(remote_name).unwrap().fetch.clone().unwrap()).unwrap();
 
         // Make the actual sync.
-        match sync_one(p, root_path.clone(), &fetch_url, remote_name, force) {
+        match sync_one(
+            p,
+            root_path.clone(),
+            &fetch_url,
+            fetch_only,
+            remote_name,
+            force,
+        ) {
             Ok(sr) => push_result(&sync_results, &sr),
             Err(e) => {
                 error!("Unexpected error during sync:\n{:#?}", e)

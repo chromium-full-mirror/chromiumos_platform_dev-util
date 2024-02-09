@@ -106,6 +106,10 @@ enum Command {
         #[clap(short, long)]
         force: bool,
 
+        /// Only perform the fetch portion, do not checkout contents.
+        #[clap(long)]
+        fetch_only: bool,
+
         /// Which groups should we sync, can be specified multiple times.
         #[clap(short, long)]
         group: Option<Vec<String>>,
@@ -186,6 +190,7 @@ fn run() -> Result<(), anyhow::Error> {
         Command::Sync {
             manifest,
             force,
+            fetch_only,
             group,
             stasis,
         } => {
@@ -221,7 +226,7 @@ fn run() -> Result<(), anyhow::Error> {
 
             trace!("{:#?}", manifest);
             info!("Syncing projects into {:?}", snag_root.path);
-            let _sync_results = sync(manifest, snag_root.path.into(), force, group)
+            let _sync_results = sync(manifest, snag_root.path.into(), force, fetch_only, group)
                 .expect("No sync results returned");
             info!("Total Sync Duration: {}", rounded_elapsed_runtime());
             Ok(())

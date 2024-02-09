@@ -62,7 +62,7 @@ impl SnagRoot {
             remotes,
             repohooks: None,
         };
-        match sync(m, checkout_path, false, None) {
+        match sync(m, checkout_path, false, false, None) {
             Ok(r) => match r.first() {
                 Some(r) => Ok(r.clone()),
                 None => Err(SyncError::Fetch(String::from("failed to clone manifest")).into()),
