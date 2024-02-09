@@ -43,7 +43,7 @@ WORKDIR luci
 RUN cipd ensure -root . -ensure-file=ensure.txt
 WORKDIR ../
 
-RUN pip3 install pip install grpcio grpcio-tools sh
+RUN pip3 install --require-hashes -r requirements.txt
 
 RUN gcloud auth activate-service-account kcr-bisection@chromeos-missing-patches.google.com.iam.gserviceaccount.com --key-file=/home/builder/kcr-bisect.key
 
