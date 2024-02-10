@@ -23,16 +23,13 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 		var gcsPath string
 		var variant string
 
-		for _, swRequirements := range target.GetSwRequirements() {
+		log.Println("request: ", target)
+		swRequirements := target.GetSwRequirement()
+		log.Println("SW Target: ", swRequirements)
 
-			// If there is a keyvalue, its not for cros, so continue.
-			if len(swRequirements.KeyValues) != 0 {
-				continue
-			}
-			swBuild = swRequirements.GetBuild()
-			gcsPath = swRequirements.GetGcsPath()
-			variant = swRequirements.GetVariant()
-		}
+		swBuild = swRequirements.GetBuild()
+		gcsPath = swRequirements.GetGcsPath()
+		variant = swRequirements.GetVariant()
 
 		for _, hwTarget := range target.HwRequirements.HwDefinition {
 			switch hw := hwTarget.GetDutInfo().GetDutType().(type) {

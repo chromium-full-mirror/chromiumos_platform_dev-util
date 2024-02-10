@@ -5,6 +5,7 @@ package main
 
 import (
 	server "chromiumos/test/ctpv2/common/server_template"
+	"fmt"
 	"log"
 	"os"
 
@@ -22,6 +23,10 @@ const (
 // hwTargetsFromReq returns the list of hwTargets from the suiteMetadata definition.
 func hwTargetsFromReq(req *api.InternalTestplan) (hwTargets []*api.SwarmingDefinition) {
 	for _, target := range req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements() {
+
+		sw := target.SwRequirement.Variant
+		fmt.Println(sw)
+
 		for _, hwTarget := range target.GetHwRequirements().GetHwDefinition() {
 			hwTargets = append(hwTargets, hwTarget)
 			// Placeholder code for now.
