@@ -47,6 +47,9 @@ func (c *CheckInstallNeeded) Execute(log *log.Logger) error {
 		// TODO, investigate following TLS logic for only provisioing stateful
 		log.Printf("Forcing provision on CQ build.")
 		c.cs.UpdateCros = true
+	} else if exists, _ := c.cs.Connection.PathExists(c.ctx, "/mnt/stateful_partition/.force_provision"); exists {
+		log.Printf("Forcing provision as requested per provision marker.")
+		c.cs.UpdateCros = true
 	} else if c.cs.MachineMetadata.Version == targetBuilderPath {
 		log.Printf("SKIPPING PROVISION AS TARGET VERSION MATCHES CURRENT")
 		c.cs.UpdateCros = false
