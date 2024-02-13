@@ -99,6 +99,7 @@ var (
 	chargeLimitEnabled        = RunCommandStructure{Command: "echo", Args: []string{"\"1\"", ">", "/var/lib/power_manager/charge_limit_enabled"}}
 	chargePercentHold         = RunCommandStructure{Command: "echo", Args: []string{"\"3\"", ">", "/var/lib/power_manager/adaptive_charging_hold_delta_percent"}}
 	restartPowerd             = RunCommandStructure{Command: "restart", Args: []string{"powerd"}}
+	getForceProvisionMarker   = PathExistsCommandStructure{Path: "/mnt/stateful_partition/.force_provision"}
 )
 
 // REVERT COMMANDS
@@ -138,6 +139,7 @@ func TestStateTransitions(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -303,6 +305,7 @@ func TestMismatchPostInstall(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -424,6 +427,7 @@ func TestSkipInstall(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 		getRunCmdCommand(sam, hwsecId).Return("53EB5A855F8E57624F3F6803B13E4592BCEC0DB7F0D3785617E46A80AF70B902", nil),
 	)
 
@@ -434,6 +438,45 @@ func TestSkipInstall(t *testing.T) {
 	// Check state completion
 	if st.Next() != nil {
 		t.Fatalf("pre_init_state should be the last step")
+	}
+}
+
+func TestForceInstall(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sam := mock_common_utils.NewMockServiceAdapterInterface(ctrl)
+	log, _ := cli.SetUpLog(constants.DefaultLogDirectory)
+	cs := service.NewCrOSServiceFromExistingConnection(
+		sam,
+		&conf.StoragePath{
+			HostType: conf.StoragePath_GS,
+			Path:     "gs://chromeos-image-archive/drallion-release/R110-15278.35.0/",
+		},
+		nil,
+		false,
+		[]*api.CrOSProvisionMetadata_DLCSpec{{Id: "1"}},
+		true, // FirmwareUpdate enabled.
+	)
+
+	ctx := context.Background()
+
+	// PRE INIT STATE
+	st := state_machine.NewCrOSPreInitState(&cs)
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(true, nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed pre-init state: %v", err)
+	}
+
+	// Check state completion
+	if st.Next() == nil {
+		t.Fatalf("pre_init_state should not be the last step")
 	}
 }
 
@@ -463,6 +506,7 @@ func TestSkipInstallOnRevenNoTpmClear(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=reven", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -501,6 +545,7 @@ func TestSkipInstallAndResetDeviceState(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 		getRunCmdCommand(sam, hwsecId).Return("NO_LOCKOUT_PASSWORD", nil),
 	)
 
@@ -599,6 +644,7 @@ func TestDontSkipInstall(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -637,6 +683,7 @@ func TestInstallPostInstallFailureCausesReversal(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed pre-init state: %v", err)
@@ -705,6 +752,7 @@ func TestInstallClearTPMFailureCausesReversal(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed pre-init state: %v", err)
@@ -774,6 +822,7 @@ func TestFirmwareUpdateStateSkippedDueToNoUpdaterExist(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed pre-init state: %v", err)
@@ -839,6 +888,7 @@ func TestFirmwareUpdateStateWithNoChange(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed pre-init state: %v", err)
@@ -897,6 +947,7 @@ func TestPostInstallStatePreservesStatefulWhenRequested(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed pre-init state: %v", err)
@@ -970,6 +1021,7 @@ func TestPostInstallStatefulFailsGetsReversed(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed pre-init state: %v", err)
@@ -1038,6 +1090,7 @@ func TestProvisionDLCWithEmptyDLCsDoesNotExecute(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed pre-init state: %v", err)
@@ -1093,6 +1146,7 @@ func TestProvisionDLCWhenVerifyIsTrueDoesNotExecuteInstall(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed pre-init state: %v", err)
@@ -1162,6 +1216,7 @@ func TestPostInstallOverwriteWhenSpecified(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed pre-init state: %v", err)
@@ -1237,6 +1292,7 @@ func TestKvmDevicePathMissing(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed pre-init state: %v", err)
@@ -1284,6 +1340,7 @@ func TestKvmDevicePathForLabstationDevice(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=some-labstation", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
 	)
 	if _, _, err := st.Execute(ctx, log); err != nil {
 		t.Fatalf("failed pre-init state: %v", err)
