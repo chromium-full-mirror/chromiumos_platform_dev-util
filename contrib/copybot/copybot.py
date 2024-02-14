@@ -531,9 +531,32 @@ def find_last_merged_rev(repo, upstream_rev, downstream_rev):
     )
 
 
+def get_downstreamed_list(repo, downstream_rev):
+    """Find the last merged revision in a Git repo.
+
+    Args:
+        repo: The GitRepo.
+        downstream_rev: The commit hash of the downstream HEAD.
+
+    Returns:
+        The set of upstream commit hashes that have already been downstreamed.
+    """
+    downstream_hashes = repo.log_hashes(downstream_rev)
+    downstreamed_revs = []
+
+    for rev in downstream_hashes:
+        commit_message = repo.get_commit_message(rev)
+        origin_revid = get_origin_rev_id(commit_message)
+
+        if origin_revid:
+            downstreamed_revs.append(origin_revid)
+    return downstreamed_revs
+
+
 def find_commits_to_copy(
     repo,
     upstream_rev,
+    downstream_rev,
     last_merged_rev,
     skip_revs=(),
     exclude_file_patterns=(),
@@ -543,6 +566,7 @@ def find_commits_to_copy(
     Args:
         repo: The GitRepo.
         upstream_rev: The commit hash of the upstream HEAD.
+        downstream_rev: The commit hash of the downstream HEAD.
         last_merged_rev: The last upstream commit hash merged.
         skip_revs: Any upstream commit hashes that should be skipped.
         exclude_file_patterns: Regular expressions of file paths that
@@ -560,6 +584,7 @@ def find_commits_to_copy(
     """
     commits_to_copy = []
     commit_files_map = {}
+    downstreamed_revs = get_downstreamed_list(repo, downstream_rev)
     skipped_files_map = {}
 
     for rev in repo.log_hashes(upstream_rev):
@@ -568,6 +593,9 @@ def find_commits_to_copy(
 
         if rev in skip_revs:
             logger.info("Skip %s due to copybot-skip hashtag", rev)
+            continue
+
+        if rev in downstreamed_revs:
             continue
 
         commit_files = repo.commit_file_list(rev)
@@ -735,6 +763,7 @@ def run_copybot(args, tmp_dir):
     commits_to_copy, commit_files_map, skipped_files_map = find_commits_to_copy(
         repo,
         upstream_rev,
+        downstream_rev,
         last_merged_rev,
         skip_revs=skip_revs,
         exclude_file_patterns=exclude_file_patterns,
