@@ -169,18 +169,22 @@ class GitRepo:
         """Do a `git checkout`."""
         return self._run_git("checkout", ref)
 
-    def log(self, revision_range="HEAD", fmt=None, num=0):
+    def log(self, revision_range="HEAD", fmt=None, num=0, subtree=None):
         """Do a `git log`."""
         extra_args = []
         if fmt:
             extra_args.append(f"--format={fmt}")
         if num:
             extra_args.append(f"-n{num}")
+        if subtree:
+            extra_args.extend(["--", subtree])
         return self._run_git("log", revision_range, *extra_args)
 
-    def log_hashes(self, revision_range="HEAD", num=0):
+    def log_hashes(self, revision_range="HEAD", num=0, subtree=None):
         """Get the commit log as a list of commit hashes."""
-        result = self.log(revision_range=revision_range, fmt="%H", num=num)
+        result = self.log(
+            revision_range=revision_range, fmt="%H", num=num, subtree=subtree
+        )
         return result.stdout.splitlines()
 
     def get_commit_message(self, rev="HEAD"):
@@ -198,22 +202,29 @@ class GitRepo:
         result = self._run_git("show", rev, "--", *files)
         return result.stdout
 
-    def apply(self, patch):
+    def apply(self, patch, path=None):
         """Apply a patch to the staging area."""
-        return self._run_git("apply", "--cached", "-", input=patch)
+        extra_args = []
+        if path:
+            extra_args.append(f"--directory={path}")
+        else:
+            extra_args.extend(["--cached", "-"])
+        return self._run_git("apply", *extra_args, input=patch)
 
-    def commit(self, message, amend=False, sign_off=False):
+    def commit(self, message, amend=False, sign_off=False, stage=False):
         """Create a commit.
 
         Returns:
             The commit hash.
         """
         extra_args = []
+        if stage:
+            extra_args.append("--all")
         if amend:
             extra_args.append("--amend")
         if sign_off:
             extra_args.append("--signoff")
-        self._run_git("commit", "-m", message, *extra_args)
+        self._run_git("commit", *extra_args, "-m", message)
         return self.rev_parse()
 
     def reword(self, new_message, sign_off=False):
@@ -223,6 +234,29 @@ class GitRepo:
             The new commit hash.
         """
         return self.commit(new_message, amend=True, sign_off=sign_off)
+
+    def format_patch(self, rev, num=1, relative_path=None):
+        """Generate patch from revision with an optional relative path.
+
+        Returns:
+            Path of the output patch.
+        """
+        extra_args = []
+        if relative_path:
+            extra_args.append(f"--relative={relative_path}")
+        extra_args.extend(["--stdout", f"-{num}", rev])
+
+        result = self._run_git("format-patch", *extra_args)
+        return result.stdout
+
+    def add(self, path, stage=False, force=False):
+        """Add unstaged files."""
+        extra_args = []
+        if stage:
+            extra_args.append("--all")
+        if force:
+            extra_args.append("--force")
+        return self._run_git("add", *extra_args, path)
 
     @contextlib.contextmanager
     def temp_worktree(self, rev="HEAD"):
@@ -261,7 +295,7 @@ class GitRepo:
             worktree.apply(patch)
             return worktree.commit(old_message)
 
-    def cherry_pick(self, rev):
+    def cherry_pick(self, rev, upstream_subtree=None, downstream_subtree=None):
         """Do a `git cherry-pick`.
 
         This will first try without any merge options, and if that fails,
@@ -285,14 +319,24 @@ class GitRepo:
                 raise MergeConflictError() from e
 
         exn = None
-        for flags in ([], ["-Xpatience"]):
+        if downstream_subtree:
+            patch = self.format_patch(rev, 1, upstream_subtree)
             try:
-                _try_cherry_pick(flags)
-            except MergeConflictError as e:
-                exn = e
-                continue
-            else:
-                return
+                self.apply(patch, downstream_subtree)
+            except subprocess.CalledProcessError as e:
+                raise MergeConflictError() from e
+            self.add(downstream_subtree, True, True)
+            self.commit(self.get_commit_message(rev), False, False, True)
+            return
+        else:
+            for flags in ([], ["-Xpatience"]):
+                try:
+                    _try_cherry_pick(flags)
+                except MergeConflictError as e:
+                    exn = e
+                    continue
+                else:
+                    return
 
         raise exn
 
@@ -499,13 +543,16 @@ def get_origin_rev_id(commit_message):
     return origin_revid
 
 
-def find_last_merged_rev(repo, upstream_rev, downstream_rev):
+def find_last_merged_rev(
+    repo, upstream_rev, downstream_rev, downstream_subtree=None
+):
     """Find the last merged revision in a Git repo.
 
     Args:
         repo: The GitRepo.
         upstream_rev: The commit hash of the upstream HEAD.
         downstream_rev: The commit hash of the downstream HEAD.
+        downstream_subtree: The subtree of interest of the downstream repo.
 
     Returns:
         A commit hash of the last merged revision by CopyBot, or the
@@ -515,7 +562,9 @@ def find_last_merged_rev(repo, upstream_rev, downstream_rev):
         ValueError: No common history could be found.
     """
     upstream_hashes = repo.log_hashes(upstream_rev)
-    downstream_hashes = repo.log_hashes(downstream_rev)
+    downstream_hashes = repo.log_hashes(
+        revision_range=downstream_rev, subtree=downstream_subtree
+    )
 
     for rev in downstream_hashes:
         commit_message = repo.get_commit_message(rev)
@@ -531,17 +580,20 @@ def find_last_merged_rev(repo, upstream_rev, downstream_rev):
     )
 
 
-def get_downstreamed_list(repo, downstream_rev):
+def get_downstreamed_list(repo, downstream_rev, downstream_subtree=None):
     """Find the last merged revision in a Git repo.
 
     Args:
         repo: The GitRepo.
         downstream_rev: The commit hash of the downstream HEAD.
+        downstream_subtree: The subtree of interest of the downstream repo.
 
     Returns:
         The set of upstream commit hashes that have already been downstreamed.
     """
-    downstream_hashes = repo.log_hashes(downstream_rev)
+    downstream_hashes = repo.log_hashes(
+        revision_range=downstream_rev, subtree=downstream_subtree
+    )
     downstreamed_revs = []
 
     for rev in downstream_hashes:
@@ -556,7 +608,9 @@ def get_downstreamed_list(repo, downstream_rev):
 def find_commits_to_copy(
     repo,
     upstream_rev,
+    upstream_subtree,
     downstream_rev,
+    downstream_subtree,
     last_merged_rev,
     skip_revs=(),
     exclude_file_patterns=(),
@@ -566,7 +620,9 @@ def find_commits_to_copy(
     Args:
         repo: The GitRepo.
         upstream_rev: The commit hash of the upstream HEAD.
+        upstream_subtree: The subtree of interest of the upstream repo.
         downstream_rev: The commit hash of the downstream HEAD.
+        downstream_subtree: The subtree of interest of the downstream repo.
         last_merged_rev: The last upstream commit hash merged.
         skip_revs: Any upstream commit hashes that should be skipped.
         exclude_file_patterns: Regular expressions of file paths that
@@ -584,10 +640,14 @@ def find_commits_to_copy(
     """
     commits_to_copy = []
     commit_files_map = {}
-    downstreamed_revs = get_downstreamed_list(repo, downstream_rev)
+    downstreamed_revs = get_downstreamed_list(
+        repo, downstream_rev, downstream_subtree
+    )
     skipped_files_map = {}
 
-    for rev in repo.log_hashes(upstream_rev):
+    for rev in repo.log_hashes(
+        revision_range=upstream_rev, subtree=upstream_subtree
+    ):
         if rev == last_merged_rev:
             break
 
@@ -703,12 +763,27 @@ def run_copybot(args, tmp_dir):
         args: The parsed command line arguments.
         tmp_dir: A temporary directory to use for Git operations.
     """
-    upstream_url, sep, upstream_branch = args.upstream.rpartition(":")
-    if not sep:
+    upstream_info = args.upstream.split(":")
+    upstream_url = upstream_info[0] + ":" + upstream_info[1]
+    try:
+        upstream_branch = upstream_info[2]
+    except IndexError:
         upstream_branch = "main"
-    downstream_url, sep, downstream_branch = args.downstream.rpartition(":")
-    if not sep:
+    try:
+        upstream_subtree = upstream_info[3]
+    except IndexError:
+        upstream_subtree = None
+
+    downstream_info = args.downstream.split(":")
+    downstream_url = downstream_info[0] + ":" + downstream_info[1]
+    try:
+        downstream_branch = downstream_info[2]
+    except IndexError:
         downstream_branch = upstream_branch
+    try:
+        downstream_subtree = downstream_info[3]
+    except IndexError:
+        downstream_subtree = None
 
     exclude_file_patterns = [
         re.compile(pattern) for pattern in args.exclude_file_patterns
@@ -753,7 +828,9 @@ def run_copybot(args, tmp_dir):
             f"Failed to fetch branch {downstream_branch} from {downstream_url}"
         ) from e
 
-    last_merged_rev = find_last_merged_rev(repo, upstream_rev, downstream_rev)
+    last_merged_rev = find_last_merged_rev(
+        repo, upstream_rev, downstream_rev, downstream_subtree
+    )
     logger.info("Last merged revision: %s", last_merged_rev)
 
     skip_revs = gerrit.get_skiplist(downstream_project, downstream_branch)
@@ -763,7 +840,9 @@ def run_copybot(args, tmp_dir):
     commits_to_copy, commit_files_map, skipped_files_map = find_commits_to_copy(
         repo,
         upstream_rev,
+        upstream_subtree,
         downstream_rev,
+        downstream_subtree,
         last_merged_rev,
         skip_revs=skip_revs,
         exclude_file_patterns=exclude_file_patterns,
@@ -794,7 +873,9 @@ def run_copybot(args, tmp_dir):
             )
 
         try:
-            repo.cherry_pick(filtered_rev or rev)
+            repo.cherry_pick(
+                filtered_rev or rev, upstream_subtree, downstream_subtree
+            )
         except EmptyCommitError:
             logger.warning("Skip cherry-pick due to empty commit")
             continue
@@ -952,11 +1033,13 @@ def main(argv=None):
     )
     parser.add_argument(
         "upstream",
-        help="Upstream Git URL, optionally with a branch after colon",
+        help="Upstream Git URL, optionally with a branch and subtree separated"
+        " by colons",
     )
     parser.add_argument(
         "downstream",
-        help="Downstream Git URL, optionally with a branch after colon",
+        help="Downstream Git URL, optionally with a branch and subtree"
+        "separated by colons",
     )
     args = parser.parse_args(argv)
 
