@@ -5,6 +5,7 @@
 package common
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -63,29 +64,6 @@ func GetFile(ctx context.Context, file string, dut api.DutServiceClient) (string
 
 }
 
-type Zip struct{}
-
-func (Zip) Tar(ctx context.Context, srcFile, destTarFile string) error {
-	tarCmd := exec.CommandContext(ctx, "tar", "-zcvf", destTarFile, "-C", srcFile)
-	if err := tarCmd.Run(); err != nil {
-		log.Printf("writeStreamToFile: Unable to tar file: %v %s %s %s", err, tarCmd.Stdout, tarCmd.Stderr, srcFile)
-		return fmt.Errorf("writeStreamToFile: Unable to tar file: %s", err)
-	}
-	log.Printf("Successful tar! Content located at: %s", destTarFile)
-	return nil
-}
-
-func (Zip) Untar(ctx context.Context, tarFileName, destDir, destFileName string) (string, error) {
-	lCmd := exec.CommandContext(ctx, "tar", "-xvf", tarFileName, "-C", destDir)
-	if err := lCmd.Run(); err != nil {
-		log.Printf("writeStreamToFile: Unable to untar file: %s %s %s %s", err, lCmd.Stdout, lCmd.Stderr, tarFileName)
-		return "", fmt.Errorf("writeStreamToFile: Unable to untar file: %s", err)
-	}
-	log.Printf("Successful pull! Content located at: %s", filepath.Join(destDir, destFileName))
-
-	return filepath.Join(destDir, destFileName), nil
-}
-
 // FetchFile is a helper struct for GetFile.
 type FetchFile struct {
 	ctx         context.Context
@@ -122,9 +100,7 @@ func (f *FetchFile) getFile() (string, error) {
 		return "", fmt.Errorf("Read Stream err: %s", err)
 	}
 
-	tarFilePath, err := Zip{}.Untar(f.ctx, f.tarFileName, f.destDir, f.fileName)
-	os.RemoveAll(f.tmpdir)
-	return tarFilePath, err
+	return f.untarContents()
 }
 
 func (f *FetchFile) makeOutputTmpFile() error {
@@ -156,4 +132,18 @@ func (f *FetchFile) readStream(stream api.DutService_FetchFileClient) error {
 		f.outputF.Write(resp.File)
 	}
 	return nil
+}
+
+func (f *FetchFile) untarContents() (string, error) {
+	lCmd := exec.CommandContext(f.ctx, "tar", "-xvf", f.tarFileName, "-C", f.destDir)
+	lCmd.Stdout = &bytes.Buffer{}
+	lCmd.Stderr = &bytes.Buffer{}
+	if err := lCmd.Run(); err != nil {
+		log.Printf("writeStreamToFile: Unable to untar file: %s %s %s %s", err, lCmd.Stdout, lCmd.Stderr, f.tarFileName)
+		return "", fmt.Errorf("writeStreamToFile: Unable to untar file: %s", err)
+	}
+	log.Printf("Successful pull! Content located @: %s", filepath.Join(f.destDir, f.fileName))
+	os.RemoveAll(f.tmpdir)
+
+	return filepath.Join(f.destDir, f.fileName), nil
 }
