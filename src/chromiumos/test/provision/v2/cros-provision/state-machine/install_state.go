@@ -48,7 +48,7 @@ func (s CrOSInstallState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		}
 	}
 	log.Printf("State: CrOSInstallState Completed")
-	return nil, api.InstallResponse_STATUS_OK, nil
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s CrOSInstallState) Next() common_utils.ServiceState {

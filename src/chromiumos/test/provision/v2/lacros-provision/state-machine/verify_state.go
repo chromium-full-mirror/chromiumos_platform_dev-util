@@ -22,7 +22,7 @@ type LaCrOSVerifyState struct {
 func (s LaCrOSVerifyState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Printf("Executing %s State:\n", s.Name())
 	// Currently there is no verification post step as we don't specify install type
-	return nil, api.InstallResponse_STATUS_OK, nil
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s LaCrOSVerifyState) Next() common_utils.ServiceState {

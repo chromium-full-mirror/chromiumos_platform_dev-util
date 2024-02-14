@@ -50,7 +50,7 @@ func (s CrOSResetDeviceState) Execute(ctx context.Context, log *log.Logger) (*an
 	}
 
 	log.Printf("State: CrOSResetDeviceState Completed")
-	return nil, api.InstallResponse_STATUS_OK, nil
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 // Nothing to do for Next.

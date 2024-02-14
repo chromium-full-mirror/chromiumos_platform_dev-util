@@ -37,7 +37,7 @@ func (s CrOSVerifyState) Execute(ctx context.Context, log *log.Logger) (*anypb.A
 	}
 
 	log.Printf("State: CrOSVerfiyState Completed")
-	return nil, api.InstallResponse_STATUS_OK, nil
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s CrOSVerifyState) Next() common_utils.ServiceState {

@@ -34,7 +34,7 @@ func (s PostInstallState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	log.Println("State: AndroidPostInstallState Completed")
 	// Return metadata with provisioned OS and packages.
 	resp, _ := s.svc.MarshalResponseMetadata()
-	return resp, api.InstallResponse_STATUS_OK, nil
+	return resp, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s PostInstallState) Next() common_utils.ServiceState {

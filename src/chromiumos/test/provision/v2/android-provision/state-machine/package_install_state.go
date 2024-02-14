@@ -46,7 +46,7 @@ func (s PackageInstallState) Execute(ctx context.Context, log *log.Logger) (*any
 		}
 	}
 	log.Println("State: AndroidPackageInstallState Completed")
-	return nil, api.InstallResponse_STATUS_OK, nil
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s PackageInstallState) Next() common_utils.ServiceState {

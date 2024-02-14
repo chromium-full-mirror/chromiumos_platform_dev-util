@@ -47,7 +47,7 @@ func (s AShInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any,
 		}
 	}
 
-	return nil, api.InstallResponse_STATUS_OK, nil
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s AShInitState) Next() common_utils.ServiceState {

@@ -24,7 +24,7 @@ type CrOSProvisionDLCState struct {
 func (s CrOSProvisionDLCState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Printf("State: Execute CrOSProvisionDLCState")
 	if len(s.service.DlcSpecs) == 0 {
-		return nil, api.InstallResponse_STATUS_OK, nil
+		return nil, api.InstallResponse_STATUS_SUCCESS, nil
 	}
 	commands.NewStopDLCServiceCommand(ctx, s.service).Execute(log)
 	defer commands.NewStartDLCServiceCommand(ctx, s.service).Execute(log)
@@ -38,7 +38,7 @@ func (s CrOSProvisionDLCState) Execute(ctx context.Context, log *log.Logger) (*a
 	}
 	log.Printf("State: CrOSProvisionDLCState Completed")
 
-	return nil, api.InstallResponse_STATUS_OK, nil
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s CrOSProvisionDLCState) Next() common_utils.ServiceState {

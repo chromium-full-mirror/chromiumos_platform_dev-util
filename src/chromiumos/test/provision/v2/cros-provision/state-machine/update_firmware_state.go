@@ -25,7 +25,7 @@ type CrosUpdateFirmwareState struct {
 func (s CrosUpdateFirmwareState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	if !s.service.UpdateFirmware {
 		log.Printf("State: Skip CrosUpdateFirmwareState by request")
-		return nil, api.InstallResponse_STATUS_OK, nil
+		return nil, api.InstallResponse_STATUS_SUCCESS, nil
 	}
 	// Some type of build(e.g. public build) doesn't have built-in firmware updater, so skip the firmware update in this case.
 	checkUpdaterComm := commands.NewCheckFirmwareUpdaterCommand(ctx, s.service)
@@ -34,7 +34,7 @@ func (s CrosUpdateFirmwareState) Execute(ctx context.Context, log *log.Logger) (
 	}
 	if !checkUpdaterComm.UpdaterExist {
 		log.Printf("State: Skip CrosUpdateFirmwareState as firmware updater does not exist on the build")
-		return nil, api.InstallResponse_STATUS_OK, nil
+		return nil, api.InstallResponse_STATUS_SUCCESS, nil
 	}
 
 	log.Printf("State: Execute CrosUpdateFirmwareState")
@@ -75,7 +75,7 @@ func (s CrosUpdateFirmwareState) Execute(ctx context.Context, log *log.Logger) (
 
 	log.Printf("State: CrosUpdateFirmwareState Completed")
 
-	return nil, api.InstallResponse_STATUS_OK, nil
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s CrosUpdateFirmwareState) Next() common_utils.ServiceState {

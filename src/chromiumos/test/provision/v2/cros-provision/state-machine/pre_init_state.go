@@ -48,7 +48,7 @@ func (s CrOSPreInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	}
 
 	log.Printf("State: CrOSPreInitState Completed")
-	return nil, api.InstallResponse_STATUS_OK, nil
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 // Next provides the interface to the CrosInitState if the install flag is set.
