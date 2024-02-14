@@ -55,7 +55,9 @@ func (tm *tagMatcher) match(md *api.TestCaseMetadata) bool {
 		}
 	}
 	// If the test tag is in ANY of the excludes, do not match
-	// If the tag is in ANY of the includes (and not excludes), match it
+	// Every tag in the matcher must be found in the TC.
+	// EG: if a test has: `tag1, tag2`` and the matcher has `tag1, tag2, tag3` the matcher will not hit.
+	// Additionally, if a test has: `tag1, tag2` and the matcher has `tag1, ag3`, the matcher will not hit.
 	matchedTags := make(map[string]struct{})
 	for _, tag := range md.TestCase.Tags {
 		if _, ok := tm.excludes[tag.Value]; ok {
