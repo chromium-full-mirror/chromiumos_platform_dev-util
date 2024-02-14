@@ -193,7 +193,7 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 	// Clean up the temporary directories on the DUT.
 	defer fwService.DeleteArchiveDirectories()
 
-	response.Status = api.InstallResponse_STATUS_OK
+	response.Status = api.InstallResponse_STATUS_SUCCESS
 	// Execute state machine
 	cs := state_machine.NewFirmwarePrepareState(fwService)
 	for cs != nil {

@@ -144,7 +144,7 @@ func (cc *CLICommand) Run() error {
 	if err := op.GetResponse().UnmarshalTo(installResp); err != nil {
 		return errors.Wrap(err, "failed to unmarshal response")
 	}
-	if installResp.Status != api.InstallResponse_STATUS_OK {
+	if installResp.Status != api.InstallResponse_STATUS_SUCCESS {
 		return errors.Errorf("install failed: %v", installResp.Status)
 	}
 	return nil

@@ -62,7 +62,7 @@ func (s FirmwarePostInstallState) Execute(ctx context.Context, log *log.Logger) 
 				"incorrect ec rw hash got %q, want %q", versions.EC.Versions.RWHash, s.service.ExpectedVersions.EC.Versions.RWHash))
 	}
 
-	return nil, api.InstallResponse_STATUS_OK, nil
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s FirmwarePostInstallState) Next() common_utils.ServiceState {

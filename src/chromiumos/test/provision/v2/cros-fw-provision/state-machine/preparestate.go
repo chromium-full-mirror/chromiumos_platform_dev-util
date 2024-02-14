@@ -50,7 +50,7 @@ func (s FirmwarePrepareState) Execute(ctx context.Context, log *log.Logger) (*an
 			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 		}
 	}
-	return nil, api.InstallResponse_STATUS_OK, nil
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s FirmwarePrepareState) Next() common_utils.ServiceState {
