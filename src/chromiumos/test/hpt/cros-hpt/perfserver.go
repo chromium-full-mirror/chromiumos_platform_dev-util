@@ -10,19 +10,23 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"path/filepath"
+	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/google/uuid"
 	"google.golang.org/api/option"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
 const (
-	perfCollectorInterval = time.Minute * 1
+	perfCollectorInterval = time.Second * 60
 	healthCheckInterval   = time.Second * 30
 	waitTimout            = time.Second * 30
+	perfInitPollInterval  = time.Millisecond * 100
+	perfInitWaitTimeout   = time.Second * 1
 )
 
 type perfServer struct {
@@ -48,10 +52,28 @@ func (dutExecUtil) RunCmd(ctx context.Context, cmd string, args []string, dut ap
 	return common.RunCmd(ctx, cmd, args, dut)
 }
 
-func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClient, credentialsFile, projectId, topicId, bucket string) (*perfServer, func(), error) {
+func (dutExecUtil) RunCmdAsync(ctx context.Context, cmd string, args []string, dut api.DutServiceClient) error {
+	log.Printf("Run cmd: %s, %s\n", cmd, args)
+	req := api.ExecCommandRequest{
+		Command: cmd,
+		Args:    args,
+	}
+	// TODO(b:326288495) Use appropriate Async API when its available.
+	// Commands like perf-record are non-terminating in nature. They will
+	// block the session and keep on running until a kill signal is given.
+	// For these commands, there is no point in calling Recv() on ExecCommand's response.
+	// Therefore just ignore the retun value of the ExecCommand.
+	if _, err := dut.ExecCommand(ctx, &req); err != nil {
+		log.Printf("Run cmd FAILED: %s\n", err)
+		return err
+	}
+	return nil
+}
+
+func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClient, credentialsFile, projectId, topicId, bucket string) (*perfServer, error) {
 	storageClient, err := storage.NewStorageClientWithCredsFile(ctx, credentialsFile)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	pubsubClient, err := pubsub.NewClient(ctx, projectId, option.WithCredentialsFile(credentialsFile))
 	topic := pubsubClient.Topic(topicId)
@@ -72,8 +94,10 @@ func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClien
 		terminated:            make(chan bool),
 	}
 	perfCmd := perfCmd{
-		dut:  *dut,
-		exec: exec,
+		dut:                  *dut,
+		exec:                 exec,
+		perfInitPollInterval: perfInitPollInterval,
+		perfInitWaitTimeout:  perfInitWaitTimeout,
 	}
 	healthMonitor := monitor{
 		exec:                exec,
@@ -93,10 +117,7 @@ func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClien
 		perfCmd:       &perfCmd,
 		stopMonitor:   make(chan bool),
 	}
-	destructor := func() {
-		server.storageClient.Close()
-	}
-	return server, destructor, nil
+	return server, nil
 }
 
 func waitForTermination(ch chan bool, processName string) error {
@@ -119,7 +140,10 @@ func waitForTermination(ch chan bool, processName string) error {
 }
 
 func (ps *perfServer) cleanPerfDir(ctx context.Context) error {
-	_, err := ps.exec.RunCmd(ctx, rm, []string{filepath.Join(outputPerfDir, "*")}, *ps.dut)
+	_, err := ps.exec.RunCmd(ctx, rm, []string{"-rf", outputPerfDir}, *ps.dut)
+	if err != nil && strings.Contains(err.Error(), noDirMsg) {
+		return nil
+	}
 	return err
 }
 
@@ -134,13 +158,15 @@ func (ps *perfServer) Start(ctx context.Context, _ *api.GenericStartRequest) (*a
 	if err := ps.cleanPerfDir(ctx); err != nil {
 		return nil, err
 	}
-
+	if err := os.Mkdir(workDir, 0755); err != nil {
+		return nil, err
+	}
 	pid, err := ps.perfCmd.startPerf(ctx)
 	if err != nil {
 		return nil, err
 	}
-	go ps.healthMonitor.start(ctx, pid)
-	go ps.perfCollector.start(ctx, filepath.Join(outputPerfDir, perfData))
+	go ps.healthMonitor.start(pid)
+	go ps.perfCollector.start(outputPerfDir, workDir)
 	return &api.GenericStartResponse{}, nil
 }
 
@@ -159,7 +185,7 @@ func (ps *perfServer) Stop(ctx context.Context, _ *api.GenericStopRequest) (*api
 
 	// Stop the Perf collector.
 	ps.perfCollector.stopCollector <- true
-	if err := waitForTermination(ps.healthMonitor.terminated, "Perf Collector"); err != nil {
+	if err := waitForTermination(ps.perfCollector.terminated, "Perf Collector"); err != nil {
 		return nil, err
 	}
 
@@ -167,10 +193,9 @@ func (ps *perfServer) Stop(ctx context.Context, _ *api.GenericStopRequest) (*api
 	if err := ps.perfCmd.killAll(ctx); err != nil {
 		return nil, err
 	}
-
 	// Previous step(killAll) resulted in new perf.data dumped on DUT.
 	// Lets process them as well.
-	if err := ps.perfCollector.gatherPerf(ctx, filepath.Join(outputPerfDir, perfData)); err != nil {
+	if err := ps.perfCollector.gatherPerf(ctx, outputPerfDir, uuid.New().String(), workDir); err != nil {
 		return nil, err
 	}
 	if err := ps.cleanPerfDir(ctx); err != nil {

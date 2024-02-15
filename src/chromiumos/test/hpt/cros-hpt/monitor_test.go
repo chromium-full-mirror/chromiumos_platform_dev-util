@@ -73,7 +73,7 @@ func TestStartPerf(t *testing.T) {
 			stopMonitoring:      make(chan bool),
 			terminated:          make(chan bool),
 		}
-		go m.start(context.Background(), pid)
+		go m.start(pid)
 		if tc.stopDataCollector {
 			time.Sleep(1500 * time.Millisecond)
 			m.stopMonitoring <- true

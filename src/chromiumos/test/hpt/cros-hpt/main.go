@@ -91,8 +91,12 @@ func startServer(ctx context.Context, args []string) int {
 
 	logger.Println("Starting Service on port ", f.port)
 
-	perfServer, closer, err := NewServer(ctx, logger, &dut, authTokenFilePath, f.projectId, f.topicId, f.bucket)
-	defer closer()
+	perfServer, err := NewServer(ctx, logger, &dut, authTokenFilePath, f.projectId, f.topicId, f.bucket)
+	if err != nil {
+		logger.Fatal(err)
+		return 2
+	}
+
 	// Write port number to ~/.cftmeta for go/cft-port-discovery
 	err = portdiscovery.WriteServiceMetadata("cros-hpt", l.Addr().String(), logger)
 	if err != nil {

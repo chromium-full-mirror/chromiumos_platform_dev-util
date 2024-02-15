@@ -70,7 +70,8 @@ func (m *monitor) checkStatus(ctx context.Context, pid string) error {
 
 // start will start monitoring the health of perf process.
 // If the process is not found, it will restart it.
-func (m *monitor) start(ctx context.Context, pid string) {
+func (m *monitor) start(pid string) {
+	ctx := context.Background()
 	if pid == "" {
 		if p, err := m.startPerf(ctx); err != nil {
 			m.terminated <- true

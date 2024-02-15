@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -25,6 +26,15 @@ type mockExecUtil struct {
 	args   [][]string
 }
 
+func (m *mockExecUtil) RunCmdAsync(ctx context.Context, cmd string, args []string, dut api.DutServiceClient) error {
+	if m.fail != nil {
+		if v, ok := m.fail[cmd]; ok && v != "" {
+			return fmt.Errorf("failing " + cmd + " " + v)
+		}
+	}
+	return nil
+}
+
 func (m *mockExecUtil) RunCmd(ctx context.Context, cmd string, args []string, dut api.DutServiceClient) (string, error) {
 	if m.cmds != nil {
 		m.cmds = append(m.cmds, cmd)
@@ -38,7 +48,7 @@ func (m *mockExecUtil) RunCmd(ctx context.Context, cmd string, args []string, du
 		}
 	}
 	if m.fail != nil {
-		if v, ok := m.fail[cmd]; ok {
+		if v, ok := m.fail[cmd]; ok && v != "" {
 			return "", fmt.Errorf("failing " + cmd + " " + v)
 		}
 	}
@@ -47,38 +57,53 @@ func (m *mockExecUtil) RunCmd(ctx context.Context, cmd string, args []string, du
 
 func TestStart(t *testing.T) {
 	testCases := []struct {
-		name     string
-		wantErr  bool
-		fail     map[string]string
-		wantCmds []string
+		name        string
+		wantErr     bool
+		wantCmds    []string
+		pgrepOutput string
+		mkdirFail   string
+		nohupFail   string
 	}{
 		{
-			name: "Fail mkdir",
-			fail: map[string]string{
-				mkdir: "mkdir failed",
-			},
-			wantErr:  true,
-			wantCmds: []string{mkdir},
+			name:      "Fail mkdir",
+			mkdirFail: "fail mkdir",
+			wantErr:   true,
+			wantCmds:  []string{mkdir},
 		}, {
 
-			name: "Fail perf",
-			fail: map[string]string{
-				perf: "perf failed",
-			},
-			wantErr:  true,
-			wantCmds: []string{mkdir, perf},
-		}, {
-			name:     "Pass",
-			wantCmds: []string{mkdir, perf},
+			name:      "Fail nohup",
+			wantErr:   true,
+			wantCmds:  []string{mkdir},
+			nohupFail: "nohupFail",
+		},
+		{
+			name:        "Multiple perf",
+			wantCmds:    []string{mkdir, pgrep},
+			wantErr:     true,
+			pgrepOutput: "1234 \n 987",
+		},
+		{
+			name:        "Pass",
+			wantCmds:    []string{mkdir, pgrep},
+			pgrepOutput: pid,
 		},
 	}
 	for _, tc := range testCases {
+		t.Log("TestCase " + tc.name)
 		m := mockExecUtil{
-			fail: tc.fail,
+			fail: map[string]string{
+				mkdir: tc.mkdirFail,
+				nohup: tc.nohupFail,
+			},
 			cmds: []string{},
+			output: map[string]string{
+				pgrep: tc.pgrepOutput,
+			},
 		}
 		p := perfCmd{
-			exec: &m,
+			exec:                 &m,
+			perfInitPollInterval: 10 * time.Millisecond,
+			perfInitWaitTimeout:  1 * time.Second,
 		}
 		if _, got := p.startPerf(context.Background()); tc.wantErr && got == nil {
 			t.Error("got none want error")
@@ -117,7 +142,9 @@ func TestKill(t *testing.T) {
 			fail: tc.fail,
 		}
 		p := perfCmd{
-			exec: &m,
+			exec:                 &m,
+			perfInitPollInterval: 10 * time.Millisecond,
+			perfInitWaitTimeout:  1 * time.Second,
 		}
 		if err := p.kill(context.Background(), "1"); tc.wantErr && err == nil {
 			t.Error("got no error want error")
@@ -148,7 +175,7 @@ func TestKillAllFail(t *testing.T) {
 			wantErr:  true,
 			wantCmds: []string{pgrep},
 			wantArgs: [][]string{
-				{perf},
+				{perf, "||", "true"},
 			},
 		},
 		{
@@ -163,7 +190,7 @@ func TestKillAllFail(t *testing.T) {
 			},
 			wantCmds: []string{pgrep, kill, kill, kill},
 			wantArgs: [][]string{
-				{perf},
+				{perf, "||", "true"},
 				{"-SIGTERM", "123"},
 				{"-SIGTERM", "456"},
 				{"-SIGTERM", "789"},
@@ -171,6 +198,7 @@ func TestKillAllFail(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		t.Log("TestCase " + tc.name)
 		m := mockExecUtil{
 			fail:   tc.fail,
 			cmds:   []string{},

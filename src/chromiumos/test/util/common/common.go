@@ -37,7 +37,7 @@ func RunCmd(ctx context.Context, cmd string, args []string, dut api.DutServiceCl
 		return "", fmt.Errorf("execution single stream result: %w", err)
 	}
 	if execCmdResponse.ExitInfo.Status != 0 {
-		err = fmt.Errorf("status:%v message:%v", execCmdResponse.ExitInfo.Status, execCmdResponse.ExitInfo.ErrorMessage)
+		err = fmt.Errorf("status:%v stderr:%v message:%v", execCmdResponse.ExitInfo.Status, string(execCmdResponse.Stderr), execCmdResponse.ExitInfo.ErrorMessage)
 	}
 	if string(execCmdResponse.Stderr) != "" {
 		log.Printf("<post-process> execution finished with stderr: %s\n", string(execCmdResponse.Stderr))
@@ -66,7 +66,7 @@ func GetFile(ctx context.Context, file string, dut api.DutServiceClient) (string
 type Zip struct{}
 
 func (Zip) Tar(ctx context.Context, srcFile, destTarFile string) error {
-	tarCmd := exec.CommandContext(ctx, "tar", "-zcvf", destTarFile, "-C", srcFile)
+	tarCmd := exec.CommandContext(ctx, "tar", "-zcvf", destTarFile, srcFile)
 	if err := tarCmd.Run(); err != nil {
 		log.Printf("writeStreamToFile: Unable to tar file: %v %s %s %s", err, tarCmd.Stdout, tarCmd.Stderr, srcFile)
 		return fmt.Errorf("writeStreamToFile: Unable to tar file: %s", err)

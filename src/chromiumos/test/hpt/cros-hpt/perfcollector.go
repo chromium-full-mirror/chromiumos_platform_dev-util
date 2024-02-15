@@ -14,6 +14,7 @@ import (
 
 	"chromiumos/test/publish/cmd/publishserver/storage"
 
+	"github.com/google/uuid"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/config/go/test/hpt"
 	"google.golang.org/protobuf/proto"
@@ -21,9 +22,12 @@ import (
 
 // TODO(b:323393089) Create a separate lib for perf collector.
 const (
-	ls      = "ls"
-	rm      = "rm"
-	stopped = "stopped"
+	ls           = "ls"
+	rm           = "rm"
+	stopped      = "stopped"
+	noDirMsg     = "No such file or directory"
+	perfDataWild = perfData + ".*"
+	gz           = ".gz"
 )
 
 type publisher interface {
@@ -62,8 +66,9 @@ type perfCollector struct {
 
 // listPerfFiles will list all the perf data files on dut under perfDir.
 func (p perfCollector) listPerfFiles(ctx context.Context, perfDir string) ([]string, error) {
-	lsResult, err := p.exec.RunCmd(ctx, ls, []string{"-l", perfDir}, p.dut)
-	if err != nil {
+	perfFilePath := filepath.Join(perfDir, perfDataWild)
+	lsResult, err := p.exec.RunCmd(ctx, ls, []string{perfFilePath}, p.dut)
+	if err != nil && !strings.Contains(err.Error(), noDirMsg) {
 		return nil, err
 	}
 	files := strings.Split(lsResult, "\n")
@@ -78,7 +83,7 @@ func (p perfCollector) listPerfFiles(ctx context.Context, perfDir string) ([]str
 }
 
 func (p perfCollector) tar(ctx context.Context, srcFile, destDir string) (string, error) {
-	tarFile := filepath.Join(destDir, filepath.Base(srcFile)+".gz")
+	tarFile := filepath.Join(destDir, filepath.Base(srcFile)+gz)
 	if err := p.tarUtil.Tar(ctx, srcFile, tarFile); err != nil {
 		return "", err
 	}
@@ -98,7 +103,7 @@ func (p perfCollector) publish(ctx context.Context, bucket, ObjectPath string) e
 	return p.publisher.Publish(ctx, out)
 }
 
-func (p perfCollector) gatherPerf(ctx context.Context, perfDir string) error {
+func (p perfCollector) gatherPerf(ctx context.Context, perfDir, uuid, workDir string) error {
 	// First list all the perf data files on the DUT under path perfDir.
 	files, err := p.listPerfFiles(ctx, perfDir)
 	if err != nil {
@@ -111,15 +116,16 @@ func (p perfCollector) gatherPerf(ctx context.Context, perfDir string) error {
 			return err
 		}
 		// Next zip the perf data.
-		tarFilePath, err := p.tar(ctx, localPath, os.TempDir())
+		tarFilePath, err := p.tar(ctx, localPath, workDir)
 		// Next clean up the local file since we dont need it.
 		if err := os.Remove(localPath); err != nil {
 			return err
 		}
+		// TODO(b/306230353) Upload to builder specific path.
 		// Next upload to GCS.
 		gsObject := storage.GSObject{
 			Bucket: p.bucket,
-			Object: filepath.Join(time.Now().Format(time.DateOnly), filepath.Base(tarFilePath)),
+			Object: filepath.Join(time.Now().Format(time.DateOnly), uuid, filepath.Base(tarFilePath)),
 		}
 		if err := p.storage.Write(ctx, tarFilePath, gsObject); err != nil {
 			return err
@@ -129,14 +135,21 @@ func (p perfCollector) gatherPerf(ctx context.Context, perfDir string) error {
 			return err
 		}
 		// Next clean up the file on dut.
+		log.Println("Deleting the perf file on dut " + dutFile)
 		if _, err = p.exec.RunCmd(ctx, rm, []string{dutFile}, p.dut); err != nil {
+			return err
+		}
+		// Next clean up the tar file on host.
+		if err = os.Remove(tarFilePath); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p perfCollector) start(ctx context.Context, perfDir string) {
+func (p perfCollector) start(perfDir, workDir string) {
+	ctx := context.Background()
+	uuid := uuid.New().String()
 	for {
 		select {
 		case <-p.stopCollector:
@@ -144,7 +157,7 @@ func (p perfCollector) start(ctx context.Context, perfDir string) {
 			p.terminated <- true
 			return
 		case <-time.After(p.perfCollectorInterval):
-			if err := p.gatherPerf(ctx, perfDir); err != nil {
+			if err := p.gatherPerf(ctx, perfDir, uuid, workDir); err != nil {
 				log.Printf("error in perf collector %v", err)
 				p.terminated <- true
 				return
