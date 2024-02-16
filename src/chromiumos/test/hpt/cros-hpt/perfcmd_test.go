@@ -33,7 +33,7 @@ func (m *mockExecUtil) RunCmd(ctx context.Context, cmd string, args []string, du
 		m.args = append(m.args, args)
 	}
 	if m.output != nil {
-		if v, ok := m.output[cmd]; ok {
+		if v, ok := m.output[cmd]; ok && v != "" {
 			return v, nil
 		}
 	}
