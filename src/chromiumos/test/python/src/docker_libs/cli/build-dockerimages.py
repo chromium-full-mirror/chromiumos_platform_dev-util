@@ -296,7 +296,7 @@ def build_container(b: DockerBuilder, args: argparse.Namespace):
             else:
                 print(
                     f"Build failed, will retry in {args.retry_wait} "
-                    "seconds:\n{e}"
+                    f"seconds:\n{e}"
                 )
                 time.sleep(args.retry_wait)
         retries -= 1
