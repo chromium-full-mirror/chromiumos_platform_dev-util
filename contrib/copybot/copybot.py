@@ -575,6 +575,7 @@ def get_downstreamed_list(
     downstream_rev,
     downstream_subtree=None,
     exclude_file_patterns=(),
+    limit=0,
 ):
     """Find the last merged revision in a Git repo.
 
@@ -583,6 +584,7 @@ def get_downstreamed_list(
         downstream_rev: The commit hash of the downstream HEAD.
         downstream_subtree: The subtree of interest of the downstream repo.
         exclude_file_patterns: List of paths to be excluded.
+        limit: The maxinum number of CLs in the history to check.
 
     Returns:
         The set of upstream commit hashes that have already been downstreamed.
@@ -594,7 +596,10 @@ def get_downstreamed_list(
     )
     downstreamed_revs = []
 
-    for rev in downstream_hashes:
+    for counter, rev in enumerate(downstream_hashes):
+        if counter >= limit and limit != 0:
+            break
+
         commit_message = repo.get_commit_message(rev)
         origin_revid = get_origin_rev_id(commit_message)
 
@@ -609,7 +614,7 @@ def find_commits_to_copy(
     upstream_subtree,
     downstream_rev,
     downstream_subtree,
-    last_merged_rev,
+    limit=0,
     skip_revs=(),
     exclude_file_patterns=(),
 ):
@@ -621,7 +626,7 @@ def find_commits_to_copy(
         upstream_subtree: The subtree of interest of the upstream repo.
         downstream_rev: The commit hash of the downstream HEAD.
         downstream_subtree: The subtree of interest of the downstream repo.
-        last_merged_rev: The last upstream commit hash merged.
+        limit: The maxinum number of CLs in the history to check.
         skip_revs: Any upstream commit hashes that should be skipped.
         exclude_file_patterns: File paths that should not be copied.
 
@@ -638,14 +643,17 @@ def find_commits_to_copy(
         downstream_rev,
         downstream_subtree,
         exclude_file_patterns=exclude_file_patterns,
+        limit=limit,
     )
 
-    for rev in repo.log_hashes(
-        revision_range=upstream_rev,
-        subtree=upstream_subtree,
-        exclude_file_patterns=exclude_file_patterns,
+    for counter, rev in enumerate(
+        repo.log_hashes(
+            revision_range=upstream_rev,
+            subtree=upstream_subtree,
+            exclude_file_patterns=exclude_file_patterns,
+        )
     ):
-        if rev == last_merged_rev:
+        if counter >= limit and limit != 0:
             break
 
         if rev in skip_revs:
@@ -798,6 +806,7 @@ def run_copybot(args, tmp_dir):
             f"Failed to fetch branch {downstream_branch} from {downstream_url}"
         ) from e
 
+    # Verify that the two repositories share a history
     last_merged_rev = find_last_merged_rev(
         repo,
         upstream_rev,
@@ -815,8 +824,8 @@ def run_copybot(args, tmp_dir):
         upstream_subtree,
         downstream_rev,
         downstream_subtree,
-        last_merged_rev,
         skip_revs=skip_revs,
+        limit=args.history_limit,
         exclude_file_patterns=args.exclude_file_patterns,
     )
 
@@ -993,6 +1002,12 @@ def main(argv=None):
         type=int,
         default=500,
         help="Maximum number of CLs to downstream at once.  0 for infinite.",
+    )
+    parser.add_argument(
+        "--history-limit",
+        type=int,
+        default=2000,
+        help="Maximum number of CLs in history to check.  0 for infinite.",
     )
     parser.add_argument(
         "upstream",
