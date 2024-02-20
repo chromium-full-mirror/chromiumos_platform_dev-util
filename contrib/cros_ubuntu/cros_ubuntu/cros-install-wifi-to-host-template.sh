@@ -29,7 +29,7 @@ fi
 HOST=$1
 
 install_dependencies() {
-  ssh -C "${HOST}" 'echo test0000 | sudo -S apt-get install iw net-tools build-essential checkinstall linux-headers-$(uname -r) libreadline-dev  gcc-multilib pkg-config qtcreator qtbase5-dev qt5-qmake cmake libnl-3-dev libssl-dev libnl-genl-3-dev isc-dhcp-server libpcap-dev iputils-arping -y'
+  ssh -C "${HOST}" 'echo test0000 | sudo -S apt-get install iw net-tools build-essential checkinstall linux-headers-$(uname -r) libreadline-dev  gcc-multilib pkg-config qtcreator qtbase5-dev qt5-qmake cmake libnl-3-dev libssl-dev libnl-genl-3-dev isc-dhcp-server libpcap-dev iputils-arping gcc-12 -y'
 }
 
 # We disable autoupdates on ubuntu because it will overwrite the unsigned kernel modules
