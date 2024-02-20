@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	dut_api "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"google.golang.org/protobuf/proto"
@@ -16,8 +17,9 @@ import (
 )
 
 const (
-	address = "localhost"
-	binName = "legacy_hw_filter"
+	address       = "localhost"
+	binName       = "legacy_hw_filter"
+	TrueStringVal = "True"
 )
 
 // hwTargetsFromReq returns the list of hwTargets from the suiteMetadata definition.
@@ -65,10 +67,11 @@ func generateTcHwReqs(hwTargets []*api.SwarmingDefinition, tcDeps []string) (tcH
 		// If we just set the field directly then it would change for all tests every time we change
 		// the field.
 		t := proto.Clone(target).(*api.SwarmingDefinition)
+		swarmingLabels := tcDepsToSwarmingLabels(tcDeps)
 		if len(t.SwarmingLabels) > 0 {
-			t.SwarmingLabels = append(t.SwarmingLabels, tcDeps...)
+			t.SwarmingLabels = append(t.SwarmingLabels, swarmingLabels...)
 		} else {
-			t.SwarmingLabels = tcDeps
+			t.SwarmingLabels = swarmingLabels
 		}
 		targ := &api.HWRequirements{
 			// For legacy solver, each HwDefinition is a list of 1
@@ -83,6 +86,20 @@ func generateTcHwReqs(hwTargets []*api.SwarmingDefinition, tcDeps []string) (tcH
 	}
 
 	return tcHwReqs
+}
+
+func tcDepsToSwarmingLabels(tcDeps []string) []string {
+	swarmingLabels := []string{}
+	for _, dep := range tcDeps {
+		label := dep
+		if !strings.Contains(label, ":") {
+			label = label + ":" + TrueStringVal
+		}
+
+		swarmingLabels = append(swarmingLabels, label)
+	}
+
+	return swarmingLabels
 }
 
 func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
