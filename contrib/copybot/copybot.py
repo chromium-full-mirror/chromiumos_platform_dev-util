@@ -36,7 +36,6 @@ Usage: copybot.py [options...] upstream_repo:branch downstream_repo:branch
 # [VPYTHON:END]
 
 import argparse
-import contextlib
 import enum
 import json
 import logging
@@ -169,21 +168,42 @@ class GitRepo:
         """Do a `git checkout`."""
         return self._run_git("checkout", ref)
 
-    def log(self, revision_range="HEAD", fmt=None, num=0, subtree=None):
+    def log(
+        self,
+        revision_range="HEAD",
+        fmt=None,
+        num=0,
+        subtree=None,
+        exclude_file_patterns=(),
+    ):
         """Do a `git log`."""
         extra_args = []
         if fmt:
             extra_args.append(f"--format={fmt}")
         if num:
             extra_args.append(f"-n{num}")
+        extra_args.append("--")
+        extra_args.extend(
+            [f":!{path}" for path in (exclude_file_patterns or [])]
+        )
         if subtree:
-            extra_args.extend(["--", subtree])
+            extra_args.append(subtree)
         return self._run_git("log", revision_range, *extra_args)
 
-    def log_hashes(self, revision_range="HEAD", num=0, subtree=None):
+    def log_hashes(
+        self,
+        revision_range="HEAD",
+        num=0,
+        subtree=None,
+        exclude_file_patterns=(),
+    ):
         """Get the commit log as a list of commit hashes."""
         result = self.log(
-            revision_range=revision_range, fmt="%H", num=num, subtree=subtree
+            revision_range=revision_range,
+            fmt="%H",
+            num=num,
+            subtree=subtree,
+            exclude_file_patterns=exclude_file_patterns,
         )
         return result.stdout.splitlines()
 
@@ -257,43 +277,6 @@ class GitRepo:
         if force:
             extra_args.append("--force")
         return self._run_git("add", *extra_args, path)
-
-    @contextlib.contextmanager
-    def temp_worktree(self, rev="HEAD"):
-        """Context manager to create and destroy a temporary worktree."""
-        # pylint: disable=consider-using-with
-        tmpdir = tempfile.TemporaryDirectory()
-        try:
-            worktree_dir = pathlib.Path(tmpdir.name)
-            self._run_git("worktree", "add", "-d", worktree_dir, rev)
-            try:
-                yield self.__class__(worktree_dir)
-            finally:
-                self._run_git("worktree", "remove", "--force", worktree_dir)
-        finally:
-            # We use a try/finally to cleanup the temporary directory
-            # instead of a context manager as, in the successful
-            # condition, the worktree directory will no longer exist
-            # (git will have removed it).  In Python 3.10+, one can
-            # use ignore_cleanup_errors=True, but the chroot is on
-            # Python 3.6 right now.
-            try:
-                tmpdir.cleanup()
-            except FileNotFoundError:
-                pass
-
-    def filter_commit(self, rev="HEAD", files=()):
-        """Filter a commit to just certain files.
-
-        Returns:
-            The new commit hash.
-        """
-        old_message = self.get_commit_message(rev)
-        patch = self.show(rev, files)
-
-        with self.temp_worktree(f"{rev}~1") as worktree:
-            worktree.apply(patch)
-            return worktree.commit(old_message)
 
     def cherry_pick(self, rev, upstream_subtree=None, downstream_subtree=None):
         """Do a `git cherry-pick`.
@@ -544,7 +527,11 @@ def get_origin_rev_id(commit_message):
 
 
 def find_last_merged_rev(
-    repo, upstream_rev, downstream_rev, downstream_subtree=None
+    repo,
+    upstream_rev,
+    downstream_rev,
+    downstream_subtree=None,
+    exclude_file_patterns=(),
 ):
     """Find the last merged revision in a Git repo.
 
@@ -553,6 +540,7 @@ def find_last_merged_rev(
         upstream_rev: The commit hash of the upstream HEAD.
         downstream_rev: The commit hash of the downstream HEAD.
         downstream_subtree: The subtree of interest of the downstream repo.
+        exclude_file_patterns: List of paths to be excluded.
 
     Returns:
         A commit hash of the last merged revision by CopyBot, or the
@@ -563,7 +551,9 @@ def find_last_merged_rev(
     """
     upstream_hashes = repo.log_hashes(upstream_rev)
     downstream_hashes = repo.log_hashes(
-        revision_range=downstream_rev, subtree=downstream_subtree
+        revision_range=downstream_rev,
+        subtree=downstream_subtree,
+        exclude_file_patterns=exclude_file_patterns,
     )
 
     for rev in downstream_hashes:
@@ -580,19 +570,27 @@ def find_last_merged_rev(
     )
 
 
-def get_downstreamed_list(repo, downstream_rev, downstream_subtree=None):
+def get_downstreamed_list(
+    repo,
+    downstream_rev,
+    downstream_subtree=None,
+    exclude_file_patterns=(),
+):
     """Find the last merged revision in a Git repo.
 
     Args:
         repo: The GitRepo.
         downstream_rev: The commit hash of the downstream HEAD.
         downstream_subtree: The subtree of interest of the downstream repo.
+        exclude_file_patterns: List of paths to be excluded.
 
     Returns:
         The set of upstream commit hashes that have already been downstreamed.
     """
     downstream_hashes = repo.log_hashes(
-        revision_range=downstream_rev, subtree=downstream_subtree
+        revision_range=downstream_rev,
+        subtree=downstream_subtree,
+        exclude_file_patterns=exclude_file_patterns,
     )
     downstreamed_revs = []
 
@@ -625,28 +623,27 @@ def find_commits_to_copy(
         downstream_subtree: The subtree of interest of the downstream repo.
         last_merged_rev: The last upstream commit hash merged.
         skip_revs: Any upstream commit hashes that should be skipped.
-        exclude_file_patterns: Regular expressions of file paths that
-            should not be copied.
+        exclude_file_patterns: File paths that should not be copied.
 
     Returns:
-        Three values: a list of the commit hashes to copy, a
-        dictionary mapping commit hashes to the files that should be
-        included, and a dictionary mapping commit hashes to the files
-        that should be skipped.
+        A list of the commit hashes to copy.
 
     Raises:
         ValueError: If the provided last merged commit hash does not
            exist in upstream commit history.
     """
     commits_to_copy = []
-    commit_files_map = {}
     downstreamed_revs = get_downstreamed_list(
-        repo, downstream_rev, downstream_subtree
+        repo,
+        downstream_rev,
+        downstream_subtree,
+        exclude_file_patterns=exclude_file_patterns,
     )
-    skipped_files_map = {}
 
     for rev in repo.log_hashes(
-        revision_range=upstream_rev, subtree=upstream_subtree
+        revision_range=upstream_rev,
+        subtree=upstream_subtree,
+        exclude_file_patterns=exclude_file_patterns,
     ):
         if rev == last_merged_rev:
             break
@@ -658,40 +655,19 @@ def find_commits_to_copy(
         if rev in downstreamed_revs:
             continue
 
-        commit_files = repo.commit_file_list(rev)
-        filtered_commit_files = []
-        for path in commit_files:
-            if not any(p.fullmatch(path) for p in exclude_file_patterns):
-                filtered_commit_files.append(path)
-
-        if not filtered_commit_files:
-            logger.info(
-                "Skip commit %s due to empty file list after filtering "
-                "(before filtering was %r)",
-                rev,
-                commit_files,
-            )
-            continue
-
-        commit_files_map[rev] = filtered_commit_files
-        skipped_files_map[rev] = [
-            path for path in commit_files if path not in filtered_commit_files
-        ]
-
         commits_to_copy.append(rev)
     else:
         raise ValueError(
             "Last merged revision cannot be found in upstream history"
         )
 
-    return commits_to_copy, commit_files_map, skipped_files_map
+    return commits_to_copy
 
 
 def rewrite_commit_message(
     repo,
     upstream_rev,
     change_id,
-    skipped_files=(),
     prepend_subject="",
     sign_off=False,
     keep_pseudoheaders=(),
@@ -702,7 +678,6 @@ def rewrite_commit_message(
         repo: The GitRepo to operate on.
         upstream_rev: The upstream commit hash corresponding to this commit.
         change_id: The Change-Id to add to the commit.
-        skipped_files: The list of files skipped.
         prepend_subject: A string to prepend the subject line with.
         sign_off: True if Signed-off-by should be added to the commit message.
         keep_pseudoheaders: Pseudoheaders which should not be prefixed.
@@ -714,9 +689,6 @@ def rewrite_commit_message(
         commit_message
     )
     pseudoheaders = pseudoheaders.prefix(keep=keep_pseudoheaders)
-
-    for path in skipped_files:
-        pseudoheaders["CopyBot-Skipped-File"] = path
 
     pseudoheaders["GitOrigin-RevId"] = upstream_rev
     pseudoheaders["Change-Id"] = change_id
@@ -785,15 +757,13 @@ def run_copybot(args, tmp_dir):
     except IndexError:
         downstream_subtree = None
 
-    exclude_file_patterns = [
-        re.compile(pattern) for pattern in args.exclude_file_patterns
-    ]
     merge_conflict_behavior = MergeConflictBehavior[
         args.merge_conflict_behavior
     ]
 
     m = re.fullmatch(
-        r"https://(chromium|chrome-internal)(?:-review)?\.googlesource\.com/(.*)",
+        r"https://(chromium|chrome-internal)"
+        r"(?:-review)?\.googlesource\.com/(.*)",
         downstream_url,
     )
     if not m:
@@ -829,15 +799,17 @@ def run_copybot(args, tmp_dir):
         ) from e
 
     last_merged_rev = find_last_merged_rev(
-        repo, upstream_rev, downstream_rev, downstream_subtree
+        repo,
+        upstream_rev,
+        downstream_rev,
+        downstream_subtree,
+        args.exclude_file_patterns,
     )
     logger.info("Last merged revision: %s", last_merged_rev)
 
     skip_revs = gerrit.get_skiplist(downstream_project, downstream_branch)
-    commit_files_map = {}
-    skipped_files_map = {}
 
-    commits_to_copy, commit_files_map, skipped_files_map = find_commits_to_copy(
+    commits_to_copy = find_commits_to_copy(
         repo,
         upstream_rev,
         upstream_subtree,
@@ -845,7 +817,7 @@ def run_copybot(args, tmp_dir):
         downstream_subtree,
         last_merged_rev,
         skip_revs=skip_revs,
-        exclude_file_patterns=exclude_file_patterns,
+        exclude_file_patterns=args.exclude_file_patterns,
     )
 
     if not commits_to_copy:
@@ -866,16 +838,8 @@ def run_copybot(args, tmp_dir):
     for i, rev in enumerate(reversed(commits_to_copy)):
         logger.info("(%s/%s) Cherry-pick %s", i + 1, len(commits_to_copy), rev)
 
-        filtered_rev = None
-        if skipped_files_map[rev]:
-            filtered_rev = repo.filter_commit(
-                rev=rev, files=commit_files_map[rev]
-            )
-
         try:
-            repo.cherry_pick(
-                filtered_rev or rev, upstream_subtree, downstream_subtree
-            )
+            repo.cherry_pick(rev, upstream_subtree, downstream_subtree)
         except EmptyCommitError:
             logger.warning("Skip cherry-pick due to empty commit")
             continue
@@ -891,7 +855,6 @@ def run_copybot(args, tmp_dir):
             repo,
             upstream_rev=rev,
             change_id=pending_changes.get(rev) or gerrit.generate_change_id(),
-            skipped_files=skipped_files_map[rev],
             prepend_subject=args.prepend_subject,
             sign_off=args.add_signed_off_by,
             keep_pseudoheaders=args.keep_pseudoheaders,
