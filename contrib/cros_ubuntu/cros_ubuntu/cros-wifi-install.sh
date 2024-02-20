@@ -28,31 +28,36 @@ echo test0000 | sudo -S cp send_management_frame /usr/bin/
 
 popd || exit # $FRAMESENDER_DIR
 
-HOSTAP_DIR=${cros_softap_dir}/hostap
-HOSTAP_PACKAGE=${HOSTAP_DIR}.tar.gz
+# Disable custom hostapd build to use Intel's softap bundle
 
-pushd "${cros_softap_dir}" ||
-        status_eval $? "pushd ${cros_softap_dir}" || return 1
-echo "extracting hostap files..."
-tar -xzf "${HOSTAP_PACKAGE}" > /dev/null 2>&1 ||
-        die 1 "ERROR: extracting from file: ${HOSTAP_PACKAGE}. System error is $?"
-popd || exit # ${cros_softap_dir}
+# HOSTAP_DIR=${cros_softap_dir}/hostap
+# HOSTAP_PACKAGE=${HOSTAP_DIR}.tar.gz
 
-pushd "${HOSTAP_DIR}/hostapd" ||
-        status_eval $? "pushd ${HOSTAP_DIR}/hostapd" || return 1
-# copy default config
-cp defconfig .config
+# pushd "${cros_softap_dir}" ||
+#         status_eval $? "pushd ${cros_softap_dir}" || return 1
+# echo "extracting hostap files..."
+# tar -xzf "${HOSTAP_PACKAGE}" > /dev/null 2>&1 ||
+#         die 1 "ERROR: extracting from file: ${HOSTAP_PACKAGE}. System error is $?"
+# popd || exit # ${cros_softap_dir}
 
-make -j \
-    CONFIG_WEP=1 \
-    CONFIG_IEEE80211AC=1 \
-    CONFIG_IEEE80211AX=1 \
-    CONFIG_IEEE80211BE=1 \
-    CONFIG_MBO=1 \
-    all
+# pushd "${HOSTAP_DIR}/hostapd" ||
+#         status_eval $? "pushd ${HOSTAP_DIR}/hostapd" || return 1
+# # copy default config
+# cp defconfig .config
 
-sudo make BINDIR=/usr/bin install
-popd || exit # ${HOSTAP_DIR}/hostapd
+# make -j \
+#     CONFIG_WEP=1 \
+#     CONFIG_IEEE80211AC=1 \
+#     CONFIG_IEEE80211AX=1 \
+#     CONFIG_IEEE80211BE=1 \
+#     CONFIG_MBO=1 \
+#     all
+
+# sudo make BINDIR=/usr/bin install
+# popd || exit # ${HOSTAP_DIR}/hostapd
+
+echo -e "Adding a symlink from /usr/bin/hostapd_cli to /usr/local/bin/hostapd_cli"
+ln -s /usr/bin/hostapd_cli /usr/local/bin/hostapd_cli
 
 # rename Ethernet interface name to eth0
 echo -e "Renaming Ethernet interface name to eth0"
