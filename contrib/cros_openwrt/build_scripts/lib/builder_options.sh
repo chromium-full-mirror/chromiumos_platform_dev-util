@@ -33,11 +33,13 @@ export sdk_config=(
   'CONFIG_DRIVER_11AX_SUPPORT=y'
 )
 export sdk_make=(
+  'cros-iperf' # from sourceforge.
   'cros-send-management-frame' # from local source.
   'feeds/base/hostapd' # hostapd*, wpa-supplicant*, wpad*, and eapol-test*.
 )
 export include_custom_package=(
   # Needed for tast-tests.
+  'cros-iperf'
   'cros-send-management-frame'
   'hostapd-common'
   'hostapd-utils'
@@ -52,7 +54,6 @@ export include_official_package=(
   'tcpdump'
   'procps-ng-pkill'
   'netperf'
-  'iperf'
   'sudo'
   'python3-email'
   'python3-idna'
