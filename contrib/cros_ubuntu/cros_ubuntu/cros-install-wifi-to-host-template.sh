@@ -32,9 +32,21 @@ install_dependencies() {
   ssh -C "${HOST}" 'echo test0000 | sudo -S apt-get install iw net-tools build-essential checkinstall linux-headers-$(uname -r) libreadline-dev  gcc-multilib pkg-config qtcreator qtbase5-dev qt5-qmake cmake libnl-3-dev libssl-dev libnl-genl-3-dev isc-dhcp-server libpcap-dev iputils-arping -y'
 }
 
+# We disable autoupdates on ubuntu because it will overwrite the unsigned kernel modules
+# during stealth updates.
+disable_autoupdate() {
+  ssh -C "${HOST}" 'echo test0000 | sudo -S bash -c "cat > /etc/apt/apt.conf.d/20auto-upgrades << EOF
+APT::Periodic::Update-Package-Lists "0";
+APT::Periodic::Unattended-Upgrade "0";
+EOF"'
+}
 echo "Installing dependencies on host ${HOST}"
 install_dependencies
 echo "Completed dependency installation on host ${HOST}"
+
+echo "Disabling auto update on host ${HOST}"
+disable_autoupdate
+echo "Completed disabling auto update on host ${HOST}"
 
 echo "Uploading ${TAR_NAME} to ${DIR_NAME} on host ${HOST}"
 # line number where payload starts
@@ -61,3 +73,4 @@ echo "Completed building and installing SoftAP on host ${HOST}"
 
 exit 0
 __INTEL_SOFTAP_TAR_PAYLOAD_BEGINS__
+
