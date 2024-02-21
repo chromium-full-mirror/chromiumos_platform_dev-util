@@ -57,6 +57,7 @@ topic_patches["drivers"] = [
     "fixups/FIXUP: CHROMIUM: pci allowlist: sysfs attribute to lockdown external devices completely.patch",
     "fixups/FIXUP: Revert 'staging: remove ashmem'.patch",
     "fixups/FROMGIT: xhci: check for a pending command completion during command timeout.patch",
+    "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: f_audio_source: New gadget driver for audio output - string: Remove strlcpy.patch",
 ]
 
 topic_patches["arch"] = [
