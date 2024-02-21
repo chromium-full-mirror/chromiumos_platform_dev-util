@@ -15,11 +15,12 @@ from src.tools import suite_set_utils  # pylint: disable=wrong-import-position
 
 
 def main(args):
-    suite_set_utils.prep_suites(
-        args.suites_input, args.suites_output, args.test_metadata_dir
-    )
-    suite_set_utils.prep_suite_sets(
-        args.suite_sets_input, args.suite_sets_output
+    suite_set_utils.prep_centralized_suites(
+        args.suites_input,
+        args.suites_output,
+        args.suite_sets_input,
+        args.suite_sets_output,
+        args.test_metadata_dir,
     )
 
 
