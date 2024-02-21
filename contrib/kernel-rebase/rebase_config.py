@@ -63,6 +63,7 @@ topic_patches["drivers"] = [
 topic_patches["arch"] = [
     "fixups/FIXUP: CHROMIUM: hrtimer: Add a sysctl to lower resolution of timers.patch",
     "fixups/FIXUP: CHROMIUM: hrtimer: Add a sysctl to lower resolution of timers2.patch",
+    "fixups/FIXUP: BACKPORT: FROMLIST: kvm arm64: add kvm_arch_test_clear_young.patch",
 ]
 
 topic_patches["bluetooth"] = [
