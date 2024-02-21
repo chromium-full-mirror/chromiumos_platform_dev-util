@@ -653,17 +653,20 @@ def find_commits_to_copy(
             exclude_file_patterns=exclude_file_patterns,
         )
     ):
-        if counter >= limit and limit != 0:
-            break
-
         if rev in skip_revs:
             logger.info("Skip %s due to copybot-skip hashtag", rev)
             continue
 
         if rev in downstreamed_revs:
-            continue
+            break
 
         commits_to_copy.append(rev)
+
+        if counter >= limit and limit != 0:
+            raise ValueError(
+                "Last merged revision cannot be found in upstream history"
+                " or is further back in the history than the configured limit."
+            )
     else:
         raise ValueError(
             "Last merged revision cannot be found in upstream history"
