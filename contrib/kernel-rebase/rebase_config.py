@@ -82,6 +82,7 @@ topic_patches["gpu/other"] = [
 topic_patches["drm"] = [
     "fixups/FIXUP: CHROMIUM: drm img-rogue: Add 1.17 IMG PowerVR Rogue driver.patch",
     "fixups/FIXUP: CHROMIUM: drm img-rogue: Add 1.17 IMG PowerVR Rogue driver2.patch",
+    "fixups/FIXUP: FROMLIST: drm msm dpu: Replace definitions for dpu debug macros.patch",
 ]
 
 topic_patches["chromeos"] = [
