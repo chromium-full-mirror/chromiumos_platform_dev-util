@@ -98,11 +98,11 @@ func dutAddress(dut *labapi.Dut) (string, error) {
 		// Ignore DUT address if the devboard server is set.
 		return "", nil
 	}
-	chromeOS := dut.GetChromeos()
-	if chromeOS == nil {
+	crosSsh := dut.GetChromeos().GetSsh()
+	if crosSsh == nil {
 		return "", fmt.Errorf("DUT does not have end point information: %v", dut)
 	}
-	return joinHostAndPort(chromeOS.Ssh), nil
+	return joinHostAndPort(crosSsh), nil
 }
 
 // FillDUTInfo extracts DUT information from a device.
@@ -120,11 +120,7 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 	}
 
 	cacheInfo := dut.GetCacheServer()
-	var SimInfos []string
 	chromeOS := dut.GetChromeos()
-	if chromeOS.GetSimInfos() != nil && len(chromeOS.GetSimInfos()) > 0 {
-		SimInfos = simInfoConverter(chromeOS.GetSimInfos())
-	}
 
 	// Servo address.
 	var servo string
@@ -293,7 +289,7 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 		PowerUnitHostName:   powerUnitHostName,
 		PowerUnitOutlet:     powerUnitOutlet,
 		HydraHostName:       hydraHostName,
-		SimInfos:            SimInfos,
+		SimInfos:            simInfoConverter(chromeOS.GetSimInfos()),
 		WifiSecretSsid:      wifiSecretSsid,
 		WifiSecretSecurity:  wifiSecretSecurity,
 		WifiSecretPassword:  wifiSecretPassword,
