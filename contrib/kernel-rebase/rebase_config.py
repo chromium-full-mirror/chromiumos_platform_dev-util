@@ -155,3 +155,7 @@ disp_overwrite["b92a48381564"] = [
     "move",
     "drivers",
 ]  # FROMGIT: r8152: Choose our USB config with choose_configuration() rather than probe()
+disp_overwrite["3c6ead5c25ad"] = [
+    "move",
+    "mm",
+]  # CHROMIUM: mm: Reschedule during per-process reclaim
