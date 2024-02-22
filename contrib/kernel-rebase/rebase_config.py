@@ -100,6 +100,7 @@ topic_patches["power-thermal"] = [
 
 topic_patches["mm"] = [
     "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr.patch",
+    "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr2.patch",
 ]
 
 topic_patches["media"] = [
