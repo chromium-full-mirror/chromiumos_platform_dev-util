@@ -44,6 +44,7 @@ _CONFIG_PROTO_DIR = os.path.join(
 _CONFIG_INTERNAL_PROTO_DIR = os.path.join(
     _CROS_SRC, "config-internal", "test", "suite_sets", "generated"
 )
+_TEST_PREFIXES = ["tast.", "tauto.", "crosier."]
 
 
 class Suite(NamedTuple):
@@ -247,6 +248,17 @@ def _validate_suite(suite_proto: suite_set_pb2.Suite) -> Optional[str]:
 
     if not suite_proto.tests:
         return f"Suite must contain at least one test: {suite_str}"
+
+    invalid_tests = []
+    for test in suite_proto.tests:
+        test_name = test.value
+        if not any(test_name.startswith(prefix) for prefix in _TEST_PREFIXES):
+            invalid_tests.append(test_name)
+    if invalid_tests:
+        return (
+            "Follwing tests don't start with a known test prefix "
+            f"({_TEST_PREFIXES}): {invalid_tests}"
+        )
 
 
 def _validate_suite_set(
