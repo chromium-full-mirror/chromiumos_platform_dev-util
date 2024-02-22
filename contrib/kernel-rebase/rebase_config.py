@@ -101,6 +101,7 @@ topic_patches["mm"] = [
 topic_patches["media"] = [
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - support in SPI core.patch",
     "fixups/FIXUP: CHROMIUM: media: add Intel IPU6 drivers - Rename pad config try_ fields.patch",
+    "fixups/FIXUP: CHROMIUM: media: add camx drivers - Stop circularly including of_device.h and of_platform.h.patch",
 ]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
