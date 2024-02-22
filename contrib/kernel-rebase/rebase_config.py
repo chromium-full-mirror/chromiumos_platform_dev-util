@@ -58,6 +58,7 @@ topic_patches["drivers"] = [
     "fixups/FIXUP: Revert 'staging: remove ashmem'.patch",
     "fixups/FROMGIT: xhci: check for a pending command completion during command timeout.patch",
     "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: f_audio_source: New gadget driver for audio output - string: Remove strlcpy.patch",
+    "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: configfs: Add Uevent to notify userspace2.patch",
 ]
 
 topic_patches["arch"] = [
