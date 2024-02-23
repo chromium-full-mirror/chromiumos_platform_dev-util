@@ -71,7 +71,7 @@ func (dutExecUtil) RunCmdAsync(ctx context.Context, cmd string, args []string, d
 	return nil
 }
 
-func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClient, credentialsFile, projectId, topicId, bucket, workDir string) (*perfServer, error) {
+func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClient, credentialsFile, projectId, topicId, bucket, workDir, artifactsBucket string) (*perfServer, error) {
 	storageClient, err := storage.NewStorageClientWithCredsFile(ctx, credentialsFile)
 	if err != nil {
 		return nil, err
@@ -82,7 +82,12 @@ func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClien
 		Topic: topic,
 	}
 	exec := dutExecUtil{}
-	dc := perfCollector{
+	// TODO(b/327285753): Throw error if DUT's version does not match active version.
+	version, err := activeVersion{}.Get(ctx, storageClient, artifactsBucket, workDir)
+	if err != nil {
+		return nil, err
+	}
+	perfCollector := perfCollector{
 		fileFetcher:           dutFileFetcher{},
 		exec:                  exec,
 		dut:                   *dut,
@@ -93,6 +98,7 @@ func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClien
 		publisher:             publisher,
 		stopCollector:         make(chan bool),
 		terminated:            make(chan bool),
+		version:               version,
 	}
 	perfCmd := perfCmd{
 		dut:                  *dut,
@@ -114,7 +120,7 @@ func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClien
 		dut:           dut,
 		storageClient: storageClient,
 		healthMonitor: &healthMonitor,
-		perfCollector: &dc,
+		perfCollector: &perfCollector,
 		perfCmd:       &perfCmd,
 		stopMonitor:   make(chan bool),
 		workDir:       workDir,
@@ -151,8 +157,9 @@ func (ps *perfServer) cleanPerfDir(ctx context.Context) error {
 
 // Start is called by TestRunner before cros-test
 func (ps *perfServer) Start(ctx context.Context, _ *api.GenericStartRequest) (*api.GenericStartResponse, error) {
-	if fileInfo, err := os.Stat(workDir); os.IsNotExist(err) || !fileInfo.IsDir() {
-		return nil, fmt.Errorf("%s does not exist or is not a directory", workDir)
+	log.Println("Received start request.")
+	if fileInfo, err := os.Stat(ps.workDir); os.IsNotExist(err) || !fileInfo.IsDir() {
+		return nil, fmt.Errorf("%s does not exist or is not a directory", ps.workDir)
 	}
 	// In rare event, previous runs might miss terminating perf and cleaning perf dir.
 	// Lets do that before starting a new perf cmd.
@@ -178,6 +185,7 @@ func (ps *perfServer) Run(ctx context.Context, _ *api.GenericRunRequest) (*api.G
 
 // Stop is called by TestRunner after cros-test
 func (ps *perfServer) Stop(ctx context.Context, _ *api.GenericStopRequest) (*api.GenericStopResponse, error) {
+	log.Println("Received stop request.")
 	// Stop monitoring.
 	ps.healthMonitor.stopMonitoring <- true
 	if err := waitForTermination(ps.healthMonitor.terminated, "Health Monitor"); err != nil {

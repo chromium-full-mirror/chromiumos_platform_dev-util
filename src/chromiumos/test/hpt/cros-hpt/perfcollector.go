@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/config/go/test/hpt"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // TODO(b:323393089) Create a separate lib for perf collector.
@@ -27,7 +27,7 @@ const (
 	stopped      = "stopped"
 	noDirMsg     = "No such file or directory"
 	perfDataWild = perfData + ".*"
-	gz           = ".gz"
+	gz           = ".tar.gz"
 )
 
 type publisher interface {
@@ -56,7 +56,7 @@ type perfCollector struct {
 	storage               storageWriter
 	bucket                string
 	publisher             publisher
-
+	version               *version
 	// terminated chan is used by the collector to notify that it has successfully terminated.
 	terminated chan bool
 
@@ -91,12 +91,15 @@ func (p perfCollector) tar(ctx context.Context, srcFile, destDir string) (string
 }
 
 func (p perfCollector) publish(ctx context.Context, bucket, ObjectPath string) error {
+	board := strings.Clone(brya)
 	record := hpt.PerfRecord{
-		Bucket:     &bucket,
-		ObjectPath: &ObjectPath,
-		// TODO: set Branch, Version and Board
+		Bucket:            &bucket,
+		ObjectPath:        &ObjectPath,
+		Version:           &p.version.Version,
+		SnapshotBuildPath: &p.version.SnapshotVersion,
+		Board:             &board,
 	}
-	out, err := proto.Marshal(&record)
+	out, err := protojson.Marshal(&record)
 	if err != nil {
 		return err
 	}
@@ -110,7 +113,7 @@ func (p perfCollector) gatherPerf(ctx context.Context, perfDir, uuid, workDir st
 		return err
 	}
 	for _, dutFile := range files {
-		// Next copy the files to the cros-dut one by one.
+		// Next copy the files from cros-dut one by one.
 		localPath, err := p.fileFetcher.Copy(ctx, dutFile, p.dut)
 		if err != nil {
 			return err
@@ -121,11 +124,9 @@ func (p perfCollector) gatherPerf(ctx context.Context, perfDir, uuid, workDir st
 		if err := os.Remove(localPath); err != nil {
 			return err
 		}
-		// TODO(b/306230353) Upload to builder specific path.
-		// Next upload to GCS.
 		gsObject := storage.GSObject{
 			Bucket: p.bucket,
-			Object: filepath.Join(time.Now().Format(time.DateOnly), uuid, filepath.Base(tarFilePath)),
+			Object: filepath.Join(p.version.Board, p.version.Version, time.Now().Format(time.DateOnly), uuid, filepath.Base(tarFilePath)),
 		}
 		if err := p.storage.Write(ctx, tarFilePath, gsObject); err != nil {
 			return err
@@ -148,6 +149,7 @@ func (p perfCollector) gatherPerf(ctx context.Context, perfDir, uuid, workDir st
 }
 
 func (p perfCollector) start(perfDir, workDir string) {
+	log.Println("Starting to perf collection.")
 	ctx := context.Background()
 	uuid := uuid.New().String()
 	for {

@@ -22,9 +22,12 @@ import (
 )
 
 const (
+	defaultRootPath          = "/tmp/cros-hpt"
 	defaultAuthTokenFilePath = "/tmp/cros-hpt/authToken.txt"
 	defaultPort              = 8010
 	logPath                  = "log"
+	// TODO(b/327275996): Replace brya with board in /etc/os-release file on dut.
+	brya = "brya"
 )
 
 var (
@@ -42,6 +45,7 @@ type flags struct {
 	projectId       string
 	topicId         string
 	bucket          string
+	artifactsBucket string
 }
 
 func startServer(ctx context.Context, args []string) int {
@@ -55,6 +59,8 @@ func startServer(ctx context.Context, args []string) int {
 	fs.StringVar(&f.projectId, "projectId", "", fmt.Sprintf("GCP projectID for perf processing pipeline."))
 	fs.StringVar(&f.topicId, "topicId", "", fmt.Sprintf("GCP pubsub topic for notifying perf processing pipeline about newly available data."))
 	fs.StringVar(&f.bucket, "bucket", "", fmt.Sprintf("GCS bucket where to upload the zipped perf data."))
+	fs.StringVar(&f.artifactsBucket, "artifactsBucket", "", fmt.Sprintf("GCS Bucket where hpt artifacts can be found."))
+
 	fs.Parse(args)
 	// Configure log file
 	logFile, err := helpers.CreateLogFile(f.logPath)
@@ -84,7 +90,7 @@ func startServer(ctx context.Context, args []string) int {
 		return 2
 	}
 	logger.Println("Starting Service on port ", f.port)
-	perfServer, err := NewServer(ctx, logger, &dut, authTokenFilePath, f.projectId, f.topicId, f.bucket, workDir)
+	perfServer, err := NewServer(ctx, logger, &dut, authTokenFilePath, f.projectId, f.topicId, f.bucket, workDir, f.artifactsBucket)
 	if err != nil {
 		logger.Fatal(err)
 		return 2
