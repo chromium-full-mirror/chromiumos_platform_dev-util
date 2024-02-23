@@ -20,8 +20,8 @@ const (
 	PartitionNumKernelB = "4"
 	PartitionNumRootA   = "3"
 	PartitionNumRootB   = "5"
-	partitionNumMiniOSA = "9"
-	partitionNumMiniOSB = "10"
+	PartitionNumMiniOSA = "9"
+	PartitionNumMiniOSB = "10"
 )
 
 const (
@@ -66,8 +66,8 @@ func GetPartitionInfo(root string, rootDisk string, rootPartNum string) Partitio
 			InactiveKernel:  rootDiskPartDelim + PartitionNumKernelB,
 			ActiveRoot:      rootDiskPartDelim + PartitionNumRootA,
 			InactiveRoot:    rootDiskPartDelim + PartitionNumRootB,
-			MiniOSA:         rootDiskPartDelim + partitionNumMiniOSA,
-			MiniOSB:         rootDiskPartDelim + partitionNumMiniOSB,
+			MiniOSA:         rootDiskPartDelim + PartitionNumMiniOSA,
+			MiniOSB:         rootDiskPartDelim + PartitionNumMiniOSB,
 		}
 	case PartitionNumRootB:
 		return PartitionInfo{
@@ -76,8 +76,8 @@ func GetPartitionInfo(root string, rootDisk string, rootPartNum string) Partitio
 			InactiveKernel:  rootDiskPartDelim + PartitionNumKernelA,
 			ActiveRoot:      rootDiskPartDelim + PartitionNumRootB,
 			InactiveRoot:    rootDiskPartDelim + PartitionNumRootA,
-			MiniOSA:         rootDiskPartDelim + partitionNumMiniOSB,
-			MiniOSB:         rootDiskPartDelim + partitionNumMiniOSA,
+			MiniOSA:         rootDiskPartDelim + PartitionNumMiniOSB,
+			MiniOSB:         rootDiskPartDelim + PartitionNumMiniOSA,
 		}
 	default:
 		panic(fmt.Sprintf("Unexpected root partition number of %s", rootPartNum))
@@ -86,5 +86,5 @@ func GetPartitionInfo(root string, rootDisk string, rootPartNum string) Partitio
 
 // GetMiniOSPartitions returns the partition numbers for miniOS
 func GetMiniOSPartitions() []string {
-	return []string{partitionNumMiniOSA, partitionNumMiniOSB}
+	return []string{PartitionNumMiniOSA, PartitionNumMiniOSB}
 }
