@@ -21,6 +21,13 @@ import (
 )
 
 const (
+	deviceDisk                        = "/dev/nvme0n1"
+	deviceDiskPartition               = deviceDisk + "p"
+	deviceDiskKernelB                 = deviceDiskPartition + common_utils.PartitionNumKernelB
+	deviceDiskRootA                   = deviceDiskPartition + common_utils.PartitionNumRootA
+	deviceDiskRootB                   = deviceDiskPartition + common_utils.PartitionNumRootB
+	deviceDiskMiniA                   = deviceDiskPartition + common_utils.PartitionNumMiniOSA
+	deviceDiskMiniB                   = deviceDiskPartition + common_utils.PartitionNumMiniOSB
 	mockedValidCrosidStdout           = "SKU=33\nCONFIG_INDEX=9\nFIRMWARE_MANIFEST_KEY='babytiger'\n"
 	mockedValidFirmwareManifestStdout = "{\n  \"babytiger\": {\n    \"host\": { \"versions\": { \"ro\": \"Google_Coral.10068.113.0\", \"rw\": \"Google_Coral.10068.113.0\" },\n      \"keys\": { \"root\": \"b11d74edd286c144e1135b49e7f0bc20cf041f10\", \"recovery\": \"c14bd720b70d97394257e3e826bd8f43de48d4ed\" },\n      \"image\": \"images/bios-coral.ro-10068-113-0.rw-10068-113-0.bin\" },\n    \"ec\": { \"versions\": { \"ro\": \"coral_v1.1.7302-d2b56e247\", \"rw\": \"coral_v1.1.7302-d2b56e247\" },\n      \"image\": \"images/ec-coral.ro-1-1-7302.rw-1-1-7302.bin\" },\n    \"signature_id\": \"babytiger\"\n  }\n}\n"
 )
@@ -66,11 +73,11 @@ var (
 	stopDLCservice            = RunCommandStructure{Command: "stop", Args: []string{"dlcservice"}}
 	removeVerified            = RunCommandStructure{Command: "rm", Args: []string{"-f", "/var/cache/dlc/*/*/dlc_b/verified"}}
 	startDLCservice           = RunCommandStructure{Command: "start", Args: []string{"dlcservice"}}
-	copyKernel                = PipeCommandStructure{Source: "gs://path/to/image/full_dev_part_KERN.bin.gz", Command: "gzip -d | dd of=root_diskroot4 obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to root_diskroot4 failed.\" >&2\n  exit 1\nfi"}
-	copyRoot                  = PipeCommandStructure{Source: "gs://path/to/image/full_dev_part_ROOT.bin.gz", Command: "gzip -d | dd of=root_diskroot5 obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to root_diskroot5 failed.\" >&2\n  exit 1\nfi"}
+	copyKernel                = PipeCommandStructure{Source: "gs://path/to/image/full_dev_part_KERN.bin.gz", Command: "gzip -d | dd of=" + deviceDiskKernelB + " obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to " + deviceDiskKernelB + " failed.\" >&2\n  exit 1\nfi"}
+	copyRoot                  = PipeCommandStructure{Source: "gs://path/to/image/full_dev_part_ROOT.bin.gz", Command: "gzip -d | dd of=" + deviceDiskRootB + " obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to " + deviceDiskRootB + " failed.\" >&2\n  exit 1\nfi"}
 	makeTemp                  = RunCommandStructure{Command: "mktemp", Args: []string{"-d"}}
-	mountTemp                 = RunCommandStructure{Command: "mount", Args: []string{"-o", "ro", "root_diskroot5", "temporary_dir"}}
-	postInstTemp              = RunCommandStructure{Command: "temporary_dir/postinst", Args: []string{"root_diskroot5"}}
+	mountTemp                 = RunCommandStructure{Command: "mount", Args: []string{"-o", "ro", deviceDiskRootB, "temporary_dir"}}
+	postInstTemp              = RunCommandStructure{Command: "temporary_dir/postinst", Args: []string{deviceDiskRootB}}
 	umountTemp                = RunCommandStructure{Command: "umount", Args: []string{"temporary_dir"}}
 	deleteTemp                = RunCommandStructure{Command: "rmdir", Args: []string{"temporary_dir"}}
 	crosSystem                = RunCommandStructure{Command: "crossystem", Args: []string{"clear_tpm_owner_request=1"}}
@@ -83,11 +90,11 @@ var (
 	createDLCDir              = CreateDirsStructure{Dirs: []string{"/var/cache/dlc/1/package/dlc_a"}}
 	chownDLCs                 = RunCommandStructure{Command: "chown", Args: []string{"-R", "dlcservice:dlcservice", "/var/cache/dlc"}}
 	chmodDLCs                 = RunCommandStructure{Command: "chmod", Args: []string{"-R", "0755", "/var/cache/dlc"}}
-	cgptRoot9                 = RunCommandStructure{Command: "cgpt", Args: []string{"show", "-t", "root_disk", "-i", "9"}}
-	cgptRoot10                = RunCommandStructure{Command: "cgpt", Args: []string{"show", "-t", "root_disk", "-i", "10"}}
-	cgptStickyCheck           = RunCommandStructure{Command: "cgpt", Args: []string{"show", "-S", "-i", "2", "root_disk"}}
-	copyMiniOS9               = PipeCommandStructure{Source: "gs://path/to/image/full_dev_part_MINIOS.bin.gz", Command: "gzip -d | dd of=root_diskroot9 obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to root_diskroot9 failed.\" >&2\n  exit 1\nfi"}
-	copyMiniOS10              = PipeCommandStructure{Source: "gs://path/to/image/full_dev_part_MINIOS.bin.gz", Command: "gzip -d | dd of=root_diskroot10 obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to root_diskroot10 failed.\" >&2\n  exit 1\nfi"}
+	cgptRoot9                 = RunCommandStructure{Command: "cgpt", Args: []string{"show", "-t", deviceDisk, "-i", "9"}}
+	cgptRoot10                = RunCommandStructure{Command: "cgpt", Args: []string{"show", "-t", deviceDisk, "-i", "10"}}
+	cgptStickyCheck           = RunCommandStructure{Command: "cgpt", Args: []string{"show", "-S", "-i", "2", deviceDisk}}
+	copyMiniOS9               = PipeCommandStructure{Source: "gs://path/to/image/full_dev_part_MINIOS.bin.gz", Command: "gzip -d | dd of=" + deviceDiskMiniA + " obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to " + deviceDiskMiniA + " failed.\" >&2\n  exit 1\nfi"}
+	copyMiniOS10              = PipeCommandStructure{Source: "gs://path/to/image/full_dev_part_MINIOS.bin.gz", Command: "gzip -d | dd of=" + deviceDiskMiniB + " obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to " + deviceDiskMiniB + " failed.\" >&2\n  exit 1\nfi"}
 	checkFirmwareUpdater      = PathExistsCommandStructure{Path: common_utils.FirmwareUpdaterPath}
 	updateFirmware            = RunCommandStructure{Command: common_utils.FirmwareUpdaterPath, Args: []string{"--wp=1", "--mode=autoupdate"}}
 	currentFirmwareSlot       = RunCommandStructure{Command: "crossystem", Args: []string{common_utils.CrossystemCurrentFirmwareSlotKey}}
@@ -105,7 +112,7 @@ var (
 // REVERT COMMANDS
 var (
 	cleanPostInstallRevert = RunCommandStructure{Command: "rm", Args: []string{"-rf", "/mnt/stateful_partition/var_new", "/mnt/stateful_partition/dev_image_new", "/mnt/stateful_partition/.update_available"}}
-	postInstRevert         = RunCommandStructure{Command: "/postinst", Args: []string{"root_diskroot3", "2>&1"}}
+	postInstRevert         = RunCommandStructure{Command: "/postinst", Args: []string{deviceDiskRootA, "2>&1"}}
 )
 
 // OVERWRITE COMMANDS
@@ -151,8 +158,8 @@ func TestStateTransitions(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
@@ -205,8 +212,8 @@ func TestStateTransitions(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, waitforStabilize).Return("start/running", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getRunCmdCommand(sam, cgptStickyCheck).Return("1", nil),
 		getRunCmdCommand(sam, echoFastKeepImg).Return("", nil),
 		getRestartCommand(sam).Return(nil),
@@ -217,8 +224,8 @@ func TestStateTransitions(t *testing.T) {
 		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
 		getRestartCommand(sam).Return(nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -317,8 +324,8 @@ func TestMismatchPostInstall(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
@@ -371,8 +378,8 @@ func TestMismatchPostInstall(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, waitforStabilize).Return("start/running", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getRunCmdCommand(sam, cgptStickyCheck).Return("1", nil),
 		getRunCmdCommand(sam, echoFastKeepImg).Return("", nil),
 		getRestartCommand(sam).Return(nil),
@@ -383,8 +390,8 @@ func TestMismatchPostInstall(t *testing.T) {
 		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
 		getRestartCommand(sam).Return(nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -695,8 +702,8 @@ func TestInstallPostInstallFailureCausesReversal(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
@@ -764,8 +771,8 @@ func TestInstallClearTPMFailureCausesReversal(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
@@ -834,8 +841,8 @@ func TestFirmwareUpdateStateSkippedDueToNoUpdaterExist(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
@@ -900,8 +907,8 @@ func TestFirmwareUpdateStateWithNoChange(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
@@ -959,8 +966,8 @@ func TestPostInstallStatePreservesStatefulWhenRequested(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
@@ -973,8 +980,8 @@ func TestPostInstallStatePreservesStatefulWhenRequested(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, waitforStabilize).Return("start/running", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getRunCmdCommand(sam, cgptStickyCheck).Return("1", nil),
 		// Delete steps elided due to preserve stateful
 		getRunCmdCommand(sam, stopUI).Return("", nil),
@@ -985,8 +992,8 @@ func TestPostInstallStatePreservesStatefulWhenRequested(t *testing.T) {
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
 
 		getRestartCommand(sam).Return(nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 	)
 
 	// Nothing should be run, so no need to use mock expect
@@ -1033,8 +1040,8 @@ func TestPostInstallStatefulFailsGetsReversed(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
@@ -1047,8 +1054,8 @@ func TestPostInstallStatefulFailsGetsReversed(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, waitforStabilize).Return("start/running", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getRunCmdCommand(sam, cgptStickyCheck).Return("1", nil),
 		// Delete steps elided due to preserve stateful
 		getRunCmdCommand(sam, stopUI).Return("", nil),
@@ -1102,8 +1109,8 @@ func TestProvisionDLCWithEmptyDLCsDoesNotExecute(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
@@ -1158,8 +1165,8 @@ func TestProvisionDLCWhenVerifyIsTrueDoesNotExecuteInstall(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
@@ -1228,8 +1235,8 @@ func TestPostInstallOverwriteWhenSpecified(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
 	)
 
@@ -1242,8 +1249,8 @@ func TestPostInstallOverwriteWhenSpecified(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, waitforStabilize).Return("start/running", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getRunCmdCommand(sam, cgptStickyCheck).Return("1", nil),
 		getRunCmdCommand(sam, echoFastKeepImg).Return("", nil),
 		getRestartCommand(sam).Return(nil),
@@ -1257,8 +1264,8 @@ func TestPostInstallOverwriteWhenSpecified(t *testing.T) {
 		getRestartCommand(sam).Return(nil),
 		getPipeDataCommand(sam, copyOverwritePayload).Return(nil),
 		getRestartCommand(sam).Return(nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -1304,8 +1311,8 @@ func TestKvmDevicePathMissing(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 		getPathExistsCommand(sam, kvmDevicePathExists).Return(false, nil),
 	)
 
@@ -1352,8 +1359,8 @@ func TestKvmDevicePathForLabstationDevice(t *testing.T) {
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
-		getRunCmdCommand(sam, rootDevPartition).Return(fmt.Sprintf("root%s", common_utils.PartitionNumRootA), nil),
-		getRunCmdCommand(sam, rootDevDisk).Return("root_disk", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
 	)
 	// Explicit check.
 	getPathExistsCommand(sam, kvmDevicePathExists).Times(0)
