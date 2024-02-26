@@ -276,7 +276,7 @@ func processArgs(req *api.CrosTestRequest) (string, error) {
 		customAutotestArgs, _ := md.(*api.AutotestExecutionMetadata)
 		subCustomArgs := ""
 		for _, customAutotestArg := range customAutotestArgs.GetArgs() {
-			subCustomArgs += subCustomArgs + fmt.Sprintf(" %v=%v", customAutotestArg.GetFlag(), customAutotestArg.GetValue())
+			subCustomArgs += fmt.Sprintf(" %v=%v", customAutotestArg.GetFlag(), customAutotestArg.GetValue())
 		}
 		customArgs = subCustomArgs
 
