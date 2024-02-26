@@ -70,7 +70,15 @@ func parseAndRunCmds(req *api.Request, log *log.Logger, dutClient api.DutService
 			},
 		}
 		return &resp, err
-
+	case *api.Request_GetGfxInfoRequest:
+		log.Println("GetGfxInfo Task")
+		cmdResp, err := commands.GetGfxInfo(log, dutClient)
+		resp := api.RunActivityResponse{
+			Response: &api.RunActivityResponse_GetGfxInfoResponse{
+				GetGfxInfoResponse: cmdResp,
+			},
+		}
+		return &resp, err
 	default:
 		log.Println("None")
 		return nil, fmt.Errorf("can only be one of registered types")
