@@ -23,7 +23,6 @@ const (
 	samplingRate  = "8000"
 	kill          = "kill"
 	outputPerfDir = "/tmp/perf"
-	workDir       = "/tmp/cros-hpt"
 	perfData      = "perf.data"
 	nohup         = "nohup"
 	perfInitWait  = 1 * time.Second
@@ -134,6 +133,7 @@ func (p *perfCmd) perfPids(ctx context.Context) ([]string, error) {
 }
 
 func (p *perfCmd) killAll(ctx context.Context) error {
+	log.Println("Killing all perf processes on dut.")
 	pids, err := p.perfPids(ctx)
 	if err != nil {
 		return err

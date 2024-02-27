@@ -38,6 +38,7 @@ type perfServer struct {
 	perfCollector *perfCollector
 	perfCmd       *perfCmd
 	stopMonitor   chan bool
+	workDir       string
 }
 
 type dutFileFetcher struct{}
@@ -70,7 +71,7 @@ func (dutExecUtil) RunCmdAsync(ctx context.Context, cmd string, args []string, d
 	return nil
 }
 
-func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClient, credentialsFile, projectId, topicId, bucket string) (*perfServer, error) {
+func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClient, credentialsFile, projectId, topicId, bucket, workDir string) (*perfServer, error) {
 	storageClient, err := storage.NewStorageClientWithCredsFile(ctx, credentialsFile)
 	if err != nil {
 		return nil, err
@@ -116,6 +117,7 @@ func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClien
 		perfCollector: &dc,
 		perfCmd:       &perfCmd,
 		stopMonitor:   make(chan bool),
+		workDir:       workDir,
 	}
 	return server, nil
 }
@@ -149,7 +151,9 @@ func (ps *perfServer) cleanPerfDir(ctx context.Context) error {
 
 // Start is called by TestRunner before cros-test
 func (ps *perfServer) Start(ctx context.Context, _ *api.GenericStartRequest) (*api.GenericStartResponse, error) {
-
+	if fileInfo, err := os.Stat(workDir); os.IsNotExist(err) || !fileInfo.IsDir() {
+		return nil, fmt.Errorf("%s does not exist or is not a directory", workDir)
+	}
 	// In rare event, previous runs might miss terminating perf and cleaning perf dir.
 	// Lets do that before starting a new perf cmd.
 	if err := ps.perfCmd.killAll(ctx); err != nil {
@@ -158,15 +162,12 @@ func (ps *perfServer) Start(ctx context.Context, _ *api.GenericStartRequest) (*a
 	if err := ps.cleanPerfDir(ctx); err != nil {
 		return nil, err
 	}
-	if err := os.Mkdir(workDir, 0755); err != nil {
-		return nil, err
-	}
 	pid, err := ps.perfCmd.startPerf(ctx)
 	if err != nil {
 		return nil, err
 	}
 	go ps.healthMonitor.start(pid)
-	go ps.perfCollector.start(outputPerfDir, workDir)
+	go ps.perfCollector.start(outputPerfDir, ps.workDir)
 	return &api.GenericStartResponse{}, nil
 }
 
@@ -182,20 +183,18 @@ func (ps *perfServer) Stop(ctx context.Context, _ *api.GenericStopRequest) (*api
 	if err := waitForTermination(ps.healthMonitor.terminated, "Health Monitor"); err != nil {
 		return nil, err
 	}
-
 	// Stop the Perf collector.
 	ps.perfCollector.stopCollector <- true
 	if err := waitForTermination(ps.perfCollector.terminated, "Perf Collector"); err != nil {
 		return nil, err
 	}
-
 	// Kill the perf process.
 	if err := ps.perfCmd.killAll(ctx); err != nil {
 		return nil, err
 	}
 	// Previous step(killAll) resulted in new perf.data dumped on DUT.
 	// Lets process them as well.
-	if err := ps.perfCollector.gatherPerf(ctx, outputPerfDir, uuid.New().String(), workDir); err != nil {
+	if err := ps.perfCollector.gatherPerf(ctx, outputPerfDir, uuid.New().String(), ps.workDir); err != nil {
 		return nil, err
 	}
 	if err := ps.cleanPerfDir(ctx); err != nil {
