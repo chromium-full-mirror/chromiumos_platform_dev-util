@@ -816,14 +816,21 @@ def run_copybot(args, git_dir, patch_dir):
         ) from e
 
     # Verify that the two repositories share a history
-    last_merged_rev = find_last_merged_rev(
-        repo,
-        upstream_rev,
-        downstream_rev,
-        downstream_subtree,
-        args.exclude_file_patterns,
-    )
-    logger.info("Last merged revision: %s", last_merged_rev)
+    try:
+        last_related_rev = find_last_merged_rev(
+            repo,
+            upstream_rev,
+            downstream_rev,
+            downstream_subtree,
+            args.exclude_file_patterns,
+        )
+    except ValueError as e:
+        if not pending_changes:
+            raise e
+        else:
+            logger.info("Last related revision from pending changes!")
+    else:
+        logger.info("Last related revision: %s", last_related_rev)
 
     skip_revs = gerrit.get_skiplist(downstream_project, downstream_branch)
 
