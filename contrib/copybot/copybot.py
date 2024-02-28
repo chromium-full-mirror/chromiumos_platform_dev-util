@@ -512,10 +512,10 @@ class Gerrit:
                 skipped_hashes.add(commit_hash.group(0))
         return skipped_hashes
 
-    @staticmethod
-    def generate_change_id():
-        """Generate a Gerrit Change-Id."""
-        return f"I{os.urandom(20).hex()}"
+
+def generate_change_id():
+    """Generate a Unique Change-Id."""
+    return f"I{os.urandom(20).hex()}"
 
 
 def get_origin_rev_id(commit_message):
@@ -744,6 +744,14 @@ def get_push_refspec(args, downstream_branch):
     return f"HEAD:refs/for/{downstream_branch}%{','.join(push_options)}"
 
 
+def is_server_gob(url):
+    return re.fullmatch(
+        r"https://(chromium|chrome-internal)"
+        r"(?:-review)?\.googlesource\.com/(.*)",
+        url,
+    )
+
+
 def run_copybot(args, git_dir, patch_dir):
     """Run copybot.
 
@@ -777,28 +785,21 @@ def run_copybot(args, git_dir, patch_dir):
     merge_conflict_behavior = MergeConflictBehavior[
         args.merge_conflict_behavior
     ]
+    pending_changes = {}
+    gerrit: Optional[Gerrit] = None
+    if m := is_server_gob(downstream_url) is not None:
+        downstream_gob_host = m.group(1)
+        downstream_project = m.group(2)
 
-    m = re.fullmatch(
-        r"https://(chromium|chrome-internal)"
-        r"(?:-review)?\.googlesource\.com/(.*)",
-        downstream_url,
-    )
-    if not m:
-        # TODO(jrosenth): Support non-GoB Gerrit in the future?
-        raise CopybotFatalError("Non-GoB downstream is currently not supported")
-
-    downstream_gob_host = m.group(1)
-    downstream_project = m.group(2)
-
-    gerrit = Gerrit(f"{downstream_gob_host}-review.googlesource.com")
-    pending_changes = gerrit.find_pending_changes(
-        downstream_project,
-        downstream_branch,
-        args.topic,
-    )
-    logger.info(
-        "Found %s pending changes already on Gerrit", len(pending_changes)
-    )
+        gerrit = Gerrit(f"{downstream_gob_host}-review.googlesource.com")
+        pending_changes = gerrit.find_pending_changes(
+            downstream_project,
+            downstream_branch,
+            args.topic,
+        )
+        logger.info(
+            "Found %s pending changes already on Gerrit", len(pending_changes)
+        )
 
     repo = GitRepo.init(git_dir)
     try:
@@ -832,7 +833,9 @@ def run_copybot(args, git_dir, patch_dir):
     else:
         logger.info("Last related revision: %s", last_related_rev)
 
-    skip_revs = gerrit.get_skiplist(downstream_project, downstream_branch)
+    skip_revs = []
+    if gerrit:
+        skip_revs = gerrit.get_skiplist(downstream_project, downstream_branch)
 
     commits_to_copy = find_commits_to_copy(
         repo,
@@ -881,7 +884,7 @@ def run_copybot(args, git_dir, patch_dir):
         rewrite_commit_message(
             repo,
             upstream_rev=rev,
-            change_id=pending_changes.get(rev) or gerrit.generate_change_id(),
+            change_id=pending_changes.get(rev) or generate_change_id(),
             prepend_subject=args.prepend_subject,
             sign_off=args.add_signed_off_by,
             keep_pseudoheaders=args.keep_pseudoheaders,
