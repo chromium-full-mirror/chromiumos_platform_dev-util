@@ -549,6 +549,10 @@ func GetConnectionWithRetry(ctx context.Context, dutIdentifier string, wiringAdd
 
 	retryCount := 5
 	retryInterval := time.Duration(10 * time.Second)
+	isCloudbot := false
+	if id, found := os.LookupEnv("SWARMING_BOT_ID"); found && strings.HasPrefix(id, "cloudbot-") {
+		isCloudbot = true
+	}
 	var err error
 	var client *ssh.Client
 	if req.Retry != nil {
@@ -561,7 +565,12 @@ func GetConnectionWithRetry(ctx context.Context, dutIdentifier string, wiringAdd
 		err = nil
 		logger.Printf("GetConnectionWithRetry Calling GetConn!")
 
-		client, err = GetConnection(ctx, dutIdentifier, wiringAddress, logger)
+		if isCloudbot {
+			logger.Printf("GetConnectionWithRetry connecting to dut through proxy")
+			client, err = dutssh.CloudbotsDutProxyClient(ctx, dutIdentifier)
+		} else {
+			client, err = GetConnection(ctx, dutIdentifier, wiringAddress, logger)
+		}
 		if err == nil {
 			logger.Printf("GetConnectionWithRetry succeed with %d retries left.\n", retryCount)
 			return client, nil
