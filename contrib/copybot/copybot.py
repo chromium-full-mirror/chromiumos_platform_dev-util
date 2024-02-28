@@ -227,9 +227,8 @@ class GitRepo:
         extra_args = []
         if path:
             extra_args.append(f"--directory={path}")
-        else:
-            extra_args.extend(["--cached", "-"])
-        return self._run_git("apply", *extra_args, input=patch)
+        extra_args.append(patch)
+        return self._run_git("apply", *extra_args)
 
     def commit(self, message, amend=False, sign_off=False, stage=False):
         """Create a commit.
@@ -255,7 +254,7 @@ class GitRepo:
         """
         return self.commit(new_message, amend=True, sign_off=sign_off)
 
-    def format_patch(self, rev, num=1, relative_path=None):
+    def format_patch(self, rev, output_path, num=1, relative_path=None):
         """Generate patch from revision with an optional relative path.
 
         Returns:
@@ -264,10 +263,10 @@ class GitRepo:
         extra_args = []
         if relative_path:
             extra_args.append(f"--relative={relative_path}")
-        extra_args.extend(["--stdout", f"-{num}", rev])
+        extra_args.extend([f"-{num}", rev, f"--output-directory={output_path}"])
 
         result = self._run_git("format-patch", *extra_args)
-        return result.stdout
+        return result.stdout.rstrip()
 
     def add(self, path, stage=False, force=False):
         """Add unstaged files."""
@@ -278,7 +277,13 @@ class GitRepo:
             extra_args.append("--force")
         return self._run_git("add", *extra_args, path)
 
-    def cherry_pick(self, rev, upstream_subtree=None, downstream_subtree=None):
+    def cherry_pick(
+        self,
+        rev,
+        patch_dir=None,
+        upstream_subtree=None,
+        downstream_subtree=None,
+    ):
         """Do a `git cherry-pick`.
 
         This will first try without any merge options, and if that fails,
@@ -303,7 +308,7 @@ class GitRepo:
 
         exn = None
         if downstream_subtree:
-            patch = self.format_patch(rev, 1, upstream_subtree)
+            patch = self.format_patch(rev, patch_dir, 1, upstream_subtree)
             try:
                 self.apply(patch, downstream_subtree)
             except subprocess.CalledProcessError as e:
@@ -739,12 +744,13 @@ def get_push_refspec(args, downstream_branch):
     return f"HEAD:refs/for/{downstream_branch}%{','.join(push_options)}"
 
 
-def run_copybot(args, tmp_dir):
+def run_copybot(args, git_dir, patch_dir):
     """Run copybot.
 
     Args:
         args: The parsed command line arguments.
-        tmp_dir: A temporary directory to use for Git operations.
+        git_dir: A temporary directory to use for Git operations.
+        patch_dir: A temporary directory to use for storing patch files.
     """
     upstream_info = args.upstream.split(":")
     upstream_url = upstream_info[0] + ":" + upstream_info[1]
@@ -794,7 +800,7 @@ def run_copybot(args, tmp_dir):
         "Found %s pending changes already on Gerrit", len(pending_changes)
     )
 
-    repo = GitRepo.init(tmp_dir)
+    repo = GitRepo.init(git_dir)
     try:
         upstream_rev = repo.fetch(upstream_url, upstream_branch)
     except subprocess.CalledProcessError as e:
@@ -851,7 +857,9 @@ def run_copybot(args, tmp_dir):
         logger.info("(%s/%s) Cherry-pick %s", i + 1, len(commits_to_copy), rev)
 
         try:
-            repo.cherry_pick(rev, upstream_subtree, downstream_subtree)
+            repo.cherry_pick(
+                rev, patch_dir, upstream_subtree, downstream_subtree
+            )
         except EmptyCommitError:
             logger.warning("Skip cherry-pick due to empty commit")
             continue
@@ -1031,8 +1039,10 @@ def main(argv=None):
 
     err = None
     try:
-        with tempfile.TemporaryDirectory(".copybot") as tmp_dir:
-            run_copybot(args, tmp_dir)
+        with tempfile.TemporaryDirectory(
+            ".copybot"
+        ) as git_dir, tempfile.TemporaryDirectory("_patches") as patch_dir:
+            run_copybot(args, git_dir, patch_dir)
     except Exception as e:
         err = e
         raise
