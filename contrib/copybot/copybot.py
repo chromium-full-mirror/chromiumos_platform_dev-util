@@ -46,6 +46,8 @@ import shlex
 import subprocess
 import tempfile
 import time
+from typing import Optional, Union
+import urllib
 
 import requests  # pylint: disable=import-error
 
@@ -141,10 +143,12 @@ class GitRepo:
             raise
 
     @classmethod
-    def init(cls, git_dir):
+    def init(cls, git_dir: Union[str, "os.PathLike[str]"]):
         """Do a `git init` to create a new repository."""
+        git_dir = pathlib.Path(git_dir)
         repo = cls(git_dir)
-        repo._run_git("init")  # pylint: disable=protected-access
+        if not (git_dir / ".git").exists():
+            repo._run_git("init")  # pylint: disable=protected-access
         return repo
 
     def rev_parse(self, rev="HEAD"):
@@ -752,42 +756,69 @@ def is_server_gob(url):
     )
 
 
+def parse_repo_info(repo_string):
+    is_local = True
+    max_fields = 3
+    repo_info = []
+
+    base_string = repo_string
+    url_result = urllib.parse.urlparse(repo_string)
+    if url_result.netloc and url_result.scheme:
+        is_local = False
+    for _ in range(max_fields + 1):
+        base_string, sep, current_field = base_string.rpartition(":")
+        if not sep:
+            if is_local:
+                repo_info.insert(0, pathlib.Path(current_field))
+            else:
+                repo_info[0] = url_result.scheme + ":" + repo_info[0]
+            break
+        else:
+            repo_info.insert(0, current_field)
+
+    for _ in range(len(repo_info), max_fields):
+        repo_info.append(None)
+
+    repo_url = repo_info[0]
+    repo_branch = repo_info[1]
+    repo_subtree = repo_info[2]
+    if not repo_branch:
+        repo_branch = "main"
+
+    return is_local, repo_url, repo_branch, repo_subtree
+
+
 def run_copybot(args, git_dir, patch_dir):
     """Run copybot.
 
     Args:
         args: The parsed command line arguments.
-        git_dir: A temporary directory to use for Git operations.
+        git_dir: A temporary or local directory to use for Git operations.
         patch_dir: A temporary directory to use for storing patch files.
     """
-    upstream_info = args.upstream.split(":")
-    upstream_url = upstream_info[0] + ":" + upstream_info[1]
-    try:
-        upstream_branch = upstream_info[2]
-    except IndexError:
-        upstream_branch = "main"
-    try:
-        upstream_subtree = upstream_info[3]
-    except IndexError:
-        upstream_subtree = None
 
-    downstream_info = args.downstream.split(":")
-    downstream_url = downstream_info[0] + ":" + downstream_info[1]
-    try:
-        downstream_branch = downstream_info[2]
-    except IndexError:
-        downstream_branch = upstream_branch
-    try:
-        downstream_subtree = downstream_info[3]
-    except IndexError:
-        downstream_subtree = None
+    (
+        _,
+        upstream_url,
+        upstream_branch,
+        upstream_subtree,
+    ) = parse_repo_info(args.upstream)
+    (
+        local_downstream,
+        downstream_url,
+        downstream_branch,
+        downstream_subtree,
+    ) = parse_repo_info(args.downstream)
+
+    if local_downstream:
+        git_dir = downstream_url
 
     merge_conflict_behavior = MergeConflictBehavior[
         args.merge_conflict_behavior
     ]
     pending_changes = {}
     gerrit: Optional[Gerrit] = None
-    if (m := is_server_gob(downstream_url)) is not None:
+    if (m := is_server_gob(str(downstream_url))) is not None:
         downstream_gob_host = m.group(1)
         downstream_project = m.group(2)
 
@@ -895,13 +926,13 @@ def run_copybot(args, git_dir, patch_dir):
         return
 
     push_refspec = get_push_refspec(args, downstream_branch)
-    if not args.dry_run:
+    if not args.dry_run and not local_downstream:
         try:
             repo.push(downstream_url, push_refspec, options=args.push_options)
         except subprocess.CalledProcessError as e:
             raise PushError(f"Failed to push to {downstream_url}") from e
     else:
-        logger.info("Skip push due to dry run")
+        logger.info("Skip push due to dry/local run")
 
     if skipped_revs:
         revlist = [
