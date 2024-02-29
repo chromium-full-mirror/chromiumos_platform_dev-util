@@ -14,6 +14,7 @@ import (
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
+	"go.chromium.org/tast/core/framework/protocol"
 )
 
 // DutInfo stores information of a ChromeOS DUT.
@@ -52,6 +53,7 @@ type DutInfo struct {
 	WifiSecretSsid      string
 	WifiSecretSecurity  string
 	WifiSecretPassword  string
+	DUT                 *labapi.Dut
 }
 
 // joinHostAndPort joins host and port to a single address.
@@ -70,9 +72,10 @@ func joinHostAndPort(endpoint *labapi.IpEndpoint) string {
 
 // AndroidInfo stores information of a Android device.
 type AndroidInfo struct {
-	AssoicateAddr string // A hostname of the device that the Android DUT is attached to.
-	Serial        string // A string created by adb to uniquely identify the device.
-	ModelName     string // The model name of the device.
+	AssoicateAddr string      // A hostname of the device that the Android DUT is attached to.
+	Serial        string      // A string created by adb to uniquely identify the device.
+	ModelName     string      // The model name of the device.
+	DUT           *labapi.Dut // The DUT topology.
 }
 
 // Address returns the address of a DUT.
@@ -293,6 +296,7 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 		WifiSecretSsid:      wifiSecretSsid,
 		WifiSecretSecurity:  wifiSecretSecurity,
 		WifiSecretPassword:  wifiSecretPassword,
+		DUT:                 dut,
 	}, nil
 }
 
@@ -451,13 +455,45 @@ func simInfoConverter(simInfos []*labapi.SIMInfo) []string {
 	return labels
 }
 
-// FillAndroidInfo extraction Android information from a device.
+// FillAndroidInfo extracts Android information from a device.
 func FillAndroidInfo(device *api.CrosTestRequest_Device) *AndroidInfo {
 	android := device.Dut.GetAndroid()
 	return &AndroidInfo{
 		AssoicateAddr: joinHostAndPort(android.GetAssociatedHostname()),
 		Serial:        android.GetSerialNumber(),
 		ModelName:     android.GetDutModel().GetModelName(),
+		DUT:           device.Dut,
 	}
+}
+
+// GenLabConfig gemerates DUT lab config proto.
+func GenLabConfig(primary *DutInfo, companions []*DutInfo, androidCompanion []*AndroidInfo) (*protocol.DUTLabConfig, error) {
+	chromeOSDUTLabConfig := make(map[string]*labapi.Dut)
+	androidDUTLabConfig := make(map[string]*labapi.Dut)
+	devboardDUTLabConfig := make(map[string]*labapi.Dut)
+
+	if primary.DUT.GetChromeos() != nil {
+		chromeOSDUTLabConfig[primary.Role] = primary.DUT
+	} else if primary.DUT.GetDevboard() != nil {
+		devboardDUTLabConfig[primary.Role] = primary.DUT
+	}
+
+	for _, c := range companions {
+		if c.DUT.GetChromeos() != nil {
+			chromeOSDUTLabConfig[c.Role] = c.DUT
+		} else if c.DUT.GetDevboard() != nil {
+			devboardDUTLabConfig[c.Role] = c.DUT
+		}
+	}
+
+	for _, a := range androidCompanion {
+		androidDUTLabConfig[a.AssoicateAddr] = a.DUT
+	}
+
+	return &protocol.DUTLabConfig{
+		ChromeOSDUTLabConfig: chromeOSDUTLabConfig,
+		AndroidDUTLabConfig:  androidDUTLabConfig,
+		DevboardDUTLabConfig: devboardDUTLabConfig,
+	}, nil
 
 }

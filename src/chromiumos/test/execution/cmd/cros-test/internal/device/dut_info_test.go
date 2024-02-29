@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
+	"google.golang.org/protobuf/proto"
 )
 
 type expectEndpointResult struct {
@@ -62,67 +63,6 @@ func TestAddress(t *testing.T) {
 
 // TestFillDUTInfo makes sure FillDUTInfo behaved as expected.
 func TestFillDUTInfo(t *testing.T) {
-	expected := []*DutInfo{
-		{
-			Addr:            "127.0.0.1:2222",
-			Role:            "",
-			Servo:           "c6-r9-r7-labstation:9996",
-			DutServer:       "cros-dut0:80",
-			ProvisionServer: "cros-provision0:80",
-			ServoHostname:   "c6-r9-r7-labstation",
-			ServoPort:       "9996",
-			Phase:           "PHASE_UNSPECIFIED",
-			SimInfos: []string{
-				"sim_slot_id:1", "sim_1_num_profiles:1", "sim_1_0_iccid:1", "sim_1_0_pin:1111",
-				"sim_1_0_puk:49830420", "sim_1_0_carrier_name:NETWORK_TMOBILE",
-				"sim_1_0_own_number:6507891159", "sim_slot_id:2", "sim_2_type:SIM_PHYSICAL",
-				"sim_2_num_profiles:1", "sim_2_0_iccid:2", "sim_2_0_pin:2222",
-				"sim_2_0_puk:49830420", "sim_2_0_carrier_name:NETWORK_ATT",
-				"sim_2_0_own_number:6507891159",
-			},
-			WifiSecretSsid:     "thelabssid",
-			WifiSecretSecurity: "wpa",
-			WifiSecretPassword: "the_p@ssw0rd",
-		},
-		{
-			Addr:            "[0:0:0:0:0:ffff:7f00:1]:2",
-			Role:            "cd1",
-			Servo:           "c6-r8-r7-labstation:9999",
-			DutServer:       "cros-dut1:80",
-			ProvisionServer: "cros-provision1:80",
-			ServoHostname:   "c6-r8-r7-labstation",
-			ServoPort:       "9999",
-			Phase:           "PHASE_UNSPECIFIED",
-		},
-		{
-			Addr:            "c6-r8-rack7-host7",
-			Role:            "cd2",
-			Servo:           "c6-r7-r7-labstation:9999",
-			DutServer:       "cros-dut2:80",
-			ProvisionServer: "cros-provision2:80",
-			ServoHostname:   "c6-r7-r7-labstation",
-			ServoPort:       "9999",
-			Phase:           "PHASE_UNSPECIFIED",
-		},
-		{
-			Addr:            "0:0:0:0:0:ffff:7f00:1",
-			Role:            "cd3",
-			Servo:           "",
-			DutServer:       "",
-			ProvisionServer: "",
-			DevboardServer:  "",
-			Phase:           "PHASE_UNSPECIFIED",
-		},
-		{
-			Addr:            "",
-			Role:            "",
-			Servo:           "",
-			DutServer:       "",
-			ProvisionServer: "",
-			DevboardServer:  "cros-board:80",
-			Phase:           "PHASE_UNSPECIFIED",
-		},
-	}
 	input := []*api.CrosTestRequest_Device{
 		{
 			Dut: &labapi.Dut{
@@ -237,6 +177,72 @@ func TestFillDUTInfo(t *testing.T) {
 			DevboardServer: &labapi.IpEndpoint{Address: "cros-board", Port: 80},
 		},
 	}
+	expected := []*DutInfo{
+		{
+			Addr:            "127.0.0.1:2222",
+			Role:            "",
+			Servo:           "c6-r9-r7-labstation:9996",
+			DutServer:       "cros-dut0:80",
+			ProvisionServer: "cros-provision0:80",
+			ServoHostname:   "c6-r9-r7-labstation",
+			ServoPort:       "9996",
+			Phase:           "PHASE_UNSPECIFIED",
+			SimInfos: []string{
+				"sim_slot_id:1", "sim_1_num_profiles:1", "sim_1_0_iccid:1", "sim_1_0_pin:1111",
+				"sim_1_0_puk:49830420", "sim_1_0_carrier_name:NETWORK_TMOBILE",
+				"sim_1_0_own_number:6507891159", "sim_slot_id:2", "sim_2_type:SIM_PHYSICAL",
+				"sim_2_num_profiles:1", "sim_2_0_iccid:2", "sim_2_0_pin:2222",
+				"sim_2_0_puk:49830420", "sim_2_0_carrier_name:NETWORK_ATT",
+				"sim_2_0_own_number:6507891159",
+			},
+			WifiSecretSsid:     "thelabssid",
+			WifiSecretSecurity: "wpa",
+			WifiSecretPassword: "the_p@ssw0rd",
+			DUT:                input[0].Dut,
+		},
+		{
+			Addr:            "[0:0:0:0:0:ffff:7f00:1]:2",
+			Role:            "cd1",
+			Servo:           "c6-r8-r7-labstation:9999",
+			DutServer:       "cros-dut1:80",
+			ProvisionServer: "cros-provision1:80",
+			ServoHostname:   "c6-r8-r7-labstation",
+			ServoPort:       "9999",
+			Phase:           "PHASE_UNSPECIFIED",
+			DUT:             input[1].Dut,
+		},
+		{
+			Addr:            "c6-r8-rack7-host7",
+			Role:            "cd2",
+			Servo:           "c6-r7-r7-labstation:9999",
+			DutServer:       "cros-dut2:80",
+			ProvisionServer: "cros-provision2:80",
+			ServoHostname:   "c6-r7-r7-labstation",
+			ServoPort:       "9999",
+			Phase:           "PHASE_UNSPECIFIED",
+			DUT:             input[2].Dut,
+		},
+		{
+			Addr:            "0:0:0:0:0:ffff:7f00:1",
+			Role:            "cd3",
+			Servo:           "",
+			DutServer:       "",
+			ProvisionServer: "",
+			DevboardServer:  "",
+			Phase:           "PHASE_UNSPECIFIED",
+			DUT:             input[3].Dut,
+		},
+		{
+			Addr:            "",
+			Role:            "",
+			Servo:           "",
+			DutServer:       "",
+			ProvisionServer: "",
+			DevboardServer:  "cros-board:80",
+			Phase:           "PHASE_UNSPECIFIED",
+			DUT:             input[4].Dut,
+		},
+	}
 
 	for i, wanted := range expected {
 		dut := input[i]
@@ -244,7 +250,7 @@ func TestFillDUTInfo(t *testing.T) {
 		if err != nil {
 			t.Errorf("Cannot get address for dut %v: %v", dut, err)
 		}
-		if diff := cmp.Diff(got, wanted); diff != "" {
+		if diff := cmp.Diff(got, wanted, cmp.Comparer(proto.Equal)); diff != "" {
 			t.Errorf("FillDUTInfo mismatch (-got +want):\n%s", diff)
 		}
 	}
@@ -252,6 +258,86 @@ func TestFillDUTInfo(t *testing.T) {
 
 // TestFillDUTInfo makes sure FillDUTInfo behaved as expected.
 func TestFillDUTInfoExtended(t *testing.T) {
+	dut := &labapi.Dut{
+		Id: &labapi.Dut_Id{Value: "AnyId"},
+		DutType: &labapi.Dut_Chromeos{
+			Chromeos: &labapi.Dut_ChromeOS{
+				Ssh: &labapi.IpEndpoint{Address: "127.0.0.1", Port: 2222},
+				Servo: &labapi.Servo{
+					Present: true,
+					ServodAddress: &labapi.IpEndpoint{
+						Address: "127.123.332.121",
+						Port:    1337,
+					},
+					Serial: "8675309",
+				},
+				DutModel: &labapi.DutModel{
+					BuildTarget: "Fred",
+					ModelName:   "Flintstone",
+				},
+				Chameleon: &labapi.Chameleon{
+					Peripherals: []labapi.Chameleon_Peripheral{
+						labapi.Chameleon_VGA,
+						labapi.Chameleon_HDMI,
+					},
+					AudioBoard: true,
+				},
+				Audio: &labapi.Audio{
+					Atrus: true,
+				},
+				Touch: &labapi.Touch{
+					Mimo: true,
+				},
+
+				Camerabox: &labapi.Camerabox{
+					Facing: labapi.Camerabox_FRONT,
+				},
+				Cables: []*labapi.Cable{
+					{
+						Type: labapi.Cable_USBAUDIO,
+					},
+				},
+				Phase:         labapi.Phase_DVT,
+				Sku:           "123",
+				HwidComponent: []string{"hwid123"},
+				Hwid:          "Atlas 123-34",
+				SimInfos: []*labapi.SIMInfo{
+					{
+						SlotId: 1,
+						Type:   *labapi.SIMType_SIM_UNKNOWN.Enum(),
+						ProfileInfo: []*labapi.SIMProfileInfo{
+							{
+								Iccid:       "1",
+								SimPin:      "1111",
+								SimPuk:      "49830420",
+								CarrierName: *labapi.NetworkProvider_NETWORK_TMOBILE.Enum(),
+								OwnNumber:   "6507891159",
+							},
+						},
+					},
+					{
+						SlotId: 2,
+						Type:   *labapi.SIMType_SIM_PHYSICAL.Enum(),
+						ProfileInfo: []*labapi.SIMProfileInfo{
+							{
+								Iccid:       "2",
+								SimPin:      "2222",
+								SimPuk:      "49830420",
+								CarrierName: *labapi.NetworkProvider_NETWORK_ATT.Enum(),
+								OwnNumber:   "6507891159",
+							},
+						},
+					},
+				},
+			},
+		},
+		WifiSecret: &labapi.WifiSecret{
+			Ssid:     "thelabssid",
+			Security: "wpa",
+			Password: "the_p@ssw0rd",
+		},
+		CacheServer: &labapi.CacheServer{Address: &labapi.IpEndpoint{Address: "cache1", Port: 8001}},
+	}
 	expected := []*DutInfo{
 		{
 			Addr:                "127.0.0.1:2222",
@@ -287,90 +373,12 @@ func TestFillDUTInfoExtended(t *testing.T) {
 			WifiSecretSsid:     "thelabssid",
 			WifiSecretSecurity: "wpa",
 			WifiSecretPassword: "the_p@ssw0rd",
+			DUT:                dut,
 		},
 	}
 	input := []*api.CrosTestRequest_Device{
 		{
-			Dut: &labapi.Dut{
-				Id: &labapi.Dut_Id{Value: "AnyId"},
-				DutType: &labapi.Dut_Chromeos{
-					Chromeos: &labapi.Dut_ChromeOS{
-						Ssh: &labapi.IpEndpoint{Address: "127.0.0.1", Port: 2222},
-						Servo: &labapi.Servo{
-							Present: true,
-							ServodAddress: &labapi.IpEndpoint{
-								Address: "127.123.332.121",
-								Port:    1337,
-							},
-							Serial: "8675309",
-						},
-						DutModel: &labapi.DutModel{
-							BuildTarget: "Fred",
-							ModelName:   "Flintstone",
-						},
-						Chameleon: &labapi.Chameleon{
-							Peripherals: []labapi.Chameleon_Peripheral{
-								labapi.Chameleon_VGA,
-								labapi.Chameleon_HDMI,
-							},
-							AudioBoard: true,
-						},
-						Audio: &labapi.Audio{
-							Atrus: true,
-						},
-						Touch: &labapi.Touch{
-							Mimo: true,
-						},
-
-						Camerabox: &labapi.Camerabox{
-							Facing: labapi.Camerabox_FRONT,
-						},
-						Cables: []*labapi.Cable{
-							{
-								Type: labapi.Cable_USBAUDIO,
-							},
-						},
-						Phase:         labapi.Phase_DVT,
-						Sku:           "123",
-						HwidComponent: []string{"hwid123"},
-						Hwid:          "Atlas 123-34",
-						SimInfos: []*labapi.SIMInfo{
-							{
-								SlotId: 1,
-								Type:   *labapi.SIMType_SIM_UNKNOWN.Enum(),
-								ProfileInfo: []*labapi.SIMProfileInfo{
-									{
-										Iccid:       "1",
-										SimPin:      "1111",
-										SimPuk:      "49830420",
-										CarrierName: *labapi.NetworkProvider_NETWORK_TMOBILE.Enum(),
-										OwnNumber:   "6507891159",
-									},
-								},
-							},
-							{
-								SlotId: 2,
-								Type:   *labapi.SIMType_SIM_PHYSICAL.Enum(),
-								ProfileInfo: []*labapi.SIMProfileInfo{
-									{
-										Iccid:       "2",
-										SimPin:      "2222",
-										SimPuk:      "49830420",
-										CarrierName: *labapi.NetworkProvider_NETWORK_ATT.Enum(),
-										OwnNumber:   "6507891159",
-									},
-								},
-							},
-						},
-					},
-				},
-				WifiSecret: &labapi.WifiSecret{
-					Ssid:     "thelabssid",
-					Security: "wpa",
-					Password: "the_p@ssw0rd",
-				},
-				CacheServer: &labapi.CacheServer{Address: &labapi.IpEndpoint{Address: "cache1", Port: 8001}},
-			},
+			Dut:             dut,
 			DutServer:       &labapi.IpEndpoint{Address: "cros-dut0", Port: 80},
 			ProvisionServer: &labapi.IpEndpoint{Address: "cros-provision0", Port: 80},
 		},
@@ -382,7 +390,7 @@ func TestFillDUTInfoExtended(t *testing.T) {
 		if err != nil {
 			t.Errorf("Cannot get address for dut %v: %v", dut, err)
 		}
-		if diff := cmp.Diff(got, wanted); diff != "" {
+		if diff := cmp.Diff(got, wanted, cmp.Comparer(proto.Equal)); diff != "" {
 			t.Errorf("FillDUTInfo mismatch (-got +want):\n%s", diff)
 		}
 	}
@@ -390,18 +398,6 @@ func TestFillDUTInfoExtended(t *testing.T) {
 
 // TestFillAndroidInfo makes sure FillAndroidInfo behaved as expected.
 func TestFillAndroidInfo(t *testing.T) {
-	expected := []*AndroidInfo{
-		{
-			AssoicateAddr: "host1",
-			Serial:        "ABC123",
-			ModelName:     "pixel6",
-		},
-		{
-			AssoicateAddr: "127.0.0.1:2222",
-			Serial:        "DEF456",
-			ModelName:     "pixel7",
-		},
-	}
 	input := []*api.CrosTestRequest_Device{
 		{
 			Dut: &labapi.Dut{
@@ -434,11 +430,25 @@ func TestFillAndroidInfo(t *testing.T) {
 			},
 		},
 	}
+	expected := []*AndroidInfo{
+		{
+			AssoicateAddr: "host1",
+			Serial:        "ABC123",
+			ModelName:     "pixel6",
+			DUT:           input[0].Dut,
+		},
+		{
+			AssoicateAddr: "127.0.0.1:2222",
+			Serial:        "DEF456",
+			ModelName:     "pixel7",
+			DUT:           input[1].Dut,
+		},
+	}
 
 	for i, wanted := range expected {
 		android := input[i]
 		got := FillAndroidInfo(android)
-		if diff := cmp.Diff(got, wanted); diff != "" {
+		if diff := cmp.Diff(got, wanted, cmp.Comparer(proto.Equal)); diff != "" {
 			t.Errorf("FillAndroidInfo mismatch (-got +want):\n%s", diff)
 		}
 	}

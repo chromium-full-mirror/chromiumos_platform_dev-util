@@ -27,6 +27,7 @@ func TestNewTastArgs(t *testing.T) {
 	reportsServerValue := ":5555"
 	varsFileValue := "/tmp/test.yaml"
 	buildArtifactsURLValue := "gs://chromeos-image-archive/corsola-release/R119-15611.0.0/"
+	dutLabConfigFile := "dutlabconfig.jsonpb"
 	expectedArgs := runArgs{
 		primary:  primary,
 		patterns: []string{test1, test2, test3, test4, test5},
@@ -44,6 +45,7 @@ func TestNewTastArgs(t *testing.T) {
 			{reportsServerFlag, reportsServerValue},
 			{varsFile, varsFileValue},
 			{systemServicesTimeout, defaultSysServicesTimeout},
+			{dutLabConfig, dutLabConfigFile},
 			{buildArtifactsURL, buildArtifactsURLValue},
 		},
 	}
@@ -58,6 +60,7 @@ func TestNewTastArgs(t *testing.T) {
 				Value: buildArtifactsURLValue,
 			},
 		},
+		dutLabConfigFile,
 	)
 	if diff := cmp.Diff(args, &expectedArgs, cmp.AllowUnexported(runArgs{}, flagValue{}), cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("Got unexpected argument from newTastArgs (-got +want):\n%s\n%v\n--\n%v\n", diff, args, expectedArgs)
@@ -119,6 +122,7 @@ func TestNewTastArgsCompanions(t *testing.T) {
 				Value: buildArtifactsURLValue,
 			},
 		},
+		"",
 	)
 	if diff := cmp.Diff(args, &expectedArgs, cmp.AllowUnexported(runArgs{}, flagValue{})); diff != "" {
 		t.Errorf("Got unexpected argument from newTastArgs (-got +want):\n%s", diff)

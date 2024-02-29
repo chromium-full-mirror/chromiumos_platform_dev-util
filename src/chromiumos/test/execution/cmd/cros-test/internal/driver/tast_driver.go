@@ -12,10 +12,12 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"google.golang.org/protobuf/encoding/protojson"
 	"gopkg.in/yaml.v2"
 
 	"chromiumos/test/execution/cmd/cros-test/internal/common"
@@ -61,7 +63,7 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 			fmt.Errorf("cannot get address from primary device: %v", err))
 	}
 
-	chromeOSCompanions, AndriodCompanions, err := common.Companions(req.Companions)
+	companions, andriodCompanions, err := common.Companions(req.Companions)
 	if err != nil {
 		return nil, errors.NewStatusError(errors.InvalidArgument,
 			fmt.Errorf("cannot get companion devices information: %v", err))
@@ -70,6 +72,11 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 	yamlPath, err := genHostInfoYAML(primary)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate info yaml: %w", err)
+	}
+
+	labConfigPath, err := genLabConfigJsonpb(resultsDir, primary, companions, andriodCompanions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate DUT lab config file: %w", err)
 	}
 
 	// Get tast execution args.
@@ -81,8 +88,8 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 
 	// Be nice and clean up.
 	defer os.Remove(yamlPath)
-	args := newTastArgs(primary, chromeOSCompanions, AndriodCompanions, testNames,
-		resultsDir, reportServer.Address(), yamlPath, customTastArgs.GetArgs())
+	args := newTastArgs(primary, companions, andriodCompanions, testNames,
+		resultsDir, reportServer.Address(), yamlPath, customTastArgs.GetArgs(), labConfigPath)
 
 	err = common.WriteHostInfoToFile(resultsDir, primary.Addr, primary, td.logger)
 	if err != nil {
@@ -181,6 +188,7 @@ const (
 	buildArtifactsURL          = "-buildartifactsurl"
 	systemServicesTimeout      = "-systemservicestimeout"
 	defaultSysServicesTimeout  = "600"
+	dutLabConfig               = "-dutlabconfig"
 )
 
 type flagValue struct {
@@ -203,7 +211,7 @@ type runArgs struct {
 func newTastArgs(primary *device.DutInfo,
 	companionDuts []*device.DutInfo, andriods []*device.AndroidInfo,
 	tests []string, resultsDir, rsAddress string, varsFilePath string,
-	customTastArgs []*api.Arg) *runArgs {
+	customTastArgs []*api.Arg, labConfigFile string) *runArgs {
 	runFlags := []flagValue{
 		{sshRetriesFlag, "2"},
 		{downloadDataFlag, "batch"},
@@ -215,6 +223,10 @@ func newTastArgs(primary *device.DutInfo,
 		{varsFile, varsFilePath},
 		{systemServicesTimeout, defaultSysServicesTimeout}, // Longer timeout for VMs.
 	}
+	if labConfigFile != "" {
+		runFlags = append(runFlags, flagValue{dutLabConfig, labConfigFile})
+	}
+
 	for _, a := range customTastArgs {
 		if a.GetFlag() == "" {
 			continue
@@ -421,4 +433,20 @@ func genHostInfoYAML(dut *device.DutInfo) (string, error) {
 		return "", err
 	}
 	return file.Name(), nil
+}
+
+func genLabConfigJsonpb(dir string, primary *device.DutInfo, companions []*device.DutInfo, andriodCompanion []*device.AndroidInfo) (string, error) {
+	dutLabInfo, err := device.GenLabConfig(primary, companions, andriodCompanion)
+	if err != nil {
+		return "", fmt.Errorf("failed generate lab information for DUTs: %v", err)
+	}
+	encoded, err := protojson.Marshal(dutLabInfo)
+	if err != nil {
+		return "", fmt.Errorf("failed marshal lab information for DUTs: %v", err)
+	}
+	path := filepath.Join(dir, "dutlabconfig.jsonpb")
+	if err := os.WriteFile(path, encoded, 0644); err != nil {
+		return "", fmt.Errorf("failed write lab information for DUTs: %v", err)
+	}
+	return path, nil
 }
