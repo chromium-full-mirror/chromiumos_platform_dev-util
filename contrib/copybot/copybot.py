@@ -226,11 +226,14 @@ class GitRepo:
         result = self._run_git("show", rev, "--", *files)
         return result.stdout
 
-    def apply(self, patch, path=None):
+    def apply(self, patch, path=None, include_paths=None):
         """Apply a patch to the staging area."""
         extra_args = []
         if path:
             extra_args.append(f"--directory={path}")
+            if include_paths:
+                extra_args.extend(f"--include={path}" for path in include_paths)
+
         extra_args.append(patch)
         return self._run_git("apply", *extra_args)
 
@@ -287,6 +290,7 @@ class GitRepo:
         patch_dir=None,
         upstream_subtree=None,
         downstream_subtree=None,
+        include_paths=None,
     ):
         """Do a `git cherry-pick`.
 
@@ -314,7 +318,7 @@ class GitRepo:
         if downstream_subtree:
             patch = self.format_patch(rev, patch_dir, 1, upstream_subtree)
             try:
-                self.apply(patch, downstream_subtree)
+                self.apply(patch, downstream_subtree, include_paths)
             except subprocess.CalledProcessError as e:
                 raise MergeConflictError() from e
             self.add(downstream_subtree, True, True)
@@ -623,6 +627,7 @@ def find_commits_to_copy(
     upstream_subtree,
     downstream_rev,
     downstream_subtree,
+    include_paths,
     limit=0,
     skip_revs=(),
     exclude_file_patterns=(),
@@ -635,6 +640,8 @@ def find_commits_to_copy(
         upstream_subtree: The subtree of interest of the upstream repo.
         downstream_rev: The commit hash of the downstream HEAD.
         downstream_subtree: The subtree of interest of the downstream repo.
+        include_paths: The paths to include from the upstream relative to
+            the downstream subtree (only valid with downstream_subtree).
         limit: The maxinum number of CLs in the history to check.
         skip_revs: Any upstream commit hashes that should be skipped.
         exclude_file_patterns: File paths that should not be copied.
@@ -669,6 +676,23 @@ def find_commits_to_copy(
         if rev in downstreamed_revs:
             break
 
+        if downstream_subtree and include_paths:
+            commit_files = repo.commit_file_list(rev)
+            filtered_commit_files = []
+            for path in commit_files:
+                filtered_path = path.relative_to(upstream_subtree)
+                if filtered_path in include_paths:
+                    filtered_commit_files.append(path)
+                    break
+
+            if not filtered_commit_files:
+                logger.info(
+                    "Skip commit %s due to empty file list after filtering "
+                    "(before filtering was %r)",
+                    rev,
+                    commit_files,
+                )
+                continue
         commits_to_copy.append(rev)
 
         if counter >= limit and limit != 0:
@@ -874,6 +898,7 @@ def run_copybot(args, git_dir, patch_dir):
         upstream_subtree,
         downstream_rev,
         downstream_subtree,
+        include_paths=args.include_downstream,
         skip_revs=skip_revs,
         limit=args.history_limit,
         exclude_file_patterns=args.exclude_file_patterns,
@@ -899,7 +924,11 @@ def run_copybot(args, git_dir, patch_dir):
 
         try:
             repo.cherry_pick(
-                rev, patch_dir, upstream_subtree, downstream_subtree
+                rev,
+                patch_dir,
+                upstream_subtree,
+                downstream_subtree,
+                args.include_downstream,
             )
         except EmptyCommitError:
             logger.warning("Skip cherry-pick due to empty commit")
@@ -1060,6 +1089,13 @@ def main(argv=None):
         type=int,
         default=2000,
         help="Maximum number of CLs in history to check.  0 for infinite.",
+    )
+    parser.add_argument(
+        "--include-downstream",
+        action="append",
+        default=[],
+        help="Downstream include paths (relative to the subtree) separated by"
+        " colons.  Note: Only supported with subtrees",
     )
     parser.add_argument(
         "upstream",
