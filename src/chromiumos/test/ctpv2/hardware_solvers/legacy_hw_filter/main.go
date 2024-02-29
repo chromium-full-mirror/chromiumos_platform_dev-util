@@ -25,6 +25,10 @@ const (
 // hwTargetsFromReq returns the list of hwTargets from the suiteMetadata definition.
 func hwTargetsFromReq(req *api.InternalTestplan) (hwTargets []*api.SwarmingDefinition) {
 	for _, target := range req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements() {
+		// Skip optional; as they are only there for informational purposes.
+		if target.GetHwRequirements().GetState() == api.HWRequirements_OPTIONAL {
+			continue
+		}
 
 		sw := target.SwRequirement.Variant
 		fmt.Println(sw)
