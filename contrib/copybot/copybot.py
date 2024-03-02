@@ -631,6 +631,7 @@ def find_commits_to_copy(
     limit=0,
     skip_revs=(),
     exclude_file_patterns=(),
+    pending_changes=(),
 ):
     """Find the commits to copy to downstream.
 
@@ -645,6 +646,7 @@ def find_commits_to_copy(
         limit: The maxinum number of CLs in the history to check.
         skip_revs: Any upstream commit hashes that should be skipped.
         exclude_file_patterns: File paths that should not be copied.
+        pending_changes: Changes pending in downstream repo.
 
     Returns:
         A list of the commit hashes to copy.
@@ -673,8 +675,14 @@ def find_commits_to_copy(
             logger.info("Skip %s due to copybot-skip hashtag", rev)
             continue
 
+        # If change is in pending list, allow relands
         if rev in downstreamed_revs:
-            break
+            if rev in pending_changes:
+                logger.info(
+                    f"Found pending change that has already merged: {rev}"
+                )
+            else:
+                continue
 
         if downstream_subtree and include_paths:
             commit_files = repo.commit_file_list(rev)
@@ -696,14 +704,7 @@ def find_commits_to_copy(
         commits_to_copy.append(rev)
 
         if counter >= limit and limit != 0:
-            raise ValueError(
-                "Last merged revision cannot be found in upstream history"
-                " or is further back in the history than the configured limit."
-            )
-    else:
-        raise ValueError(
-            "Last merged revision cannot be found in upstream history"
-        )
+            break
 
     return commits_to_copy
 
@@ -902,6 +903,7 @@ def run_copybot(args, git_dir, patch_dir):
         skip_revs=skip_revs,
         limit=args.history_limit,
         exclude_file_patterns=args.exclude_file_patterns,
+        pending_changes=pending_changes,
     )
 
     if not commits_to_copy:
