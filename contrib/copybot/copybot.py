@@ -635,7 +635,8 @@ def find_commits_to_copy(
     downstream_rev,
     downstream_subtree,
     include_paths,
-    limit=0,
+    upstream_limit=0,
+    downstream_limit=0,
     skip_revs=(),
     exclude_file_patterns=(),
     pending_changes=(),
@@ -649,8 +650,11 @@ def find_commits_to_copy(
         downstream_rev: The commit hash of the downstream HEAD.
         downstream_subtree: The subtree of interest of the downstream repo.
         include_paths: The paths to include from the upstream relative to
-            the downstream subtree (only valid with downstream_subtree).
-        limit: The maxinum number of CLs in the history to check.
+            the downstream subtree(Only valid with downstream subtree)
+        upstream_limit: The maxinum number of CLs in the upstream history to
+            check.
+        downstream_limit: The maxinum number of CLs in the downstream history
+            to check.
         skip_revs: Any upstream commit hashes that should be skipped.
         exclude_file_patterns: File paths that should not be copied.
         pending_changes: Changes pending in downstream repo.
@@ -668,7 +672,7 @@ def find_commits_to_copy(
         downstream_rev,
         downstream_subtree,
         exclude_file_patterns=exclude_file_patterns,
-        limit=limit,
+        limit=downstream_limit,
     )
 
     for counter, rev in enumerate(
@@ -686,7 +690,7 @@ def find_commits_to_copy(
         if rev in downstreamed_revs:
             if rev in pending_changes:
                 logger.info(
-                    f"Found pending change that has already merged: {rev}"
+                    "Found pending change that has already merged: %s", rev
                 )
             else:
                 continue
@@ -710,7 +714,7 @@ def find_commits_to_copy(
                 continue
         commits_to_copy.append(rev)
 
-        if counter >= limit and limit != 0:
+        if counter >= upstream_limit and upstream_limit != 0:
             break
 
     return commits_to_copy
@@ -909,7 +913,8 @@ def run_copybot(args, git_dir, patch_dir):
         downstream_subtree,
         include_paths=args.include_downstream,
         skip_revs=skip_revs,
-        limit=args.history_limit,
+        upstream_limit=args.upstream_history_limit,
+        downstream_limit=args.downstream_history_limit,
         exclude_file_patterns=args.exclude_file_patterns,
         pending_changes=pending_changes,
     )
@@ -1095,10 +1100,18 @@ def main(argv=None):
         help="Maximum number of CLs to downstream at once.  0 for infinite.",
     )
     parser.add_argument(
-        "--history-limit",
+        "--upstream-history-limit",
         type=int,
-        default=2000,
-        help="Maximum number of CLs in history to check.  0 for infinite.",
+        default=250,
+        help="Maximum number of CLs in upstream history to check.  0 for"
+        " infinite.",
+    )
+    parser.add_argument(
+        "--downstream-history-limit",
+        type=int,
+        default=250,
+        help="Maximum number of CLs in upstream history to check.  0 for"
+        " infinite.",
     )
     parser.add_argument(
         "--include-downstream",
@@ -1123,6 +1136,12 @@ def main(argv=None):
         format="%(asctime)s %(levelname)s: %(message)s",
         level=logging.INFO,
     )
+
+    if args.downstream_history_limit < args.upstream_history_limit:
+        logger.warning(
+            "Using a lower downstream limit than upstream limit may cause"
+            " previously downstreamed changes to be chosen again."
+        )
 
     err = None
     try:
