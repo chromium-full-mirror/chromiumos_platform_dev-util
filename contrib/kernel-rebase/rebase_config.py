@@ -159,3 +159,6 @@ disp_overwrite["3c6ead5c25ad"] = [
     "move",
     "mm",
 ]  # CHROMIUM: mm: Reschedule during per-process reclaim
+disp_overwrite[
+    "8f91972ac6f4"
+] = "drop"  # Revert "Bluetooth: Fix a refcnt underflow problem for hci_conn"
