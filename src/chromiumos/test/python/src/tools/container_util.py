@@ -4,10 +4,12 @@
 
 """Utility to tar Autotest and Tast artifacts from given path to given path."""
 
+import dataclasses
 import fnmatch
 import os
 import pathlib
 import sys
+from typing import List, Optional
 
 
 sys.path.insert(1, str(pathlib.Path(__file__).parent.resolve() / "../../"))
@@ -90,28 +92,68 @@ def FindFilesMatching(pattern, target="./", cwd=os.curdir, exclude_dirs=[]):
     return matches
 
 
+# Directory within _SERVER_PACKAGE_ARCHIVE where Tast files needed to run
+# with Server-Side Packaging are stored.
+_TAST_SSP_SUBDIR = "tast"
+
+
+@dataclasses.dataclass(frozen=True)
+class PathMapping:
+    """Container for mapping a source path to a destination."""
+
+    raw_src: str
+    raw_dst: Optional[str] = None
+
+    def get_src(self, chroot: str) -> str:
+        """Get the source path for this mapping."""
+        if self.raw_src.startswith("/"):
+            # It's a chroot path.
+            return str(FromChrootPath(chroot, self.raw_src.lstrip("/")))
+        else:
+            # It's a source tree path.
+            return os.path.join(SOURCE_ROOT, self.raw_src)
+
+    def get_dst(self) -> str:
+        """Get the destination path for this mapping."""
+        if self.raw_dst is not None:
+            return self.raw_dst
+        return os.path.join(_TAST_SSP_SUBDIR, os.path.basename(self.raw_src))
+
+
 class AutotestTarballBuilder(object):
     """Builds autotest tarballs for testing."""
 
     # Archive file names.
     _SERVER_PACKAGE_ARCHIVE = "autotest_server_package.tar.bz2"
 
-    # Directory within _SERVER_PACKAGE_ARCHIVE where Tast files needed to run
-    # with Server-Side Packaging are stored.
-    _TAST_SUBDIR = "tast"
-
     # Tast files and directories to include in AUTOTEST_SERVER_PACKAGE relative
     # to the build root.
-    _TAST_FILES = [
-        "usr/bin/tast",  # Main Tast executable.
-        "usr/bin/remote_test_runner",  # Runs remote tests.
-        "usr/libexec/tast/bundles",  # Dir containing test bundles.
-        "usr/share/tast/data",  # Dir containing test data.
-        "etc/tast/vars",  # Secret variables.
+    _TAST_SSP_CHROOT_FILES = [
+        # Main Tast executable.
+        PathMapping("/usr/bin/tast"),
+        # Runs remote tests.
+        PathMapping("/usr/bin/remote_test_runner"),
+        # Dir containing test bundles.
+        PathMapping("/usr/libexec/tast/bundles"),
+        # Dir containing test data.
+        PathMapping("/usr/share/tast/data"),
+        # Secret variables.
+        PathMapping("/etc/tast/vars"),
     ]
     # Tast files and directories stored in the source code.
-    _TAST_SOURCE_FILES = [
-        "src/platform/tast/tools/run_tast.sh",  # Helper to run tast.
+    _TAST_SSP_SOURCE_FILES = [
+        # Helper script to run SSP tast.
+        PathMapping("src/platform/tast/tools/run_tast.sh"),
+        # Public variables first.
+        PathMapping(
+            "src/platform/tast-tests/vars",
+            "tast/vars/public",
+        ),
+        # Secret variables last.
+        PathMapping(
+            "src/platform/tast-tests-private/vars",
+            "tast/vars/private",
+        ),
     ]
 
     def __init__(
@@ -199,45 +241,37 @@ class AutotestTarballBuilder(object):
         )
 
     def _GetTastServerFilesAndTarTransforms(self):
-        """Return Tast server files and corresponding tar transform flags.
+        """Returns Tast server files and corresponding tar transform flags.
 
         The returned paths should be included in AUTOTEST_SERVER_PACKAGE. The
         --transform arguments should be passed to GNU tar to convert the paths
         to appropriate destinations in the tarball.
 
         Returns:
-          (files, transforms), where files is a list of absolute paths to
-            Tast server files/directories and transforms is a list of
-            --transform arguments to pass to GNU tar when archiving those
-            files.
+            (files, transforms), where files is a list of absolute paths to Tast
+            server files/directories and transforms is a list of --transform
+            arguments to pass to GNU tar when archiving those files.
         """
         files = []
         transforms = []
 
-        for path in self._GetTastFiles():
-            if not os.path.exists(path):
+        for mapping in self._GetTastSspFiles():
+            src = mapping.get_src(self.chroot_path)
+            if not os.path.exists(src):
                 continue
 
-            files.append(path)
-            dest = os.path.join(self._TAST_SUBDIR, os.path.basename(path))
+            files.append(src)
             transforms.append(
-                "--transform=s|^%s|%s|" % (os.path.relpath(path, "/"), dest)
+                "--transform=s|^%s|%s|"
+                % (os.path.relpath(src, "/"), mapping.get_dst())
             )
 
         return files, transforms
 
-    def _GetTastFiles(self):
-        """Build out the paths to the tast files.
+    def _GetTastSspFiles(self) -> List[PathMapping]:
+        """Build out the paths to the tast SSP files.
 
         Returns:
-          list[str] - The paths to the files.
+            The paths to the files.
         """
-        files = []
-        files.extend(
-            FromChrootPath(self.chroot_path, x) for x in self._TAST_FILES
-        )
-
-        for filename in self._TAST_SOURCE_FILES:
-            files.append(os.path.join(SOURCE_ROOT, filename))
-
-        return files
+        return self._TAST_SSP_CHROOT_FILES + self._TAST_SSP_SOURCE_FILES
