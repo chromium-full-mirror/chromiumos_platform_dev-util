@@ -483,15 +483,22 @@ class Gerrit:
         result = json.loads(r.text[5:])
         return result
 
-    def find_pending_changes(self, project, branch, topic):
+    def find_pending_changes(self, project, branch, topic, subtree=None):
         """Find pending changes previously opened by CopyBot on Gerrit.
 
         Returns:
             A dictionary mapping upstream commit hashes to their
             current Change-Id on Gerrit.
         """
-        query = f"status:open project:{project} branch:{branch} hashtag:{topic}"
-        query_result = self.search(query)
+        query = [
+            "status:open",
+            f"project:{project}",
+            f"branch:{branch}",
+            f"hashtag:{topic}",
+        ]
+        if subtree:
+            query.append(f"directory:{subtree}")
+        query_result = self.search(" ".join(query))
         change_ids = {}
         for cl in query_result:
             change_id = cl["change_id"]
@@ -852,6 +859,7 @@ def run_copybot(args, git_dir, patch_dir):
             downstream_project,
             downstream_branch,
             args.topic,
+            downstream_subtree,
         )
         logger.info(
             "Found %s pending changes already on Gerrit", len(pending_changes)
