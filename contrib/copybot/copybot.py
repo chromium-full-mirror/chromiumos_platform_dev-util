@@ -309,6 +309,11 @@ class GitRepo:
             try:
                 self._run_git("cherry-pick", "-x", rev, *extra_flags)
             except subprocess.CalledProcessError as e:
+                try:
+                    self._run_git("rev-parse", "--verify", "CHERRY_PICK_HEAD")
+                    logger.warning("Could not cherry-pick")
+                except subprocess.CalledProcessError as err:
+                    raise MergeConflictError() from err
                 self._run_git("cherry-pick", "--abort")
                 if "The previous cherry-pick is now empty" in e.stderr:
                     raise EmptyCommitError() from e
@@ -1156,9 +1161,7 @@ def main(argv=None):
         level=logging.INFO,
     )
 
-    if (
-        0 < args.downstream_history_limit < args.upstream_history_limit
-    ):
+    if 0 < args.downstream_history_limit < args.upstream_history_limit:
         logger.warning(
             "Using a lower downstream limit than upstream limit may cause"
             " previously downstreamed changes to be chosen again."
