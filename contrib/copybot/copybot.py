@@ -1128,7 +1128,7 @@ def main(argv=None):
     parser.add_argument(
         "--downstream-history-limit",
         type=int,
-        default=250,
+        default=0,
         help="Maximum number of CLs in upstream history to check.  0 for"
         " infinite.",
     )
@@ -1156,7 +1156,9 @@ def main(argv=None):
         level=logging.INFO,
     )
 
-    if args.downstream_history_limit < args.upstream_history_limit:
+    if (
+        0 < args.downstream_history_limit < args.upstream_history_limit
+    ):
         logger.warning(
             "Using a lower downstream limit than upstream limit may cause"
             " previously downstreamed changes to be chosen again."
