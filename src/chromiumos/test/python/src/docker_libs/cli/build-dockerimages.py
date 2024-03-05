@@ -105,7 +105,7 @@ BUILD_RETRIES = 1
 RETRIES_WAIT = 31
 # callbox is not used (and a bit heavy) so do not build until its needed.
 DO_NOT_BUILD = set(
-    ["cros-callbox", "cros-servod", "cros-fw-provision", "cros-hpt"]
+    ["cros-callbox", "cros-servod", "cros-hpt"]
 )
 # NOTE: when promoting a service from DO_NOT_BUILD, it should be added to
 # NON_CRITICAL for at least a short time to verify health.
@@ -117,6 +117,7 @@ NON_CRITICAL = set(
         "cros-pvs",
         "cros-ddd-filter",
         "cros-legacy-hw-filter",
+        "cros-fw-provision",
     ]
 )
 
