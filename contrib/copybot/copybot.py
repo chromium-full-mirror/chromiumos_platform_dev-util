@@ -483,7 +483,9 @@ class Gerrit:
         result = json.loads(r.text[5:])
         return result
 
-    def find_pending_changes(self, project, branch, topic, subtree=None):
+    def find_pending_changes(
+        self, project, branch, topic, subtree=None, exclude_paths=()
+    ):
         """Find pending changes previously opened by CopyBot on Gerrit.
 
         Returns:
@@ -498,6 +500,8 @@ class Gerrit:
         ]
         if subtree:
             query.append(f"directory:{subtree}")
+        for path in exclude_paths:
+            query.append(f"-directory:{path}")
         query_result = self.search(" ".join(query))
         change_ids = {}
         for cl in query_result:
@@ -510,14 +514,23 @@ class Gerrit:
                 change_ids[rev_id] = change_id
         return change_ids
 
-    def get_skiplist(self, project, branch):
+    def get_skiplist(self, project, branch, subtree=None, exclude_paths=()):
         """Find changes with the copybot-skip hashtag.
 
         Returns:
             The set of upstream commit hashes that should be skipped.
         """
-        query = f"project:{project} branch:{branch} hashtag:copybot-skip"
-        query_result = self.search(query)
+        query = [
+            "status:open",
+            f"project:{project}",
+            f"branch:{branch}",
+            "hashtag:copybot-skip",
+        ]
+        if subtree:
+            query.append(f"directory:{subtree}")
+        for path in exclude_paths:
+            query.append(f"-directory:{path}")
+        query_result = self.search(" ".join(query))
         skipped_hashes = set()
         for cl in query_result:
             current_revision_hash = cl["current_revision"]
@@ -864,6 +877,7 @@ def run_copybot(args, git_dir, patch_dir):
             downstream_branch,
             args.topic,
             downstream_subtree,
+            args.exclude_file_patterns,
         )
         logger.info(
             "Found %s pending changes already on Gerrit", len(pending_changes)
@@ -903,7 +917,12 @@ def run_copybot(args, git_dir, patch_dir):
 
     skip_revs = []
     if gerrit:
-        skip_revs = gerrit.get_skiplist(downstream_project, downstream_branch)
+        skip_revs = gerrit.get_skiplist(
+            downstream_project,
+            downstream_branch,
+            downstream_subtree,
+            args.exclude_file_patterns,
+        )
 
     commits_to_copy = find_commits_to_copy(
         repo,
