@@ -898,11 +898,9 @@ def FindCompressor(compression, chroot=None):
       ValueError: If compression is unknown.
     """
     if compression == COMP_GZIP:
-        std = "gzip"
-        para = "pigz"
+        possible_progs = ["pigz", "gzip"]
     elif compression == COMP_BZIP2:
-        std = "bzip2"
-        para = "pbzip2"
+        possible_progs = ["lbzip2", "pbzip2", "bzip2"]
     elif compression == COMP_NONE:
         return "cat"
     else:
@@ -913,14 +911,14 @@ def FindCompressor(compression, chroot=None):
         roots.append(chroot)
     roots.append("/")
 
-    for prog in [para, std]:
+    for prog in possible_progs:
         for root in roots:
             for subdir in ["", "usr"]:
                 path = os.path.join(root, subdir, "bin", prog)
                 if os.path.exists(path):
                     return path
 
-    return std
+    return possible_progs[-1]
 
 
 class TarballError(RunCommandError):
