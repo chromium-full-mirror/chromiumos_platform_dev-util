@@ -73,14 +73,11 @@ func (s *ExecutionServiceServer) RunTests(ctx context.Context, req *api.CrosTest
 }
 
 func (s *ExecutionServiceServer) loadResultsDir(req *api.CrosTestRequest) (string, error) {
-	metadata, err := common.UnpackMetadata(req)
+	_, resultsSubDir, err := common.UnpackMetadata(req)
 	if err != nil {
 		return "", err
 	}
 
-	autotestMetaData, _ := metadata.(*api.AutotestExecutionMetadata)
-
-	resultsSubDir := autotestMetaData.GetResultsSubDir()
 	if resultsSubDir == "" {
 		return s.resultRootDir, nil
 	}

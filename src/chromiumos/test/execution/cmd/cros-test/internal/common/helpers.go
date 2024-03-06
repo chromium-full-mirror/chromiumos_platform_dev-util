@@ -34,42 +34,73 @@ func TestScanner(stream io.Reader, logger *log.Logger, harness string) {
 	}
 }
 
-// UnpackMetadata unpacks the Any metadata field into AutotestExecutionMetadata
-func UnpackMetadata(req *api.CrosTestRequest) (interface{}, error) {
-	if req.Metadata == nil {
-		return nil, nil
+// ExtraArgs upacks the extra arguements from test reqeusts.
+func ExtraArgs(req *api.CrosTestRequest) (args []*api.Arg) {
+	for _, t := range req.GetTestSuites() {
+		for _, a := range t.GetExecutionMetadata().GetArgs() {
+			args = append(args, a)
+		}
 	}
+	return args
+}
 
-	if autotestMetaData, err := unpackAutotestMetadata(req); err == nil {
-		return autotestMetaData, nil
+// UnpackMetadata unpacks the Any metadata field into AutotestExecutionMetadata
+func UnpackMetadata(req *api.CrosTestRequest) (args []*api.Arg, resultsRootDir string, err error) {
+	if req.Metadata == nil {
+		return nil, "", nil
 	}
-	return unpackTastMetadata(req)
+	if autotestMetaData, resultsRootDir, err := unpackAutotestMetadata(req); err == nil {
+		return autotestMetaData, resultsRootDir, nil
+	}
+	if tastMetaData, resultsRootDir, err := unpackTastMetadata(req); err == nil {
+		return tastMetaData, resultsRootDir, nil
+	}
+	return unpackUnifiedMetadata(req)
 }
 
 // unpackAutotestMetadata unpacks the Any metadata field into AutotestExecutionMetadata
-func unpackAutotestMetadata(req *api.CrosTestRequest) (*api.AutotestExecutionMetadata, error) {
+func unpackAutotestMetadata(req *api.CrosTestRequest) (args []*api.Arg, resultRootDir string, err error) {
 	if req.Metadata == nil {
-		return &api.AutotestExecutionMetadata{}, nil
+		return nil, "", nil
 	}
-
 	var m api.AutotestExecutionMetadata
 	if err := req.Metadata.UnmarshalTo(&m); err != nil {
-		return nil, fmt.Errorf("improperly formatted input proto metadata, %s", err)
+		return nil, "", fmt.Errorf("improperly formatted input proto metadata, %s", err)
 	}
-	return &m, nil
+	for _, a := range m.GetArgs() {
+		args = append(args, &api.Arg{Flag: a.GetFlag(), Value: a.GetValue()})
+	}
+	return args, m.GetResultsSubDir(), nil
 }
 
 // unpackTastMetadata unpacks the Any metadata field into TastExecutionMetadata
-func unpackTastMetadata(req *api.CrosTestRequest) (*api.TastExecutionMetadata, error) {
+func unpackTastMetadata(req *api.CrosTestRequest) (args []*api.Arg, resultRootDir string, err error) {
 	if req.Metadata == nil {
-		return &api.TastExecutionMetadata{}, nil
+		return nil, "", nil
 	}
-
 	var m api.TastExecutionMetadata
 	if err := req.Metadata.UnmarshalTo(&m); err != nil {
-		return nil, fmt.Errorf("improperly formatted input proto metadata, %s", err)
+		return nil, "", fmt.Errorf("improperly formatted input proto metadata, %s", err)
 	}
-	return &m, nil
+	for _, a := range m.GetArgs() {
+		args = append(args, &api.Arg{Flag: a.GetFlag(), Value: a.GetValue()})
+	}
+	return args, "", nil
+}
+
+// unpackUnifiedMetadata unpacks the Any metadata field into TastExecutionMetadata
+func unpackUnifiedMetadata(req *api.CrosTestRequest) (args []*api.Arg, resultRootDir string, err error) {
+	if req.Metadata == nil {
+		return nil, "", nil
+	}
+	var m api.ExecutionMetadata
+	if err := req.Metadata.UnmarshalTo(&m); err != nil {
+		return nil, "", fmt.Errorf("improperly formatted input proto metadata, %s", err)
+	}
+	for _, a := range m.GetArgs() {
+		args = append(args, &api.Arg{Flag: a.GetFlag(), Value: a.GetValue()})
+	}
+	return args, "", nil
 }
 
 // Companions separates devices to ChromeOS devices and Android devices.

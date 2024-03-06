@@ -80,16 +80,25 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 	}
 
 	// Get tast execution args.
-	md, err := common.UnpackMetadata(req)
+	customTastArgs, _, err := common.UnpackMetadata(req)
 	if err != nil {
 		return nil, err
 	}
-	customTastArgs, _ := md.(*api.TastExecutionMetadata)
+
+	userTastArgs, runTimeVars, err := splitExtraArg(common.ExtraArgs(req))
+	if err != nil {
+		return nil, fmt.Errorf("failed to split extra arguments: %v", err)
+	}
+
+	userTastArgs, err = mergeTastArgs(userTastArgs, customTastArgs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge Tast flags: %v", err)
+	}
 
 	// Be nice and clean up.
 	defer os.Remove(yamlPath)
 	args := newTastArgs(primary, companions, andriodCompanions, testNames,
-		resultsDir, reportServer.Address(), yamlPath, customTastArgs.GetArgs(), labConfigPath)
+		resultsDir, reportServer.Address(), yamlPath, userTastArgs, runTimeVars, labConfigPath)
 
 	err = common.WriteHostInfoToFile(resultsDir, primary.Addr, primary, td.logger)
 	if err != nil {
@@ -163,33 +172,183 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 
 // Command name and flag names.
 const (
-	httpPrefix                 = "http://"
-	runSubcommand              = "run"
-	verboseFlag                = "-verbose"
-	logTimeFlag                = "-logtime"
-	sshRetriesFlag             = "-sshretries"
-	downloadDataFlag           = "-downloaddata"
+	httpPrefix                = "http://"
+	runSubcommand             = "run"
+	verboseFlag               = "-verbose"
+	logTimeFlag               = "-logtime"
+	defaultSysServicesTimeout = "600"
+
+	// Tast flags
+	attachdebuggerFlag         = "-attachdebugger"
 	buildFlag                  = "-build"
-	remoteBundlerDirFlag       = "-remotebundledir"
+	buildArtifactsURLFlag      = "-buildartifactsurl"
+	buildBundleFlag            = "-buildbundle"
+	buildOutDirFlag            = "-buildoutdir"
+	buildWorkspaceFlag         = "-buildworkspace"
+	checkBuildDepsFlag         = "-checkbuilddeps"
+	checkTestDepsFlag          = "-checktestdeps"
+	companionDUTFlag           = "-companiondut"
+	connectionTimeoutFlag      = "-connectiontimeout"
+	continueAfterFailureFlag   = "-continueafterfailure"
+	debuggerPortForwardingFlag = "-debuggerportforwarding"
+	defaultVarsDirFlag         = "-defaultvarsdir"
+	devServerFlag              = "-devservers"
+	downloadDataFlag           = "-downloaddata"
+	downloadPrivateBundlesFlag = "-downloadprivatebundles"
+	dutLabConfigFlag           = "-dutlabconfig"
+	ephemeralDevserverFlag     = "-ephemeraldevserver"
+	excludeSkippedFlag         = "-excludeskipped"
+	extraAllowedBucketsFlag    = "-extraallowedbuckets"
+	extraUseFlagsFlag          = "-extrauseflags"
+	failForTestsFlag           = "-failfortests"
+	installBuildDepsFlags      = "-installbuilddeps"
+	keyDirFlag                 = "-keydir"
+	keyFileFlag                = "-keyfile"
+	localBundleDirFlag         = "-localbundledir"
+	localdatadirFlag           = "-localdatadir"
+	localOutDirFlag            = "-localoutdir"
+	localRunnerFlag            = "-localrunner"
+	localTempDirFlag           = "-localtempdir"
+	maxSysMsgLogSizeFlag       = "-maxsysmsglogsize"
+	maxTestFailuresFlag        = "-maxtestfailures"
+	maybeMissingVarsFlag       = "-maybemissingvars"
+	proxyFlag                  = "-proxy"
+	proxyCommandFlag           = "-proxycommand"
+	remoteBundleDirFlag        = "-remotebundledir"
 	remoteDataDirFlag          = "-remotedatadir"
 	remoteRunnerFlag           = "-remoterunner"
-	defaultVarsDirFlag         = "-defaultvarsdir"
-	downloadPrivateBundlesFlag = "-downloadprivatebundles"
-	devServerFlag              = "-devservers"
-	resultsDirFlag             = "-resultsdir"
-	waitUntilReadyFlag         = "-waituntilready"
-	testRetriesFlag            = "-retries"
-	timeOutFlag                = "-timeout"
-	keyfileFlag                = "-keyfile"
+	remoteTempDirFlag          = "-remotetempdir"
 	reportsServerFlag          = "-reports_server"
-	companionDUTFlag           = "-companiondut"
+	resultsDirFlag             = "-resultsdir"
+	testRetriesFlag            = "-retries"
+	shardIndexFlag             = "-shardindex"
+	shardMethodFlag            = "-shardmethod"
+	sshRetriesFlag             = "-sshretries"
+	sysInfoFlag                = "-sysinfo"
+	systemServicesTimeoutFlag  = "-systemservicestimeout"
+	testFilterFileFlag         = "-testfilterfile"
+	timeOutFlag                = "-timeout"
+	tlwServerFlag              = "-tlwserver"
 	varFlag                    = "-var"
-	varsFile                   = "-varsfile"
-	buildArtifactsURL          = "-buildartifactsurl"
-	systemServicesTimeout      = "-systemservicestimeout"
-	defaultSysServicesTimeout  = "600"
-	dutLabConfig               = "-dutlabconfig"
+	varsFileFlag               = "-varsfile"
+	waitUntilReadyFlag         = "-waituntilready"
+	waitUntilTimeoutFlag       = "-waituntilreadytimeout"
 )
+
+// tastFlags include all Tast Flags.
+var tastFlags = map[string]struct{}{
+	attachdebuggerFlag:         {},
+	buildFlag:                  {},
+	buildArtifactsURLFlag:      {},
+	buildBundleFlag:            {},
+	buildOutDirFlag:            {},
+	buildWorkspaceFlag:         {},
+	checkBuildDepsFlag:         {},
+	checkTestDepsFlag:          {},
+	companionDUTFlag:           {},
+	connectionTimeoutFlag:      {},
+	continueAfterFailureFlag:   {},
+	debuggerPortForwardingFlag: {},
+	defaultVarsDirFlag:         {},
+	devServerFlag:              {},
+	downloadDataFlag:           {},
+	downloadPrivateBundlesFlag: {},
+	dutLabConfigFlag:           {},
+	ephemeralDevserverFlag:     {},
+	excludeSkippedFlag:         {},
+	extraAllowedBucketsFlag:    {},
+	extraUseFlagsFlag:          {},
+	failForTestsFlag:           {},
+	installBuildDepsFlags:      {},
+	keyDirFlag:                 {},
+	keyFileFlag:                {},
+	localBundleDirFlag:         {},
+	localdatadirFlag:           {},
+	localOutDirFlag:            {},
+	localRunnerFlag:            {},
+	localTempDirFlag:           {},
+	maxSysMsgLogSizeFlag:       {},
+	maxTestFailuresFlag:        {},
+	maybeMissingVarsFlag:       {},
+	proxyFlag:                  {},
+	proxyCommandFlag:           {},
+	remoteBundleDirFlag:        {},
+	remoteDataDirFlag:          {},
+	remoteRunnerFlag:           {},
+	remoteTempDirFlag:          {},
+	reportsServerFlag:          {},
+	resultsDirFlag:             {},
+	testRetriesFlag:            {},
+	shardIndexFlag:             {},
+	shardMethodFlag:            {},
+	sshRetriesFlag:             {},
+	sysInfoFlag:                {},
+	systemServicesTimeoutFlag:  {},
+	testFilterFileFlag:         {},
+	timeOutFlag:                {},
+	tlwServerFlag:              {},
+	varFlag:                    {},
+	varsFileFlag:               {},
+	waitUntilReadyFlag:         {},
+	waitUntilTimeoutFlag:       {},
+}
+
+// allowedTastFlag includes all Tast Flags that are allowed to be overridden.
+var allowedTastFlag = map[string]struct{}{
+	buildArtifactsURLFlag:    {},
+	connectionTimeoutFlag:    {},
+	continueAfterFailureFlag: {},
+	extraAllowedBucketsFlag:  {},
+	maxSysMsgLogSizeFlag:     {},
+	maybeMissingVarsFlag:     {},
+}
+
+// splitExtraArg split args into two sets. Those with "-" prefix are considered as
+// Tast flags. Those without are considered as runtime variables. It also checks
+// if the specified Tast flags exist or are allowed to be overridden.
+func splitExtraArg(args []*api.Arg) (tastArgs, runtimeVars []*api.Arg, err error) {
+	for _, a := range args {
+		// If a flag does not start with "-", consider this as a runtime variable.
+		if !strings.HasPrefix(a.GetFlag(), "-") {
+			runtimeVars = append(runtimeVars, a)
+			continue
+		}
+		if _, ok := tastFlags[a.GetFlag()]; !ok {
+			return nil, nil, fmt.Errorf("invalid Tast flag: %s", a.GetFlag())
+		}
+		if _, ok := allowedTastFlag[a.GetFlag()]; !ok {
+			return nil, nil, fmt.Errorf("Tast flag %s is not allowed to be overridden", a.GetFlag())
+		}
+		tastArgs = append(tastArgs, a)
+	}
+	return tastArgs, runtimeVars, nil
+}
+
+// mergeTastArgs merges arguments from user args and custom Args.
+func mergeTastArgs(userArgs, customArgs []*api.Arg) (args []*api.Arg, err error) {
+	// Put all customArgs in a map.
+	lookup := make(map[string]int)
+	for i, a := range customArgs {
+		flag := a.GetFlag()
+		if !strings.HasPrefix(flag, "-") {
+			flag = "-" + flag
+		}
+		if _, ok := allowedTastFlag[flag]; !ok {
+			return nil, fmt.Errorf("Tast flag %s is not allowed to be overridden", flag)
+		}
+		lookup[flag] = i
+		args = append(args, &api.Arg{Flag: flag, Value: a.GetValue()})
+	}
+	for _, a := range userArgs {
+		if i, ok := lookup[a.GetFlag()]; !ok {
+			args = append(args, a)
+		} else {
+			// the user specified flag overrides the custom flag.
+			args[i] = a
+		}
+	}
+	return args, err
+}
 
 type flagValue struct {
 	flag  string
@@ -211,7 +370,7 @@ type runArgs struct {
 func newTastArgs(primary *device.DutInfo,
 	companionDuts []*device.DutInfo, andriods []*device.AndroidInfo,
 	tests []string, resultsDir, rsAddress string, varsFilePath string,
-	customTastArgs []*api.Arg, labConfigFile string) *runArgs {
+	customTastArgs, runtimeVars []*api.Arg, labConfigFile string) *runArgs {
 	runFlags := []flagValue{
 		{sshRetriesFlag, "2"},
 		{downloadDataFlag, "batch"},
@@ -220,18 +379,25 @@ func newTastArgs(primary *device.DutInfo,
 		{testRetriesFlag, "1"}, // TODO b/270193958 remove this hardcode for a var.
 		{resultsDirFlag, resultsDir},
 		{reportsServerFlag, rsAddress},
-		{varsFile, varsFilePath},
-		{systemServicesTimeout, defaultSysServicesTimeout}, // Longer timeout for VMs.
+		{varsFileFlag, varsFilePath},
+		{systemServicesTimeoutFlag, defaultSysServicesTimeout}, // Longer timeout for VMs.
 	}
 	if labConfigFile != "" {
-		runFlags = append(runFlags, flagValue{dutLabConfig, labConfigFile})
+		runFlags = append(runFlags, flagValue{dutLabConfigFlag, labConfigFile})
 	}
 
 	for _, a := range customTastArgs {
 		if a.GetFlag() == "" {
 			continue
 		}
-		runFlags = append(runFlags, flagValue{"-" + a.GetFlag(), a.GetValue()})
+		runFlags = append(runFlags, flagValue{a.GetFlag(), a.GetValue()})
+	}
+
+	for _, a := range runtimeVars {
+		if a.GetFlag() == "" {
+			continue
+		}
+		runFlags = append(runFlags, flagValue{varFlag, fmt.Sprintf("%s=%q", a.GetFlag(), a.GetValue())})
 	}
 	return &runArgs{
 		primary: primary,

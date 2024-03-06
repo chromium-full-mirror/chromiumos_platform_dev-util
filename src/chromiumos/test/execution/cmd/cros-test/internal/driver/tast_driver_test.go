@@ -16,9 +16,9 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gopkg.in/yaml.v2"
 
-	"chromiumos/test/execution/cmd/cros-test/internal/device"
-
 	"go.chromium.org/chromiumos/config/go/test/api"
+
+	"chromiumos/test/execution/cmd/cros-test/internal/device"
 )
 
 // TestNewTastArgs makes sure newTastArgs creates the correct arguments for tast.
@@ -28,6 +28,9 @@ func TestNewTastArgs(t *testing.T) {
 	varsFileValue := "/tmp/test.yaml"
 	buildArtifactsURLValue := "gs://chromeos-image-archive/corsola-release/R119-15611.0.0/"
 	dutLabConfigFile := "dutlabconfig.jsonpb"
+	varName := "vn"
+	varValue := "vv"
+
 	expectedArgs := runArgs{
 		primary:  primary,
 		patterns: []string{test1, test2, test3, test4, test5},
@@ -43,10 +46,11 @@ func TestNewTastArgs(t *testing.T) {
 			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
-			{varsFile, varsFileValue},
-			{systemServicesTimeout, defaultSysServicesTimeout},
-			{dutLabConfig, dutLabConfigFile},
-			{buildArtifactsURL, buildArtifactsURLValue},
+			{varsFileFlag, varsFileValue},
+			{systemServicesTimeoutFlag, defaultSysServicesTimeout},
+			{dutLabConfigFlag, dutLabConfigFile},
+			{buildArtifactsURLFlag, buildArtifactsURLValue},
+			{varFlag, fmt.Sprintf("%s=%q", varName, varValue)},
 		},
 	}
 
@@ -55,14 +59,17 @@ func TestNewTastArgs(t *testing.T) {
 		workDir1, reportsServerValue,
 		varsFileValue,
 		[]*api.Arg{
-			{
-				Flag:  "buildartifactsurl",
-				Value: buildArtifactsURLValue,
-			},
+			{Flag: buildArtifactsURLFlag, Value: buildArtifactsURLValue},
+		},
+		[]*api.Arg{
+			{Flag: varName, Value: varValue},
 		},
 		dutLabConfigFile,
 	)
-	if diff := cmp.Diff(args, &expectedArgs, cmp.AllowUnexported(runArgs{}, flagValue{}), cmpopts.EquateEmpty()); diff != "" {
+	if diff := cmp.Diff(args, &expectedArgs,
+		cmp.AllowUnexported(runArgs{}, flagValue{}),
+		cmpopts.IgnoreUnexported(api.Arg{}),
+		cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("Got unexpected argument from newTastArgs (-got +want):\n%s\n%v\n--\n%v\n", diff, args, expectedArgs)
 	}
 }
@@ -105,9 +112,9 @@ func TestNewTastArgsCompanions(t *testing.T) {
 			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
-			{varsFile, varsFileValue},
-			{systemServicesTimeout, defaultSysServicesTimeout},
-			{buildArtifactsURL, buildArtifactsURLValue},
+			{varsFileFlag, varsFileValue},
+			{systemServicesTimeoutFlag, defaultSysServicesTimeout},
+			{buildArtifactsURLFlag, buildArtifactsURLValue},
 		},
 		companions: companions,
 		androids:   androids,
@@ -117,11 +124,9 @@ func TestNewTastArgsCompanions(t *testing.T) {
 		primary, companions, androids, expectedArgs.patterns, workDir1,
 		reportsServerValue, varsFileValue,
 		[]*api.Arg{
-			{
-				Flag:  "buildartifactsurl",
-				Value: buildArtifactsURLValue,
-			},
+			{Flag: buildArtifactsURLFlag, Value: buildArtifactsURLValue},
 		},
+		nil,
 		"",
 	)
 	if diff := cmp.Diff(args, &expectedArgs, cmp.AllowUnexported(runArgs{}, flagValue{})); diff != "" {
@@ -172,9 +177,9 @@ func TestGenArgList(t *testing.T) {
 			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
-			{varsFile, varsFileValue},
-			{systemServicesTimeout, defaultSysServicesTimeout},
-			{buildArtifactsURL, buildArtifactsURLValue},
+			{varsFileFlag, varsFileValue},
+			{systemServicesTimeoutFlag, defaultSysServicesTimeout},
+			{buildArtifactsURLFlag, buildArtifactsURLValue},
 		},
 		companions: companions,
 		androids:   androids,
@@ -263,7 +268,7 @@ func TestGenArgListWithServers(t *testing.T) {
 			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
-			{systemServicesTimeout, defaultSysServicesTimeout},
+			{systemServicesTimeoutFlag, defaultSysServicesTimeout},
 		},
 		companions: companions,
 	}
@@ -355,7 +360,7 @@ func TestGenArgListWithDevboard(t *testing.T) {
 			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
-			{systemServicesTimeout, defaultSysServicesTimeout},
+			{systemServicesTimeoutFlag, defaultSysServicesTimeout},
 		},
 		companions: companions,
 	}

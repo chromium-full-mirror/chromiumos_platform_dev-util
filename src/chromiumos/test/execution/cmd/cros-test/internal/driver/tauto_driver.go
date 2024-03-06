@@ -269,14 +269,13 @@ func processArgs(req *api.CrosTestRequest) (string, error) {
 
 	// Backwards compatibility.
 	if customArgs == "" {
-		md, err := common.UnpackMetadata(req)
+		customAutotestArgs, _, err := common.UnpackMetadata(req)
 		if err != nil {
 			return "", err
 		}
-		customAutotestArgs, _ := md.(*api.AutotestExecutionMetadata)
 		subCustomArgs := ""
-		for _, customAutotestArg := range customAutotestArgs.GetArgs() {
-			subCustomArgs += fmt.Sprintf(" %v=%v", customAutotestArg.GetFlag(), customAutotestArg.GetValue())
+		for name, value := range customAutotestArgs {
+			subCustomArgs += fmt.Sprintf(" %v=%v", name, value)
 		}
 		customArgs = subCustomArgs
 
