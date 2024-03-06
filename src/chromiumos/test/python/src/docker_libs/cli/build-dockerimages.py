@@ -270,7 +270,7 @@ def build_image(args: argparse.Namespace, service: str, output: str) -> bool:
 
     except Exception:
         # Print a traceback for debugging.
-        print(f"Failed to build Docker package for {service}:\nTraceback:\n")
+        print(f"Failed to build Docker package for {service}:", file=sys.stderr)
         traceback.print_exc()
         err = True
     finally:
