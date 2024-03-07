@@ -950,6 +950,7 @@ def run_copybot(args, git_dir, patch_dir):
         return
 
     skipped_revs = []
+    empty_revs = []
 
     if args.limit > 0 and len(commits_to_copy) > args.limit:
         logger.warning(
@@ -973,6 +974,7 @@ def run_copybot(args, git_dir, patch_dir):
             )
         except EmptyCommitError:
             logger.warning("Skip cherry-pick due to empty commit")
+            empty_revs.append(rev)
             continue
         except MergeConflictError as e:
             logger.error("Merge conflict cherry-picking %s!", rev)
@@ -1004,11 +1006,20 @@ def run_copybot(args, git_dir, patch_dir):
     else:
         logger.info("Skip push due to dry/local run")
 
-    if skipped_revs:
-        revlist = [
-            repo.log(rev, fmt="%H %s", num=1).stdout.strip()
-            for rev in skipped_revs
-        ]
+    emptylist = [
+        repo.log(rev, fmt="%H %s", num=1).stdout.strip() for rev in empty_revs
+    ]
+    if emptylist:
+        logger.warning(
+            "The following commits were not applied because they were empty:"
+        )
+        for rev in emptylist:
+            logger.warning("- %s", rev)
+
+    revlist = [
+        repo.log(rev, fmt="%H %s", num=1).stdout.strip() for rev in skipped_revs
+    ]
+    if revlist:
         logger.error(
             "The following commits were not applied due to merge conflict:"
         )
