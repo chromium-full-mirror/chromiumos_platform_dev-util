@@ -313,6 +313,8 @@ class GitRepo:
                     self._run_git("rev-parse", "--verify", "CHERRY_PICK_HEAD")
                     logger.warning("Could not cherry-pick")
                 except subprocess.CalledProcessError as err:
+                    if "is a merge but no -m option was given" in e.stderr:
+                        logger.warning("Merge commit detected")
                     raise MergeConflictError() from err
                 self._run_git("cherry-pick", "--abort")
                 if "The previous cherry-pick is now empty" in e.stderr:
@@ -330,7 +332,7 @@ class GitRepo:
             self.commit(self.get_commit_message(rev), False, False, True)
             return
         else:
-            for flags in ([], ["-Xpatience"]):
+            for flags in ([], ["-Xpatience"], ["-m", "2"]):
                 try:
                     _try_cherry_pick(flags)
                 except MergeConflictError as e:
