@@ -6,6 +6,8 @@ package main
 
 import (
 	"encoding/json"
+	"io"
+	"log"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -201,11 +203,11 @@ func GenerateBoardUseFlagDict(boardsToAdd []string) map[string]map[string]bool {
 
 	for _, board := range boardsToAdd {
 		if board == "nissa" {
-			useFlagDict["nissa"] = nissaSet
+			useFlagDict["nissa-"] = nissaSet
 		} else if board == "octopus" {
-			useFlagDict["octopus"] = octopusSet
+			useFlagDict["octopus-"] = octopusSet
 		} else if board == "dedede" {
-			useFlagDict["dedede"] = dededeSet
+			useFlagDict["dedede-"] = dededeSet
 		}
 	}
 
@@ -227,7 +229,8 @@ func TestUpdateTestCases_buildDeps_in_use_flags_dict(t *testing.T) {
 	}
 	internalTestPlan := GenerateInternalTestPlan(buildDepsTest1, buildDepsTest1)
 	filteredInternalTestPlan := proto.Clone(internalTestPlan).(*api.InternalTestplan)
-	err := updateTestCases(filteredInternalTestPlan, GenerateBoardUseFlagDict([]string{"nissa", "octopus", "dedede"}))
+	emptyLogger := log.New(io.Discard, "", 0)
+	err := updateTestCases(filteredInternalTestPlan, GenerateBoardUseFlagDict([]string{"nissa", "octopus", "dedede"}), emptyLogger)
 	if err != nil {
 		t.Errorf("updateTestCases failed: %v", err)
 		return
@@ -253,7 +256,8 @@ func TestUpdateTestCases_buildDeps_in_use_flags_dict_partial_match(t *testing.T)
 	}
 	internalTestPlan := GenerateInternalTestPlan(buildDepsTest1, buildDepsTest2)
 	filteredInternalTestPlan := proto.Clone(internalTestPlan).(*api.InternalTestplan)
-	err := updateTestCases(filteredInternalTestPlan, GenerateBoardUseFlagDict([]string{"octopus", "nissa", "dedede"}))
+	emptyLogger := log.New(io.Discard, "", 0)
+	err := updateTestCases(filteredInternalTestPlan, GenerateBoardUseFlagDict([]string{"octopus", "nissa", "dedede"}), emptyLogger)
 	if err != nil {
 		t.Errorf("updateTestCases failed: %v", err)
 		return
@@ -284,7 +288,8 @@ func TestUpdateTestCases_buildDeps_not_in_use_flags_dict(t *testing.T) {
 	}
 	internalTestPlan := GenerateInternalTestPlan(buildDepsTest1, buildDepsTest1)
 	filteredInternalTestPlan := proto.Clone(internalTestPlan).(*api.InternalTestplan)
-	err := updateTestCases(filteredInternalTestPlan, GenerateBoardUseFlagDict([]string{"nissa", "octopus", "dedede"}))
+	emptyLogger := log.New(io.Discard, "", 0)
+	err := updateTestCases(filteredInternalTestPlan, GenerateBoardUseFlagDict([]string{"nissa", "octopus", "dedede"}), emptyLogger)
 	if err != nil {
 		t.Errorf("updateTestCases failed: %v", err)
 		return
@@ -312,7 +317,8 @@ func TestUpdateTestCases_use_flag_dict_missing_board(t *testing.T) {
 	}
 	internalTestPlan := GenerateInternalTestPlan(buildDepsTest1, buildDepsTest1)
 	filteredInternalTestPlan := proto.Clone(internalTestPlan).(*api.InternalTestplan)
-	err := updateTestCases(filteredInternalTestPlan, GenerateBoardUseFlagDict([]string{""}))
+	emptyLogger := log.New(io.Discard, "", 0)
+	err := updateTestCases(filteredInternalTestPlan, GenerateBoardUseFlagDict([]string{""}), emptyLogger)
 	if err != nil {
 		t.Errorf("updateTestCases failed: %v", err)
 		return

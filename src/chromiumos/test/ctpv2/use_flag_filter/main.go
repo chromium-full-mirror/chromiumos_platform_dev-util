@@ -14,12 +14,11 @@ import (
 
 	"chromiumos/test/publish/cmd/publishserver/storage"
 
-	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
 const (
-	binName      = "test_finder_filter"
+	binName      = "use_flag_filter"
 	destFilePath = "/tmp/tast_use_flags"
 	fileName     = "tast_use_flags.txt" // File name with .txt extension
 )
@@ -30,6 +29,7 @@ func DownloadUseFlags(ctx context.Context, gsURL string, gsClient *storage.GSCli
 	destFilePath := filepath.Join(destFilePath, board)
 
 	if err := gsClient.DownloadFile(ctx, gsURL, destFilePath); err != nil {
+		log.Printf("Error while reading use flag from gs: %s", err)
 		return nil, err
 	}
 
@@ -79,6 +79,20 @@ func generateUseFlagDict(ctx context.Context, req *api.InternalTestplan, log *lo
 		return nil, fmt.Errorf("Error setting up parent directory for downloading files from gs: %s", err)
 	}
 
+	// useFlagDict will look like after collecting use flags for all board-variant combination in suite info.
+	// map[
+	// 	"nissa-variant": map[
+	// 		"amd64" : true,
+	// 		"vulkan" : true,
+	// 		"wpa3_sae" : true
+	// 	],
+	// 	"octopus-variant": map[
+	// 		"arc" : true,
+	// 		"arc-camera3" : true,
+	// 		"arcvm" : true,
+	// 		"cheets_user_64" : true
+	// 	]
+	// ]
 	useFlagDict := make(map[string]map[string]bool)
 
 	for board, gcsPath := range boardGsMap {
@@ -92,6 +106,8 @@ func generateUseFlagDict(ctx context.Context, req *api.InternalTestplan, log *lo
 	}
 
 	defer gsClient.Close()
+	fmt.Println(useFlagDict)
+	log.Printf("useFlagDict: %s", boardGsMap)
 	return useFlagDict, nil
 }
 
@@ -101,20 +117,21 @@ func createBoardGsURLMapFromRequest(req *api.InternalTestplan) (map[string]strin
 	boardGsMap := make(map[string]string)
 	targetRequirements := req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements()
 	for _, tr := range targetRequirements {
-		buildTarget, err := retrieveChromesOSBuildTarget(tr.GetHwRequirements().GetHwDefinition())
+		buildTarget, err := retrieveChromesOSHwUseFlagKey(tr.GetHwRequirements().GetHwDefinition())
 		if err != nil {
 			return nil, fmt.Errorf("xyz: %s", err)
 		}
 		boardGsMap[buildTarget] = tr.GetSwRequirement().GetGcsPath()
 	}
+	log.Printf("BoardGsURLMap: %s", boardGsMap)
 	return boardGsMap, nil
 }
 
-// RetrieveChromesOSBuildTarget retrieves ChromeOS build target from the list of HW Definition
-func retrieveChromesOSBuildTarget(req []*api.SwarmingDefinition) (string, error) {
+// RetrieveChromesOSHwUseFlagKey retrieves ChromeOS buildTarget+variant from the list of HW Definition
+func retrieveChromesOSHwUseFlagKey(req []*api.SwarmingDefinition) (string, error) {
 	for _, hwDef := range req {
 		if hwDef.GetDutInfo().GetChromeos() != nil {
-			return hwDef.GetDutInfo().GetChromeos().GetDutModel().GetBuildTarget(), nil
+			return hwDef.GetDutInfo().GetChromeos().GetDutModel().GetBuildTarget() + "-" + hwDef.GetVariant(), nil
 		}
 	}
 	return "", nil
@@ -130,36 +147,50 @@ func checkIfAnyUseFlagPresent(useFlagSet map[string]bool, testHwDeps []*api.Test
 	return false
 }
 
-func filterHwRequirementsBasedOnUseFlag(hwReqs []*api.HWRequirements, useFlagDict map[string]map[string]bool, testHwDeps []*api.TestCase_BuildDeps) error {
+func filterHwRequirementsBasedOnUseFlag(hwReqs []*api.HWRequirements, useFlagDict map[string]map[string]bool, testHwDeps []*api.TestCase_BuildDeps, log *log.Logger) error {
 
 	for _, hwReq := range hwReqs {
+		// hwDef will be removed if no buildDeps in test metadata is present in hwDef's use flag set in useFlagDict
 		var filteredHwDefs []*api.SwarmingDefinition
 		hwDefs := hwReq.GetHwDefinition()
+
 		for _, hwDef := range hwDefs {
+
+			// fetch use flag set for hwDef. Key is BuildTarget+variant.
 			board := hwDef.GetDutInfo().GetChromeos().GetDutModel().GetBuildTarget()
-			useFlagSet := useFlagDict[board]
-			if hwDef.GetDutInfo().GetChromeos() != nil && useFlagDict[board] != nil {
+			variant := hwDef.GetVariant()
+			useFlagSet := useFlagDict[board+"-"+variant]
+
+			if hwDef.GetDutInfo().GetChromeos() != nil && useFlagDict[board+"-"+variant] != nil {
+				// check if any test buildDeps is present in the set.
 				present := checkIfAnyUseFlagPresent(useFlagSet, testHwDeps)
 				if present {
 					filteredHwDefs = append(filteredHwDefs, hwDef)
+				} else {
+					log.Printf("DUT with build target : %s removed", board)
 				}
 			} else {
+				log.Printf("DUT with build target : %s skipped check, due to missing use flag list or DUT is not of ChromeOS type", board)
 				filteredHwDefs = append(filteredHwDefs, hwDef)
 			}
 		}
+		// update hwDef list
 		hwReq.HwDefinition = filteredHwDefs
 	}
 	return nil
 }
 
-func updateTestCases(req *api.InternalTestplan, useFlagDict map[string]map[string]bool) error {
+func updateTestCases(req *api.InternalTestplan, useFlagDict map[string]map[string]bool, log *log.Logger) error {
 
 	for _, testCase := range req.GetTestCases() {
 		if len(testCase.GetMetadata().GetTestCase().GetBuildDependencies()) > 0 {
-			err := filterHwRequirementsBasedOnUseFlag(testCase.GetHwRequirements(), useFlagDict, testCase.GetMetadata().GetTestCase().GetBuildDependencies())
+			log.Printf("Pruning HwDef for test : %s", testCase.GetName())
+			err := filterHwRequirementsBasedOnUseFlag(testCase.GetHwRequirements(), useFlagDict, testCase.GetMetadata().GetTestCase().GetBuildDependencies(), log)
 			if err != nil {
 				return fmt.Errorf("Error filtering HwReqs: %s", err)
 			}
+		} else {
+			log.Printf("Skippping as test : %s, doesn't  have any build deps", testCase.GetName())
 		}
 	}
 	return nil
@@ -172,22 +203,11 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 	if err != nil {
 		return nil, fmt.Errorf("Error generating board-use flags map: %s", err)
 	}
-	fmt.Println(useFlagDict)
 
-	err = updateTestCases(req, useFlagDict)
-
+	err = updateTestCases(req, useFlagDict, log)
 	if err != nil {
 		return nil, fmt.Errorf("Error during use flag based test cases pruning: %s", err)
 	}
-
-	marshaler := jsonpb.Marshaler{}
-	jsonString, err := marshaler.MarshalToString(req)
-	if err != nil {
-		log.Fatalf("Error marshaling proto to JSON: %v", err)
-	}
-
-	// Print the JSON string
-	fmt.Println(jsonString)
 
 	return req, nil
 }
