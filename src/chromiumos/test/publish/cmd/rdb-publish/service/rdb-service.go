@@ -50,6 +50,7 @@ type RdbPublishService struct {
 	StainlessUrl        string
 	TempDirPath         string
 	Sources             *metadata.PublishRdbMetadata_Sources
+	BaseVariant         map[string]string
 }
 
 func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
@@ -73,6 +74,7 @@ func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
 		TestResultProto:     m.GetTestResult(),
 		StainlessUrl:        m.GetStainlessUrl(),
 		Sources:             m.GetSources(),
+		BaseVariant:         m.GetBaseVariant(),
 	}, nil
 }
 
@@ -118,8 +120,7 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 
 	// Upload test results
 	baseTags := map[string]string{}
-	baseVariant := map[string]string{}
-	config := &rdb_client.RdbStreamConfig{BaseTags: baseTags, BaseVariant: baseVariant, ResultFile: testResultFilePath, ResultFormat: ResultAdapterResultFormat}
+	config := &rdb_client.RdbStreamConfig{BaseTags: baseTags, BaseVariant: rps.BaseVariant, ResultFile: testResultFilePath, ResultFormat: ResultAdapterResultFormat}
 	if hasSources {
 		config.SourcesFile = sourcesFilePath
 	}
