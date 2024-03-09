@@ -97,6 +97,7 @@ class CrosPublishArtifactPrep(CrosArtifactPrep):
             os.path.dirname(self.full_autotest),
             self.full_out,
             self.chroot,
+            self.sysroot,
             tko_only=True,
         )
 
