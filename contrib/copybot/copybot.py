@@ -768,7 +768,8 @@ def rewrite_commit_message(
     pseudoheaders = pseudoheaders.prefix(keep=keep_pseudoheaders)
 
     pseudoheaders["GitOrigin-RevId"] = upstream_rev
-    pseudoheaders["Change-Id"] = change_id
+    if "Change-Id" not in keep_pseudoheaders:
+        pseudoheaders["Change-Id"] = change_id
 
     commit_message = pseudoheaders.add_to_commit_message(commit_message)
     repo.reword(commit_message, sign_off=sign_off)
