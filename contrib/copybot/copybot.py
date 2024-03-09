@@ -637,7 +637,7 @@ def get_downstreamed_list(
     downstreamed_revs = []
 
     for counter, rev in enumerate(downstream_hashes):
-        if counter >= limit and limit != 0:
+        if counter > limit and limit != 0:
             break
 
         commit_message = repo.get_commit_message(rev)
@@ -702,6 +702,10 @@ def find_commits_to_copy(
             exclude_file_patterns=exclude_file_patterns,
         )
     ):
+        # Early exit if limit reached to avoid inadvertent continuation
+        if counter > upstream_limit and upstream_limit != 0:
+            break
+
         if rev in skip_revs:
             logger.info("Skip %s due to copybot-skip hashtag", rev)
             continue
@@ -733,9 +737,6 @@ def find_commits_to_copy(
                 )
                 continue
         commits_to_copy.append(rev)
-
-        if counter >= upstream_limit and upstream_limit != 0:
-            break
 
     return commits_to_copy
 
