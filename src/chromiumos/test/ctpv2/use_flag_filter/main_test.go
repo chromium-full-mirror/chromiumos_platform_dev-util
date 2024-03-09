@@ -203,11 +203,11 @@ func GenerateBoardUseFlagDict(boardsToAdd []string) map[string]map[string]bool {
 
 	for _, board := range boardsToAdd {
 		if board == "nissa" {
-			useFlagDict["nissa-"] = nissaSet
+			useFlagDict["nissa"] = nissaSet
 		} else if board == "octopus" {
-			useFlagDict["octopus-"] = octopusSet
+			useFlagDict["octopus"] = octopusSet
 		} else if board == "dedede" {
-			useFlagDict["dedede-"] = dededeSet
+			useFlagDict["dedede"] = dededeSet
 		}
 	}
 

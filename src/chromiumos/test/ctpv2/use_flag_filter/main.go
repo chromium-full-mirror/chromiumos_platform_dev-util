@@ -19,20 +19,32 @@ import (
 
 const (
 	binName      = "use_flag_filter"
-	destFilePath = "/tmp/tast_use_flags"
-	fileName     = "tast_use_flags.txt" // File name with .txt extension
+	destFilePath = "/tmp/use_flag_filter/tast_use_flags"
+	fileName     = "tast_use_flags.txt"
 )
 
-// DownloadUseFlags downloads all use flag for a given gsUrl.
-func DownloadUseFlags(ctx context.Context, gsURL string, gsClient *storage.GSClient, board string, log *log.Logger) (map[string]bool, error) {
+func mapToString(m map[string]map[string]bool) string {
+	result := ""
+	for k, v := range m {
+		result += fmt.Sprintf("%s: {\n", k)
+		for k2, v2 := range v {
+			result += fmt.Sprintf("\t%s: %t,\n", k2, v2)
+		}
+		result += "},\n"
+	}
+	return result
+}
 
-	destFilePath := filepath.Join(destFilePath, board)
+// DownloadUseFlags downloads all use flags from a given gsUrl.
+func DownloadUseFlags(ctx context.Context, gsURL string, gsClient *storage.GSClient, buildTarget string, log *log.Logger) (map[string]bool, error) {
+
+	destFilePath := filepath.Join(destFilePath, buildTarget)
 
 	if err := gsClient.DownloadFile(ctx, gsURL, destFilePath); err != nil {
 		log.Printf("Error while reading use flag from gs: %s", err)
 		return nil, err
 	}
-
+	log.Printf("Downloaded file :%s", buildTarget)
 	content, err := os.ReadFile(destFilePath)
 	if err != nil {
 		return nil, err
@@ -61,10 +73,10 @@ func createDirectory(destFilePath string) error {
 	return nil
 }
 
-// GenerateUseFlagDict creates a dictionary for boards and respective use flag list.
+// GenerateUseFlagDict creates a dictionary for buildTarget and respective use flag list.
 func generateUseFlagDict(ctx context.Context, req *api.InternalTestplan, log *log.Logger) (map[string]map[string]bool, error) {
 
-	boardGsMap, err := createBoardGsURLMapFromRequest(req)
+	buildTargetGSMap, err := createBuildTargetGSMap(req)
 	if err != nil {
 		return nil, fmt.Errorf("Error generating board-gcsPath map: %s", err)
 	}
@@ -79,7 +91,7 @@ func generateUseFlagDict(ctx context.Context, req *api.InternalTestplan, log *lo
 		return nil, fmt.Errorf("Error setting up parent directory for downloading files from gs: %s", err)
 	}
 
-	// useFlagDict will look like after collecting use flags for all board-variant combination in suite info.
+	// useFlagDict will look like below, after collecting use flags for all buildTarget in suite info.
 	// map[
 	// 	"nissa-variant": map[
 	// 		"amd64" : true,
@@ -95,43 +107,48 @@ func generateUseFlagDict(ctx context.Context, req *api.InternalTestplan, log *lo
 	// ]
 	useFlagDict := make(map[string]map[string]bool)
 
-	for board, gcsPath := range boardGsMap {
+	for buildTarget, gcsPath := range buildTargetGSMap {
 		gcsPath = gcsPath + "/" + fileName
-		useFlagSet, err := DownloadUseFlags(ctx, gcsPath, gsClient, board, log)
+		useFlagSet, err := DownloadUseFlags(ctx, gcsPath, gsClient, buildTarget, log)
 		if err != nil {
 			return nil, err
 		}
 
-		useFlagDict[board] = useFlagSet
+		useFlagDict[buildTarget] = useFlagSet
 	}
 
 	defer gsClient.Close()
-	fmt.Println(useFlagDict)
-	log.Printf("useFlagDict: %s", boardGsMap)
+	log.Printf("useFlagDict: %s", mapToString(useFlagDict))
+
 	return useFlagDict, nil
 }
 
-// CreateBoardGsURLMapFromRequest creates a map with board value as key and gspath for image location as value
-func createBoardGsURLMapFromRequest(req *api.InternalTestplan) (map[string]string, error) {
+// CreateBuildTargetGSMap creates a map with board+variant value as key and gspath for image location as value
+func createBuildTargetGSMap(req *api.InternalTestplan) (map[string]string, error) {
 
-	boardGsMap := make(map[string]string)
+	buildTargetGSMap := make(map[string]string)
 	targetRequirements := req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements()
 	for _, tr := range targetRequirements {
-		buildTarget, err := retrieveChromesOSHwUseFlagKey(tr.GetHwRequirements().GetHwDefinition())
+		buildTargetGSKey, err := retrieveBuildTargetKey(tr.GetHwRequirements().GetHwDefinition())
 		if err != nil {
-			return nil, fmt.Errorf("xyz: %s", err)
+			return nil, fmt.Errorf("Error retrieving build target key from hwDef: %s", err)
 		}
-		boardGsMap[buildTarget] = tr.GetSwRequirement().GetGcsPath()
+		buildTargetGSMap[buildTargetGSKey] = tr.GetSwRequirement().GetGcsPath()
 	}
-	log.Printf("BoardGsURLMap: %s", boardGsMap)
-	return boardGsMap, nil
+	log.Printf("BoardGsURLMap: %s", buildTargetGSMap)
+	return buildTargetGSMap, nil
 }
 
-// RetrieveChromesOSHwUseFlagKey retrieves ChromeOS buildTarget+variant from the list of HW Definition
-func retrieveChromesOSHwUseFlagKey(req []*api.SwarmingDefinition) (string, error) {
+// RetrieveBuildTargetKey retrieves ChromeOS buildTarget+variant from the hwDef
+func retrieveBuildTargetKey(req []*api.SwarmingDefinition) (string, error) {
 	for _, hwDef := range req {
 		if hwDef.GetDutInfo().GetChromeos() != nil {
-			return hwDef.GetDutInfo().GetChromeos().GetDutModel().GetBuildTarget() + "-" + hwDef.GetVariant(), nil
+			board := hwDef.GetDutInfo().GetChromeos().GetDutModel().GetBuildTarget()
+			retrieveBuildTargetKey := board
+			if hwDef.GetVariant() != "" {
+				retrieveBuildTargetKey += "-" + hwDef.GetVariant()
+			}
+			return retrieveBuildTargetKey, nil
 		}
 	}
 	return "", nil
@@ -157,20 +174,22 @@ func filterHwRequirementsBasedOnUseFlag(hwReqs []*api.HWRequirements, useFlagDic
 		for _, hwDef := range hwDefs {
 
 			// fetch use flag set for hwDef. Key is BuildTarget+variant.
-			board := hwDef.GetDutInfo().GetChromeos().GetDutModel().GetBuildTarget()
-			variant := hwDef.GetVariant()
-			useFlagSet := useFlagDict[board+"-"+variant]
+			buildTargetKey := hwDef.GetDutInfo().GetChromeos().GetDutModel().GetBuildTarget()
+			if hwDef.GetVariant() != "" {
+				buildTargetKey += "-" + hwDef.GetVariant()
+			}
 
-			if hwDef.GetDutInfo().GetChromeos() != nil && useFlagDict[board+"-"+variant] != nil {
+			if hwDef.GetDutInfo().GetChromeos() != nil && useFlagDict[buildTargetKey] != nil {
 				// check if any test buildDeps is present in the set.
+				useFlagSet := useFlagDict[buildTargetKey]
 				present := checkIfAnyUseFlagPresent(useFlagSet, testHwDeps)
 				if present {
 					filteredHwDefs = append(filteredHwDefs, hwDef)
 				} else {
-					log.Printf("DUT with build target : %s removed", board)
+					log.Printf("DUT with build target : %s removed", buildTargetKey)
 				}
 			} else {
-				log.Printf("DUT with build target : %s skipped check, due to missing use flag list or DUT is not of ChromeOS type", board)
+				log.Printf("DUT skipped check, due to missing use flag list or DUT is not of ChromeOS type")
 				filteredHwDefs = append(filteredHwDefs, hwDef)
 			}
 		}
