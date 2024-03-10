@@ -47,7 +47,7 @@ type RdbPublishService struct {
 	RetryCount          int
 	CurrentInvocationId string
 	TestResultProto     *artifact.TestResult
-	StainlessUrl        string
+	TesthausURL         string
 	TempDirPath         string
 	Sources             *metadata.PublishRdbMetadata_Sources
 	BaseVariant         map[string]string
@@ -72,7 +72,7 @@ func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
 		RetryCount:          retryCount,
 		CurrentInvocationId: m.GetCurrentInvocationId(),
 		TestResultProto:     m.GetTestResult(),
-		StainlessUrl:        m.GetStainlessUrl(),
+		TesthausURL:         m.GetTesthausUrl(),
 		Sources:             m.GetSources(),
 		BaseVariant:         m.GetBaseVariant(),
 	}, nil
@@ -110,8 +110,8 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 	}
 
 	// Upload invocation artifacts
-	if rps.StainlessUrl != "" {
-		artifact := rdb_pb.Artifact{ArtifactId: "stainless_logs", ContentType: "", Contents: []byte(rps.StainlessUrl)}
+	if rps.TesthausURL != "" {
+		artifact := rdb_pb.Artifact{ArtifactId: "testhaus_logs", ContentType: "", Contents: []byte(rps.TesthausURL)}
 		err := rdbLib.UploadInvocationArtifacts(ctx, &artifact)
 		if err != nil {
 			return fmt.Errorf("error during rdb invocation artifact upload: %w", err)

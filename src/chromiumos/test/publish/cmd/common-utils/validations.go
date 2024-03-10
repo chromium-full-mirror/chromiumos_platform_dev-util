@@ -93,8 +93,8 @@ func ValidateRDBRequestMetadata(metadata *metadata.PublishRdbMetadata) error {
 		return fmt.Errorf("current invocation id is required in metadata for rdb publish")
 	} else if metadata.GetTestResult() == nil || metadata.GetTestResult().GetTestRuns() == nil || len(metadata.GetTestResult().GetTestRuns()) == 0 {
 		return fmt.Errorf("TestResult is required in metadata for rdb publish")
-	} else if metadata.StainlessUrl != "" && !strings.HasPrefix(metadata.StainlessUrl, "https://stainless.corp.google.com/browse/") {
-		return fmt.Errorf("stainless url must start with `https://stainless.corp.google.com/browse/`. Found %q instead", metadata.StainlessUrl)
+	} else if metadata.TesthausUrl != "" && !strings.HasPrefix(metadata.TesthausUrl, "https://cros-test-analytics.appspot.com/") && !strings.HasPrefix(metadata.TesthausUrl, "https://tests.chromeos.goog/") {
+		return fmt.Errorf("Testhaus url must start with either `https://cros-test-analytics.appspot.com/` or `https://tests.chromeos.goog/`. Found %q instead", metadata.TesthausUrl)
 	}
 	if metadata.GetSources() != nil {
 		sources := metadata.Sources
