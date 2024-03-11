@@ -161,8 +161,6 @@ func (p perfCollector) start(perfDir, workDir string) {
 		case <-time.After(p.perfCollectorInterval):
 			if err := p.gatherPerf(ctx, perfDir, uuid, workDir); err != nil {
 				log.Printf("error in perf collector %v", err)
-				p.terminated <- true
-				return
 			}
 		}
 	}
