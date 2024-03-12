@@ -298,7 +298,10 @@ var allowedTastFlag = map[string]struct{}{
 	buildArtifactsURLFlag:    {},
 	connectionTimeoutFlag:    {},
 	continueAfterFailureFlag: {},
+	excludeSkippedFlag:       {},
 	extraAllowedBucketsFlag:  {},
+	extraUseFlagsFlag:        {},
+	failForTestsFlag:         {},
 	maxSysMsgLogSizeFlag:     {},
 	maybeMissingVarsFlag:     {},
 }
