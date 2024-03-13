@@ -485,7 +485,7 @@ func (s *DutServiceServer) ForceReconnect(ctx context.Context, req *api.ForceRec
 func (s *DutServiceServer) reconnect(ctx context.Context) error {
 	s.logger.Printf("attempting to reconnect to DUT.")
 	isCloudbot := false
-	if id, found := os.LookupEnv("SWARMING_BOT_ID"); found && strings.HasPrefix(id, "cloudbot-") {
+	if id, found := os.LookupEnv("SWARMING_BOT_ID"); found && strings.HasPrefix(id, "cloudbots-") {
 		isCloudbot = true
 	}
 	var conn *ssh.Client
@@ -561,7 +561,7 @@ func GetConnectionWithRetry(ctx context.Context, dutIdentifier string, wiringAdd
 	retryCount := 5
 	retryInterval := time.Duration(10 * time.Second)
 	isCloudbot := false
-	if id, found := os.LookupEnv("SWARMING_BOT_ID"); found && strings.HasPrefix(id, "cloudbot-") {
+	if id, found := os.LookupEnv("SWARMING_BOT_ID"); found && strings.HasPrefix(id, "cloudbots-") {
 		isCloudbot = true
 	}
 	var err error
