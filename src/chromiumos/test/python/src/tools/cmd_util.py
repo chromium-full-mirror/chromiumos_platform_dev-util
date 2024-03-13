@@ -965,7 +965,7 @@ def CreateTarball(
 
     if extra_args is None:
         extra_args = []
-    kwargs.setdefault("debug_level", logging.INFO)
+    debug_level = kwargs.setdefault("debug_level", logging.INFO)
 
     # Use a separate compression program - this enables parallel compression
     # in some cases.
@@ -993,6 +993,9 @@ def CreateTarball(
         cmd += ["-f", tarball_path]
 
     if len(inputs) > _THRESHOLD_TO_USE_T_FOR_TAR:
+        # Since we log the command at debug_level, and the inputs would be
+        # listed there if there were fewer, log the full list here.
+        logging.log(debug_level, "tar inputs: %s", CmdToStr(inputs))
         cmd += ["--null", "-T", "/dev/stdin"]
         rc_input = b"\0".join(x.encode("utf-8") for x in inputs)
     else:
