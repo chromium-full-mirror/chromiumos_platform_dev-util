@@ -41,8 +41,8 @@ func DownloadUseFlags(ctx context.Context, gsURL string, gsClient *storage.GSCli
 	destFilePath := filepath.Join(destFilePath, buildTarget)
 
 	if err := gsClient.DownloadFile(ctx, gsURL, destFilePath); err != nil {
-		log.Printf("Error while reading use flag from gs: %s", err)
-		return nil, err
+		log.Printf("File not present at gsUrl : %s", gsURL)
+		return nil, nil
 	}
 	log.Printf("Downloaded file :%s", buildTarget)
 	content, err := os.ReadFile(destFilePath)
