@@ -113,6 +113,10 @@ func generateUseFlagDict(ctx context.Context, req *api.InternalTestplan, log *lo
 		if err != nil {
 			return nil, err
 		}
+		// Should not add to dict if use flags was not found
+		if useFlagSet == nil {
+			continue
+		}
 
 		useFlagDict[buildTarget] = useFlagSet
 	}
