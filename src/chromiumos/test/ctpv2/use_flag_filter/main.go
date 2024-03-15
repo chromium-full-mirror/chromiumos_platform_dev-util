@@ -14,13 +14,14 @@ import (
 
 	"chromiumos/test/publish/cmd/publishserver/storage"
 
+	"github.com/google/uuid"
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
 const (
-	binName      = "use_flag_filter"
-	destFilePath = "/tmp/use_flag_filter/tast_use_flags"
-	fileName     = "tast_use_flags.txt"
+	binName         = "use_flag_filter"
+	fileName        = "tast_use_flags.txt"
+	useFlagsDirBase = "/tmp/use_flag_filter/tast_use_flags_"
 )
 
 func mapToString(m map[string]map[string]bool) string {
@@ -36,9 +37,9 @@ func mapToString(m map[string]map[string]bool) string {
 }
 
 // DownloadUseFlags downloads all use flags from a given gsUrl.
-func DownloadUseFlags(ctx context.Context, gsURL string, gsClient *storage.GSClient, buildTarget string, log *log.Logger) (map[string]bool, error) {
+func DownloadUseFlags(ctx context.Context, gsURL string, gsClient *storage.GSClient, buildTarget string, log *log.Logger, useFlagsDir string) (map[string]bool, error) {
 
-	destFilePath := filepath.Join(destFilePath, buildTarget)
+	destFilePath := filepath.Join(useFlagsDir, buildTarget)
 
 	if err := gsClient.DownloadFile(ctx, gsURL, destFilePath); err != nil {
 		log.Printf("File not present at gsUrl : %s", gsURL)
@@ -60,17 +61,15 @@ func DownloadUseFlags(ctx context.Context, gsURL string, gsClient *storage.GSCli
 	return useFlagSet, nil
 }
 
-func createDirectory(destFilePath string) error {
+func createDirectory(log *log.Logger) (string, error) {
 
-	if _, err := os.Stat(destFilePath); err == nil {
-		if err := os.RemoveAll(destFilePath); err != nil {
-			return err
-		}
+	useFlagsDir := useFlagsDirBase + uuid.New().String()
+	log.Printf("Creating dir for storing use flags ...")
+	if err := os.MkdirAll(useFlagsDir, 0755); err != nil {
+		return "", err
 	}
-	if err := os.MkdirAll(destFilePath, 0755); err != nil {
-		return err
-	}
-	return nil
+	log.Printf("UseFlagsDir set to :%s", useFlagsDir)
+	return useFlagsDir, nil
 }
 
 // GenerateUseFlagDict creates a dictionary for buildTarget and respective use flag list.
@@ -86,7 +85,7 @@ func generateUseFlagDict(ctx context.Context, req *api.InternalTestplan, log *lo
 		return nil, err
 	}
 
-	err = createDirectory(destFilePath)
+	useFlagsDir, err := createDirectory(log)
 	if err != nil {
 		return nil, fmt.Errorf("Error setting up parent directory for downloading files from gs: %s", err)
 	}
@@ -109,7 +108,7 @@ func generateUseFlagDict(ctx context.Context, req *api.InternalTestplan, log *lo
 
 	for buildTarget, gcsPath := range buildTargetGSMap {
 		gcsPath = gcsPath + "/" + fileName
-		useFlagSet, err := DownloadUseFlags(ctx, gcsPath, gsClient, buildTarget, log)
+		useFlagSet, err := DownloadUseFlags(ctx, gcsPath, gsClient, buildTarget, log, useFlagsDir)
 		if err != nil {
 			return nil, err
 		}
