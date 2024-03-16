@@ -158,8 +158,8 @@ fn fetch(repo: &Repository, p: &Project, remote_name: &str) -> Result<(), SyncEr
         }
     };
 
-    let notify_fn = |err, _: std::time::Duration| {
-        warn!("Retrying transient error: {:?}", err,);
+    let notify_fn = |err: git2::Error, _: std::time::Duration| {
+        warn!("Retrying transient error: {:?}", err.to_string(),);
     };
 
     match retry_notify(ExponentialBackoff::default(), fetch_fn, notify_fn) {
