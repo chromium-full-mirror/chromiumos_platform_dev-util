@@ -60,6 +60,7 @@ grpcio==1.31.0\n\
 idna==3.3\n\
 mock==3.0.5\n\
 numpy==1.16.6\n\
+pexpect==4.8.0\n\
 pillow==8.3.2\n\
 protobuf==3.18.0\n\
 psutil==5.8.0\n\
