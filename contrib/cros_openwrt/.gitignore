@@ -1,5 +1,5 @@
 /build
 /image_builder/go/bin
 /image_builder/go/pkg
-/logs
+logs
 wifi_router_config*.json

@@ -5,7 +5,7 @@
 
 # Paths vars.
 SCRIPT_DIR="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
-CROS_OPENWRT_DIR="${SCRIPT_DIR}/../.."
+CROS_OPENWRT_DIR="${SCRIPT_DIR}/../../.."
 BUILD_DIR="${CROS_OPENWRT_DIR}/build"
 DO_BUILD='y'
 BUILD_SUBCOMMAND='all'
