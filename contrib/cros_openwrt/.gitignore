@@ -3,3 +3,5 @@
 /image_builder/go/pkg
 logs
 wifi_router_config*.json
+*.bin
+*.tar.xz

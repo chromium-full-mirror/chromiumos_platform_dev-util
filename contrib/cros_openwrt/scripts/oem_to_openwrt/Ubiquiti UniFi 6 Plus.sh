@@ -135,7 +135,7 @@ function ping_until_up {
       sleep 1
     fi
     set +e
-    ping -c 1 "${HOST}" > /dev/null
+    ping -c 1 -w 1 "${HOST}" > /dev/null
     RET_CODE=$?
     set -e
   done
@@ -143,7 +143,7 @@ function ping_until_up {
     echo "Failed to successfully ping host ${HOST} after ${TIMEOUT_SECONDS} seconds"
     exit 4
   fi
-  echo "Successfully pinged host '${HOST}'"
+  echo "Successfully pinged host '${HOST}' with ${SECONDS_REMAINING} seconds remaining"
 }
 
 # install_openwrt_from_oem copies the openwrt image to the host, preforms the
