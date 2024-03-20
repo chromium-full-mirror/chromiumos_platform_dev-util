@@ -103,6 +103,8 @@ elif [[ "${pipestatus[2]}" -ne 0 ]]; then
   exit 1
 fi`
 
+// TODO(kimjae): Refactor InstallZippedImage/InstallZstdCompressedFile into a single entity such as InstallCompressedFile, with additional options to select the compression method.
+
 // InstallZippedImage installs a remote zipped image to disk.
 func (c *CrOSService) InstallZippedImage(ctx context.Context, remoteImagePath string, outputFile string) error {
 	if c.ImagePath.HostType == conf.StoragePath_LOCAL || c.ImagePath.HostType == conf.StoragePath_HOSTTYPE_UNSPECIFIED {
@@ -111,6 +113,22 @@ func (c *CrOSService) InstallZippedImage(ctx context.Context, remoteImagePath st
 	err := c.Connection.PipeData(ctx,
 		common_utils.BucketJoin(c.ImagePath.GetPath(), remoteImagePath),
 		fmt.Sprintf("gzip -d | %s %s", fmt.Sprintf("dd of=%s obs=2M", outputFile), fmt.Sprintf(pipeStatusHandler, c.ImagePath.GetPath(), outputFile)),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to install image, %w", err)
+	}
+	return nil
+}
+
+// InstallZstdCompressedFile installs a compressed (zstd) file to target.
+func (c *CrOSService) InstallZstdCompressedFile(ctx context.Context, remoteImagePath string, outputPath string) error {
+	if c.ImagePath.HostType == conf.StoragePath_LOCAL || c.ImagePath.HostType == conf.StoragePath_HOSTTYPE_UNSPECIFIED {
+		return fmt.Errorf("only GS copying is implemented")
+	}
+	err := c.Connection.PipeData(ctx,
+		common_utils.BucketJoin(c.ImagePath.GetPath(), remoteImagePath),
+		// Fine to reuse the pipe status handler for now.
+		fmt.Sprintf("zstdcat | %s %s", fmt.Sprintf("dd of=%s obs=2M", outputPath), fmt.Sprintf(pipeStatusHandler, c.ImagePath.GetPath(), outputPath)),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to install image, %w", err)
