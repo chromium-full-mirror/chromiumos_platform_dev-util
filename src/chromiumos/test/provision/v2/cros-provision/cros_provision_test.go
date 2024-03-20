@@ -12,6 +12,7 @@ import (
 	state_machine "chromiumos/test/provision/v2/cros-provision/state-machine"
 	mock_common_utils "chromiumos/test/provision/v2/mock-common-utils"
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -75,7 +76,9 @@ var (
 	removeVerified            = RunCommandStructure{Command: "rm", Args: []string{"-f", "/var/cache/dlc/*/*/dlc_b/verified"}}
 	startDLCservice           = RunCommandStructure{Command: "start", Args: []string{"dlcservice"}}
 	copyKernel                = PipeCommandStructure{Source: "gs://path/to/image/full_dev_part_KERN.bin.gz", Command: "gzip -d | dd of=" + deviceDiskKernelB + " obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to " + deviceDiskKernelB + " failed.\" >&2\n  exit 1\nfi"}
+	copyZstKernel             = PipeCommandStructure{Source: "gs://path/to/image/full_KERN.bin.zst", Command: "zstdcat | dd of=" + deviceDiskKernelB + " obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to " + deviceDiskKernelB + " failed.\" >&2\n  exit 1\nfi"}
 	copyRoot                  = PipeCommandStructure{Source: "gs://path/to/image/full_dev_part_ROOT.bin.gz", Command: "gzip -d | dd of=" + deviceDiskRootB + " obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to " + deviceDiskRootB + " failed.\" >&2\n  exit 1\nfi"}
+	copyZstRoot               = PipeCommandStructure{Source: "gs://path/to/image/full_ROOT.bin.zst", Command: "zstdcat | dd of=" + deviceDiskRootB + " obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to " + deviceDiskRootB + " failed.\" >&2\n  exit 1\nfi"}
 	makeTemp                  = RunCommandStructure{Command: "mktemp", Args: []string{"-d"}}
 	mountTemp                 = RunCommandStructure{Command: "mount", Args: []string{"-o", "ro", deviceDiskRootB, "temporary_dir"}}
 	postInstTemp              = RunCommandStructure{Command: "temporary_dir/postinst", Args: []string{deviceDiskRootB}}
@@ -192,7 +195,185 @@ func TestStateTransitions(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
+		getPipeDataCommand(sam, copyZstKernel).Return(nil),
+		getPipeDataCommand(sam, copyZstRoot).Return(nil),
+		getRunCmdCommand(sam, makeTemp).Return("temporary_dir", nil),
+		getRunCmdCommand(sam, mountTemp).Return("", nil),
+		getRunCmdCommand(sam, postInstTemp).Return("", nil),
+		getRunCmdCommand(sam, umountTemp).Return("", nil),
+		getRunCmdCommand(sam, deleteTemp).Return("", nil),
+		getRunCmdCommand(sam, crosSystem).Return("", nil),
+		getRunCmdCommand(sam, absMkTemp).Return(wsTmp, nil),
+		getRunCmdCommand(sam, create512MibZero).Return("", nil),
+		getRunCmdCommand(sam, mkfsExt4).Return("", nil),
+		getRunCmdCommand(sam, mkMnt).Return("", nil),
+		getRunCmdCommand(sam, mountFsToMnt).Return("", nil),
+		getRunCmdCommand(sam, markFsFastWipe).Return("", nil),
+		getRunCmdCommand(sam, umountMnt).Return("", nil),
+		getRunCmdCommand(sam, freezeStateful).Return("", nil),
+		getRunCmdCommand(sam, hackStateful).Return("", nil),
+		getRunCmdCommand(sam, bootIdCheck).Return("rand-foo", nil),
+		getRunCmdCommand(sam, sysrqTrigger).Return("", nil),
+		getForceReconnectWithBackoffCommand(sam).Return(nil),
+		getRunCmdCommand(sam, bootIdCheck).Return("rand-bar", nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed install state: %v", err)
+	}
+
+	// UPDATE FIRMWARE
+	st = st.Next()
+
+	gomock.InOrder(
+		getPathExistsCommand(sam, checkFirmwareUpdater).Return(true, nil),
+		getRunCmdCommand(sam, waitforStabilize).Return("start/running", nil),
+		getRunCmdCommand(sam, updateFirmware).Return("", nil),
+		getRunCmdCommand(sam, currentFirmwareSlot).Return("A", nil),
+		getRunCmdCommand(sam, nextFirmwareSlot).Return("B", nil),
+		getRestartCommand(sam).Return(nil),
+		getRunCmdCommand(sam, firmwareManifest).Return(mockedValidFirmwareManifestStdout, nil),
+		getRunCmdCommand(sam, getCrosid).Return(mockedValidCrosidStdout, nil),
+		getRunCmdCommand(sam, getCurrentFirmware).Return("Google_Coral.10068.113.0", nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed firmware-update state: %v", err)
+	}
+
+	// POST INSTALL
+	st = st.Next()
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, waitforStabilize).Return("start/running", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
+		getRunCmdCommand(sam, cgptStickyCheck).Return("1", nil),
+		getRunCmdCommand(sam, stopUI).Return("", nil),
+		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
+		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
+		getPipeDataCommand(sam, copyStateful).Return(nil),
+		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
+		getRunCmdCommand(sam, crosSystem).Return("", nil),
+		getRestartCommand(sam).Return(nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed post-install state: %v", err)
+	}
+	// VERIFY
+	st = st.Next()
+	gomock.InOrder(
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=path/to/image", nil),
+		getRunCmdCommand(sam, chargeLimitEnabled).Return("", nil),
+		getRunCmdCommand(sam, chargePercentHold).Return("", nil),
+		getRunCmdCommand(sam, restartPowerd).Return("", nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed verify state: %v", err)
+	}
+
+	// INSTALL DLCS
+	st = st.Next()
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, stopDLCservice).Return("", nil),
+	)
+	// Concurrent Portion
+	// Return not verfied so we can test full case:
+	getPathExistsCommand(sam, dlcAVerifiedExists).Return(false, nil)
+	getCreateDirCommand(sam, createDLCDir).Return(nil)
+	sam.EXPECT().CopyData(gomock.Any(), gomock.Any(), gomock.Eq("/var/cache/dlc/1/package/dlc_a/dlc.img")).Return(nil)
+	getRunCmdCommand(sam, startDLCservice).Times(1).Return("", nil)
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, chownDLCs).Return("", nil),
+		getRunCmdCommand(sam, chmodDLCs).Return("", nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed install DLCs state: %v", err)
+	}
+
+	// INSTALL MINIOS
+	st = st.Next()
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, cgptRoot9).Return("09845860-705F-4BB5-B16C-8A8A099CAF52", nil),
+		getRunCmdCommand(sam, cgptRoot10).Return("09845860-705F-4BB5-B16C-8A8A099CAF52", nil),
+		getPipeDataCommand(sam, copyMiniOS9).Return(nil),
+		getPipeDataCommand(sam, copyMiniOS10).Return(nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed install MiniOS state: %v", err)
+	}
+
+	// Check state completion
+	if st.Next() != nil {
+		t.Fatalf("install minios should be the last step")
+	}
+}
+
+func TestStateTransitionsInstallationFallback(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sam := mock_common_utils.NewMockServiceAdapterInterface(ctrl)
+	log, _ := cli.SetUpLog(constants.DefaultLogDirectory)
+	cs := service.NewCrOSServiceFromExistingConnection(
+		sam,
+		&conf.StoragePath{
+			HostType: conf.StoragePath_GS,
+			Path:     "path/to/image",
+		},
+		nil,
+		false,
+		[]*api.CrOSProvisionMetadata_DLCSpec{{Id: "1"}},
+		true, // FirmwareUpdate enabled.
+	)
+
+	ctx := context.Background()
+
+	// PRE INIT STATE
+	st := state_machine.NewCrOSPreInitState(&cs)
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed pre-init state: %v", err)
+	}
+
+	// INIT STATE
+	st = st.Next()
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, createProvisionMarker).Return("", nil),
+		getRunCmdCommand(sam, rootDevPartition).Return(deviceDiskRootA, nil),
+		getRunCmdCommand(sam, rootDevDisk).Return(deviceDisk, nil),
+		getPathExistsCommand(sam, kvmDevicePathExists).Return(true, nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed init state: %v", err)
+	}
+
+	// INSTALL
+	st = st.Next()
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, stopUI).Return("", nil),
+		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
+		getPipeDataCommand(sam, copyZstKernel).Return(errors.New("")),
 		getPipeDataCommand(sam, copyKernel).Return(nil),
+		getPipeDataCommand(sam, copyZstRoot).Return(errors.New("")),
 		getPipeDataCommand(sam, copyRoot).Return(nil),
 		getRunCmdCommand(sam, makeTemp).Return("temporary_dir", nil),
 		getRunCmdCommand(sam, mountTemp).Return("", nil),
@@ -368,8 +549,8 @@ func TestMismatchPostInstall(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
-		getPipeDataCommand(sam, copyKernel).Return(nil),
-		getPipeDataCommand(sam, copyRoot).Return(nil),
+		getPipeDataCommand(sam, copyZstKernel).Return(nil),
+		getPipeDataCommand(sam, copyZstRoot).Return(nil),
 		getRunCmdCommand(sam, makeTemp).Return("temporary_dir", nil),
 		getRunCmdCommand(sam, mountTemp).Return("", nil),
 		getRunCmdCommand(sam, postInstTemp).Return("", nil),
@@ -756,8 +937,8 @@ func TestInstallPostInstallFailureCausesReversal(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
-		getPipeDataCommand(sam, copyKernel).Return(nil),
-		getPipeDataCommand(sam, copyRoot).Return(nil),
+		getPipeDataCommand(sam, copyZstKernel).Return(nil),
+		getPipeDataCommand(sam, copyZstRoot).Return(nil),
 		getRunCmdCommand(sam, makeTemp).Return("temporary_dir", nil),
 		getRunCmdCommand(sam, mountTemp).Return("", nil),
 		getRunCmdCommand(sam, postInstTemp).Return("", nil),
@@ -825,8 +1006,8 @@ func TestInstallClearTPMFailureCausesReversal(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
-		getPipeDataCommand(sam, copyKernel).Return(nil),
-		getPipeDataCommand(sam, copyRoot).Return(nil),
+		getPipeDataCommand(sam, copyZstKernel).Return(nil),
+		getPipeDataCommand(sam, copyZstRoot).Return(nil),
 		getRunCmdCommand(sam, makeTemp).Return("temporary_dir", nil),
 		getRunCmdCommand(sam, mountTemp).Return("", nil),
 		getRunCmdCommand(sam, postInstTemp).Return("", nil),
