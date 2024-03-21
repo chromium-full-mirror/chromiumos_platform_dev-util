@@ -109,7 +109,8 @@ var (
 	hwsecID                   = RunCommandStructure{Command: "hwsec-ownership-id", Args: []string{"id"}}
 	chargeLimitEnabled        = RunCommandStructure{Command: "echo", Args: []string{"\"1\"", ">", "/var/lib/power_manager/charge_limit_enabled"}}
 	chargePercentHold         = RunCommandStructure{Command: "echo", Args: []string{"\"3\"", ">", "/var/lib/power_manager/adaptive_charging_hold_delta_percent"}}
-	restartPowerd             = RunCommandStructure{Command: "restart", Args: []string{"powerd"}}
+	stopPowerd                = RunCommandStructure{Command: "stop", Args: []string{"powerd"}}
+	startPowerd               = RunCommandStructure{Command: "start", Args: []string{"powerd"}}
 	getForceProvisionMarker   = PathExistsCommandStructure{Path: "/mnt/stateful_partition/.force_provision"}
 	bootIDCheck               = RunCommandStructure{Command: "/bin/cat", Args: []string{"/proc/sys/kernel/random/boot_id"}}
 	sysrqTrigger              = RunCommandStructure{Command: "/bin/echo", Args: []string{"\"b\"", ">", "/proc/sysrq-trigger"}}
@@ -270,7 +271,8 @@ func TestStateTransitions(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=path/to/image", nil),
 		getRunCmdCommand(sam, chargeLimitEnabled).Return("", nil),
 		getRunCmdCommand(sam, chargePercentHold).Return("", nil),
-		getRunCmdCommand(sam, restartPowerd).Return("", nil),
+		getRunCmdCommand(sam, stopPowerd).Return("", nil),
+		getRunCmdCommand(sam, startPowerd).Return("", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -448,7 +450,8 @@ func TestStateTransitionsInstallationFallback(t *testing.T) {
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=path/to/image", nil),
 		getRunCmdCommand(sam, chargeLimitEnabled).Return("", nil),
 		getRunCmdCommand(sam, chargePercentHold).Return("", nil),
-		getRunCmdCommand(sam, restartPowerd).Return("", nil),
+		getRunCmdCommand(sam, stopPowerd).Return("", nil),
+		getRunCmdCommand(sam, startPowerd).Return("", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -796,7 +799,8 @@ func TestSkipInstallAndResetDeviceState(t *testing.T) {
 		getRestartCommand(sam).Return(nil),
 		getRunCmdCommand(sam, chargeLimitEnabled).Return("", nil),
 		getRunCmdCommand(sam, chargePercentHold).Return("", nil),
-		getRunCmdCommand(sam, restartPowerd).Return("", nil),
+		getRunCmdCommand(sam, stopPowerd).Return("", nil),
+		getRunCmdCommand(sam, startPowerd).Return("", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -859,7 +863,8 @@ func TestSkipInstallAndResetDeviceStateZstFailure(t *testing.T) {
 		getRestartCommand(sam).Return(nil),
 		getRunCmdCommand(sam, chargeLimitEnabled).Return("", nil),
 		getRunCmdCommand(sam, chargePercentHold).Return("", nil),
-		getRunCmdCommand(sam, restartPowerd).Return("", nil),
+		getRunCmdCommand(sam, stopPowerd).Return("", nil),
+		getRunCmdCommand(sam, startPowerd).Return("", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {

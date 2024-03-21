@@ -38,8 +38,12 @@ func (c *EnableChargeLimitCommand) Execute(log *log.Logger) error {
 		return fmt.Errorf("failed to create adaptive_charging_hold_delta_percent pref, %s", err)
 	}
 
-	if _, err := c.cs.Connection.RunCmd(c.ctx, "restart", []string{"powerd"}); err != nil {
-		return fmt.Errorf("failed to restart powerd, %s", err)
+	if _, err := c.cs.Connection.RunCmd(c.ctx, "stop", []string{"powerd"}); err != nil {
+		log.Printf("failed to stop powerd, %s", err)
+	}
+
+	if _, err := c.cs.Connection.RunCmd(c.ctx, "start", []string{"powerd"}); err != nil {
+		return fmt.Errorf("failed to start powerd, %s", err)
 	}
 
 	log.Printf("EnableChargeLimitCommand Success")
@@ -58,8 +62,12 @@ func (c *EnableChargeLimitCommand) Revert() error {
 		return fmt.Errorf("failed to remove adaptive_charging_hold_delta_percent pref, %s", err)
 	}
 
-	if _, err := c.cs.Connection.RunCmd(c.ctx, "restart", []string{"powerd"}); err != nil {
-		return fmt.Errorf("failed to restart powerd, %s", err)
+	if _, err := c.cs.Connection.RunCmd(c.ctx, "stop", []string{"powerd"}); err != nil {
+		log.Printf("failed to stop powerd, %s", err)
+	}
+
+	if _, err := c.cs.Connection.RunCmd(c.ctx, "start", []string{"powerd"}); err != nil {
+		return fmt.Errorf("failed to start powerd, %s", err)
 	}
 
 	log.Printf("EnableChargeLimitCommand Revert Success")
