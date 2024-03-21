@@ -106,12 +106,12 @@ var (
 	firmwareManifest          = RunCommandStructure{Command: common_utils.FirmwareUpdaterPath, Args: []string{"--manifest"}}
 	getCrosid                 = RunCommandStructure{Command: "crosid", Args: []string{}}
 	getCurrentFirmware        = RunCommandStructure{Command: "crossystem", Args: []string{"fwid"}}
-	hwsecId                   = RunCommandStructure{Command: "hwsec-ownership-id", Args: []string{"id"}}
+	hwsecID                   = RunCommandStructure{Command: "hwsec-ownership-id", Args: []string{"id"}}
 	chargeLimitEnabled        = RunCommandStructure{Command: "echo", Args: []string{"\"1\"", ">", "/var/lib/power_manager/charge_limit_enabled"}}
 	chargePercentHold         = RunCommandStructure{Command: "echo", Args: []string{"\"3\"", ">", "/var/lib/power_manager/adaptive_charging_hold_delta_percent"}}
 	restartPowerd             = RunCommandStructure{Command: "restart", Args: []string{"powerd"}}
 	getForceProvisionMarker   = PathExistsCommandStructure{Path: "/mnt/stateful_partition/.force_provision"}
-	bootIdCheck               = RunCommandStructure{Command: "/bin/cat", Args: []string{"/proc/sys/kernel/random/boot_id"}}
+	bootIDCheck               = RunCommandStructure{Command: "/bin/cat", Args: []string{"/proc/sys/kernel/random/boot_id"}}
 	sysrqTrigger              = RunCommandStructure{Command: "/bin/echo", Args: []string{"\"b\"", ">", "/proc/sysrq-trigger"}}
 )
 
@@ -213,10 +213,10 @@ func TestStateTransitions(t *testing.T) {
 		getRunCmdCommand(sam, umountMnt).Return("", nil),
 		getRunCmdCommand(sam, freezeStateful).Return("", nil),
 		getRunCmdCommand(sam, hackStateful).Return("", nil),
-		getRunCmdCommand(sam, bootIdCheck).Return("rand-foo", nil),
+		getRunCmdCommand(sam, bootIDCheck).Return("rand-foo", nil),
 		getRunCmdCommand(sam, sysrqTrigger).Return("", nil),
 		getForceReconnectWithBackoffCommand(sam).Return(nil),
-		getRunCmdCommand(sam, bootIdCheck).Return("rand-bar", nil),
+		getRunCmdCommand(sam, bootIDCheck).Return("rand-bar", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -391,10 +391,10 @@ func TestStateTransitionsInstallationFallback(t *testing.T) {
 		getRunCmdCommand(sam, umountMnt).Return("", nil),
 		getRunCmdCommand(sam, freezeStateful).Return("", nil),
 		getRunCmdCommand(sam, hackStateful).Return("", nil),
-		getRunCmdCommand(sam, bootIdCheck).Return("rand-foo", nil),
+		getRunCmdCommand(sam, bootIDCheck).Return("rand-foo", nil),
 		getRunCmdCommand(sam, sysrqTrigger).Return("", nil),
 		getForceReconnectWithBackoffCommand(sam).Return(nil),
-		getRunCmdCommand(sam, bootIdCheck).Return("rand-bar", nil),
+		getRunCmdCommand(sam, bootIDCheck).Return("rand-bar", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -567,10 +567,10 @@ func TestMismatchPostInstall(t *testing.T) {
 		getRunCmdCommand(sam, umountMnt).Return("", nil),
 		getRunCmdCommand(sam, freezeStateful).Return("", nil),
 		getRunCmdCommand(sam, hackStateful).Return("", nil),
-		getRunCmdCommand(sam, bootIdCheck).Return("rand-foo", nil),
+		getRunCmdCommand(sam, bootIDCheck).Return("rand-foo", nil),
 		getRunCmdCommand(sam, sysrqTrigger).Return("", nil),
 		getForceReconnectWithBackoffCommand(sam).Return(nil),
-		getRunCmdCommand(sam, bootIdCheck).Return("rand-bar", nil),
+		getRunCmdCommand(sam, bootIDCheck).Return("rand-bar", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -656,7 +656,7 @@ func TestSkipInstall(t *testing.T) {
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
-		getRunCmdCommand(sam, hwsecId).Return("53EB5A855F8E57624F3F6803B13E4592BCEC0DB7F0D3785617E46A80AF70B902", nil),
+		getRunCmdCommand(sam, hwsecID).Return("53EB5A855F8E57624F3F6803B13E4592BCEC0DB7F0D3785617E46A80AF70B902", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -774,7 +774,7 @@ func TestSkipInstallAndResetDeviceState(t *testing.T) {
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
-		getRunCmdCommand(sam, hwsecId).Return("NO_LOCKOUT_PASSWORD", nil),
+		getRunCmdCommand(sam, hwsecID).Return("NO_LOCKOUT_PASSWORD", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
@@ -835,7 +835,7 @@ func TestSkipInstallAndResetDeviceStateZstFailure(t *testing.T) {
 		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
 		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
-		getRunCmdCommand(sam, hwsecId).Return("NO_LOCKOUT_PASSWORD", nil),
+		getRunCmdCommand(sam, hwsecID).Return("NO_LOCKOUT_PASSWORD", nil),
 	)
 
 	if _, _, err := st.Execute(ctx, log); err != nil {
