@@ -45,11 +45,18 @@ func (c *ProvisionStatefulCommand) Execute(log *log.Logger) error {
 	log.Printf("ProvisionStatefulCommand rm Completed")
 
 	if err := c.cs.Connection.PipeData(c.ctx,
-		common_utils.BucketJoin(c.cs.ImagePath.GetPath(), "stateful.tgz"),
-		fmt.Sprintf("tar --ignore-command-error --overwrite --directory=%s --selinux -xzf -", info.StatefulPath)); err != nil {
-		log.Printf("ProvisionStatefulCommand PipeData FAILED")
-		return err
+		common_utils.BucketJoin(c.cs.ImagePath.GetPath(), "stateful.zst"),
+		fmt.Sprintf("tar --ignore-command-error --overwrite --directory=%s --selinux --zstd -xf -", info.StatefulPath)); err != nil {
+		log.Printf("ProvisionStatefulCommand PipeData zst failed CONTINUING")
+		// Continue here, we need the fallback below.
+		if err := c.cs.Connection.PipeData(c.ctx,
+			common_utils.BucketJoin(c.cs.ImagePath.GetPath(), "stateful.tgz"),
+			fmt.Sprintf("tar --ignore-command-error --overwrite --directory=%s --selinux -xzf -", info.StatefulPath)); err != nil {
+			log.Printf("ProvisionStatefulCommand PipeData FAILED")
+			return err
+		}
 	}
+
 	log.Printf("ProvisionStatefulCommand PipeData Completed")
 
 	if _, err := c.cs.Connection.RunCmd(c.ctx, "echo", []string{"-n", "clobber", ">", info.UpdateStatefulFilePath}); err != nil {

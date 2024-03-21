@@ -88,6 +88,7 @@ var (
 	waitforStabilize          = RunCommandStructure{Command: "status", Args: []string{"system-services"}}
 	cleanPostInstall          = RunCommandStructure{Command: "rm", Args: []string{"-rf", "/mnt/stateful_partition/.update_available", "/mnt/stateful_partition/var_new", "/mnt/stateful_partition/dev_image_new"}}
 	copyStateful              = PipeCommandStructure{Source: "gs://path/to/image/stateful.tgz", Command: "tar --ignore-command-error --overwrite --directory=/mnt/stateful_partition --selinux -xzf -"}
+	copyZstStateful           = PipeCommandStructure{Source: "gs://path/to/image/stateful.zst", Command: "tar --ignore-command-error --overwrite --directory=/mnt/stateful_partition --selinux --zstd -xf -"}
 	createUpdateAvailableFile = RunCommandStructure{Command: "echo", Args: []string{"-n", "clobber", ">", "/mnt/stateful_partition/.update_available"}}
 	dlcAVerifiedExists        = PathExistsCommandStructure{Path: "/var/lib/dlcservice/dlc/1/dlc_a/verified"}
 	createDLCDir              = CreateDirsStructure{Dirs: []string{"/var/cache/dlc/1/package/dlc_a"}}
@@ -252,7 +253,7 @@ func TestStateTransitions(t *testing.T) {
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
 		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
-		getPipeDataCommand(sam, copyStateful).Return(nil),
+		getPipeDataCommand(sam, copyZstStateful).Return(nil),
 		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
 		getRestartCommand(sam).Return(nil),
@@ -430,7 +431,7 @@ func TestStateTransitionsInstallationFallback(t *testing.T) {
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
 		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
-		getPipeDataCommand(sam, copyStateful).Return(nil),
+		getPipeDataCommand(sam, copyZstStateful).Return(nil),
 		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
 		getRestartCommand(sam).Return(nil),
@@ -606,7 +607,7 @@ func TestMismatchPostInstall(t *testing.T) {
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
 		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
-		getPipeDataCommand(sam, copyStateful).Return(nil),
+		getPipeDataCommand(sam, copyZstStateful).Return(nil),
 		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
 		getRestartCommand(sam).Return(nil),
@@ -783,12 +784,75 @@ func TestSkipInstallAndResetDeviceState(t *testing.T) {
 	// RESET DEVICE
 	st = st.Next()
 
+	drallionCopyZstStateful := PipeCommandStructure{Source: "gs://chromeos-image-archive/drallion-release/R110-15278.35.0/stateful.zst", Command: "tar --ignore-command-error --overwrite --directory=/mnt/stateful_partition --selinux --zstd -xf -"}
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, stopUI).Return("", nil),
+		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
+		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
+		getPipeDataCommand(sam, drallionCopyZstStateful).Return(nil),
+		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
+		getRunCmdCommand(sam, crosSystem).Return("", nil),
+		getRestartCommand(sam).Return(nil),
+		getRunCmdCommand(sam, chargeLimitEnabled).Return("", nil),
+		getRunCmdCommand(sam, chargePercentHold).Return("", nil),
+		getRunCmdCommand(sam, restartPowerd).Return("", nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed reset device state: %v", err)
+	}
+
+	if st.Next() != nil {
+		t.Fatalf("reset_device should be the last step")
+	}
+}
+
+func TestSkipInstallAndResetDeviceStateZstFailure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	sam := mock_common_utils.NewMockServiceAdapterInterface(ctrl)
+	log, _ := cli.SetUpLog(constants.DefaultLogDirectory)
+	cs := service.NewCrOSServiceFromExistingConnection(
+		sam,
+		&conf.StoragePath{
+			HostType: conf.StoragePath_GS,
+			Path:     "gs://chromeos-image-archive/drallion-release/R110-15278.35.0/",
+		},
+		nil,
+		false,
+		[]*api.CrOSProvisionMetadata_DLCSpec{{Id: "1"}},
+		true, // FirmwareUpdate enabled.
+	)
+
+	ctx := context.Background()
+
+	// PRE INIT STATE
+	st := state_machine.NewCrOSPreInitState(&cs)
+
+	gomock.InOrder(
+		getRunCmdCommand(sam, getBoard).Return("CHROMEOS_RELEASE_BOARD=(not_reven)", nil),
+		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=drallion-release/R110-15278.35.0", nil),
+		getPathExistsCommand(sam, getForceProvisionMarker).Return(false, nil),
+		getRunCmdCommand(sam, hwsecId).Return("NO_LOCKOUT_PASSWORD", nil),
+	)
+
+	if _, _, err := st.Execute(ctx, log); err != nil {
+		t.Fatalf("failed pre-init state: %v", err)
+	}
+
+	// RESET DEVICE
+	st = st.Next()
+
+	drallionCopyZstStateful := PipeCommandStructure{Source: "gs://chromeos-image-archive/drallion-release/R110-15278.35.0/stateful.zst", Command: "tar --ignore-command-error --overwrite --directory=/mnt/stateful_partition --selinux --zstd -xf -"}
 	drallionCopyStateful := PipeCommandStructure{Source: "gs://chromeos-image-archive/drallion-release/R110-15278.35.0/stateful.tgz", Command: "tar --ignore-command-error --overwrite --directory=/mnt/stateful_partition --selinux -xzf -"}
 
 	gomock.InOrder(
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
 		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
+		getPipeDataCommand(sam, drallionCopyZstStateful).Return(fmt.Errorf("some err")),
 		getPipeDataCommand(sam, drallionCopyStateful).Return(nil),
 		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
@@ -1207,7 +1271,7 @@ func TestPostInstallStatePreservesStatefulWhenRequested(t *testing.T) {
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
 		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
-		getPipeDataCommand(sam, copyStateful).Return(nil),
+		getPipeDataCommand(sam, copyZstStateful).Return(nil),
 		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
 
@@ -1282,6 +1346,7 @@ func TestPostInstallStatefulFailsGetsReversed(t *testing.T) {
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
 		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
 		// Simulated error:
+		getPipeDataCommand(sam, copyZstStateful).Return(fmt.Errorf("copy error")),
 		getPipeDataCommand(sam, copyStateful).Return(fmt.Errorf("copy error")),
 		getRunCmdCommand(sam, cleanPostInstallRevert).Return("", nil),
 	)
@@ -1475,7 +1540,7 @@ func TestPostInstallOverwriteWhenSpecified(t *testing.T) {
 		getRunCmdCommand(sam, stopUI).Return("", nil),
 		getRunCmdCommand(sam, stopUpdateEngine).Return("", nil),
 		getRunCmdCommand(sam, cleanPostInstall).Return("", nil),
-		getPipeDataCommand(sam, copyStateful).Return(nil),
+		getPipeDataCommand(sam, copyZstStateful).Return(nil),
 		getRunCmdCommand(sam, createUpdateAvailableFile).Return("", nil),
 		getRunCmdCommand(sam, crosSystem).Return("", nil),
 
