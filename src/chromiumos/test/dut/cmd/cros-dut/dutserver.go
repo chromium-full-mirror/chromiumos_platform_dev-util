@@ -279,6 +279,33 @@ func (s *DutServiceServer) waitForReboot(ctx context.Context, req *api.RestartRe
 	// by waiting for the client connection to shutdown or a timeout.
 	s.logger.Printf("Waiting for reboot to complete.")
 
+	// On cloudbots, the Wait() never returned even after the dut has
+	// already been rebooted. This caused timeout and test failures.
+	// By checking connection IsAlive() periodically, the Wait() does return and
+	// test can continue as expected.
+	isCloudbot := false
+	if id, found := os.LookupEnv("SWARMING_BOT_ID"); found && strings.HasPrefix(id, "cloudbots-") {
+		isCloudbot = true
+	}
+	if isCloudbot {
+		go func() {
+			t := time.NewTimer(15 * time.Second)
+			for {
+				select {
+				case <-t.C:
+					s.logger.Printf("IsConnectionAlive=%v", s.connection.IsAlive())
+					t.Reset(10 * time.Second)
+					return
+				case <-ctx.Done():
+					if !t.Stop() {
+						<-t.C
+					}
+					return
+				}
+			}
+		}()
+	}
+
 	wait := make(chan interface{})
 	go func() {
 		s.logger.Printf("Waiting for reboot: Connection wait.")
