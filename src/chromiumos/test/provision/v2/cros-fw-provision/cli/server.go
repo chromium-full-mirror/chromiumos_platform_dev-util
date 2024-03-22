@@ -24,6 +24,7 @@ import (
 
 	"go.chromium.org/chromiumos/config/go/longrunning"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type FWProvisionServer struct {
@@ -194,13 +195,28 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 	defer fwService.DeleteArchiveDirectories()
 
 	response.Status = api.InstallResponse_STATUS_SUCCESS
+	var firmwareResponse *api.FirmwareProvisionResponse
 	// Execute state machine
 	cs := state_machine.NewFirmwarePrepareState(fwService)
 	for cs != nil {
-		if _, response.Status, err = cs.Execute(ctx, ps.log); err != nil {
+		var metadata *api.FirmwareProvisionResponse
+		metadata, response.Status, err = cs.Execute(ctx, ps.log)
+		if metadata != nil {
+			firmwareResponse = metadata
+		}
+		if err != nil {
 			ps.log.Printf("State machine failed: %v", err)
 			break
 		}
 		cs = cs.Next()
 	}
+	// If the state machine didn't return metadata, get one from the fwService.
+	if firmwareResponse == nil {
+		firmwareResponse = fwService.GetVersions()
+	}
+	if err != nil {
+		firmwareResponse.ErrorMessage = err.Error()
+	}
+	response.Metadata, err = anypb.New(firmwareResponse)
+	ps.log.Printf("Failed to create AnyPb: %v", err)
 }

@@ -5,20 +5,18 @@
 package state_machine
 
 import (
-	common_utils "chromiumos/test/provision/v2/common-utils"
 	firmwareservice "chromiumos/test/provision/v2/cros-fw-provision/service"
 	"context"
 	"log"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type FirmwarePrepareState struct {
 	service *firmwareservice.FirmwareService
 }
 
-func NewFirmwarePrepareState(service *firmwareservice.FirmwareService) common_utils.ServiceState {
+func NewFirmwarePrepareState(service *firmwareservice.FirmwareService) ServiceState {
 	return FirmwarePrepareState{
 		service: service,
 	}
@@ -26,7 +24,7 @@ func NewFirmwarePrepareState(service *firmwareservice.FirmwareService) common_ut
 
 // FirmwarePrepareState downloads and extracts every image from the request.
 // The already downloaded images will not be downloaded and extracted again.
-func (s FirmwarePrepareState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
+func (s FirmwarePrepareState) Execute(ctx context.Context, log *log.Logger) (*api.FirmwareProvisionResponse, api.InstallResponse_Status, error) {
 	firmwareImageDestination := "DUT"
 	if s.service.IsServoUsed() {
 		firmwareImageDestination = "ServoHost"
@@ -53,7 +51,7 @@ func (s FirmwarePrepareState) Execute(ctx context.Context, log *log.Logger) (*an
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
-func (s FirmwarePrepareState) Next() common_utils.ServiceState {
+func (s FirmwarePrepareState) Next() ServiceState {
 	if s.service.UpdateRo() {
 		return FirmwareUpdateRoState(s)
 	} else {

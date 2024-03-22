@@ -5,7 +5,6 @@
 package main
 
 import (
-	common_utils "chromiumos/test/provision/v2/common-utils"
 	"chromiumos/test/provision/v2/cros-fw-provision/cli"
 	firmwareservice "chromiumos/test/provision/v2/cros-fw-provision/service"
 	state_machine "chromiumos/test/provision/v2/cros-fw-provision/state-machine"
@@ -22,6 +21,7 @@ import (
 	conf "go.chromium.org/chromiumos/config/go"
 	build_api "go.chromium.org/chromiumos/config/go/build/api"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -101,7 +101,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		return req
 	}
 
-	checkStateName := func(st common_utils.ServiceState, expectedStateName string) {
+	checkStateName := func(st state_machine.ServiceState, expectedStateName string) {
 		if st == nil {
 			if len(expectedStateName) > 0 {
 				t.Fatalf("expected state %v. got: nil state", expectedStateName)
@@ -125,16 +125,30 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		// expected outputs
 		updateRw, updateRo     bool
 		expectConstructorError bool
+		expectedResponse       *api.FirmwareProvisionResponse
+	}
+
+	fullVersion := &api.FirmwareProvisionResponse{
+		ApRoVersion: "roversion",
+		ApRwVersion: "rwversion",
+		EcRoVersion: "ecroversion",
+		EcRwVersion: "ecrwversion",
+	}
+	roOnlyVersion := &api.FirmwareProvisionResponse{
+		ApRoVersion: "roversion",
+		ApRwVersion: "roversioninrw",
+		EcRoVersion: "ecroversion",
+		EcRwVersion: "ecroversioninrw",
 	}
 
 	testCases := []TestCase{
-		{ /*in*/ false, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, false /*err*/, true},
-		{ /*in*/ true, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, false /*err*/, false},
-		{ /*in*/ false, true, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false},
-		{ /*in*/ false, false, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false},
-		{ /*in*/ false, true, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false},
-		{ /*in*/ true, true, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, true /*err*/, false},
-		{ /*in*/ true, true, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, true /*err*/, false},
+		{ /*in*/ false, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, false /*err*/, true, fullVersion},
+		{ /*in*/ true, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, false /*err*/, false, fullVersion},
+		{ /*in*/ false, true, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false, roOnlyVersion},
+		{ /*in*/ false, false, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false, roOnlyVersion},
+		{ /*in*/ false, true, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false, roOnlyVersion},
+		{ /*in*/ true, true, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, true /*err*/, false, fullVersion},
+		{ /*in*/ true, true, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, true /*err*/, false, fullVersion},
 		{ /*in*/ true, true, true, `{
 			"chromeos": {
 				"configs": [{
@@ -149,7 +163,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 					"name": "test_model"
 				}]
 			}
-		}`, "image-fromcoreboot.bin", "fromzephyr/ec.bin", "fromzephyr/npcx_monitor.bin" /*out*/, true, true /*err*/, false},
+		}`, "image-fromcoreboot.bin", "fromzephyr/ec.bin", "fromzephyr/npcx_monitor.bin" /*out*/, true, true /*err*/, false, fullVersion},
 	}
 
 	log, _ := cli.SetUpLog(cli.DefaultLogDirectory)
@@ -372,7 +386,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			)
 		}
 		// Execute the state and proceed.
-		_, _, err = st.Execute(ctx, log)
+		response, _, err := st.Execute(ctx, log)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -383,5 +397,12 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 
 		// Check for missing mock calls.
 		ctrl.Finish()
+
+		if response == nil {
+			response = fws.GetVersions()
+		}
+		if !proto.Equal(response, testCase.expectedResponse) {
+			t.Fatalf("Expected response, got %s, want %s", response.String(), testCase.expectedResponse.String())
+		}
 	}
 }

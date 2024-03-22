@@ -6,14 +6,12 @@
 package state_machine
 
 import (
-	common_utils "chromiumos/test/provision/v2/common-utils"
 	firmwareservice "chromiumos/test/provision/v2/cros-fw-provision/service"
 	"context"
 	"fmt"
 	"log"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // FirmwareUpdateRoState updates firmware with write protection disabled.
@@ -22,7 +20,7 @@ type FirmwareUpdateRoState struct {
 }
 
 // Execute flashes firmware with write-protection disabled using futility.
-func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
+func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*api.FirmwareProvisionResponse, api.InstallResponse_Status, error) {
 	connection := s.service.GetConnectionToFlashingDevice()
 
 	// form futility command args based on the request
@@ -75,7 +73,7 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
-func (s FirmwareUpdateRoState) Next() common_utils.ServiceState {
+func (s FirmwareUpdateRoState) Next() ServiceState {
 	if s.service.UpdateRw() {
 		return FirmwareUpdateRwState(s)
 	} else {

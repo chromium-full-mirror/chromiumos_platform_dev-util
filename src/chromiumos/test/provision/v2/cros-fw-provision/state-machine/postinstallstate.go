@@ -7,14 +7,12 @@
 package state_machine
 
 import (
-	common_utils "chromiumos/test/provision/v2/common-utils"
 	firmwareservice "chromiumos/test/provision/v2/cros-fw-provision/service"
 	"context"
 	"log"
 
 	"github.com/pkg/errors"
 	"go.chromium.org/chromiumos/config/go/test/api"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // FirmwarePostInstallState cleans up temporary folders and reboots the DUT.
@@ -23,49 +21,66 @@ type FirmwarePostInstallState struct {
 }
 
 // Execute deletes all folders with firmware image archives.
-func (s FirmwarePostInstallState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
+func (s FirmwarePostInstallState) Execute(ctx context.Context, log *log.Logger) (*api.FirmwareProvisionResponse, api.InstallResponse_Status, error) {
+	fwMetadata := s.service.GetVersions()
 	s.service.DeleteArchiveDirectories()
 	err := s.service.RestartDut(ctx, false)
 	if err != nil {
-		return nil, api.InstallResponse_STATUS_DUT_UNREACHABLE_POST_FIRMWARE_UPDATE, firmwareservice.UnreachablePostProvisionErr(err)
+		return fwMetadata, api.InstallResponse_STATUS_DUT_UNREACHABLE_POST_FIRMWARE_UPDATE, firmwareservice.UnreachablePostProvisionErr(err)
 	}
 
 	versions, err := s.service.ActiveFirmwareVersions(ctx)
 	if err != nil {
-		return nil, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE, firmwareservice.FirmwareMismatchPostProvisionErr(err)
+		return fwMetadata, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE, firmwareservice.FirmwareMismatchPostProvisionErr(err)
 	}
 	log.Printf("[FW Provisioning: Post Install] want firmware version ap:%+v ec:%+v\n", s.service.ExpectedVersions.AP.Versions, s.service.ExpectedVersions.EC.Versions)
 	log.Printf("[FW Provisioning: Post Install]  got firmware version ap:%+v ec:%+v\n", versions.AP.Versions, versions.EC.Versions)
+	if fwMetadata.ApRoVersion == "" {
+		fwMetadata.ApRoVersion = versions.AP.Versions.RO
+	}
+	if fwMetadata.ApRwVersion == "" {
+		fwMetadata.ApRwVersion = versions.AP.Versions.RW
+	}
+	if fwMetadata.EcRoVersion == "" {
+		fwMetadata.EcRoVersion = versions.EC.Versions.RO
+	}
+	if fwMetadata.EcRwVersion == "" {
+		fwMetadata.EcRwVersion = versions.EC.Versions.RW
+	}
+
 	if s.service.ExpectedVersions.AP.Versions.RO != "" && s.service.ExpectedVersions.AP.Versions.RO != versions.AP.Versions.RO {
-		return nil, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
+		return fwMetadata, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
 			firmwareservice.FirmwareMismatchPostProvisionErr(errors.Errorf(
 				"incorrect ap ro version got %q, want %q", versions.AP.Versions.RO, s.service.ExpectedVersions.AP.Versions.RO))
 	}
-	if s.service.ExpectedVersions.AP.Versions.RW != "" && s.service.ExpectedVersions.AP.Versions.RW != versions.AP.Versions.RW {
-		return nil, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
-			firmwareservice.FirmwareMismatchPostProvisionErr(errors.Errorf(
-				"incorrect ap rw version got %q, want %q", versions.AP.Versions.RW, s.service.ExpectedVersions.AP.Versions.RW))
-	}
 	if s.service.ExpectedVersions.EC.Versions.RO != "" && s.service.ExpectedVersions.EC.Versions.RO != versions.EC.Versions.RO {
-		return nil, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
+		return fwMetadata, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
 			firmwareservice.FirmwareMismatchPostProvisionErr(errors.Errorf(
 				"incorrect ec ro version got %q, want %q", versions.EC.Versions.RO, s.service.ExpectedVersions.EC.Versions.RO))
 	}
-	if s.service.ExpectedVersions.EC.Versions.RW != "" && s.service.ExpectedVersions.EC.Versions.RW != versions.EC.Versions.RW {
-		return nil, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
+	if s.service.ExpectedVersions.AP.Versions.RW != "" && s.service.ExpectedVersions.AP.Versions.RW != versions.AP.Versions.RW {
+		return fwMetadata, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
 			firmwareservice.FirmwareMismatchPostProvisionErr(errors.Errorf(
-				"incorrect ec rw version got %q, want %q", versions.EC.Versions.RW, s.service.ExpectedVersions.EC.Versions.RW))
+				"incorrect ap rw version got %q, want %q", versions.AP.Versions.RW, s.service.ExpectedVersions.AP.Versions.RW))
 	}
 	if s.service.ExpectedVersions.EC.Versions.RWHash != "" && s.service.ExpectedVersions.EC.Versions.RWHash != versions.EC.Versions.RWHash {
-		return nil, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
+		return fwMetadata, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
 			firmwareservice.FirmwareMismatchPostProvisionErr(errors.Errorf(
 				"incorrect ec rw hash got %q, want %q", versions.EC.Versions.RWHash, s.service.ExpectedVersions.EC.Versions.RWHash))
 	}
+	// If the hash is present, then don't check the RW version at all, because it's unreliable as it comes from the ec.bin, but the actual binary comes from the AP RW cbfs.
+	if s.service.ExpectedVersions.EC.Versions.RWHash == "" && s.service.ExpectedVersions.EC.Versions.RW != "" && s.service.ExpectedVersions.EC.Versions.RW != versions.EC.Versions.RW {
+		return fwMetadata, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE,
+			firmwareservice.FirmwareMismatchPostProvisionErr(errors.Errorf(
+				"incorrect ec rw version got %q, want %q", versions.EC.Versions.RW, s.service.ExpectedVersions.EC.Versions.RW))
+	}
+	// Since the EC RWHash was verified, overwrite the expected EC RW version with the actual version, just in case we had the wrong one.
+	fwMetadata.EcRwVersion = versions.EC.Versions.RW
 
-	return nil, api.InstallResponse_STATUS_SUCCESS, nil
+	return fwMetadata, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
-func (s FirmwarePostInstallState) Next() common_utils.ServiceState {
+func (s FirmwarePostInstallState) Next() ServiceState {
 	return nil
 }
 

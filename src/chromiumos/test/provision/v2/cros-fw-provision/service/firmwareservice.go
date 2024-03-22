@@ -405,6 +405,16 @@ func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly 
 	return nil
 }
 
+// GetVersions returns a FirmwareProvisionResponse with the expected firmware versions
+func (fws *FirmwareService) GetVersions() *api.FirmwareProvisionResponse {
+	r := new(api.FirmwareProvisionResponse)
+	r.ApRoVersion = fws.ExpectedVersions.AP.Versions.RO
+	r.ApRwVersion = fws.ExpectedVersions.AP.Versions.RW
+	r.EcRoVersion = fws.ExpectedVersions.EC.Versions.RO
+	r.EcRwVersion = fws.ExpectedVersions.EC.Versions.RW
+	return r
+}
+
 // ActiveFirmwareVersions returns the firmware versions currently running on the DUT.
 func (fws *FirmwareService) ActiveFirmwareVersions(ctx context.Context) (*FirmwareVersions, error) {
 	var versions FirmwareVersions
