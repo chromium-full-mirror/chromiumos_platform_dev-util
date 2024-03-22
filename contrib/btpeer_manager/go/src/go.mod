@@ -35,4 +35,4 @@ require (
 	google.golang.org/protobuf v1.29.1
 )
 
-replace go.chromium.org/chromiumos/config/go v0.0.0 => ../../../../../../config/go
+replace go.chromium.org/chromiumos/config/go v0.0.0 => ../../../../../../config/go/src/go.chromium.org/chromiumos/config/go
