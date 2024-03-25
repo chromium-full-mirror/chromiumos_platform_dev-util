@@ -6,7 +6,7 @@ package servodserver
 
 import (
 	"bytes"
-	"chromiumos/test/servod/cmd/model"
+	"go.chromium.org/chromiumos/test/servod/cmd/model"
 	"fmt"
 	"io"
 	"strings"

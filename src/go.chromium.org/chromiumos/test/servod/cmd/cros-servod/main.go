@@ -19,9 +19,9 @@ import (
 	"strings"
 	"time"
 
-	"chromiumos/test/servod/cmd/commandexecutor"
-	"chromiumos/test/servod/cmd/model"
-	"chromiumos/test/servod/cmd/servodserver"
+	"go.chromium.org/chromiumos/test/servod/cmd/commandexecutor"
+	"go.chromium.org/chromiumos/test/servod/cmd/model"
+	"go.chromium.org/chromiumos/test/servod/cmd/servodserver"
 
 	"go.chromium.org/luci/common/errors"
 )

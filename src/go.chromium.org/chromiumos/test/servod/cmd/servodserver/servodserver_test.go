@@ -2,7 +2,7 @@ package servodserver
 
 import (
 	"bytes"
-	"chromiumos/test/servod/cmd/mock_commandexecutor"
+	"go.chromium.org/chromiumos/test/servod/cmd/mock_commandexecutor"
 	"context"
 	"io"
 	"log"

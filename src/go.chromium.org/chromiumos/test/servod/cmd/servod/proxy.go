@@ -10,7 +10,7 @@ import (
 	"net"
 	"sync"
 
-	"chromiumos/test/servod/cmd/ssh"
+	"go.chromium.org/chromiumos/test/servod/cmd/ssh"
 	"go.chromium.org/luci/common/errors"
 )
 

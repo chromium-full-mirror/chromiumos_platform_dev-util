@@ -6,8 +6,8 @@
 package servod
 
 import (
-	"chromiumos/test/servod/cmd/ssh"
-	"chromiumos/test/servod/cmd/xmlrpc"
+	"go.chromium.org/chromiumos/test/servod/cmd/ssh"
+	"go.chromium.org/chromiumos/test/servod/cmd/xmlrpc"
 	"context"
 	"fmt"
 	"log"

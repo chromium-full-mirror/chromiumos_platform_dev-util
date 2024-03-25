@@ -14,11 +14,11 @@ import (
 	"strings"
 
 	"go.chromium.org/chromiumos/lro"
-	"chromiumos/test/servod/cmd/commandexecutor"
-	"chromiumos/test/servod/cmd/model"
-	"chromiumos/test/servod/cmd/servod"
+	"go.chromium.org/chromiumos/test/servod/cmd/commandexecutor"
+	"go.chromium.org/chromiumos/test/servod/cmd/model"
+	"go.chromium.org/chromiumos/test/servod/cmd/servod"
 
-	"chromiumos/test/servod/cmd/ssh"
+	"go.chromium.org/chromiumos/test/servod/cmd/ssh"
 
 	"go.chromium.org/chromiumos/config/go/longrunning"
 	"go.chromium.org/chromiumos/config/go/test/api"
