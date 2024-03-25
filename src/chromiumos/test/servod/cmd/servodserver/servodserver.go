@@ -13,7 +13,7 @@ import (
 	"log"
 	"strings"
 
-	"chromiumos/lro"
+	"go.chromium.org/chromiumos/lro"
 	"chromiumos/test/servod/cmd/commandexecutor"
 	"chromiumos/test/servod/cmd/model"
 	"chromiumos/test/servod/cmd/servod"

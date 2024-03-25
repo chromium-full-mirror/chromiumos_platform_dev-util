@@ -9,7 +9,7 @@ import (
 	"context"
 	"log"
 
-	"chromiumos/lro"
+	"go.chromium.org/chromiumos/lro"
 	"chromiumos/test/publish/cmd/publishserver/storage"
 
 	"go.chromium.org/chromiumos/config/go/longrunning"

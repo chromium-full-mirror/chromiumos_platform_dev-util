@@ -1,27 +1,28 @@
-package lro_test
+package lroold_test
 
 import (
 	"context"
 	"net"
 	"testing"
 
-	"chromiumos/lro"
+	"go.chromium.org/chromiumos/lroold"
 
-	"go.chromium.org/chromiumos/config/go/longrunning"
+	"go.chromium.org/chromiumos/config/go/api/test/tls"
+	"go.chromium.org/chromiumos/config/go/api/test/tls/dependencies/longrunning"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/grpc"
 )
 
 type exampleServer struct {
-	api.UnimplementedExecutionServiceServer
-	*lro.Manager
+	tls.UnimplementedCommonServer
+	*lroold.Manager
 }
 
 func (s *exampleServer) Serve(l net.Listener) error {
-	s.Manager = lro.New()
+	s.Manager = lroold.New()
 	defer s.Manager.Close()
 	server := grpc.NewServer()
-	api.RegisterExecutionServiceServer(server, s)
+	tls.RegisterCommonServer(server, s)
 	longrunning.RegisterOperationsServer(server, s.Manager)
 	return server.Serve(l)
 }

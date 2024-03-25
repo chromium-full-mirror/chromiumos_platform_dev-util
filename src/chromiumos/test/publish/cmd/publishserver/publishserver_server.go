@@ -13,7 +13,7 @@ import (
 	"go.chromium.org/luci/common/errors"
 	"google.golang.org/grpc"
 
-	"chromiumos/lro"
+	"go.chromium.org/chromiumos/lro"
 )
 
 // StartServer starts publish server on requested port

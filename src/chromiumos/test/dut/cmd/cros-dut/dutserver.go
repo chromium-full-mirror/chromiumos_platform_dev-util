@@ -31,7 +31,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"chromiumos/lro"
+	"go.chromium.org/chromiumos/lro"
 	"chromiumos/test/dut/cmd/cros-dut/dutssh"
 	"chromiumos/test/dut/internal"
 )

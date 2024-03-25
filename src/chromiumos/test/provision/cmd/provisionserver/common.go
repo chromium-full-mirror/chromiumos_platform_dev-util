@@ -20,7 +20,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"chromiumos/lro"
+	"go.chromium.org/chromiumos/lro"
 	"chromiumos/test/provision/cmd/provisionserver/bootstrap/services"
 	"chromiumos/test/provision/cmd/provisionserver/bootstrap/services/ashservice"
 	"chromiumos/test/provision/cmd/provisionserver/bootstrap/services/crosservice"

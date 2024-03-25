@@ -14,7 +14,7 @@ import (
 	"go.chromium.org/luci/common/errors"
 	"google.golang.org/grpc"
 
-	"chromiumos/lro"
+	"go.chromium.org/chromiumos/lro"
 	"chromiumos/test/execution/cmd/cros-test/internal/common"
 )
 

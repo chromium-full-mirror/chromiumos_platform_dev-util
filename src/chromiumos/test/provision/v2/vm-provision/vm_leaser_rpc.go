@@ -5,7 +5,7 @@
 package main
 
 import (
-	"chromiumos/lro"
+	"go.chromium.org/chromiumos/lro"
 	"context"
 	"fmt"
 	"io/ioutil"

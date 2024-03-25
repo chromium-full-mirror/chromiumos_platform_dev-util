@@ -6,7 +6,7 @@
 package server
 
 import (
-	"chromiumos/lro"
+	"go.chromium.org/chromiumos/lro"
 	"chromiumos/test/publish/cmd/common-utils/metadata"
 	"chromiumos/test/publish/cmd/cpcon-publish/service"
 	"context"

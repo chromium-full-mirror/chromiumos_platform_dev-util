@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	"chromiumos/lro"
+	"go.chromium.org/chromiumos/lro"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 
