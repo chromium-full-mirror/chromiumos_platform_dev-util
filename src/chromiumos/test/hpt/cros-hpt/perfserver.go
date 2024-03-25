@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	perfCollectorInterval = time.Second * 60
+	perfCollectorInterval = time.Second * 10
 	healthCheckInterval   = time.Second * 30
 	waitTimout            = time.Second * 30
 	perfInitPollInterval  = time.Millisecond * 100
