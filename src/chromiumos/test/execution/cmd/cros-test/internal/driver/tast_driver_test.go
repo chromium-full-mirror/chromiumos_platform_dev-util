@@ -50,7 +50,7 @@ func TestNewTastArgs(t *testing.T) {
 			{systemServicesTimeoutFlag, defaultSysServicesTimeout},
 			{dutLabConfigFlag, dutLabConfigFile},
 			{buildArtifactsURLFlag, buildArtifactsURLValue},
-			{varFlag, fmt.Sprintf("%s=%q", varName, varValue)},
+			{varFlag, fmt.Sprintf("%s=%s", varName, varValue)},
 		},
 	}
 
