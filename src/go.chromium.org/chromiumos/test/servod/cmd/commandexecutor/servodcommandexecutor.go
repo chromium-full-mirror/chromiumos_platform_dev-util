@@ -6,7 +6,7 @@ package commandexecutor
 
 import (
 	"bytes"
-	"chromiumos/test/dut/cmd/cros-dut/dutssh"
+	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
 	"io"
 	"log"
 	"os"

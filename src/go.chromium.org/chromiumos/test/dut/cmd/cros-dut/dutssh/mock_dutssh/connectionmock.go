@@ -9,7 +9,7 @@
 package mock_dutssh
 
 import (
-	dutssh "chromiumos/test/dut/cmd/cros-dut/dutssh"
+	dutssh "go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
 	io "io"
 	reflect "reflect"
 

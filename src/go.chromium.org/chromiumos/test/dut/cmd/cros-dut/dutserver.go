@@ -32,8 +32,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	"go.chromium.org/chromiumos/lro"
-	"chromiumos/test/dut/cmd/cros-dut/dutssh"
-	"chromiumos/test/dut/internal"
+	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
+	"go.chromium.org/chromiumos/test/dut/internal"
 )
 
 const cacheDownloadURI = "/download/%s"

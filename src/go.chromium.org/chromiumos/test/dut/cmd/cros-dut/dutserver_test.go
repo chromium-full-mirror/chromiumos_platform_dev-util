@@ -6,8 +6,8 @@ package main
 
 import (
 	"bytes"
-	"chromiumos/test/dut/cmd/cros-dut/dutssh"
-	"chromiumos/test/dut/cmd/cros-dut/dutssh/mock_dutssh"
+	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
+	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh/mock_dutssh"
 	"context"
 	"errors"
 	"fmt"

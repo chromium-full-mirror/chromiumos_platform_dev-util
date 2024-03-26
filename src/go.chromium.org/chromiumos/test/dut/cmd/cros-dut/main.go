@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"chromiumos/test/dut/cmd/cros-dut/dutssh"
+	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
 	"chromiumos/test/util/portdiscovery"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
