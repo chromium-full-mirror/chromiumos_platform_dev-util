@@ -400,7 +400,7 @@ func newTastArgs(primary *device.DutInfo,
 		if a.GetFlag() == "" {
 			continue
 		}
-		runFlags = append(runFlags, flagValue{varFlag, fmt.Sprintf("%s=%q", a.GetFlag(), a.GetValue())})
+		runFlags = append(runFlags, flagValue{varFlag, fmt.Sprintf("%s=%s", a.GetFlag(), a.GetValue())})
 	}
 	return &runArgs{
 		primary: primary,
