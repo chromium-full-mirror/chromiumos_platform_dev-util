@@ -156,15 +156,53 @@ func retrieveBuildTargetKey(req []*api.SwarmingDefinition) (string, error) {
 	}
 	return "", nil
 }
+func checkIfTestHwDepQualify(includeFlags []string, excludeFlags []string, useFlagSet map[string]bool) bool {
+	// Check if all items in includeFlags are present in useFlagSet
+	for _, flag := range includeFlags {
+		if !useFlagSet[flag] {
+			return false
+		}
+	}
+	// Check if any items in excludeFlags are present in useFlagSet
+	for _, flag := range excludeFlags {
+		if useFlagSet[flag] {
+			return false
+		}
+	}
+	return true
+}
 
-func checkIfAnyUseFlagPresent(useFlagSet map[string]bool, testHwDeps []*api.TestCase_BuildDeps) bool {
-
+func checkIfAnyTestHwDepsQualify(useFlagSet map[string]bool, testHwDeps []*api.TestCase_BuildDeps, log *log.Logger) bool {
 	for _, buildDep := range testHwDeps {
-		if useFlagSet[buildDep.GetValue()] {
+		includeFlags, excludeFlags := createIncludeAndExcludeUseFlagList(buildDep, log)
+		if checkIfTestHwDepQualify(includeFlags, excludeFlags, useFlagSet) {
 			return true
 		}
 	}
 	return false
+}
+
+func createIncludeAndExcludeUseFlagList(buildDep *api.TestCase_BuildDeps, log *log.Logger) ([]string, []string) {
+	var includeFlag []string
+	var excludeFlag []string
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Error parsing use flag expression from test metadata %s", buildDep.GetValue())
+			includeFlag = nil
+			excludeFlag = nil
+		}
+	}()
+
+	condition := strings.Split(buildDep.GetValue(), ",")
+	for _, item := range condition {
+		if len(item) > 0 && item[0] == '!' {
+			excludeFlag = append(excludeFlag, item[1:])
+		} else {
+			includeFlag = append(includeFlag, item)
+		}
+	}
+	return includeFlag, excludeFlag
 }
 
 func filterHwRequirementsBasedOnUseFlag(hwReqs []*api.HWRequirements, useFlagDict map[string]map[string]bool, testHwDeps []*api.TestCase_BuildDeps, log *log.Logger) error {
@@ -185,8 +223,8 @@ func filterHwRequirementsBasedOnUseFlag(hwReqs []*api.HWRequirements, useFlagDic
 			if hwDef.GetDutInfo().GetChromeos() != nil && useFlagDict[buildTargetKey] != nil {
 				// check if any test buildDeps is present in the set.
 				useFlagSet := useFlagDict[buildTargetKey]
-				present := checkIfAnyUseFlagPresent(useFlagSet, testHwDeps)
-				if present {
+				qualify := checkIfAnyTestHwDepsQualify(useFlagSet, testHwDeps, log)
+				if qualify {
 					filteredHwDefs = append(filteredHwDefs, hwDef)
 				} else {
 					log.Printf("DUT with build target : %s removed", buildTargetKey)

@@ -220,11 +220,11 @@ func JSONSerialize(any interface{}) string {
 	return string(json)
 }
 
-// All test build deps present in use flags for individual boards. No hwDef removed.
+// All test build deps expression qualify. No hwDef removed.
 func TestUpdateTestCases_buildDeps_in_use_flags_dict(t *testing.T) {
 	buildDepsTest1 := []*api.TestCase_BuildDeps{
 		{
-			Value: "common",
+			Value: "common,!notpresent",
 		},
 	}
 	internalTestPlan := GenerateInternalTestPlan(buildDepsTest1, buildDepsTest1)
@@ -239,11 +239,11 @@ func TestUpdateTestCases_buildDeps_in_use_flags_dict(t *testing.T) {
 	assert.Equal(t, JSONSerialize(filteredInternalTestPlan), JSONSerialize(internalTestPlan))
 }
 
-// Few test build deps present in use flag for individual board. Octopus hwDef removed.
+// Few test build deps expression qualify. Octopus hwDef removed.
 func TestUpdateTestCases_buildDeps_in_use_flags_dict_partial_match(t *testing.T) {
 	buildDepsTest1 := []*api.TestCase_BuildDeps{
 		{
-			Value: "nissa",
+			Value: "nissa,!invalid-use-flag",
 		},
 		{
 			Value: "invalid-use-flag",
@@ -279,11 +279,14 @@ func TestUpdateTestCases_buildDeps_in_use_flags_dict_partial_match(t *testing.T)
 	assert.Equal(t, JSONSerialize(filteredInternalTestPlan), JSONSerialize(internalTestPlan))
 }
 
-// No test build deps present in use flag for individual board. All ChromeOS Dut type hwDef removed.
+// No test hwDef expression qualifies. All ChromeOS Dut type hwDef removed.
 func TestUpdateTestCases_buildDeps_not_in_use_flags_dict(t *testing.T) {
 	buildDepsTest1 := []*api.TestCase_BuildDeps{
 		{
-			Value: "uncommon",
+			Value: "common,notpresent",
+		},
+		{
+			Value: "!common",
 		},
 	}
 	internalTestPlan := GenerateInternalTestPlan(buildDepsTest1, buildDepsTest1)
@@ -304,6 +307,27 @@ func TestUpdateTestCases_buildDeps_not_in_use_flags_dict(t *testing.T) {
 			}
 			hwReqs.HwDefinition = newHwDef
 		}
+	}
+	assert.Equal(t, JSONSerialize(filteredInternalTestPlan), JSONSerialize(internalTestPlan))
+}
+
+// Partial test hwDef expression qualifies. No ChromeOS Dut type hwDef removed.
+func TestUpdateTestCases_buildDeps_expression_qualifies(t *testing.T) {
+	buildDepsTest1 := []*api.TestCase_BuildDeps{
+		{
+			Value: "common,notpresent",
+		},
+		{
+			Value: "common",
+		},
+	}
+	internalTestPlan := GenerateInternalTestPlan(buildDepsTest1, buildDepsTest1)
+	filteredInternalTestPlan := proto.Clone(internalTestPlan).(*api.InternalTestplan)
+	emptyLogger := log.New(io.Discard, "", 0)
+	err := updateTestCases(filteredInternalTestPlan, GenerateBoardUseFlagDict([]string{"nissa", "octopus", "dedede"}), emptyLogger)
+	if err != nil {
+		t.Errorf("updateTestCases failed: %v", err)
+		return
 	}
 	assert.Equal(t, JSONSerialize(filteredInternalTestPlan), JSONSerialize(internalTestPlan))
 }
