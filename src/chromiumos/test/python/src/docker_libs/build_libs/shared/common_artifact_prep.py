@@ -10,13 +10,8 @@ import shutil
 import sys
 
 import setup_chromite  # pylint: disable=unused-import,import-error
-from src.common.exceptions import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
-    ConfigError,
-)
-from src.common.exceptions import NotDirectoryException
-from src.common.utils import (
-    run,  # pylint: disable=import-error,wrong-import-position
-)
+from src.common import utils
+import src.common.exceptions as common_exception
 
 from chromite.lib import path_util
 
@@ -81,7 +76,7 @@ class CrosArtifactPrep:
                 raise FileNotFoundError(
                     "Autotest path %s does not exist" % self.full_autotest
                 )
-            raise NotDirectoryException(
+            raise common_exception.NotDirectoryException(
                 "Autotest path %s is not a directory" % self.full_autotest
             )
 
@@ -90,7 +85,7 @@ class CrosArtifactPrep:
                 raise FileNotFoundError(
                     "sysroot %s does not exist" % self.build_path
                 )
-            raise NotDirectoryException(
+            raise common_exception.NotDirectoryException(
                 "sysroot %s is not a directory" % self.build_path
             )
 
@@ -101,7 +96,7 @@ class CrosArtifactPrep:
                 print(f"Deleting existing prepdir {self.full_out}")
                 shutil.rmtree(self.full_out)
             else:
-                raise ConfigError(
+                raise common_exception.ConfigError(
                     "outpath %s exists and force is not set." % self.full_out
                 )
         os.makedirs(self.full_out, exist_ok=True)
@@ -159,7 +154,11 @@ class CrosArtifactPrep:
             ),
             (
                 "build/share/tast/metadata/local/crosint.pb",
-                os.path.join(self.full_out, "crosint.pb"),
+                os.path.join(self.full_out, "local_crosint.pb"),
+            ),
+            (
+                "build/share/tast/metadata/local/crosint_intel.pb",
+                os.path.join(self.full_out, "local_crosint_intel.pb"),
             ),
         ]
 
@@ -168,7 +167,15 @@ class CrosArtifactPrep:
             (
                 "usr/share/tast/metadata/remote/cros.pb",
                 os.path.join(self.full_out, "remote_cros.pb"),
-            )
+            ),
+            (
+                "usr/share/tast/metadata/remote/crosint.pb",
+                os.path.join(self.full_out, "remote_crosint.pb"),
+            ),
+            (
+                "usr/share/tast/metadata/remote/crosint_intel.pb",
+                os.path.join(self.full_out, "remote_crosint_intel.pb"),
+            ),
         ]
 
         _GTEST_METADATA_PATH = "usr/local/build/gtest/"
@@ -193,7 +200,6 @@ class CrosArtifactPrep:
                 s = os.path.join(full_gtest_path, f)
                 d = os.path.join(self.full_out, f)
                 shutil.copyfile(s, d)
-
 
     def copy_private_key(self):
         """Copy private keys from src to docker context."""
@@ -228,7 +234,7 @@ class CrosArtifactPrep:
             "/dl/infra/tools/cipd/linux-amd64/+/latest"
         )
         downloaded_zip_name = "cipdzip.zip"
-        out, err, code = run(
+        out, err, code = utils.run(
             f"wget -O {self.full_out}/{downloaded_zip_name} {cipd_package_loc}"
         )
         if out != "":
@@ -242,7 +248,7 @@ class CrosArtifactPrep:
             f"unzip -o {self.full_out}/{downloaded_zip_name}"
             f" -d {self.full_out}/"
         )
-        out, err, code = run(unzip_cmd)
+        out, err, code = utils.run(unzip_cmd)
         if out != "":
             print(out)
         if err != "":
@@ -253,7 +259,7 @@ class CrosArtifactPrep:
     def cipd_init(self):
         """Initialize Cipd."""
 
-        out, err, code = run(
+        out, err, code = utils.run(
             f"{self.full_out}/cipd init -verbose -force {self.full_out}"
         )
         if out != "":
@@ -273,7 +279,7 @@ class CrosArtifactPrep:
             output_loc = f"{self.full_out}/{json_output_file}"
             install_cmd = f"{install_cmd} -json-output {output_loc}"
 
-        out, err, code = run(install_cmd)
+        out, err, code = utils.run(install_cmd)
         if out != "":
             print(out)
         if err != "":
@@ -290,7 +296,7 @@ class CrosArtifactPrep:
             output_loc = f"{self.full_out}/{json_output_file}"
             deploy_cmd = f"{deploy_cmd} -json-output {output_loc}"
 
-        out, err, code = run(deploy_cmd)
+        out, err, code = utils.run(deploy_cmd)
         if out != "":
             print(out)
         if err != "":
