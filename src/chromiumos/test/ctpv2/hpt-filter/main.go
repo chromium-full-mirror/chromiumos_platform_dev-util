@@ -15,7 +15,7 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 
 	server "chromiumos/test/ctpv2/common/server_template"
-	"chromiumos/test/publish/cmd/publishserver/storage"
+	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
 )
 
 const (

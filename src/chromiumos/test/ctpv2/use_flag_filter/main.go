@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"chromiumos/test/publish/cmd/publishserver/storage"
+	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
 
 	"github.com/google/uuid"
 	"go.chromium.org/chromiumos/config/go/test/api"

@@ -5,7 +5,7 @@
 package main
 
 import (
-	"chromiumos/test/publish/cmd/publishserver/storage"
+	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
 	"context"
 	"encoding/json"
 	"os"
