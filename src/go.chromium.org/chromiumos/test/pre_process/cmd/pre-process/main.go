@@ -19,9 +19,9 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 
 	"chromiumos/test/execution/errors"
-	"chromiumos/test/pre_process/cmd/pre-process/interfaces"
-	"chromiumos/test/pre_process/cmd/pre-process/policies"
-	"chromiumos/test/pre_process/cmd/pre-process/structs"
+	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/interfaces"
+	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/policies"
+	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/structs"
 
 	"chromiumos/test/util/helpers"
 )

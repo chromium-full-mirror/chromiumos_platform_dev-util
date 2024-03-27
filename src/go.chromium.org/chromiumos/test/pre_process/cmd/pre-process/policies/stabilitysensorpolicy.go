@@ -5,8 +5,8 @@
 package policies
 
 import (
-	"chromiumos/test/pre_process/cmd/pre-process/interfaces"
-	"chromiumos/test/pre_process/cmd/pre-process/structs"
+	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/interfaces"
+	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/structs"
 	"log"
 )
 

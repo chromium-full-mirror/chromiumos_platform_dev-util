@@ -11,8 +11,8 @@ import (
 	"math"
 	"strconv"
 
-	"chromiumos/test/pre_process/cmd/pre-process/interfaces"
-	"chromiumos/test/pre_process/cmd/pre-process/structs"
+	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/interfaces"
+	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/structs"
 
 	"cloud.google.com/go/bigquery"
 	"go.chromium.org/chromiumos/config/go/test/api"

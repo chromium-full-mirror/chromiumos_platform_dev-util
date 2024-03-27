@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"chromiumos/test/pre_process/cmd/pre-process/structs"
+	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/structs"
 
 	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
