@@ -20,8 +20,8 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/grpc"
 
-	"chromiumos/test/post_process/cmd/post-process/commands"
-	"chromiumos/test/post_process/cmd/post-process/common"
+	"go.chromium.org/chromiumos/test/post_process/cmd/post-process/commands"
+	"go.chromium.org/chromiumos/test/post_process/cmd/post-process/common"
 )
 
 const (

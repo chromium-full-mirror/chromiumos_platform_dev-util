@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"chromiumos/test/post_process/cmd/post-process/common"
+	"go.chromium.org/chromiumos/test/post_process/cmd/post-process/common"
 	"chromiumos/test/util/portdiscovery"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
