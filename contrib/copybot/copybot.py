@@ -928,14 +928,14 @@ def run_copybot(args, git_dir, patch_dir):
     logger.info("Found: %s changes to downstream", num_cls_to_downstream)
 
     if num_cls_to_downstream > args.upstream_history_limit:
-        logger.error(
+        logger.warning(
             "There are %s CLs between HEAD and %s but the history limit is"
-            " set to %s.",
+            " set to %s. Raising the history limit to accommodate this.",
             num_cls_to_downstream,
             last_related_rev,
             args.upstream_history_limit,
         )
-        raise OverflowError("More CLs to downstream than set limit")
+        args.upstream_history_limit = num_cls_to_downstream
     skip_revs = []
     if gerrit:
         skip_revs = gerrit.get_skiplist(
