@@ -583,8 +583,10 @@ def find_last_merged_rev(
         exclude_file_patterns: List of paths to be excluded.
 
     Returns:
-        A commit hash of the last merged revision by CopyBot, or the
-        first common commit hash in both logs.
+        Two values,
+            1. A commit hash of the last merged revision by CopyBot, or the
+                first common commit hash in both logs.
+            2. The number of CLs which are eligible to be downstreamed.
 
     Raises:
         ValueError: No common history could be found.
@@ -599,10 +601,9 @@ def find_last_merged_rev(
     for rev in downstream_hashes:
         commit_message = repo.get_commit_message(rev)
         origin_revid = get_origin_rev_id(commit_message)
-        if origin_revid:
-            return origin_revid
-        if rev in upstream_hashes:
-            return rev
+        if rev in upstream_hashes or origin_revid:
+            counter = upstream_hashes.index(origin_revid or rev)
+            return origin_revid or rev, counter
 
     raise ValueError(
         "Downstream has no GitOrigin-RevId commits, and upstream and "
@@ -909,7 +910,7 @@ def run_copybot(args, git_dir, patch_dir):
 
     # Verify that the two repositories share a history
     try:
-        last_related_rev = find_last_merged_rev(
+        last_related_rev, num_cls_to_downstream = find_last_merged_rev(
             repo,
             upstream_rev,
             downstream_rev,
@@ -924,6 +925,17 @@ def run_copybot(args, git_dir, patch_dir):
     else:
         logger.info("Last related revision: %s", last_related_rev)
 
+    logger.info("Found: %s changes to downstream", num_cls_to_downstream)
+
+    if num_cls_to_downstream > args.upstream_history_limit:
+        logger.error(
+            "There are %s CLs between HEAD and %s but the history limit is"
+            " set to %s.",
+            num_cls_to_downstream,
+            last_related_rev,
+            args.upstream_history_limit,
+        )
+        raise OverflowError("More CLs to downstream than set limit")
     skip_revs = []
     if gerrit:
         skip_revs = gerrit.get_skiplist(
