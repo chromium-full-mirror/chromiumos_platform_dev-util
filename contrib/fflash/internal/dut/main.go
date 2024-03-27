@@ -44,6 +44,13 @@ func Main() error {
 	}
 	defer payload.CloseClient()
 
+	// Prevent the system from suspending or shutting down.
+	err = os.WriteFile(powerdLockFilePath, []byte(""), 0755)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(powerdLockFilePath)
+
 	pr := progress.NewProgressReporter()
 	ch := make(chan error)
 

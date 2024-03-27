@@ -5,6 +5,7 @@
 package dut
 
 const (
-	statefulDir       = "/mnt/stateful_partition"
-	statefulAvailable = ".update_available"
+	statefulDir        = "/mnt/stateful_partition"
+	statefulAvailable  = ".update_available"
+	powerdLockFilePath = "/run/lock/power_override/fflash.lock"
 )
