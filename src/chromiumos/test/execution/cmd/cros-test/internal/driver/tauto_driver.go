@@ -248,7 +248,6 @@ func genTautoArgList(args *tautoRunArgs) (argList []string) {
 }
 
 func processArgs(req *api.CrosTestRequest) (string, error) {
-	customArgs := ""
 	suites := req.GetTestSuites()
 	// In reality; we should never have an empty suite.
 	if len(suites) > 0 {
@@ -268,17 +267,13 @@ func processArgs(req *api.CrosTestRequest) (string, error) {
 	}
 
 	// Backwards compatibility.
-	if customArgs == "" {
-		customAutotestArgs, _, err := common.UnpackMetadata(req)
-		if err != nil {
-			return "", err
-		}
-		subCustomArgs := ""
-		for name, value := range customAutotestArgs {
-			subCustomArgs += fmt.Sprintf(" %v=%v", name, value)
-		}
-		customArgs = subCustomArgs
-
+	customAutotestArgs, _, err := common.UnpackMetadata(req)
+	if err != nil {
+		return "", err
 	}
-	return customArgs, nil
+	subCustomArgs := ""
+	for _, arg := range customAutotestArgs {
+		subCustomArgs += fmt.Sprintf(" %v=%v", arg.Flag, arg.Value)
+	}
+	return subCustomArgs, nil
 }
