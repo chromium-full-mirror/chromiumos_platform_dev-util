@@ -19,6 +19,7 @@ go_library(
     importpath = "chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/dut",
     visibility = ["//:__subpackages__"],
     deps = [
+        "//internal/artifact",
         "//internal/logging",
         "//internal/misc",
         "//internal/partitions",

@@ -8,18 +8,20 @@ import (
 	"context"
 	"testing"
 
+	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/artifact"
 	qt "github.com/frankban/quicktest"
 )
 
 func TestGetFlashTargetGS(t *testing.T) {
 	c := qt.New(t)
 
-	bucket, dir, err := getFlashTarget(context.Background(), nil, "", &Options{
+	art, err := getFlashTarget(context.Background(), nil, "", &Options{
 		GS: "gs://chromeos-image-archive/cherry-release/R104-14911.0.0",
 	})
 
-	c.Check(bucket, qt.Equals, "chromeos-image-archive")
-	c.Check(dir, qt.Equals, "cherry-release/R104-14911.0.0")
+	c.Check(art.Bucket, qt.Equals, "chromeos-image-archive")
+	c.Check(art.Dir, qt.Equals, "cherry-release/R104-14911.0.0")
+	c.Check(art.Images, qt.Equals, artifact.GzipImages)
 	c.Check(err, qt.Equals, nil)
 }
 

@@ -21,6 +21,7 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 
+	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/artifact"
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/misc"
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/progress"
 )
@@ -58,14 +59,14 @@ func (req *Request) Client(ctx context.Context) (*storage.Client, error) {
 	return client, nil
 }
 
-// object returns the storage.ObjectHandle for the file in the directory specified by req.
-func (req *Request) object(client *storage.Client, name string) *storage.ObjectHandle {
-	return client.Bucket(req.Bucket).Object(path.Join(req.Directory, name))
+// objectHandle returns the storage.ObjectHandle for the artifact bucket, dir and name.
+func objectHandle(client *storage.Client, bucket, dir, name string) *storage.ObjectHandle {
+	return client.Bucket(bucket).Object(path.Join(dir, name))
 }
 
 // openObject opens the file in the the directory specified by req.
 func (req *Request) openObject(ctx context.Context, client *storage.Client, rw *progress.ReportingWriter, name string, decompress bool) (io.Reader, closeFunc, error) {
-	obj := req.object(client, name)
+	obj := objectHandle(client, req.Artifact.Bucket, req.Artifact.Dir, name)
 
 	rd, err := obj.NewReader(ctx)
 	if err != nil {
@@ -101,13 +102,13 @@ func (req *Request) openObject(ctx context.Context, client *storage.Client, rw *
 		nil
 }
 
-// Check access to Cloud Storage files.
-func (req *Request) Check(ctx context.Context, client *storage.Client) error {
-	for _, file := range Images {
-		obj := req.object(client, file)
+// CheckArtifact checks the artifacts in the directory are accessible.
+func CheckArtifact(ctx context.Context, client *storage.Client, artifact* artifact.Artifact) error {
+	for _, file := range artifact.Images.Names() {
+		obj := objectHandle(client, artifact.Bucket, artifact.Dir, file)
 
 		if _, err := obj.Attrs(ctx); err != nil {
-			return fmt.Errorf("error checking access: %s: %w", misc.GsURI(obj), err)
+			return fmt.Errorf("%s: %w", misc.GsURI(obj), err)
 		}
 	}
 	return nil
@@ -140,7 +141,7 @@ func (req *Request) Flash(ctx context.Context, client *storage.Client, rw *progr
 
 // FlashStateful flashes the stateful partition.
 func (req *Request) FlashStateful(ctx context.Context, client *storage.Client, rw *progress.ReportingWriter, clobber bool) error {
-	r, close, err := req.openObject(ctx, client, rw, StatefulImage, false)
+	r, close, err := req.openObject(ctx, client, rw, req.Artifact.Stateful, false)
 	if err != nil {
 		return err
 	}

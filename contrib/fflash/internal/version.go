@@ -21,6 +21,7 @@ import (
 	"golang.org/x/exp/slices"
 	"google.golang.org/api/iterator"
 
+	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/artifact"
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/dut"
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/misc"
 )
@@ -116,17 +117,6 @@ func queryPrefix(ctx context.Context, c *storage.Client, q *storage.Query) ([]*s
 	return result, nil
 }
 
-func checkVersion(ctx context.Context, c *storage.Client, board string, v version) error {
-	for _, file := range dut.Images {
-		object := c.Bucket("chromeos-image-archive").Object(fmt.Sprintf("%s-release/%s/%s", board, v, file))
-		_, err := object.Attrs(ctx)
-		if err != nil {
-			return fmt.Errorf("%s: %v", misc.GsURI(object), err)
-		}
-	}
-	return nil
-}
-
 // GetLatestVersionWithPrefix finds the latest build with the given prefix on gs://chromeos-image-archive.
 func GetLatestVersionWithPrefix(ctx context.Context, c *storage.Client, board, prefix string) (string, error) {
 	fullPrefix := fmt.Sprintf("%s-release/%s", board, prefix)
@@ -157,7 +147,8 @@ func GetLatestVersionWithPrefix(ctx context.Context, c *storage.Client, board, p
 
 	slices.SortFunc(versions, func(a, b version) bool { return b.less(a, latestMilestone) })
 	for _, v := range versions {
-		if err := checkVersion(ctx, c, board, v); err != nil {
+		dir := fmt.Sprintf("%s-release/%s", board, v)
+		if _, err := resolveArtifactImages(ctx, c, "chromeos-image-archive", dir); err != nil {
 			log.Printf("ignoring version %q: %v", v, err)
 			continue
 		}
@@ -291,10 +282,23 @@ func (sid snapshotID) String() string {
 	return fmt.Sprintf("R%d-%d.0.0-%d-%s", sid.milestone, sid.build, sid.snapshot, sid.buildbucket)
 }
 
+// Given an artifact directory, figure out the image names.
+func resolveArtifactImages(ctx context.Context, c *storage.Client, bucket, dir string) (*artifact.Artifact, error) {
+	art := &artifact.Artifact{
+		Bucket: bucket,
+		Dir:    dir,
+		Images: artifact.GzipImages,
+	}
+	if err := dut.CheckArtifact(ctx, c, art); err != nil {
+		return nil, fmt.Errorf("gzip artifact check failed: %w", err)
+	}
+	return art, nil
+}
+
 // Given a version hint, try to find a snapshot build.
 // For snapshot/postsubmit images, see also:
 // https://docs.google.com/presentation/d/1IynhrQMDtH3dAjXJD3Aheb4ZTYveVwBAEPgf6TgKzUs/edit?resourcekey=0-epY9CwLiU9zLv4E3dDs0FA#slide=id.g150f95639fd_0_70
-func findSnapshotAroundVersion(ctx context.Context, c *storage.Client, snapshotOrPostsubmit, board, versionOrPrefix string) (targetBucket string, targetDirectory string, err error) {
+func findSnapshotAroundVersion(ctx context.Context, c *storage.Client, snapshotOrPostsubmit, board, versionOrPrefix string) (*artifact.Artifact, error) {
 	var tryVersions []string
 	if v, err := parseVersion(versionOrPrefix); err != nil {
 		log.Printf("Looking for %s builds with prefix %s", snapshotOrPostsubmit, versionOrPrefix)
@@ -317,44 +321,43 @@ func findSnapshotAroundVersion(ctx context.Context, c *storage.Client, snapshotO
 		}
 		objects, err := queryPrefix(ctx, c, q)
 		if err != nil {
-			return "", "", fmt.Errorf("cannot get snapshots available for %s: %w", v, err)
+			return nil, fmt.Errorf("cannot get snapshots available for %s: %w", v, err)
 		}
 		var snapshots []snapshotID
 		for _, obj := range objects {
 			basename := path.Base(obj.Prefix)
 			pid, err := parseSnapshotID(basename)
 			if err != nil {
-				return "", "", fmt.Errorf("cannot parse %q as snapshot ID: %w", basename, err)
+				return nil, fmt.Errorf("cannot parse %q as snapshot ID: %w", basename, err)
 			}
 			snapshots = append(snapshots, pid)
 		}
 		slices.SortFunc(snapshots, func(a, b snapshotID) bool { return b.less(a) })
 		for _, pid := range snapshots {
 			// Verify that the flash payload actually exist.
-			req := dut.Request{
-				Bucket:    "chromeos-image-archive",
-				Directory: fmt.Sprintf("%s/%s", buildDirectory, pid),
-			}
-			if err := req.Check(ctx, c); err != nil {
+			dir := fmt.Sprintf("%s/%s", buildDirectory, pid)
+			art, err := resolveArtifactImages(ctx, c, "chromeos-image-archive", dir)
+			if err != nil {
 				log.Printf("%s not valid: %s", pid, err)
 				continue
 			}
-			return req.Bucket, req.Directory, nil
+			return art, nil
 		}
 	}
-	return "", "", fmt.Errorf("no valid %s build found", snapshotOrPostsubmit)
+	return nil, fmt.Errorf("no valid %s build found", snapshotOrPostsubmit)
 }
 
-func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *Options) (targetBucket string, targetDirectory string, err error) {
+func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *Options) (*artifact.Artifact, error) {
 	if opts.GS != "" {
 		url, err := url.Parse(opts.GS)
 		if err != nil {
-			return "", "", err
+			return nil, err
 		}
-		return url.Host, strings.TrimPrefix(url.RequestURI(), "/"), nil
+		return resolveArtifactImages(ctx, c, url.Host, strings.TrimPrefix(url.RequestURI(), "/"))
 	}
 
 	var gsVersion string
+	var err error
 	if opts.VersionString != "" {
 		if opts.Postsubmit || opts.Snapshot {
 			// Don't resolve the version and let findSnapshotAroundVersion() handle it.
@@ -369,7 +372,7 @@ func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *
 		gsVersion, err = GetLatestVersion(ctx, c, board)
 	}
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	if opts.Snapshot {
@@ -378,5 +381,5 @@ func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *
 		return findSnapshotAroundVersion(ctx, c, "postsubmit", board, gsVersion)
 	}
 
-	return "chromeos-image-archive", fmt.Sprintf("%s-release/%s", board, gsVersion), err
+	return resolveArtifactImages(ctx, c, "chromeos-image-archive", fmt.Sprintf("%s-release/%s", board, gsVersion))
 }

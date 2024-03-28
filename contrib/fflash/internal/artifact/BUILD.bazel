@@ -1,0 +1,12 @@
+# Copyright 2024 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "artifact",
+    srcs = ["artifact.go"],
+    importpath = "chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/artifact",
+    visibility = ["//:__subpackages__"],
+)

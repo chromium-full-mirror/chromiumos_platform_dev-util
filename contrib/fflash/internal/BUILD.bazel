@@ -17,6 +17,7 @@ go_library(
     importpath = "chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal",
     visibility = ["//:__subpackages__"],
     deps = [
+        "//internal/artifact",
         "//internal/dut",
         "//internal/embedded-agent",
         "//internal/misc",
@@ -42,6 +43,7 @@ go_test(
     ],
     embed = [":internal"],
     deps = [
+        "//internal/artifact",
         "//internal/dut",
         "@com_github_frankban_quicktest//:quicktest",
     ],

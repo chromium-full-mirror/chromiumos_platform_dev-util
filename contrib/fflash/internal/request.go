@@ -12,6 +12,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google/downscope"
 
+	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/artifact"
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/dut"
 )
 
@@ -29,21 +30,21 @@ func buildConditionExpression(bucket, objectPrefix string) string {
 // createFlashRequest creates a dut.Request to the dut-agent to perform a flash.
 //
 // The token is downscoped to only allow access to the Google Cloud Storage directory.
-func createFlashRequest(ctx context.Context, token oauth2.TokenSource, bucket, objectPrefix string, options dut.FlashOptions) (*dut.Request, error) {
+func createFlashRequest(ctx context.Context, token oauth2.TokenSource, art *artifact.Artifact, options dut.FlashOptions) (*dut.Request, error) {
 	// Downscope with Credential Access Boundaries
 	// https://cloud.google.com/iam/docs/downscoping-short-lived-credentials
 	down, err := downscope.NewTokenSource(ctx, downscope.DownscopingConfig{
 		RootSource: token,
 		Rules: []downscope.AccessBoundaryRule{
 			{
-				AvailableResource: "//storage.googleapis.com/projects/_/buckets/" + bucket,
+				AvailableResource: "//storage.googleapis.com/projects/_/buckets/" + art.Bucket,
 				AvailablePermissions: []string{
 					"inRole:roles/storage.objectViewer",
 				},
 				Condition: &downscope.AvailabilityCondition{
 					Title:       "bound-to-directory",
 					Description: "Limit access to the intended directory.",
-					Expression:  buildConditionExpression(bucket, objectPrefix),
+					Expression:  buildConditionExpression(art.Bucket, art.Dir),
 				},
 			},
 		},
@@ -60,8 +61,7 @@ func createFlashRequest(ctx context.Context, token oauth2.TokenSource, bucket, o
 
 	return &dut.Request{
 		Token:        tok,
-		Bucket:       bucket,
-		Directory:    objectPrefix,
+		Artifact:     art,
 		FlashOptions: options,
 	}, nil
 }

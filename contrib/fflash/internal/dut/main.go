@@ -47,10 +47,10 @@ func Main() error {
 	defer cancelFlash()
 
 	go func(rw *progress.ReportingWriter) {
-		ch <- r.Flash(flashCtx, client, rw, KernelImage, partState.InactiveKernel())
+		ch <- r.Flash(flashCtx, client, rw, r.Artifact.Kernel, partState.InactiveKernel())
 	}(pr.NewWriter("kernel"))
 	go func(rw *progress.ReportingWriter) {
-		ch <- r.Flash(flashCtx, client, rw, RootfsImage, partState.InactiveRootfs())
+		ch <- r.Flash(flashCtx, client, rw, r.Artifact.Rootfs, partState.InactiveRootfs())
 	}(pr.NewWriter("rootfs"))
 	go func(rw *progress.ReportingWriter) {
 		ch <- r.FlashStateful(flashCtx, client, rw, r.ClobberStateful)

@@ -5,16 +5,6 @@
 package dut
 
 const (
-	KernelImage   = "full_dev_part_KERN.bin.gz"
-	RootfsImage   = "full_dev_part_ROOT.bin.gz"
-	MiniosImage   = "full_dev_part_MINIOS.bin.gz"
-	StatefulImage = "stateful.tgz"
-)
-
-// Images to be flashed
-var Images = []string{KernelImage, RootfsImage, StatefulImage}
-
-const (
 	statefulDir       = "/mnt/stateful_partition"
 	statefulAvailable = ".update_available"
 )

@@ -138,17 +138,18 @@ func Main(ctx context.Context, t0 time.Time, target string, opts *Options) error
 		log.Println("DUT board:", board)
 	}
 
-	targetBucket, targetDirectory, err := getFlashTarget(ctx, storageClient, board, opts)
+	art, err := getFlashTarget(ctx, storageClient, board, opts)
 	if err != nil {
 		return err
 	}
-	log.Printf("flashing directory: gs://%s", path.Join(targetBucket, targetDirectory))
+	log.Printf("flashing directory: gs://%s", path.Join(art.Bucket, art.Dir))
 
-	req, err := createFlashRequest(ctx, tkSrc, targetBucket, targetDirectory, opts.FlashOptions)
+	req, err := createFlashRequest(ctx, tkSrc, art, opts.FlashOptions)
 	if err != nil {
 		return err
 	}
-	if err := req.Check(ctx, storageClient); err != nil {
+	// Check that the downscoped token works.
+	if err := dut.CheckArtifact(ctx, storageClient, req.Artifact); err != nil {
 		return err
 	}
 
