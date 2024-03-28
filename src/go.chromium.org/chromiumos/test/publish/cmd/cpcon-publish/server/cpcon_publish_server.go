@@ -16,7 +16,7 @@ import (
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 
-	"chromiumos/test/util/portdiscovery"
+	"go.chromium.org/chromiumos/test/util/portdiscovery"
 
 	"go.chromium.org/chromiumos/config/go/longrunning"
 	"google.golang.org/grpc"

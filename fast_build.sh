@@ -29,7 +29,7 @@ readonly CROS_PROVISION_OUT="${GOHOME}/bin/cros-provision"
 readonly EXCLUDE_PKGS=(
   "go.chromium.org/chromiumos/test/dut/internal"
   "chromiumos/test/local-cft/internal/unit_tests"
-  "chromiumos/test/util/finder"
+  "go.chromium.org/chromiumos/test/util/finder"
   "chromiumos/ctp/buildbucket"
   "chromiumos/ctp/builder"
   "chromiumos/test/ctpv2/kompress"

@@ -5,7 +5,7 @@
 package main
 
 import (
-	"chromiumos/test/util/portdiscovery"
+	"go.chromium.org/chromiumos/test/util/portdiscovery"
 	"context"
 	"fmt"
 	"io"

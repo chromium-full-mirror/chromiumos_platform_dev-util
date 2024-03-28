@@ -6,8 +6,8 @@
 package main
 
 import (
-	"chromiumos/test/util/helpers"
-	"chromiumos/test/util/portdiscovery"
+	"go.chromium.org/chromiumos/test/util/helpers"
+	"go.chromium.org/chromiumos/test/util/portdiscovery"
 	"context"
 	"flag"
 	"fmt"

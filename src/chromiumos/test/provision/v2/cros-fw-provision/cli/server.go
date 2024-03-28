@@ -8,7 +8,7 @@ package cli
 import (
 	"go.chromium.org/chromiumos/lro"
 	common_utils "chromiumos/test/provision/v2/common-utils"
-	"chromiumos/test/util/portdiscovery"
+	"go.chromium.org/chromiumos/test/util/portdiscovery"
 	"context"
 	"fmt"
 	"log"

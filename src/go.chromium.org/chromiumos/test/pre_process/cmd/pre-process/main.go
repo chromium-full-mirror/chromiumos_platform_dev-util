@@ -23,7 +23,7 @@ import (
 	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/policies"
 	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/structs"
 
-	"chromiumos/test/util/helpers"
+	"go.chromium.org/chromiumos/test/util/helpers"
 )
 
 const (

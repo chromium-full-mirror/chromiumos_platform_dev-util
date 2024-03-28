@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	common_utils "chromiumos/test/provision/v2/common-utils"
-	"chromiumos/test/util/portdiscovery"
+	"go.chromium.org/chromiumos/test/util/portdiscovery"
 )
 
 const (

@@ -9,7 +9,7 @@ import (
 	"go.chromium.org/chromiumos/lro"
 	"go.chromium.org/chromiumos/test/publish/cmd/common-utils/metadata"
 	"go.chromium.org/chromiumos/test/publish/cmd/rdb-publish/service"
-	"chromiumos/test/util/portdiscovery"
+	"go.chromium.org/chromiumos/test/util/portdiscovery"
 
 	"context"
 	"fmt"

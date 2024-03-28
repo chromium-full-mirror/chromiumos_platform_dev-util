@@ -6,7 +6,7 @@ package main
 
 import (
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
-	"chromiumos/test/util/common"
+	"go.chromium.org/chromiumos/test/util/common"
 	"context"
 	"fmt"
 	"log"

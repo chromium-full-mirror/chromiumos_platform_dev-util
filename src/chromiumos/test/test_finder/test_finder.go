@@ -23,9 +23,9 @@ import (
 
 	"chromiumos/test/execution/errors"
 	"chromiumos/test/test_finder/centralizedsuite"
-	"chromiumos/test/util/finder"
-	"chromiumos/test/util/metadata"
-	"chromiumos/test/util/portdiscovery"
+	"go.chromium.org/chromiumos/test/util/finder"
+	"go.chromium.org/chromiumos/test/util/metadata"
+	"go.chromium.org/chromiumos/test/util/portdiscovery"
 )
 
 const (
