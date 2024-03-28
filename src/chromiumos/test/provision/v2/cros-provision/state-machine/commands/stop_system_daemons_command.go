@@ -31,7 +31,7 @@ func (c *StopSystemDaemonsCommand) Execute(log *log.Logger) error {
 		log.Printf("Failed to stop UI daemon, %s", err)
 	}
 	if _, err := c.cs.Connection.RunCmd(c.ctx, "stop", []string{"update-engine"}); err != nil {
-		log.Printf("StopSystemDaemonsCommand stop updat-engine FAILED NON FATAL")
+		log.Printf("StopSystemDaemonsCommand stop update-engine FAILED NON FATAL")
 		log.Printf("Failed to stop update-engine daemon, %s", err)
 	}
 	log.Printf("StopSystemDaemonsCommand Success")
