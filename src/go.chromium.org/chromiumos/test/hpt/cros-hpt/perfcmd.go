@@ -35,14 +35,11 @@ var (
 		"record",
 		"-e", // the Performance Monitoring Unit event
 		"cycles",
-		"--timestamp", // record the sample timestamps
-		"-k",          // clock id to use
-		"CLOCK_MONOTONIC_RAW",
+		"--timestamp",         // record the sample timestamps
 		"--switch-output=60s", // emit a perf.data file every 1 minute
 		"--all-cpus",
 		"-F",
 		samplingRate,
-		"-g", // capture call stack
 		"-o", // will generate /tmp/perf/perf.data.<timestamp> files.
 		filepath.Join(outputPerfDir, perfData),
 	}
