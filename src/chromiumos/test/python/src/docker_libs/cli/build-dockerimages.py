@@ -112,7 +112,6 @@ DO_NOT_BUILD = set(
 NON_CRITICAL = set(
     [
         "cros-servod",
-        "cros-publish",
         "android-provision",
         "cros-pvs",
         "cros-ddd-filter",
