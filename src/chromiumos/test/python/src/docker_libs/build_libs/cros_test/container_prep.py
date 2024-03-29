@@ -59,10 +59,7 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
     def create_tarball(self):
         """Copy the Stuff."""
         builder = container_util.AutotestTarballBuilder(
-            os.path.dirname(self.full_autotest),
-            self.full_out,
-            self.chroot,
-            self.sysroot,
+            os.path.dirname(self.full_autotest), self.full_out, self.chroot
         )
 
         builder.BuildFullAutotestandTastTarball()

@@ -104,19 +104,11 @@ class PathMapping:
     raw_src: str
     raw_dst: Optional[str] = None
 
-    def get_src(self, chroot: str, sysroot: str) -> str:
+    def get_src(self, chroot: str) -> str:
         """Get the source path for this mapping."""
         if self.raw_src.startswith("/"):
-            # It's a chroot path.  See if it's in the per-board broot first.
-            path = FromChrootPath(
-                chroot,
-                os.path.join(
-                    sysroot, "build", "broot", self.raw_src.lstrip("/")
-                ).lstrip("/"),
-            )
-            if not os.path.exists(path):
-                path = FromChrootPath(chroot, self.raw_src.lstrip("/"))
-            return str(path)
+            # It's a chroot path.
+            return str(FromChrootPath(chroot, self.raw_src.lstrip("/")))
         else:
             # It's a source tree path.
             return os.path.join(SOURCE_ROOT, self.raw_src)
@@ -165,12 +157,7 @@ class AutotestTarballBuilder(object):
     ]
 
     def __init__(
-        self,
-        archive_basedir,
-        output_directory,
-        chroot_path,
-        sysroot_path,
-        tko_only=False,
+        self, archive_basedir, output_directory, chroot_path, tko_only=False
     ):
         """Init function.
 
@@ -181,13 +168,11 @@ class AutotestTarballBuilder(object):
           output_directory (str): The directory where the archives will be
             written.
           chroot_path (str): Path to the chroot fs.
-          sysroot_path (str): Path to the sysroot.
           tko_onky (bool): Flag to only bundle tko & required content.
         """
         self.archive_basedir = archive_basedir
         self.output_directory = output_directory
         self.chroot_path = chroot_path
-        self.sysroot_path = sysroot_path
         self.tko_only = tko_only
 
     def BuildFullAutotestandTastTarball(self):
@@ -271,7 +256,7 @@ class AutotestTarballBuilder(object):
         transforms = []
 
         for mapping in self._GetTastSspFiles():
-            src = mapping.get_src(self.chroot_path, self.sysroot_path)
+            src = mapping.get_src(self.chroot_path)
             if not os.path.exists(src):
                 continue
 
