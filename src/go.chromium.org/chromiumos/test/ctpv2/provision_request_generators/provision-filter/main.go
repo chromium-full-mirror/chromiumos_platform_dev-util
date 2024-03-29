@@ -14,7 +14,7 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	dut_api "go.chromium.org/chromiumos/config/go/test/lab/api"
 
-	server "chromiumos/test/ctpv2/common/server_template"
+	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
 
 	conf "go.chromium.org/chromiumos/config/go"
 )

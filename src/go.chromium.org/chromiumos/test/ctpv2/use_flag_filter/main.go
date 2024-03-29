@@ -4,7 +4,7 @@
 package main
 
 import (
-	server "chromiumos/test/ctpv2/common/server_template"
+	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
 	"context"
 	"fmt"
 	"log"

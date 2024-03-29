@@ -14,7 +14,7 @@ import (
 	conf "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
 
-	server "chromiumos/test/ctpv2/common/server_template"
+	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
 )
 
