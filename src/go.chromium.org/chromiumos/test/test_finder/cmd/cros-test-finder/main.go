@@ -8,7 +8,7 @@ import (
 	"context"
 	"os"
 
-	"chromiumos/test/test_finder"
+	"go.chromium.org/chromiumos/test/test_finder"
 )
 
 func main() {

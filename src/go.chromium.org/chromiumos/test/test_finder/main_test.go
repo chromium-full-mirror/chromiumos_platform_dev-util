@@ -5,7 +5,7 @@
 package test_finder
 
 import (
-	"chromiumos/test/test_finder/centralizedsuite"
+	"go.chromium.org/chromiumos/test/test_finder/centralizedsuite"
 	"errors"
 	"io/ioutil"
 	"os"

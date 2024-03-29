@@ -22,7 +22,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"go.chromium.org/chromiumos/test/execution/errors"
-	"chromiumos/test/test_finder/centralizedsuite"
+	"go.chromium.org/chromiumos/test/test_finder/centralizedsuite"
 	"go.chromium.org/chromiumos/test/util/finder"
 	"go.chromium.org/chromiumos/test/util/metadata"
 	"go.chromium.org/chromiumos/test/util/portdiscovery"

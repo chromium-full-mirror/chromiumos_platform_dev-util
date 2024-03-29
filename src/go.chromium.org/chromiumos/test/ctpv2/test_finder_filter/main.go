@@ -15,7 +15,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
 
-	"chromiumos/test/test_finder"
+	"go.chromium.org/chromiumos/test/test_finder"
 )
 
 const (
