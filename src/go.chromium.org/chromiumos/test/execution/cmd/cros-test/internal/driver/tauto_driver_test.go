@@ -11,7 +11,7 @@ import (
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 
-	"chromiumos/test/execution/cmd/cros-test/internal/device"
+	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
 
 	"github.com/google/go-cmp/cmp"
 )

@@ -6,7 +6,7 @@
 package tautoresults
 
 import (
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/errors"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"

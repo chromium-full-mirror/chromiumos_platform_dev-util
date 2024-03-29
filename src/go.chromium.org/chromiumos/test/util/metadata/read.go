@@ -14,7 +14,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"go.chromium.org/chromiumos/config/go/test/api"
 
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/errors"
 )
 
 // ReadDir reads all test metadata files recursively from a specified root directory.

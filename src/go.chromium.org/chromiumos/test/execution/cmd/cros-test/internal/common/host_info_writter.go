@@ -7,7 +7,7 @@
 package common
 
 import (
-	"chromiumos/test/execution/cmd/cros-test/internal/device"
+	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
 	"encoding/json"
 	"fmt"
 	"log"

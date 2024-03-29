@@ -20,10 +20,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"gopkg.in/yaml.v2"
 
-	"chromiumos/test/execution/cmd/cros-test/internal/common"
-	"chromiumos/test/execution/cmd/cros-test/internal/device"
-	"chromiumos/test/execution/cmd/cros-test/internal/tastrpc"
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/common"
+	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
+	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/tastrpc"
+	"go.chromium.org/chromiumos/test/execution/errors"
 )
 
 // TastDriver runs tast and report its results.

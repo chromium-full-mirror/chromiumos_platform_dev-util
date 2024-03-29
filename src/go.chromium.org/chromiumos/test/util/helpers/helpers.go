@@ -5,7 +5,7 @@
 package helpers
 
 import (
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/errors"
 	"fmt"
 	"io"
 	"log"

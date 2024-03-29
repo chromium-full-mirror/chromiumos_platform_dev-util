@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 
 	"go.chromium.org/chromiumos/lro"
-	"chromiumos/test/execution/cmd/cros-test/internal/common"
+	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/common"
 )
 
 // ExecutionServiceServer implementation of dut_service.proto

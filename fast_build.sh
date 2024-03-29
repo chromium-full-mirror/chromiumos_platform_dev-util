@@ -18,7 +18,7 @@ SCRIPTDIR=$(realpath $0)
 readonly SRCDIRS=$(dirname ${SCRIPTDIR})
 
 # Package to build to produce cros-test
-readonly CROS_TEST_PKG="chromiumos/test/execution/cmd/cros-test"
+readonly CROS_TEST_PKG="go.chromium.org/chromiumos/test/execution/cmd/cros-test"
 readonly CROS_PROVISION_PKG="chromiumos/test/provision/cmd/cros-provision"
 
 # Output filename for cros-test executable.

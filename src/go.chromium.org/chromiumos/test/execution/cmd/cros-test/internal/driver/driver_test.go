@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/errors"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )

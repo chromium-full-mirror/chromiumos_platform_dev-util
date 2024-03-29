@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"chromiumos/test/execution/cmd/cros-test/internal/common"
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/common"
+	"go.chromium.org/chromiumos/test/execution/errors"
 	"go.chromium.org/chromiumos/test/util/metadata"
 	"go.chromium.org/chromiumos/test/util/portdiscovery"
 )

@@ -19,7 +19,7 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/grpc"
 
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/errors"
 
 	"go.chromium.org/tast/core/framework/protocol"
 )

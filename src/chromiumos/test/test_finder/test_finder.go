@@ -21,7 +21,7 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"golang.org/x/exp/maps"
 
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/errors"
 	"chromiumos/test/test_finder/centralizedsuite"
 	"go.chromium.org/chromiumos/test/util/finder"
 	"go.chromium.org/chromiumos/test/util/metadata"

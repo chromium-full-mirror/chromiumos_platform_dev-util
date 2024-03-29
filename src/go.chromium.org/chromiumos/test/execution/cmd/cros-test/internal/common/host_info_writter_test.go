@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"chromiumos/test/execution/cmd/cros-test/internal/device"
+	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
 )
 
 func TestGenHostInfoStore(t *testing.T) {

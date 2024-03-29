@@ -6,7 +6,7 @@
 package common_utils
 
 import (
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/errors"
 	"context"
 	"fmt"
 	"io"

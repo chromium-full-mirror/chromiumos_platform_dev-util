@@ -6,7 +6,7 @@ package driver
 
 import (
 	"bytes"
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/errors"
 	"fmt"
 	"log"
 	"testing"

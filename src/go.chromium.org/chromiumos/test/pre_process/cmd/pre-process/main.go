@@ -18,7 +18,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
 
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/errors"
 	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/interfaces"
 	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/policies"
 	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/structs"

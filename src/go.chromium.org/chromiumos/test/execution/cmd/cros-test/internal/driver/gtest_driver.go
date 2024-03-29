@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"chromiumos/test/execution/cmd/cros-test/internal/device"
-	"chromiumos/test/execution/errors"
+	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
+	"go.chromium.org/chromiumos/test/execution/errors"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/grpc"
