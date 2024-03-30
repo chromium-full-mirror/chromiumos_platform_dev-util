@@ -1,6 +1,6 @@
 {
   "lockFileVersion": 1,
-  "moduleFileHash": "4ec816e2ab0312b7060e4f7ce442c839c03753353fd000e255a46f1f83665820",
+  "moduleFileHash": "6db896192ddb8ce852c0c4710db826c8714d3eb2fd34cf9ca254c434855a4086",
   "flags": {
     "cmdRegistries": [
       "https://bcr.bazel.build/"
@@ -70,6 +70,7 @@
           "imports": {
             "com_github_alecthomas_kingpin": "com_github_alecthomas_kingpin",
             "com_github_frankban_quicktest": "com_github_frankban_quicktest",
+            "com_github_klauspost_compress": "com_github_klauspost_compress",
             "com_github_klauspost_readahead": "com_github_klauspost_readahead",
             "com_google_cloud_go_storage": "com_google_cloud_go_storage",
             "org_golang_google_api": "org_golang_google_api",
@@ -1088,10 +1089,10 @@
     "@gazelle~0.33.0//:extensions.bzl%go_deps": {
       "bzlTransitiveDigest": "EGHU0Zz5+tB+AiRHsn9EXyVISl5KZhojgalqT1/XXuA=",
       "accumulatedFileDigests": {
-        "@@//:go.mod": "e446511244e9043dddfaad8039eb03d020ed15495ab30be764701fa4331a5358",
+        "@@//:go.mod": "e0823a67baa8c9662db4becdbfee6f84860247612c28cc350f6105cb2f87f29e",
         "@@gazelle~0.33.0//:go.sum": "afb3c20626470bff206a91f35b0994f514f7a05ca44d9105f5ccb84e0d3ca197",
         "@@gazelle~0.33.0//:go.mod": "e915e3f980bea175c80cc30fa7433e69f1251a9ce03046579d7b24588a93e75f",
-        "@@//:go.sum": "12987e27136fbeec2a84d89e3c20a3d4e4d13fb39c0cb3a474a588389c195d17",
+        "@@//:go.sum": "fcc9768bb3536c04e2bfb95b027d5f86613f611cc5c9219ed6694e648bca5b39",
         "@@rules_go~0.41.0//:go.mod": "a7143f329c2a3e0b983ce74a96c0c25b0d0c59d236d75f7e1b069aadd988d55e",
         "@@rules_go~0.41.0//:go.sum": "022d36c9ebcc7b5dee1e9b85b3da9c9f3a529ee6f979946d66e4955b8d54614a"
       },
@@ -1101,6 +1102,11 @@
           "bzlFile": "@@gazelle~0.33.0//internal:go_repository.bzl",
           "ruleClassName": "go_repository",
           "attributes": {"name":"--gazelle~0.33.0~go_deps~org_golang_x_tools_go_vcs","importpath":"--golang.org/x/tools/go/vcs","build_directives":[],"build_file_generation":"--auto","patches":[],"patch_args":[],"sum":"--h1:cOIJqWBl99H1dH5LWizPa+0ImeeJq3t3cJjaeOWUAL4=","replace":"--","version":"--v0.1.0-deprecated"}
+        },
+        "com_github_klauspost_compress": {
+          "bzlFile": "@@gazelle~0.33.0//internal:go_repository.bzl",
+          "ruleClassName": "go_repository",
+          "attributes": {"name":"--gazelle~0.33.0~go_deps~com_github_klauspost_compress","importpath":"--github.com/klauspost/compress","build_directives":[],"build_file_generation":"--auto","patches":[],"patch_args":[],"sum":"--h1:ehO88t2UGzQK66LMdE8tibEd1ErmzZjNEqWkjLAKQQg=","replace":"--","version":"--v1.17.7"}
         },
         "com_github_fsnotify_fsnotify": {
           "bzlFile": "@@gazelle~0.33.0//internal:go_repository.bzl",
@@ -1290,7 +1296,7 @@
         "bazel_gazelle_go_repository_config": {
           "bzlFile": "@@gazelle~0.33.0//internal/bzlmod:go_deps.bzl",
           "ruleClassName": "_go_repository_config",
-          "attributes": {"name":"--gazelle~0.33.0~go_deps~bazel_gazelle_go_repository_config","importpaths":{"--com_google_cloud_go_storage":"--cloud.google.com/go/storage","--org_golang_x_oauth2":"--golang.org/x/oauth2","--org_golang_google_api":"--google.golang.org/api","--com_github_frankban_quicktest":"--github.com/frankban/quicktest","--com_github_klauspost_readahead":"--github.com/klauspost/readahead","--org_golang_x_exp":"--golang.org/x/exp","--com_google_cloud_go_compute_metadata":"--cloud.google.com/go/compute/metadata","--com_github_alecthomas_template":"--github.com/alecthomas/template","--com_github_alecthomas_units":"--github.com/alecthomas/units","--com_github_kr_pretty":"--github.com/kr/pretty","--com_github_kr_text":"--github.com/kr/text","--com_github_rogpeppe_go_internal":"--github.com/rogpeppe/go-internal","--com_google_cloud_go":"--cloud.google.com/go","--com_google_cloud_go_compute":"--cloud.google.com/go/compute","--com_google_cloud_go_iam":"--cloud.google.com/go/iam","--com_github_alecthomas_kingpin":"--github.com/alecthomas/kingpin","--com_github_golang_groupcache":"--github.com/golang/groupcache","--com_github_golang_protobuf":"--github.com/golang/protobuf","--com_github_google_go_cmp":"--github.com/google/go-cmp","--com_github_google_uuid":"--github.com/google/uuid","--com_github_googleapis_enterprise_certificate_proxy":"--github.com/googleapis/enterprise-certificate-proxy","--com_github_googleapis_gax_go_v2":"--github.com/googleapis/gax-go/v2","--io_opencensus_go":"--go.opencensus.io","--org_golang_x_crypto":"--golang.org/x/crypto","--org_golang_x_net":"--golang.org/x/net","--org_golang_x_sys":"--golang.org/x/sys","--org_golang_x_text":"--golang.org/x/text","--org_golang_x_xerrors":"--golang.org/x/xerrors","--org_golang_google_appengine":"--google.golang.org/appengine","--org_golang_google_genproto":"--google.golang.org/genproto","--org_golang_google_grpc":"--google.golang.org/grpc","--org_golang_google_protobuf":"--google.golang.org/protobuf","--org_golang_x_tools":"--golang.org/x/tools","--com_github_bazelbuild_buildtools":"--github.com/bazelbuild/buildtools","--@rules_go~0.41.0":"--github.com/bazelbuild/rules_go","--com_github_bmatcuk_doublestar_v4":"--github.com/bmatcuk/doublestar/v4","--com_github_fsnotify_fsnotify":"--github.com/fsnotify/fsnotify","--com_github_pmezard_go_difflib":"--github.com/pmezard/go-difflib","--org_golang_x_mod":"--golang.org/x/mod","--org_golang_x_sync":"--golang.org/x/sync","--org_golang_x_tools_go_vcs":"--golang.org/x/tools/go/vcs","--com_github_gogo_protobuf":"--github.com/gogo/protobuf","--com_github_golang_mock":"--github.com/golang/mock","--@gazelle~0.33.0":"--github.com/bazelbuild/bazel-gazelle"},"module_names":{"--@gazelle~0.33.0":"--gazelle","--@rules_go~0.41.0":"--rules_go"},"build_naming_conventions":{}}
+          "attributes": {"name":"--gazelle~0.33.0~go_deps~bazel_gazelle_go_repository_config","importpaths":{"--com_google_cloud_go_storage":"--cloud.google.com/go/storage","--org_golang_x_oauth2":"--golang.org/x/oauth2","--org_golang_google_api":"--google.golang.org/api","--com_github_frankban_quicktest":"--github.com/frankban/quicktest","--com_github_klauspost_compress":"--github.com/klauspost/compress","--com_github_klauspost_readahead":"--github.com/klauspost/readahead","--org_golang_x_exp":"--golang.org/x/exp","--com_google_cloud_go_compute_metadata":"--cloud.google.com/go/compute/metadata","--com_github_alecthomas_template":"--github.com/alecthomas/template","--com_github_alecthomas_units":"--github.com/alecthomas/units","--com_github_kr_pretty":"--github.com/kr/pretty","--com_github_kr_text":"--github.com/kr/text","--com_github_rogpeppe_go_internal":"--github.com/rogpeppe/go-internal","--com_google_cloud_go":"--cloud.google.com/go","--com_google_cloud_go_compute":"--cloud.google.com/go/compute","--com_google_cloud_go_iam":"--cloud.google.com/go/iam","--com_github_alecthomas_kingpin":"--github.com/alecthomas/kingpin","--com_github_golang_groupcache":"--github.com/golang/groupcache","--com_github_golang_protobuf":"--github.com/golang/protobuf","--com_github_google_go_cmp":"--github.com/google/go-cmp","--com_github_google_uuid":"--github.com/google/uuid","--com_github_googleapis_enterprise_certificate_proxy":"--github.com/googleapis/enterprise-certificate-proxy","--com_github_googleapis_gax_go_v2":"--github.com/googleapis/gax-go/v2","--io_opencensus_go":"--go.opencensus.io","--org_golang_x_crypto":"--golang.org/x/crypto","--org_golang_x_net":"--golang.org/x/net","--org_golang_x_sys":"--golang.org/x/sys","--org_golang_x_text":"--golang.org/x/text","--org_golang_x_xerrors":"--golang.org/x/xerrors","--org_golang_google_appengine":"--google.golang.org/appengine","--org_golang_google_genproto":"--google.golang.org/genproto","--org_golang_google_grpc":"--google.golang.org/grpc","--org_golang_google_protobuf":"--google.golang.org/protobuf","--org_golang_x_tools":"--golang.org/x/tools","--com_github_bazelbuild_buildtools":"--github.com/bazelbuild/buildtools","--@rules_go~0.41.0":"--github.com/bazelbuild/rules_go","--com_github_bmatcuk_doublestar_v4":"--github.com/bmatcuk/doublestar/v4","--com_github_fsnotify_fsnotify":"--github.com/fsnotify/fsnotify","--com_github_pmezard_go_difflib":"--github.com/pmezard/go-difflib","--org_golang_x_mod":"--golang.org/x/mod","--org_golang_x_sync":"--golang.org/x/sync","--org_golang_x_tools_go_vcs":"--golang.org/x/tools/go/vcs","--com_github_gogo_protobuf":"--github.com/gogo/protobuf","--com_github_golang_mock":"--github.com/golang/mock","--@gazelle~0.33.0":"--github.com/bazelbuild/bazel-gazelle"},"module_names":{"--@gazelle~0.33.0":"--gazelle","--@rules_go~0.41.0":"--rules_go"},"build_naming_conventions":{}}
         },
         "com_google_cloud_go_compute": {
           "bzlFile": "@@gazelle~0.33.0//internal:go_repository.bzl",

@@ -17,6 +17,7 @@ import (
 	"syscall"
 
 	"cloud.google.com/go/storage"
+	"github.com/klauspost/compress/zstd"
 	"github.com/klauspost/readahead"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
@@ -83,27 +84,40 @@ func (req *Request) openObject(ctx context.Context, client *storage.Client, rw *
 
 	brd := io.TeeReader(aheadRd, rw)
 
-	var gzRd io.ReadCloser
+	var decompressRd io.ReadCloser
 	if decompress {
-		gzRd, err = gzip.NewReader(brd)
-		if err != nil {
-			rd.Close()
-			return nil, nil, fmt.Errorf("gzip.NewReader for %s failed: %w", misc.GsURI(obj), err)
+		switch req.Artifact.Compression {
+		case artifact.Gzip:
+			decompressRd, err = gzip.NewReader(brd)
+			if err != nil {
+				rd.Close()
+				return nil, nil, fmt.Errorf("gzip.NewReader for %s failed: %w", misc.GsURI(obj), err)
+			}
+		case artifact.Zstd:
+			var d *zstd.Decoder
+			d, err = zstd.NewReader(brd)
+			if err != nil {
+				rd.Close()
+				return nil, nil, fmt.Errorf("zstd.NewReader for %s failed: %w", misc.GsURI(obj), err)
+			}
+			decompressRd = d.IOReadCloser()
+		default:
+			log.Panicf("unknown compression %q", req.Artifact.Compression)
 		}
 	} else {
-		gzRd = io.NopCloser(brd)
+		decompressRd = io.NopCloser(brd)
 	}
 
-	return gzRd,
+	return decompressRd,
 		func() error {
-			gzRd.Close()
+			decompressRd.Close()
 			return aheadRd.Close()
 		},
 		nil
 }
 
-// CheckArtifact checks the artifacts in the directory are accessible.
-func CheckArtifact(ctx context.Context, client *storage.Client, artifact* artifact.Artifact) error {
+// CheckArtifact checks that all image artifacts are accessible.
+func CheckArtifact(ctx context.Context, client *storage.Client, artifact *artifact.Artifact) error {
 	for _, file := range artifact.Images.Names() {
 		obj := objectHandle(client, artifact.Bucket, artifact.Dir, file)
 
@@ -115,8 +129,8 @@ func CheckArtifact(ctx context.Context, client *storage.Client, artifact* artifa
 }
 
 // Flash a partition with imageGz to partition.
-func (req *Request) Flash(ctx context.Context, client *storage.Client, rw *progress.ReportingWriter, imageGz string, partition string) error {
-	r, close, err := req.openObject(ctx, client, rw, imageGz, true)
+func (req *Request) Flash(ctx context.Context, client *storage.Client, rw *progress.ReportingWriter, image string, partition string) error {
+	r, close, err := req.openObject(ctx, client, rw, image, true)
 	if err != nil {
 		return err
 	}
@@ -147,7 +161,7 @@ func (req *Request) FlashStateful(ctx context.Context, client *storage.Client, r
 	}
 	defer close()
 
-	if err := unpackStateful(ctx, r); err != nil {
+	if err := unpackStateful(ctx, r, req.Artifact.Compression); err != nil {
 		return err
 	}
 

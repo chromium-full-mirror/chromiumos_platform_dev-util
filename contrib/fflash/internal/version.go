@@ -287,12 +287,24 @@ func resolveArtifactImages(ctx context.Context, c *storage.Client, bucket, dir s
 	art := &artifact.Artifact{
 		Bucket: bucket,
 		Dir:    dir,
+		Images: artifact.ZstdImages,
+	}
+	err1 := dut.CheckArtifact(ctx, c, art)
+	if err1 == nil {
+		return art, nil
+	}
+
+	art = &artifact.Artifact{
+		Bucket: bucket,
+		Dir:    dir,
 		Images: artifact.GzipImages,
 	}
-	if err := dut.CheckArtifact(ctx, c, art); err != nil {
-		return nil, fmt.Errorf("gzip artifact check failed: %w", err)
+	err2 := dut.CheckArtifact(ctx, c, art)
+	if err2 == nil {
+		return art, nil
 	}
-	return art, nil
+
+	return nil, errors.Join(err1, err2)
 }
 
 // Given a version hint, try to find a snapshot build.

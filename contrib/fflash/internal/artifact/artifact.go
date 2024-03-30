@@ -12,8 +12,19 @@ type Artifact struct {
 	Images
 }
 
+// Compression type.
+type Compression int
+
+// List of compression types.
+const (
+	Gzip Compression = iota
+	Zstd
+)
+
 // Images describes the image names in the artifact directory.
 type Images struct {
+	Compression Compression
+
 	Kernel   string
 	Rootfs   string
 	Stateful string
@@ -32,7 +43,18 @@ func (i *Images) Names() []string {
 //
 // See https://source.chromium.org/chromiumos/chromiumos/codesearch/+/main:chromite/lib/constants.py;l=697-704;drc=e94de9b6a35c961b92a9aa57fc3f7923525b9925
 var GzipImages = Images{
-	Kernel:   "full_dev_part_KERN.bin.gz",
-	Rootfs:   "full_dev_part_ROOT.bin.gz",
-	Stateful: "stateful.tgz",
+	Compression: Gzip,
+	Kernel:      "full_dev_part_KERN.bin.gz",
+	Rootfs:      "full_dev_part_ROOT.bin.gz",
+	Stateful:    "stateful.tgz",
+}
+
+// ZstdImages to flash.
+//
+// See https://source.chromium.org/chromiumos/chromiumos/codesearch/+/main:chromite/lib/constants.py;l=706-711;drc=e94de9b6a35c961b92a9aa57fc3f7923525b9925
+var ZstdImages = Images{
+	Compression: Zstd,
+	Kernel:      "full_KERN.bin.zst",
+	Rootfs:      "full_ROOT.bin.zst",
+	Stateful:    "stateful.zst",
 }

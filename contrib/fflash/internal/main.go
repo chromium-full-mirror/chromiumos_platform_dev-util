@@ -143,6 +143,7 @@ func Main(ctx context.Context, t0 time.Time, target string, opts *Options) error
 		return err
 	}
 	log.Printf("flashing directory: gs://%s", path.Join(art.Bucket, art.Dir))
+	log.Print("flashing images: ", strings.Join(art.Names(), " "))
 
 	req, err := createFlashRequest(ctx, tkSrc, art, opts.FlashOptions)
 	if err != nil {

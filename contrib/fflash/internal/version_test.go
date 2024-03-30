@@ -9,20 +9,37 @@ import (
 	"testing"
 
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/artifact"
+	"cloud.google.com/go/storage"
 	qt "github.com/frankban/quicktest"
+	"google.golang.org/api/option"
 )
 
 func TestGetFlashTargetGS(t *testing.T) {
 	c := qt.New(t)
 
-	art, err := getFlashTarget(context.Background(), nil, "", &Options{
-		GS: "gs://chromeos-image-archive/cherry-release/R104-14911.0.0",
-	})
+	ctx := context.Background()
 
+	tkSrc, err := getToken(ctx)
+	c.Assert(err, qt.IsNil)
+
+	storageClient, err := storage.NewClient(ctx, option.WithTokenSource(tkSrc))
+	c.Assert(err, qt.IsNil)
+
+	art, err := getFlashTarget(ctx, storageClient, "cherry", &Options{
+		VersionString: "R104-14911",
+	})
+	c.Assert(err, qt.IsNil)
 	c.Check(art.Bucket, qt.Equals, "chromeos-image-archive")
 	c.Check(art.Dir, qt.Equals, "cherry-release/R104-14911.0.0")
 	c.Check(art.Images, qt.Equals, artifact.GzipImages)
-	c.Check(err, qt.Equals, nil)
+
+	art, err = getFlashTarget(ctx, storageClient, "cherry", &Options{
+		VersionString: "R125-15828",
+	})
+	c.Assert(err, qt.IsNil)
+	c.Check(art.Bucket, qt.Equals, "chromeos-image-archive")
+	c.Check(art.Dir, qt.Equals, "cherry-release/R125-15828.0.0")
+	c.Check(art.Images, qt.Equals, artifact.ZstdImages)
 }
 
 func TestParseVersion(t *testing.T) {

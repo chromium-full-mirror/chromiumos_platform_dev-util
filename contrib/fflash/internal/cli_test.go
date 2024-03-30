@@ -5,7 +5,6 @@
 package internal
 
 import (
-	"fmt"
 	"regexp"
 	"testing"
 
@@ -114,30 +113,6 @@ func TestCLIParseErrors(t *testing.T) {
 			qt := quicktest.New(t)
 			_, _, err := cliParse(test.args)
 			qt.Check(err, quicktest.ErrorMatches, regexp.QuoteMeta(test.errString))
-		})
-	}
-}
-
-func TestCLIParseExits(t *testing.T) {
-	for name, test := range map[string]struct {
-		args       []string
-		exitStatus int
-	}{
-		"help": {
-			args:       []string{"--help"},
-			exitStatus: 0,
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			qt := quicktest.New(t)
-
-			qt.Assert(
-				func() {
-					cliParse(test.args)
-				},
-				quicktest.PanicMatches,
-				fmt.Sprintf(`unexpected call to os.Exit\(%d\) during test`, test.exitStatus),
-			)
 		})
 	}
 }

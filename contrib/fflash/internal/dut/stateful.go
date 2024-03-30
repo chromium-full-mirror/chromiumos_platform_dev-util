@@ -8,18 +8,34 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os/exec"
+
+	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/artifact"
 )
 
+func tarDecompressionFlag(compression artifact.Compression) string {
+	switch compression {
+	case artifact.Gzip:
+		return "--gzip"
+	case artifact.Zstd:
+		return "--zstd"
+	default:
+		log.Panicf("unknown compression %q", compression)
+		panic("notreached")
+	}
+}
+
 // unpackStateful unpacks the compressed stateful partition.
-func unpackStateful(ctx context.Context, r io.Reader) error {
+func unpackStateful(ctx context.Context, r io.Reader, compression artifact.Compression) error {
 	cmd := exec.CommandContext(ctx,
 		"tar",
 		"--ignore-command-error",
 		"--overwrite",
 		"--selinux",
 		"--directory", statefulDir,
-		"-xzf",
+		tarDecompressionFlag(compression),
+		"-xf",
 		"-",
 	)
 	cmd.Stdin = r

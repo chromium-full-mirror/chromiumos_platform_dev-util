@@ -10,6 +10,7 @@ require (
 
 require (
 	github.com/frankban/quicktest v1.14.3
+	github.com/klauspost/compress v1.17.7
 	github.com/klauspost/readahead v1.4.0
 	golang.org/x/exp v0.0.0-20230126173853-a67bb567ff2e
 )
