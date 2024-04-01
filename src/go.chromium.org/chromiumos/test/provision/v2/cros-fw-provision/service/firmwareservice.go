@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -66,6 +68,9 @@ type FirmwareService struct {
 	// Allows to avoid redownloading/reprocessing archives.
 	imagesMetadata map[string]ImageArchiveMetadata
 
+	// DUTServer is the gRPC connection to the DUT.
+	DUTServer api.DutServiceClient
+
 	useServo bool
 	// servoConfig provides dut-controls and programmer argument for flashing
 	servoConfig *servo_lib.ServoConfig
@@ -82,7 +87,7 @@ type versionJSON struct {
 }
 
 // NewFirmwareService initializes a FirmwareService.
-func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdapterInterface,
+func NewFirmwareService(ctx context.Context, dutServer api.DutServiceClient,
 	servoClient api.ServodServiceClient, cacheServer url.URL, board, model string,
 	useServo bool, req *api.InstallRequest) (*FirmwareService, error) {
 	metadata := new(api.FirmwareProvisionInstallMetadata)
@@ -92,9 +97,11 @@ func NewFirmwareService(ctx context.Context, dutAdapter common_utils.ServiceAdap
 		}
 	}
 	detailedRequest := metadata.FirmwareConfig
+	dutAdapter := common_utils.NewServiceAdapter(dutServer, false /*noReboot*/)
 
 	fws := FirmwareService{
 		connection:     dutAdapter,
+		DUTServer:      dutServer,
 		board:          board,
 		model:          model,
 		force:          false,
@@ -342,17 +349,18 @@ func (fws *FirmwareService) DeleteArchiveDirectories() error {
 // if |rwOnly| is false, futility will flash both RW and RO regions.
 // futilityArgs must include argument(s) that provide path(s) to the images.
 // apImagePath is the path to the AP image.
+// ecImagePath is the path to the EC image.
 //
 // If flashing over ssh, simply calls runFutility().
 // If flashing over servo, also runs pre- and post-flashing dut-controls.
-func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string, apImagePath string) error {
+func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string, apImagePath, ecImagePath string) error {
 	if err := fws.ExtractFirmwareVersions(ctx, rwOnly, futilityImageArgs, apImagePath); err != nil {
 		return errors.Wrap(err, "extract versions")
 	}
 	if fws.useServo {
 		return fws.servoFlash(ctx, rwOnly, futilityImageArgs)
 	}
-	return fws.sshFlash(ctx, rwOnly, futilityImageArgs)
+	return fws.sshFlash(ctx, rwOnly, futilityImageArgs, ecImagePath)
 }
 
 // ExtractFirmwareVersions uses futility to get the version numbers from the images.
@@ -486,8 +494,8 @@ func (fws *FirmwareService) ActiveFirmwareVersions(ctx context.Context) (*Firmwa
 	return &versions, nil
 }
 
-func (fws *FirmwareService) sshFlash(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
-	return fws.runFutility(ctx, rwOnly, futilityImageArgs)
+func (fws *FirmwareService) sshFlash(ctx context.Context, rwOnly bool, futilityImageArgs []string, ecImagePath string) error {
+	return fws.runFutility(ctx, rwOnly, futilityImageArgs, ecImagePath)
 }
 
 func (fws *FirmwareService) servoFlash(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
@@ -496,7 +504,7 @@ func (fws *FirmwareService) servoFlash(ctx context.Context, rwOnly bool, futilit
 		return errors.Wrap(dutOnErr, "failed to run pre-flashing dut-controls")
 	}
 
-	flashErr := fws.runFutility(ctx, rwOnly, futilityImageArgs)
+	flashErr := fws.runFutility(ctx, rwOnly, futilityImageArgs, "")
 
 	// Attempt to run post-flashing dut-controls regardless of flashErr.
 	dutOffErr := fws.servoConnection.RunAllDutControls(ctx, fws.servoConfig.DutOff)
@@ -509,7 +517,27 @@ func (fws *FirmwareService) servoFlash(ctx context.Context, rwOnly bool, futilit
 	return nil
 }
 
-func (fws *FirmwareService) runFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
+const (
+	// The character class \w is equivalent to [0-9A-Za-z_]. Leading equals sign is unsafe in zsh,
+	// see http://zsh.sourceforge.net/Doc/Release/Expansion.html#g_t_0060_003d_0027-expansion.
+	leadingSafeChars  = `-\w@%+:,./`
+	trailingSafeChars = leadingSafeChars + "="
+)
+
+// safeRE matches an argument that can be literally included in a shell
+// command line without requiring escaping.
+var safeRE = regexp.MustCompile(fmt.Sprintf("^[%s][%s]*$", leadingSafeChars, trailingSafeChars))
+
+// escape escapes a string so it can be safely included as an argument in a shell command line.
+// The string is not modified if it can already be safely included.
+func escape(s string) string {
+	if safeRE.MatchString(s) {
+		return s
+	}
+	return "'" + strings.Replace(s, "'", `'"'"'`, -1) + "'"
+}
+
+func (fws *FirmwareService) runFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string, ecImagePath string) error {
 	if len(futilityImageArgs) == 0 {
 		return errors.New("unable to flash: no futility Image args provided")
 	}
@@ -534,8 +562,66 @@ func (fws *FirmwareService) runFutility(ctx context.Context, rwOnly bool, futili
 	}
 
 	connection := fws.GetConnectionToFlashingDevice()
-	if _, err := connection.RunCmd(ctx, "futility", futilityArgs); err != nil {
-		return err
+	if ecImagePath != "" {
+		// If we are flashing EC, we might lose SSH access, so use nohup to run futility in a temporary python script, and poll for results
+		logFile := path.Join(path.Dir(ecImagePath), "futility.log")
+		pyScript := path.Join(path.Dir(ecImagePath), "futility.py")
+		var scriptBody strings.Builder
+		scriptBody.WriteString(`#!/usr/bin/env python3
+
+import subprocess
+
+with open("`)
+		scriptBody.WriteString(logFile)
+		scriptBody.WriteString(`", "wb", buffering=0) as outFile:
+  rc = subprocess.run(["futility"`)
+		for _, arg := range futilityArgs {
+			scriptBody.WriteString(", '")
+			scriptBody.WriteString(arg)
+			scriptBody.WriteString("'")
+		}
+		scriptBody.WriteString(`], stdout=outFile, stderr=outFile, check=False, bufsize=0)
+  outFile.write(f"EXIT CODE: {rc.returncode}\n".encode("utf-8"))
+  outFile.flush()
+subprocess.run(["sync", "-d", "/var/tmp", "/usr/local/tmp"])
+`)
+		_, _, err := RunDUTCommand(ctx, fws.DUTServer, time.Minute, "cat", []string{">", pyScript}, []byte(scriptBody.String()))
+		if err != nil {
+			return errors.Wrap(err, "failed to create futility.py")
+		}
+		defer connection.RunCmd(ctx, "rm", []string{"-f", logFile})
+
+		_, err = connection.RunCmd(ctx, "bash", []string{"-c", escape(fmt.Sprintf("nohup python3 %s </dev/null >&/dev/null & exit", pyScript))})
+		if err != nil {
+			return errors.Wrap(err, "failed to run nohup")
+		}
+		startTime := time.Now()
+		exitCodeRe := regexp.MustCompile(`EXIT CODE: (-?\d+)`)
+
+		// Poll every 10s for the log file to appear and have the "EXIT CODE:" string in it.
+		for time.Now().Sub(startTime) < 5*time.Minute {
+			time.Sleep(10 * time.Second)
+			buf, err := connection.RunCmd(ctx, "cat", []string{logFile})
+			if err != nil {
+				log.Printf("failed to download %q: %v", logFile, err)
+				continue
+			}
+			m := exitCodeRe.FindStringSubmatch(buf)
+			if m != nil {
+				log.Printf("Futility output:\n%s", buf)
+				if m[1] == "0" {
+					return nil
+				}
+				return errors.Errorf("futility failed: %q", buf)
+			} else {
+				log.Printf("Exit code not found in %q\n", buf)
+			}
+		}
+		return errors.New("Timeout waiting for futility")
+	} else {
+		if _, err := connection.RunCmd(ctx, "futility", futilityArgs); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -587,13 +673,34 @@ type configData struct {
 				} `yaml:"build-targets"`
 				ImageName string `yaml:"image-name"`
 			} `yaml:"firmware"`
-			Name string `yaml:"name"`
+			Name     string `yaml:"name"`
+			Identity struct {
+				SKUID int `yaml:"sku-id"`
+			} `yaml:"identity"`
 		}
 	}
 }
 
 // ReadConfigYAML downloads config.yaml from the DUT and find the firmware binary names that should be used.
 func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
+	out, err := fws.connection.RunCmd(ctx, "crosid", nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to run crosid")
+	}
+	re, err := regexp.Compile(`^SKU='([^']*)'`)
+	if err != nil {
+		return errors.Wrap(err, "sku regex failed")
+	}
+	m := re.FindStringSubmatch(out)
+	sku := -1
+	if m != nil {
+		sku, err = strconv.Atoi(m[1])
+		if err != nil {
+			return errors.Wrapf(err, "parse of %q failed", m[1])
+		}
+		log.Printf("DUT sku = %d", sku)
+	}
+
 	yamlPath := "/usr/share/chromeos-config/yaml/config.yaml"
 	ok, err := fws.connection.PathExists(ctx, yamlPath)
 	if err != nil {
@@ -617,13 +724,16 @@ func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
 	model := fws.GetModel()
 	for _, config := range configYaml.ChromeOS.Configs {
 		if config.Name == model {
+			if sku >= 0 && config.Identity.SKUID >= 0 && config.Identity.SKUID != sku {
+				continue
+			}
 			thisAPName := config.Firmware.BuildTargets.Coreboot
 			if thisAPName == "" {
 				thisAPName = config.Firmware.ImageName
 			}
 			if thisAPName != "" {
 				if fws.CorebootName != "" && fws.CorebootName != thisAPName {
-					return errors.Errorf("ambiguous AP name for model %q, could be %q or %q", model, fws.CorebootName, thisAPName)
+					return errors.Errorf("ambiguous AP name for model %q sku %d, could be %q or %q", model, sku, fws.CorebootName, thisAPName)
 				}
 				fws.CorebootName = thisAPName
 			}
@@ -633,7 +743,7 @@ func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
 			}
 			if thisECName != "" {
 				if fws.ECName != "" && fws.ECName != thisECName {
-					return errors.Errorf("ambiguous EC name for model %q, could be %q or %q", model, fws.ECName, thisECName)
+					return errors.Errorf("ambiguous EC name for model %q sku %d, could be %q or %q", model, sku, fws.ECName, thisECName)
 				}
 				fws.ECName = thisECName
 			}
@@ -662,8 +772,8 @@ func (fws *FirmwareService) DownloadAndProcess(ctx context.Context, gsPath strin
 			archiveSubfolder = splitGsPath[nameIdx]
 		}
 
-		// Use mktemp to safely create a unique temp directory.
-		archiveDir, err := connection.RunCmd(ctx, "mktemp", []string{"-d", "--tmpdir", "cros-fw-provision.XXXXXXXXX." + archiveSubfolder})
+		// Use mktemp to safely create a unique temp directory in /var/tmp so that it survives reboots.
+		archiveDir, err := connection.RunCmd(ctx, "mktemp", []string{"-d", "--tmpdir=/var/tmp", "cros-fw-provision.XXXXXXXXX." + archiveSubfolder})
 		if err != nil {
 			return errors.Wrap(err, "remote mktemp failed")
 		}

@@ -5,9 +5,10 @@
 package state_machine
 
 import (
-	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 	"context"
+	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 	"log"
+	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -31,6 +32,9 @@ func (s FirmwarePrepareState) Execute(ctx context.Context, log *log.Logger) (*ap
 	}
 	log.Printf("[FW Provisioning: Prepare FW] preparing for %v\n", firmwareImageDestination)
 	if err := s.service.ReadConfigYAML(ctx); err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			return nil, api.InstallResponse_STATUS_DUT_UNREACHABLE_PRE_PROVISION, firmwareservice.UpdateFirmwareFailedErr(err)
+		}
 		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 	}
 	if mainRw := s.service.GetMainRwPath(); len(mainRw) > 0 {

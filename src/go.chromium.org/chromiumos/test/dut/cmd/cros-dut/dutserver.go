@@ -691,6 +691,7 @@ func (s *DutServiceServer) runCmd(cmd string, stdin io.Reader, combined bool) *a
 	}
 	err = session.Run(cmd)
 
+	s.logger.Printf("cmd complete: %v", err)
 	return &api.ExecCommandResponse{
 		Stdout:   stdOut.Bytes(),
 		Stderr:   stdErr.Bytes(),

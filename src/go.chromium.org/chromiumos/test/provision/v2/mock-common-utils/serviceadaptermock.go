@@ -97,6 +97,20 @@ func (mr *MockServiceAdapterInterfaceMockRecorder) FetchFile(ctx, path interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchFile", reflect.TypeOf((*MockServiceAdapterInterface)(nil).FetchFile), ctx, path)
 }
 
+// ForceReconnectWithBackoff mocks base method.
+func (m *MockServiceAdapterInterface) ForceReconnectWithBackoff(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ForceReconnectWithBackoff", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ForceReconnectWithBackoff indicates an expected call of ForceReconnectWithBackoff.
+func (mr *MockServiceAdapterInterfaceMockRecorder) ForceReconnectWithBackoff(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ForceReconnectWithBackoff", reflect.TypeOf((*MockServiceAdapterInterface)(nil).ForceReconnectWithBackoff), ctx)
+}
+
 // PathExists mocks base method.
 func (m *MockServiceAdapterInterface) PathExists(ctx context.Context, path string) (bool, error) {
 	m.ctrl.T.Helper()
@@ -153,18 +167,4 @@ func (m *MockServiceAdapterInterface) RunCmd(ctx context.Context, cmd string, ar
 func (mr *MockServiceAdapterInterfaceMockRecorder) RunCmd(ctx, cmd, args interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunCmd", reflect.TypeOf((*MockServiceAdapterInterface)(nil).RunCmd), ctx, cmd, args)
-}
-
-// ForceReconnectWithBackoff mocks base method.
-func (m *MockServiceAdapterInterface) ForceReconnectWithBackoff(ctx context.Context) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ForceReconnectWithBackoff", ctx)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ForceReconnectWithBackoff indicates an expected call of ForceReconnectWithBackoff.
-func (mr *MockServiceAdapterInterfaceMockRecorder) ForceReconnectWithBackoff(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ForceReconnectWithBackoff", reflect.TypeOf((*MockServiceAdapterInterface)(nil).ForceReconnectWithBackoff), ctx)
 }

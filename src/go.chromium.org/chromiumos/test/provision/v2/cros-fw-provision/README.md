@@ -26,7 +26,6 @@ These example assume some vars are set in your shell:
 BOARD=myBoard
 MODEL=myModel
 D=192.168.0.0
-FW_IMAGE=$(gsutil ls -l gs://chromeos-image-archive/firmware-{brya,glados,oak,${BOARD?}}*-branch/*/${BOARD?}/firmware_from_source.tar.bz2 | grep -v TOTAL | sort -k2 | tail -1 | awk '{print $3}')
 ```
 
 Outside chroot
@@ -34,15 +33,35 @@ Outside chroot
 cd ~/chromiumos
 cros workon --host start local-cft && cros_sdk -- sudo emerge local-cft
 
-./chroot/usr/bin/local-cft -board ${BOARD?} -host ${D?} -stayalive -port cros-dut=8123 -port cache-server=8082
-# If you made changes in another service like cros-dut run
-# ./chroot/usr/bin/local-cft -board ${BOARD?} -host ${D?} -stayalive -port cros-dut=8123 -port cache-server=8082 --chroot ~/chromiumos/chroot --localservices cros-dut
+gcloud auth application-default print-access-token >/dev/null || gcloud auth application-default login
 ```
 
-To test detailed request via ssh
+If you are running with a local dut, you will need a cache server. Then set
+the CACHE_SERVER variable below with your IP as seen from the DUT, otherwise
+set the CACHE_SERVER variable to any cache server that is visible from the
+DUT.
 ```
-YOUR_IP_ADDRESS=192.168.100.1
-cat >/tmp/startup.json <<STARTUP
+docker run -d --rm -P --cap-add=NET_RAW --name visible-cache-server --expose 8082 -p 8082:8082 --volume $HOME/.config/:/root/.config --volume /tmp/local-cft/cacheserver:/tmp/cacheserver us-docker.pkg.dev/cros-registry/test-services/cacheserver:prod cacheserver -location /tmp/cacheserver -port 8082
+```
+
+Alternatively, you can build the cache server from source and run it.
+```
+sudo ufw allow 8082 # Open the port in the linux firewall.
+~/chromiumos/src/platform/dev/fast_build.sh -b go.chromium.org/chromiumos/prototytpe/cache/cmd/cacheserver -o ~/go/bin/cacheserver && ~/go/bin/cacheserver -port 8082
+```
+
+Then run the local-cft binary to run the cros-dut server.
+```
+./chroot/usr/bin/local-cft -board ${BOARD?} -host ${D?} -stayalive -port cros-dut=8123
+# If you made changes in another service like cros-dut run
+# ./chroot/usr/bin/local-cft -board ${BOARD?} -host ${D?} -stayalive -port cros-dut=8123 --chroot ~/chromiumos/chroot --localservices cros-dut
+```
+
+Inside chroot
+```
+FW_IMAGE=$(gsutil ls -l gs://chromeos-image-archive/firmware-{brya,glados,oak,${BOARD?}}*-branch/*/${BOARD?}/firmware_from_source.tar.bz2 | grep -v TOTAL | sort -k2 | tail -1 | awk '{print $3}')
+CACHE_SERVER=192.168.100.1
+cat >startup.json <<STARTUP
 {
         "dut": {
                 "chromeos": {
@@ -50,22 +69,21 @@ cat >/tmp/startup.json <<STARTUP
                                 "build_target": "${BOARD?}",
                                 "model_name": "${MODEL?}"
                         }
+                },
+                "cache_server": {
+                        "address": {
+                                "address": "${CACHE_SERVER?}",
+                                "port": 8082
+                        }
                 }
         },
         "dut_server": {
                 "address": "localhost",
                 "port": 8123
-        },
-        "metadata": {
-                "@type": "chromiumos.test.api.FirmwareProvisionStartupMetadata",
-                "cache_server_address": {
-                        "address": "${YOUR_IP_ADDRESS?}",
-                        "port": 8082
-                }
         }
 }
 STARTUP
-cat >/tmp/install.json <<INSTALL
+cat >install.json <<INSTALL
 {
         "metadata": {
                 "@type": "chromiumos.test.api.FirmwareProvisionInstallMetadata",
@@ -86,9 +104,9 @@ cat >/tmp/install.json <<INSTALL
         }
 }
 INSTALL
-~/chromiumos/src/platform/dev/fast_build.sh -b chromiumos/test/provision/v2/cros-fw-provision \
+~/chromiumos/src/platform/dev/fast_build.sh -b go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision \
         -o ~/go/bin/cros-fw-provision && \
-        ~/go/bin/cros-fw-provision cli -startup /tmp/startup.json -install /tmp/install.json
+        ~/go/bin/cros-fw-provision cli -startup startup.json -install install.json
 ```
 
 ## Dependencies
@@ -109,7 +127,7 @@ cros-fw-provision will need the cache server started.
 Run the test with fast_build.sh:
 
 ```
-~/chromiumos/src/platform/dev/fast_build.sh -t chromiumos/test/provision/v2/cros-fw-provision
+~/chromiumos/src/platform/dev/fast_build.sh -t go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision
 ```
 
 ### Generate coverage report

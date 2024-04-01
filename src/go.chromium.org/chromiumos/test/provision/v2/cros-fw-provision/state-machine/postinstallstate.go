@@ -7,8 +7,8 @@
 package state_machine
 
 import (
-	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 	"context"
+	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 	"log"
 
 	"github.com/pkg/errors"
@@ -31,7 +31,7 @@ func (s FirmwarePostInstallState) Execute(ctx context.Context, log *log.Logger) 
 
 	versions, err := s.service.ActiveFirmwareVersions(ctx)
 	if err != nil {
-		return fwMetadata, api.InstallResponse_STATUS_FIRMWARE_MISMATCH_POST_FIRMWARE_UPDATE, firmwareservice.FirmwareMismatchPostProvisionErr(err)
+		return nil, api.InstallResponse_STATUS_DUT_UNREACHABLE_POST_FIRMWARE_UPDATE, firmwareservice.FirmwareMismatchPostProvisionErr(err)
 	}
 	log.Printf("[FW Provisioning: Post Install] want firmware version ap:%+v ec:%+v\n", s.service.ExpectedVersions.AP.Versions, s.service.ExpectedVersions.EC.Versions)
 	log.Printf("[FW Provisioning: Post Install]  got firmware version ap:%+v ec:%+v\n", versions.AP.Versions, versions.EC.Versions)

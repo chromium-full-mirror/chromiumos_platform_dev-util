@@ -6,10 +6,11 @@
 package state_machine
 
 import (
-	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 	"context"
 	"fmt"
 	"log"
+
+	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -26,12 +27,12 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 	// form futility command args based on the request
 	var futilityImageArgs []string
 	// Detailed Request
-	var mainRoPath string
+	var mainRoPath, ecRoPath string
 	var err error
 	mainRoMetadata, ok := s.service.GetImageMetadata(s.service.GetMainRoPath())
 	if ok {
 		log.Printf("[FW Provisioning: Update RO] extracting AP image to flash\n")
-		mainRoPath, err = firmwareservice.PickAndExtractMainImage(ctx, connection, mainRoMetadata, s.service.GetMainRoPath(), s.service)
+		mainRoPath, err = firmwareservice.PickAndExtractMainImage(ctx, s.service.DUTServer, mainRoMetadata, s.service.GetMainRoPath(), s.service)
 		if err != nil {
 			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 		}
@@ -41,7 +42,7 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 	ecRoMetadata, ok := s.service.GetImageMetadata(s.service.GetEcRoPath())
 	if ok {
 		log.Printf("[FW Provisioning: Update RO] extracting EC image to flash\n")
-		ecRoPath, err := firmwareservice.PickAndExtractECImage(ctx, connection, ecRoMetadata, s.service.GetEcRoPath(), s.service)
+		ecRoPath, err = firmwareservice.PickAndExtractECImage(ctx, s.service.DUTServer, ecRoMetadata, s.service.GetEcRoPath(), s.service)
 		if err != nil {
 			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 		}
@@ -65,7 +66,7 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 	}
 
 	log.Printf("[FW Provisioning: Update RO] flashing RO firmware with futility\n")
-	err = s.service.FlashWithFutility(ctx, false /* WP */, futilityImageArgs, mainRoPath)
+	err = s.service.FlashWithFutility(ctx, false /* WP */, futilityImageArgs, mainRoPath, ecRoPath)
 	if err != nil {
 		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 	}

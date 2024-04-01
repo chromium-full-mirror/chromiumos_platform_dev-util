@@ -7,3 +7,4 @@ package v2
 
 // Use  ~/chromiumos/src/platform/dev/fast_build.sh -G to generate mocks.
 //go:generate mockgen -source common-utils/service_adapter_interface.go -destination mock-common-utils/serviceadaptermock.go -copyright_file copyright2022.txt
+//go:generate mockgen -destination mock_api/dut_service_client.go -copyright_file copyright2024.txt go.chromium.org/chromiumos/config/go/test/api DutServiceClient,DutService_ExecCommandClient

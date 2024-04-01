@@ -6,10 +6,11 @@
 package state_machine
 
 import (
-	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 	"context"
 	"fmt"
 	"log"
+
+	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -21,7 +22,6 @@ type FirmwareUpdateRwState struct {
 
 // Execute flashes firmware using futility with write-protection enabled.
 func (s FirmwareUpdateRwState) Execute(ctx context.Context, log *log.Logger) (*api.FirmwareProvisionResponse, api.InstallResponse_Status, error) {
-	connection := s.service.GetConnectionToFlashingDevice()
 	// form futility command args based on the request
 	var futilityImageArgs []string
 	// Detailed Request
@@ -30,14 +30,14 @@ func (s FirmwareUpdateRwState) Execute(ctx context.Context, log *log.Logger) (*a
 		panic(ok) // if nil, current state of the statemachine should not started
 	}
 	log.Printf("[FW Provisioning: Update RW] extracting AP image to flash\n")
-	mainRwPath, err := firmwareservice.PickAndExtractMainImage(ctx, connection, mainRwMetadata, s.service.GetMainRwPath(), s.service)
+	mainRwPath, err := firmwareservice.PickAndExtractMainImage(ctx, s.service.DUTServer, mainRwMetadata, s.service.GetMainRwPath(), s.service)
 	if err != nil {
 		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 	}
 	futilityImageArgs = []string{fmt.Sprint("--image=", mainRwPath)}
 
 	log.Printf("[FW Provisioning: Update RW] flashing RW firmware with futility\n")
-	err = s.service.FlashWithFutility(ctx, true /* WP */, futilityImageArgs, mainRwPath)
+	err = s.service.FlashWithFutility(ctx, true /* WP */, futilityImageArgs, mainRwPath, "")
 	if err != nil {
 		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 	}

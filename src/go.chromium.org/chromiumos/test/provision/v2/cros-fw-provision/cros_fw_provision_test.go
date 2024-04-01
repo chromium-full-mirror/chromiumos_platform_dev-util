@@ -5,22 +5,29 @@
 package main
 
 import (
-	"go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/cli"
-	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
-	state_machine "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/state-machine"
-	mock_common_utils "go.chromium.org/chromiumos/test/provision/v2/mock-common-utils"
 	"context"
 	"fmt"
 	"io"
 	"log"
 	"net/url"
+	"os"
+	"os/exec"
+	"path"
 	"strings"
 	"testing"
+
+	longrunning "go.chromium.org/chromiumos/config/go/longrunning"
+	"go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/cli"
+	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
+	state_machine "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/state-machine"
+	"go.chromium.org/chromiumos/test/provision/v2/mock_api"
 
 	"github.com/golang/mock/gomock"
 	conf "go.chromium.org/chromiumos/config/go"
 	build_api "go.chromium.org/chromiumos/config/go/build/api"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -39,29 +46,34 @@ func newCurlMatcher(target string, fileMatcher gomock.Matcher, log *log.Logger) 
 	}
 }
 func (c curlMatcher) Matches(x interface{}) bool {
-	args, ok := x.([]string)
+	req, ok := x.(*api.ExecCommandRequest)
 	if ok {
-		if len(args) != 6 {
+		if req.Command != "curl" {
 			return false
 		}
-		if args[0] != "-f" || args[1] != "-s" || args[2] != "-S" || args[3] != "-o" || args[4] != c.target {
+		if len(req.Args) != 5 {
 			return false
 		}
-		idx := strings.Index(args[5], "?file=")
+		if req.Args[0] != "-f" || req.Args[1] != "-S" || req.Args[2] != "-o" || req.Args[3] != c.target {
+			return false
+		}
+		idx := strings.Index(req.Args[4], "?file=")
 		if idx < 0 {
 			return false
 		}
-		filename, err := url.QueryUnescape(args[5][idx+6:])
+		filename, err := url.QueryUnescape(req.Args[4][idx+6:])
 		if err != nil {
 			panic(err)
 		}
+		// Remove trailing quote
+		filename = filename[:len(filename)-1]
 		return c.fileMatcher.Matches(filename)
 	}
 	return false
 }
 
 func (c curlMatcher) String() string {
-	return fmt.Sprintf("-f -s -S -o %s url(%s)", c.target, c.fileMatcher)
+	return fmt.Sprintf("curl -f -S -o %s url?file=(%s)", c.target, c.fileMatcher)
 }
 
 type yamlReader struct {
@@ -70,6 +82,66 @@ type yamlReader struct {
 
 func (yr yamlReader) Close() error {
 	return nil
+}
+
+type rpcMsg struct {
+	msg proto.Message
+}
+
+func (r *rpcMsg) Matches(msg interface{}) bool {
+	m, ok := msg.(proto.Message)
+	if !ok {
+		return false
+	}
+	return proto.Equal(m, r.msg)
+}
+
+func (r *rpcMsg) String() string {
+	return fmt.Sprintf("is %s", prototext.Format(r.msg))
+}
+
+func (r *rpcMsg) Got(got interface{}) string {
+	return prototext.Format(got.(proto.Message))
+}
+
+type dutServiceExecCommandClient struct {
+	Response *api.ExecCommandResponse
+	grpc.ClientStream
+}
+
+func (x *dutServiceExecCommandClient) Recv() (*api.ExecCommandResponse, error) {
+	if x.Response != nil {
+		tmp := x.Response
+		x.Response = nil
+		return tmp, nil
+	}
+	return nil, io.EOF
+}
+
+func newResponse(pb *api.ExecCommandResponse) *dutServiceExecCommandClient {
+	return &dutServiceExecCommandClient{
+		Response: pb,
+	}
+}
+
+type dutServiceFetchFileClient struct {
+	Response *api.File
+	grpc.ClientStream
+}
+
+func (x *dutServiceFetchFileClient) Recv() (*api.File, error) {
+	if x.Response != nil {
+		tmp := x.Response
+		x.Response = nil
+		return tmp, nil
+	}
+	return nil, io.EOF
+}
+
+func newFileResponse(pb *api.File) *dutServiceFetchFileClient {
+	return &dutServiceFetchFileClient{
+		Response: pb,
+	}
 }
 
 func TestDetailedRequestSSHStates(t *testing.T) {
@@ -171,7 +243,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 	for _, testCase := range testCases {
 		// Set up the mock.
 		ctrl := gomock.NewController(t)
-		sam := mock_common_utils.NewMockServiceAdapterInterface(ctrl)
+		dsc := mock_api.NewMockDutServiceClient(ctrl)
 
 		// Create FirmwareService.
 		ctx := context.Background()
@@ -183,7 +255,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		}
 		fws, err := firmwareservice.NewFirmwareService(
 			ctx,
-			sam,
+			dsc,
 			nil,
 			cacheServer,
 			"test_board",
@@ -217,47 +289,91 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		// Set mock expectations.
 		if testCase.configYAML == "" {
 			gomock.InOrder(
-				sam.EXPECT().PathExists(gomock.Any(), "/usr/share/chromeos-config/yaml/config.yaml").Return(false, nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "crosid",
+				}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Args: []string{"[", "-e", "/usr/share/chromeos-config/yaml/config.yaml", "]", "&&", "echo", "-n", "1", "||", "echo", "-n", "0"},
+				}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("0")}), nil),
 			)
 		} else {
-			var reader io.ReadCloser
-			reader = &yamlReader{strings.NewReader(testCase.configYAML)}
+			td := t.TempDir()
+			t.Logf("Writing %s", path.Join(td, "config.yaml"))
+			if err := os.WriteFile(path.Join(td, "config.yaml"), []byte(testCase.configYAML), 0666); err != nil {
+				t.Fatal("Failed to write config.yaml: ", err)
+			}
+			if out, err := exec.Command("tar", "-c", "--mode=a+rw", "--gzip", "-C", td, "-f", path.Join(td, "config.yaml.tar.gz"), "config.yaml").CombinedOutput(); err != nil {
+				t.Fatalf("Failed to tar -config.yaml: %v\n%s", err, string(out))
+			}
+			yamlTar, err := os.ReadFile(path.Join(td, "config.yaml.tar.gz"))
+			if err != nil {
+				t.Fatal("Failed to read config.yaml.tar.gz: ", err)
+			}
 			gomock.InOrder(
-				sam.EXPECT().PathExists(gomock.Any(), "/usr/share/chromeos-config/yaml/config.yaml").Return(true, nil),
-				sam.EXPECT().FetchFile(gomock.Any(), "/usr/share/chromeos-config/yaml/config.yaml").Return(reader, nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "crosid",
+				}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Args: []string{"[", "-e", "/usr/share/chromeos-config/yaml/config.yaml", "]", "&&", "echo", "-n", "1", "||", "echo", "-n", "0"},
+				}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("1")}), nil),
+				dsc.EXPECT().FetchFile(gomock.Any(), &api.FetchFileRequest{
+					File: "/usr/share/chromeos-config/yaml/config.yaml",
+				}).Return(newFileResponse(&api.File{File: yamlTar}), nil),
 			)
 		}
-		stagingURL := "http://1.2.3.4:5678/stage?archive_url=gs%3A%2Fchromeos-image-archive%2Fboard-firmware-branch%2FR123-12345.0.0%2Fboard&files=firmware_from_source.tar.bz2"
-		mkdirCall := sam.EXPECT().RunCmd(gomock.Any(), "mktemp", gomock.Eq([]string{"-d", "--tmpdir", "cros-fw-provision.XXXXXXXXX.board"})).Return("/tmp/someTempDir\n", nil)
+		stagingURL := "'http://1.2.3.4:5678/stage/?archive_url=gs%3A%2Fchromeos-image-archive%2Fboard-firmware-branch%2FR123-12345.0.0%2Fboard&files=firmware_from_source.tar.bz2'"
+		mkdirCall := dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+			Command: "mktemp",
+			Args:    []string{"-d", "--tmpdir=/var/tmp", "cros-fw-provision.XXXXXXXXX.board"},
+		}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("/var/tmp/someTempDir\n")}), nil)
 
 		if testCase.main_ro {
-			stagingCall := sam.EXPECT().RunCmd(gomock.Any(), "curl", gomock.Eq([]string{"-f", "-s", "-S", stagingURL})).MinTimes(1).Return("", nil)
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_model.bin"), log)).
-				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_board.bin"), log)).
-				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq(testCase.apImageWithinArchive), log)).
-				After(stagingCall).After(mkdirCall).Times(1).Return("success\n", nil)
+			stagingCall := dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+				Command: "curl",
+				Args:    []string{"-f", "-S", stagingURL},
+			}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("/var/tmp/someTempDir/bios.bin", gomock.Eq("image-test_model.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stderr: []byte("The requested URL returned error: 404\n")}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("/var/tmp/someTempDir/bios.bin", gomock.Eq("image-test_board.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stderr: []byte("The requested URL returned error: 404\n")}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("/var/tmp/someTempDir/bios.bin", gomock.Eq(testCase.apImageWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
 		}
 		if testCase.ec_ro {
-			stagingCall := sam.EXPECT().RunCmd(gomock.Any(), "curl", gomock.Eq([]string{"-f", "-s", "-S", stagingURL})).MinTimes(1).Return("", nil)
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq("test_board/ec.bin"), log)).
-				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq("test_model/ec.bin"), log)).
-				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/ec.bin", gomock.Eq(testCase.ecImageWithinArchive), log)).
-				After(stagingCall).After(mkdirCall).Times(1).Return("success\n", nil)
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/npcx_monitor.bin", gomock.Eq(testCase.npcxImageWithinArchive), log)).
-				After(stagingCall).After(mkdirCall).Times(1).Return("success\n", nil)
+			stagingCall := dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+				Command: "curl",
+				Args:    []string{"-f", "-S", stagingURL},
+			}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("/var/tmp/someTempDir/ec.bin", gomock.Eq("test_board/ec.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stderr: []byte("The requested URL returned error: 404\n")}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("/var/tmp/someTempDir/ec.bin", gomock.Eq("test_model/ec.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stderr: []byte("The requested URL returned error: 404\n")}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("/var/tmp/someTempDir/ec.bin", gomock.Eq(testCase.ecImageWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("/var/tmp/someTempDir/npcx_monitor.bin", gomock.Eq(testCase.npcxImageWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
 		}
 		if testCase.main_rw {
-			stagingCall := sam.EXPECT().RunCmd(gomock.Any(), "curl", gomock.Eq([]string{"-f", "-s", "-S", stagingURL})).MinTimes(1).Return("", nil)
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_model.bin"), log)).
-				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq("image-test_board.bin"), log)).
-				After(stagingCall).After(mkdirCall).MaxTimes(1).Return("not found\n", fmt.Errorf("execution fail: 1"))
-			sam.EXPECT().RunCmd(gomock.Any(), "curl", newCurlMatcher("/tmp/someTempDir/bios.bin", gomock.Eq(testCase.apImageWithinArchive), log)).
-				After(stagingCall).After(mkdirCall).Times(1).Return("success\n", nil)
+			stagingCall := dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+				Command: "curl",
+				Args:    []string{"-f", "-S", stagingURL},
+			}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("/var/tmp/someTempDir/bios.bin", gomock.Eq("image-test_model.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stderr: []byte("The requested URL returned error: 404\n")}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("/var/tmp/someTempDir/bios.bin", gomock.Eq("image-test_board.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stderr: []byte("The requested URL returned error: 404\n")}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("/var/tmp/someTempDir/bios.bin", gomock.Eq(testCase.apImageWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
 		}
 
 		// Execute the state and proceed.
@@ -272,18 +388,26 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			checkStateName(st, state_machine.UpdateRoStateName)
 
 			// Set mock expectations.
+			expectedFutilityArgs := []string{"update", "--mode=recovery"}
+			expectedFutilityPyArgs := "'update', '--mode=recovery'"
 			expectedFutilityImageArgs := []string{}
 			if testCase.main_ro {
-				expectedFutilityImageArgs = append(expectedFutilityImageArgs, "--image=/tmp/someTempDir/bios.bin")
+				expectedFutilityImageArgs = append(expectedFutilityImageArgs, "--image=/var/tmp/someTempDir/bios.bin")
+				expectedFutilityPyArgs += ", '--image=/var/tmp/someTempDir/bios.bin'"
 			}
 			if testCase.ec_ro {
-				expectedFutilityImageArgs = append(expectedFutilityImageArgs, "--ec_image=/tmp/someTempDir/ec.bin")
+				expectedFutilityImageArgs = append(expectedFutilityImageArgs, "--ec_image=/var/tmp/someTempDir/ec.bin")
+				expectedFutilityPyArgs += ", '--ec_image=/var/tmp/someTempDir/ec.bin'"
 			}
-			expectedFutilityArgs := append([]string{"update", "--mode=recovery"}, expectedFutilityImageArgs...)
+			expectedFutilityArgs = append(expectedFutilityArgs, expectedFutilityImageArgs...)
 			expectedFutilityArgs = append(expectedFutilityArgs, "--wp=0")
+			expectedFutilityPyArgs += ", '--wp=0'"
 			expectedFutilityManifestArgs := append([]string{"update", "--manifest"}, expectedFutilityImageArgs...)
 			gomock.InOrder(
-				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityManifestArgs).Return(`{
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "futility",
+					Args:    expectedFutilityManifestArgs,
+				}}).Times(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte(`{
 					"default": {
 						"host": {
 							"versions": { "ro": "roversion", "rw": "roversioninrw" }
@@ -292,18 +416,53 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 							"versions": { "ro": "ecroversion", "rw": "ecroversioninrw" }
 						}
 					}
-				}`, nil),
+				}`)}), nil),
 			)
 			if testCase.main_ro {
 				gomock.InOrder(
-					sam.EXPECT().RunCmd(gomock.Any(), "cbfstool", []string{"/tmp/someTempDir/bios.bin", "extract", "-r", "FW_MAIN_A", "-n", "ecrw.hash", "-f", "/tmp/someTempDir/bios.bin-ecrw.hash"}).Return("", nil),
-					sam.EXPECT().RunCmd(gomock.Any(), "od", []string{"-A", "n", "-t", "x1", "/tmp/someTempDir/bios.bin-ecrw.hash"}).Return(
-						" 38 73 52 6f 4f f3 af 90 62 68 7c 30 91 13 09 ee\n 12 a5 ce ec 23 55 19 a8 ba f6 cd be 63 61 ba 92\n", nil),
+					dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+						Command: "cbfstool",
+						Args:    []string{"/var/tmp/someTempDir/bios.bin", "extract", "-r", "FW_MAIN_A", "-n", "ecrw.hash", "-f", "/var/tmp/someTempDir/bios.bin-ecrw.hash"},
+					}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
+					dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+						Command: "od",
+						Args:    []string{"-A", "n", "-t", "x1", "/var/tmp/someTempDir/bios.bin-ecrw.hash"},
+					}}).Return(newResponse(&api.ExecCommandResponse{
+						ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte(" 38 73 52 6f 4f f3 af 90 62 68 7c 30 91 13 09 ee\n 12 a5 ce ec 23 55 19 a8 ba f6 cd be 63 61 ba 92\n")}), nil),
 				)
 			}
-			gomock.InOrder(
-				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityArgs).Return("", nil),
-			)
+			if testCase.ec_ro {
+				gomock.InOrder(
+					dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+						Command: "cat",
+						Args:    []string{">", "/var/tmp/someTempDir/futility.py"},
+						Stdin: []byte(fmt.Sprintf("#!/usr/bin/env python3\n\nimport subprocess\n\n"+
+							"with open(\"/var/tmp/someTempDir/futility.log\", \"wb\", buffering=0) as outFile:\n"+
+							"  rc = subprocess.run([\"futility\", %s], stdout=outFile, stderr=outFile, check=False, bufsize=0)\n"+
+							"  outFile.write(f\"EXIT CODE: {rc.returncode}\\n\".encode(\"utf-8\"))\n  outFile.flush()\n"+
+							"subprocess.run([\"sync\", \"-d\", \"/var/tmp\", \"/usr/local/tmp\"])\n", expectedFutilityPyArgs)),
+					}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
+					dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+						Command: "bash",
+						Args:    []string{"-c", "'nohup python3 /var/tmp/someTempDir/futility.py </dev/null >&/dev/null & exit'"},
+					}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
+					dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+						Command: "cat",
+						Args:    []string{"/var/tmp/someTempDir/futility.log"},
+					}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("EXIT CODE: 0\n")}), nil),
+					dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+						Command: "rm",
+						Args:    []string{"-f", "/var/tmp/someTempDir/futility.log"},
+					}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
+				)
+			} else {
+				gomock.InOrder(
+					dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+						Command: "futility",
+						Args:    expectedFutilityArgs,
+					}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
+				)
+			}
 
 			// Execute the state and proceed.
 			_, _, err := st.Execute(ctx, log)
@@ -318,20 +477,32 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			checkStateName(st, state_machine.UpdateRwStateName)
 
 			// Set mock expectations.
-			expectedFutilityArgs := []string{"update", "--mode=recovery", "--image=/tmp/someTempDir/bios.bin", "--wp=1"}
-			expectedFutilityManifestArgs := []string{"update", "--manifest", "--image=/tmp/someTempDir/bios.bin"}
+			expectedFutilityArgs := []string{"update", "--mode=recovery", "--image=/var/tmp/someTempDir/bios.bin", "--wp=1"}
+			expectedFutilityManifestArgs := []string{"update", "--manifest", "--image=/var/tmp/someTempDir/bios.bin"}
 			gomock.InOrder(
-				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityManifestArgs).Return(`{
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "futility",
+					Args:    expectedFutilityManifestArgs,
+				}}).Times(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte(`{
 					"default": {
 						"host": {
 							"versions": { "ro": "wrongro", "rw": "rwversion" }
 						}
 					}
-				}`, nil),
-				sam.EXPECT().RunCmd(gomock.Any(), "cbfstool", []string{"/tmp/someTempDir/bios.bin", "extract", "-r", "FW_MAIN_A", "-n", "ecrw.hash", "-f", "/tmp/someTempDir/bios.bin-ecrw.hash"}).Return("", nil),
-				sam.EXPECT().RunCmd(gomock.Any(), "od", []string{"-A", "n", "-t", "x1", "/tmp/someTempDir/bios.bin-ecrw.hash"}).Return(
-					" 38 73 52 6f 4f f3 af 90 62 68 7c 30 91 13 09 ee\n 12 a5 ce ec 23 55 19 a8 ba f6 cd be 63 61 ba 92\n", nil),
-				sam.EXPECT().RunCmd(gomock.Any(), "futility", expectedFutilityArgs).Return("", nil),
+				}`)}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "cbfstool",
+					Args:    []string{"/var/tmp/someTempDir/bios.bin", "extract", "-r", "FW_MAIN_A", "-n", "ecrw.hash", "-f", "/var/tmp/someTempDir/bios.bin-ecrw.hash"},
+				}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "od",
+					Args:    []string{"-A", "n", "-t", "x1", "/var/tmp/someTempDir/bios.bin-ecrw.hash"},
+				}}).Return(newResponse(&api.ExecCommandResponse{
+					ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte(" 38 73 52 6f 4f f3 af 90 62 68 7c 30 91 13 09 ee\n 12 a5 ce ec 23 55 19 a8 ba f6 cd be 63 61 ba 92\n")}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "futility",
+					Args:    expectedFutilityArgs,
+				}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
 			)
 
 			/* OD output:
@@ -358,31 +529,71 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		checkStateName(st, state_machine.PostInstallStateName)
 		// Set mock expectations.
 		gomock.InOrder(
-			sam.EXPECT().DeleteDirectory(gomock.Any(), "/tmp/someTempDir").Return(nil),
-			sam.EXPECT().Restart(gomock.Any()).Return(nil),
-			sam.EXPECT().RunCmd(gomock.Any(), "true", nil).Return("ssh timeout\n", fmt.Errorf("execution fail: 1")),
-			sam.EXPECT().RunCmd(gomock.Any(), "true", nil).Return("", nil),
+			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+				Command: "rm",
+				Args:    []string{"-rf", "/var/tmp/someTempDir"},
+			}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
+			dsc.EXPECT().Restart(gomock.Any(), gomock.Any()).Return(&longrunning.Operation{Done: true}, nil),
+			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+				Command: "true",
+			}}).Return(nil, fmt.Errorf("ssh timeout")),
+			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+				Command: "true",
+			}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
 		)
 		if testCase.updateRo && testCase.updateRw {
 			gomock.InOrder(
-				sam.EXPECT().RunCmd(gomock.Any(), "crossystem", []string{"ro_fwid", "fwid"}).Return("roversion rwversion", nil),
-				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"version"}).Return("RO version: ecroversion\nRW version: ecrwversion\n", nil),
-				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"echash"}).Return(
-					"status:  done\ntype:    SHA-256\noffset:  0x00040000\nsize:    0x00033b80\nhash:    3873526f4ff3af9062687c30911309ee12a5ceec235519a8baf6cdbe6361ba92\n", nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "crossystem",
+					Args:    []string{"ro_fwid", "fwid"},
+				}}).Return(newResponse(&api.ExecCommandResponse{
+					ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("roversion rwversion")}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "ectool",
+					Args:    []string{"version"},
+				}}).Return(newResponse(&api.ExecCommandResponse{
+					ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("RO version: ecroversion\nRW version: ecrwversion\n")}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "ectool",
+					Args:    []string{"echash"},
+				}}).Return(newResponse(&api.ExecCommandResponse{
+					ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("status:  done\ntype:    SHA-256\noffset:  0x00040000\nsize:    0x00033b80\nhash:    3873526f4ff3af9062687c30911309ee12a5ceec235519a8baf6cdbe6361ba92\n")}), nil),
 			)
 		} else if testCase.updateRo {
 			gomock.InOrder(
-				sam.EXPECT().RunCmd(gomock.Any(), "crossystem", []string{"ro_fwid", "fwid"}).Return("roversion roversioninrw", nil),
-				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"version"}).Return("RO version: ecroversion\nRW version: ecroversioninrw\n", nil),
-				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"echash"}).Return(
-					"status:  done\ntype:    SHA-256\noffset:  0x00040000\nsize:    0x00033b80\nhash:    3873526f4ff3af9062687c30911309ee12a5ceec235519a8baf6cdbe6361ba92\n", nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "crossystem",
+					Args:    []string{"ro_fwid", "fwid"},
+				}}).Return(newResponse(&api.ExecCommandResponse{
+					ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("roversion roversioninrw")}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "ectool",
+					Args:    []string{"version"},
+				}}).Return(newResponse(&api.ExecCommandResponse{
+					ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("RO version: ecroversion\nRW version: ecroversioninrw\n")}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "ectool",
+					Args:    []string{"echash"},
+				}}).Return(newResponse(&api.ExecCommandResponse{
+					ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("status:  done\ntype:    SHA-256\noffset:  0x00040000\nsize:    0x00033b80\nhash:    3873526f4ff3af9062687c30911309ee12a5ceec235519a8baf6cdbe6361ba92\n")}), nil),
 			)
 		} else if testCase.updateRw {
 			gomock.InOrder(
-				sam.EXPECT().RunCmd(gomock.Any(), "crossystem", []string{"ro_fwid", "fwid"}).Return("roversion rwversion", nil),
-				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"version"}).Return("RO version: ecroversion\nRW version: ecrwversion\n", nil),
-				sam.EXPECT().RunCmd(gomock.Any(), "ectool", []string{"echash"}).Return(
-					"status:  done\ntype:    SHA-256\noffset:  0x00040000\nsize:    0x00033b80\nhash:    3873526f4ff3af9062687c30911309ee12a5ceec235519a8baf6cdbe6361ba92\n", nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "crossystem",
+					Args:    []string{"ro_fwid", "fwid"},
+				}}).Return(newResponse(&api.ExecCommandResponse{
+					ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("roversion rwversion")}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "ectool",
+					Args:    []string{"version"},
+				}}).Return(newResponse(&api.ExecCommandResponse{
+					ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("RO version: ecroversion\nRW version: ecrwversion\n")}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "ectool",
+					Args:    []string{"echash"},
+				}}).Return(newResponse(&api.ExecCommandResponse{
+					ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("status:  done\ntype:    SHA-256\noffset:  0x00040000\nsize:    0x00033b80\nhash:    3873526f4ff3af9062687c30911309ee12a5ceec235519a8baf6cdbe6361ba92\n")}), nil),
 			)
 		}
 		// Execute the state and proceed.

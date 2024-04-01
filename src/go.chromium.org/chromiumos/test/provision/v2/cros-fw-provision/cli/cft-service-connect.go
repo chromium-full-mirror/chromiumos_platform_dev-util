@@ -6,21 +6,17 @@
 package cli
 
 import (
-	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
-
 	"github.com/pkg/errors"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/grpc"
 )
 
-func connectToDutServer(dutServAddr string) (*common_utils.ServiceAdapter, error) {
+func connectToDutServer(dutServAddr string) (api.DutServiceClient, error) {
 	dutConn, err := grpc.Dial(dutServAddr, grpc.WithInsecure())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to connect to Dut Server")
 	}
-	dutServerAdapter := common_utils.NewServiceAdapter(
-		api.NewDutServiceClient(dutConn), false /*noReboot*/)
-	return &dutServerAdapter, nil
+	return api.NewDutServiceClient(dutConn), nil
 }
 
 func connectToCrosServod(crosServodAddr string) (api.ServodServiceClient, error) {

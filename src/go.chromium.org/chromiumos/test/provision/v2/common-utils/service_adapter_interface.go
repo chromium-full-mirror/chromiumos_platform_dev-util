@@ -30,6 +30,7 @@ const (
 type ServiceAdapterInterface interface {
 	// RunCmd takes a command and argument and executes it remotely in the DUT,
 	// returning the stdout as the string result and any execution error as the error.
+	// The args are not quoted in any way, so beware of spaces and shell variables.
 	RunCmd(ctx context.Context, cmd string, args []string) (string, error)
 	// Restart restarts a DUT (allowing cros-dut to reconnect for connection caching).
 	Restart(ctx context.Context) error
@@ -96,7 +97,7 @@ func (s ServiceAdapter) RunCmd(ctx context.Context, cmd string, args []string) (
 
 	select {
 	case <-ctxTimeout.Done():
-		return "", fmt.Errorf("<cros-provision> Timeout %d(sec) reached", timeout.Seconds())
+		return "", fmt.Errorf("<cros-provision> Timeout %s reached", timeout)
 	case result := <-ch:
 		return result.response, result.err
 	}

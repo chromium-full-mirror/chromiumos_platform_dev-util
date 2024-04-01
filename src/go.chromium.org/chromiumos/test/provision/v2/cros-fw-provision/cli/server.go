@@ -6,14 +6,14 @@
 package cli
 
 import (
-	"go.chromium.org/chromiumos/lro"
-	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
-	"go.chromium.org/chromiumos/test/util/portdiscovery"
 	"context"
 	"fmt"
 	"log"
 	"net"
 	"net/url"
+
+	"go.chromium.org/chromiumos/lro"
+	"go.chromium.org/chromiumos/test/util/portdiscovery"
 
 	"github.com/pkg/errors"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -27,11 +27,12 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+// FWProvisionServer is the top level class for the firmware provisioning server.
 type FWProvisionServer struct {
-	// dutAdapter provides an interface to manipulate DUT via cros-dut
+	// dutServer provides an interface to manipulate DUT via cros-dut
 	// service. Its address may be specified either when server is created,
 	// or later in user's ProvisionFirmwareRequest
-	dutAdapter common_utils.ServiceAdapterInterface
+	dutServer api.DutServiceClient
 
 	// servoClient provides an interface to manipulate DUT via cros-servod
 	// service. Its address may be specified either when server is created,
@@ -107,12 +108,12 @@ func (ps *FWProvisionServer) StartUp(ctx context.Context, req *api.ProvisionStar
 		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
 		return &response, errors.Wrap(err, "failed to parse IpEndpoint of Dut Server")
 	}
-	dutAdapter, err := connectToDutServer(dutServAddr)
+	dutServer, err := connectToDutServer(dutServAddr)
 	if err != nil {
 		response.Status = api.ProvisionStartupResponse_STATUS_STARTUP_FAILED
 		return &response, errors.Wrap(err, "connect to dut server")
 	}
-	ps.dutAdapter = dutAdapter
+	ps.dutServer = dutServer
 
 	cacheServerAddr, err := ipEndpointToHostPort(req.Dut.GetCacheServer().GetAddress())
 	if err != nil {
@@ -184,7 +185,7 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 		ps.log.Printf("Provision set OP Response to:%s ", response.String())
 	}()
 
-	fwService, err := firmwareservice.NewFirmwareService(ctx, ps.dutAdapter, ps.servoClient, ps.cacheServer,
+	fwService, err := firmwareservice.NewFirmwareService(ctx, ps.dutServer, ps.servoClient, ps.cacheServer,
 		ps.board, ps.model, false, req)
 	if err != nil {
 		response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
@@ -218,5 +219,7 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 		firmwareResponse.ErrorMessage = err.Error()
 	}
 	response.Metadata, err = anypb.New(firmwareResponse)
-	ps.log.Printf("Failed to create AnyPb: %v", err)
+	if err != nil {
+		ps.log.Printf("Failed to create AnyPb: %v", err)
+	}
 }
