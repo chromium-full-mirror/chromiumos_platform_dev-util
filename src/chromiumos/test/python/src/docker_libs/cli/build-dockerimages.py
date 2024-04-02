@@ -74,7 +74,6 @@ REGISTERED_BUILDS = {
     },
     "cros-callbox": {"prepper": CrosCallBoxDockerPrepper, "cloud": False},
     "cros-dut": {"prepper": CrosDutDockerPrepper, "cloud": False},
-    "testplan": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "cros-provision": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "cros-fw-provision": {
         "prepper": CrosFWProvisionDockerPrepper,
