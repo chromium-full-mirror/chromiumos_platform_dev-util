@@ -4,7 +4,7 @@
 package cli_test
 
 import (
-	"chromiumos/test/plan/internal/cli"
+	"go.chromium.org/chromiumos/test/plan/internal/cli"
 	"flag"
 	"testing"
 

@@ -20,7 +20,7 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/plan"
 	"google.golang.org/protobuf/testing/protocmp"
 
-	testplan "chromiumos/test/plan/internal"
+	testplan "go.chromium.org/chromiumos/test/plan/internal"
 )
 
 // buildMetadata is a convenience to reduce boilerplate when creating

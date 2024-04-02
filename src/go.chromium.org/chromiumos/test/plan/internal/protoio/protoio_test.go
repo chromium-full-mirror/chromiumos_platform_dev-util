@@ -5,7 +5,7 @@
 package protoio_test
 
 import (
-	"chromiumos/test/plan/internal/protoio"
+	"go.chromium.org/chromiumos/test/plan/internal/protoio"
 	"os"
 	"path/filepath"
 	"testing"

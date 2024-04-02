@@ -4,7 +4,7 @@
 package compatibility_test
 
 import (
-	"chromiumos/test/plan/internal/compatibility"
+	"go.chromium.org/chromiumos/test/plan/internal/compatibility"
 	"regexp"
 	"testing"
 

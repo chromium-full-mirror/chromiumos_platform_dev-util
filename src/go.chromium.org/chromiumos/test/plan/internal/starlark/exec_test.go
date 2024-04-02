@@ -4,7 +4,7 @@
 package starlark_test
 
 import (
-	"chromiumos/test/plan/internal/starlark"
+	"go.chromium.org/chromiumos/test/plan/internal/starlark"
 	"context"
 	"io/ioutil"
 	"os"

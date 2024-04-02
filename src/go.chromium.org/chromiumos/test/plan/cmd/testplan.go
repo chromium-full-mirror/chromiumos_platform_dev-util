@@ -28,10 +28,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	testplan "chromiumos/test/plan/internal"
-	"chromiumos/test/plan/internal/cli"
-	"chromiumos/test/plan/internal/compatibility"
-	"chromiumos/test/plan/internal/protoio"
+	testplan "go.chromium.org/chromiumos/test/plan/internal"
+	"go.chromium.org/chromiumos/test/plan/internal/cli"
+	"go.chromium.org/chromiumos/test/plan/internal/compatibility"
+	"go.chromium.org/chromiumos/test/plan/internal/protoio"
 )
 
 // Version is set to the CROS_GO_VERSION eclass variable at build time. See

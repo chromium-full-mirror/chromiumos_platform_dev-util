@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"testing"
 
-	"chromiumos/test/plan/internal/compatibility"
+	"go.chromium.org/chromiumos/test/plan/internal/compatibility"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"

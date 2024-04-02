@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"chromiumos/test/plan/internal/compatibility/priority"
+	"go.chromium.org/chromiumos/test/plan/internal/compatibility/priority"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"

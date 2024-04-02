@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 
-	"chromiumos/test/plan/internal/starlark"
+	"go.chromium.org/chromiumos/test/plan/internal/starlark"
 
 	"github.com/golang/glog"
 	buildpb "go.chromium.org/chromiumos/config/go/build/api"

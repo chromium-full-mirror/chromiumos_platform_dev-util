@@ -9,7 +9,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"chromiumos/test/plan/internal/compatibility/priority"
+	"go.chromium.org/chromiumos/test/plan/internal/compatibility/priority"
 
 	"github.com/google/go-cmp/cmp"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
