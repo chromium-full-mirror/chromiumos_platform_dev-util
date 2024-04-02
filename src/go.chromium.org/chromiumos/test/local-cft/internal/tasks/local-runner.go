@@ -7,8 +7,6 @@ package tasks
 
 import (
 	"bufio"
-	"chromiumos/test/local-cft/internal/services"
-	"chromiumos/test/local-cft/internal/utils"
 	"context"
 	"flag"
 	"fmt"
@@ -18,6 +16,8 @@ import (
 	"strings"
 
 	"github.com/maruel/subcommands"
+	"go.chromium.org/chromiumos/test/local-cft/internal/services"
+	"go.chromium.org/chromiumos/test/local-cft/internal/utils"
 )
 
 const (

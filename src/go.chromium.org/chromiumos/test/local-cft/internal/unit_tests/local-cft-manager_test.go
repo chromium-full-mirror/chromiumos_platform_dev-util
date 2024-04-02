@@ -5,10 +5,11 @@
 package unit_tests
 
 import (
-	"chromiumos/test/local-cft/internal/services"
 	"context"
 	"reflect"
 	"testing"
+
+	"go.chromium.org/chromiumos/test/local-cft/internal/services"
 )
 
 type MockServiceExecutor struct {

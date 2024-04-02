@@ -6,12 +6,12 @@
 package services
 
 import (
-	"chromiumos/test/local-cft/internal/utils"
 	"fmt"
 	"os/exec"
 	"os/user"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/chromiumos/test/local-cft/internal/utils"
 )
 
 type cacheServerServiceCommands struct {

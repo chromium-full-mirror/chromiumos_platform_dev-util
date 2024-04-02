@@ -6,7 +6,6 @@
 package services
 
 import (
-	"chromiumos/test/local-cft/internal/utils"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -16,6 +15,7 @@ import (
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	lab "go.chromium.org/chromiumos/config/go/test/lab/api"
+	"go.chromium.org/chromiumos/test/local-cft/internal/utils"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 

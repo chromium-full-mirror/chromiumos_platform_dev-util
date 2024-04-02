@@ -5,8 +5,9 @@
 package unit_tests
 
 import (
-	"chromiumos/test/local-cft/internal/utils"
 	"testing"
+
+	"go.chromium.org/chromiumos/test/local-cft/internal/utils"
 )
 
 func TestEnsureContainerAvailable_containerAvailable(t *testing.T) {

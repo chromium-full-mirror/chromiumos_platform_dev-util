@@ -6,11 +6,11 @@
 package services
 
 import (
-	"chromiumos/test/local-cft/internal/utils"
 	"fmt"
 	"os/exec"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/chromiumos/test/local-cft/internal/utils"
 )
 
 type crosTestFinderServiceCommands struct {

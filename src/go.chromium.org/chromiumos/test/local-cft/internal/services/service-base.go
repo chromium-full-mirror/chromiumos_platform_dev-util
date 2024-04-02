@@ -7,13 +7,13 @@ package services
 
 import (
 	"bytes"
-	"chromiumos/test/local-cft/internal/utils"
 	"fmt"
 	"io"
 	"log"
 	"strings"
 
 	"google.golang.org/grpc"
+	"go.chromium.org/chromiumos/test/local-cft/internal/utils"
 )
 
 // Represents how to start up a service

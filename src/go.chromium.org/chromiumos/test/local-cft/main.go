@@ -7,7 +7,7 @@ package main
 import (
 	"os"
 
-	"chromiumos/test/local-cft/internal/tasks"
+	"go.chromium.org/chromiumos/test/local-cft/internal/tasks"
 )
 
 func main() {
