@@ -19,7 +19,7 @@ import (
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/common"
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/common/cipd"
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/service"
-	mock_common_utils "chromiumos/test/provision/v2/mock-common-utils"
+	mock_common_utils "go.chromium.org/chromiumos/test/provision/v2/mock-common-utils"
 )
 
 func TestResolveCIPDPackageCommand(t *testing.T) {

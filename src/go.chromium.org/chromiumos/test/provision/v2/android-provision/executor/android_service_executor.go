@@ -12,7 +12,7 @@ import (
 
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/service"
 	state_machine "go.chromium.org/chromiumos/test/provision/v2/android-provision/state-machine"
-	common_utils "chromiumos/test/provision/v2/common-utils"
+	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 )
 
 type AndroidProvisionExecutor struct {

@@ -24,7 +24,7 @@ import (
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/service"
 	state_machine "go.chromium.org/chromiumos/test/provision/v2/android-provision/state-machine"
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/test"
-	common_utils "chromiumos/test/provision/v2/common-utils"
+	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 )
 
 var statusToResult = map[api.InstallResponse_Status]api.InstallFailure_Reason{

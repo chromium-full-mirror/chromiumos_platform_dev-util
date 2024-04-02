@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	mock_common_utils "chromiumos/test/provision/v2/mock-common-utils"
+	mock_common_utils "go.chromium.org/chromiumos/test/provision/v2/mock-common-utils"
 	"github.com/golang/mock/gomock"
 	"go.chromium.org/chromiumos/config/go/test/api"
 

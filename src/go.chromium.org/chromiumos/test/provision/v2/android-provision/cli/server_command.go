@@ -12,9 +12,9 @@ import (
 
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/common"
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/executor"
-	common_utils "chromiumos/test/provision/v2/common-utils"
-	"chromiumos/test/provision/v2/common-utils/metadata"
-	"chromiumos/test/provision/v2/common-utils/server"
+	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
+	"go.chromium.org/chromiumos/test/provision/v2/common-utils/metadata"
+	"go.chromium.org/chromiumos/test/provision/v2/common-utils/server"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )

@@ -17,7 +17,7 @@ import (
 
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/common"
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/common/gsstorage"
-	common_utils "chromiumos/test/provision/v2/common-utils"
+	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 )
 
 // AndroidPackage contains information about installed Android package.

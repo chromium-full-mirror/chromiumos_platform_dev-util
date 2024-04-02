@@ -16,7 +16,7 @@ import (
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/common"
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/service"
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/state-machine/commands"
-	common_utils "chromiumos/test/provision/v2/common-utils"
+	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 )
 
 type PackageInstallState struct {
