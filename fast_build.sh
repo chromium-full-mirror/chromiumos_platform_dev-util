@@ -30,8 +30,8 @@ readonly EXCLUDE_PKGS=(
   "go.chromium.org/chromiumos/test/dut/internal"
   "chromiumos/test/local-cft/internal/unit_tests"
   "go.chromium.org/chromiumos/test/util/finder"
-  "chromiumos/ctp/buildbucket"
-  "chromiumos/ctp/builder"
+  "go.chromium.org/chromiumos/ctp/buildbucket"
+  "go.chromium.org/chromiumos/ctp/builder"
   "go.chromium.org/chromiumos/test/ctpv2/kompress"
 )
 

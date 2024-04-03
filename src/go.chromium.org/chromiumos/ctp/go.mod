@@ -1,5 +1,4 @@
-// TODO - change this to be a vanity URL for easier access
-module go.chromium.org/chromiumos/platform/dev-util/src/chromiumos/ctp
+module go.chromium.org/chromiumos/ctp
 
 go 1.20
 

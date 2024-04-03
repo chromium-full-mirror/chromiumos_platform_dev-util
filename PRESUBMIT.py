@@ -22,7 +22,7 @@ PRESUBMIT_VERSION = "2.0.0"
 # Mandatory: run under Python 3
 USE_PYTHON3 = True
 
-CTP_DIR = "src/chromiumos/ctp"
+CTP_DIR = "src/go.chromium.org/chromiumos/ctp"
 
 
 def RunProcess(cmd):  # pragma: no cover
@@ -49,7 +49,7 @@ def RunProcess(cmd):  # pragma: no cover
 
 
 # Unit tests CTP client codebase if a changed to the CTP files is merged.
-# This would ideally be in `src/chromiumos/ctp`, but `repo upload` only runs
+# This would ideally be in `src/go.chromium.org/chromiumos/ctp`, but `repo upload` only runs
 # against `PRESUBMIT.py` at the top level of a repo, so we need this logic here
 def CheckCTPTests(input_api, output_api):
     results = []
@@ -63,7 +63,7 @@ def CheckCTPTests(input_api, output_api):
     input_api.logging.info("Running go tests")
 
     try:
-        output = RunProcess("./src/chromiumos/ctp/run_go_unittests.sh")
+        output = RunProcess("./src/go.chromium.org/chromiumos/ctp/run_go_unittests.sh")
     except subprocess.CalledProcessError as e:
         # pull stdout/err from command into error for better end user message
         raise RuntimeError(e.output.decode("unicode-escape"))

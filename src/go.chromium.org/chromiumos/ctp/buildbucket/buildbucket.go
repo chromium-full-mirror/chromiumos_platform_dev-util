@@ -19,8 +19,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
-	"go.chromium.org/chromiumos/platform/dev-util/src/chromiumos/ctp/common"
-	"go.chromium.org/chromiumos/platform/dev-util/src/chromiumos/ctp/site"
+	"go.chromium.org/chromiumos/ctp/common"
+	"go.chromium.org/chromiumos/ctp/site"
 )
 
 // BBClient is a subset of buildbucketpb.BuildsClient providing a smaller surface area for unit tests

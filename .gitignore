@@ -18,5 +18,5 @@ static/state.gz
 /contrib/cros_openwrt/build
 /contrib/cros_openwrt/image_builder/go/bin
 /contrib/cros_openwrt/image_builder/go/pkg
-/src/chromiumos/ctp/.cipd_bin
+/src/go.chromium.org/chromiumos/ctp/.cipd_bin
 contrib/gfx/display/temp/

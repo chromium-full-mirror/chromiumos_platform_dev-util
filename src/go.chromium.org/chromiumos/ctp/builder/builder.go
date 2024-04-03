@@ -18,9 +18,9 @@ import (
 	"go.chromium.org/luci/common/errors"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	"go.chromium.org/chromiumos/platform/dev-util/src/chromiumos/ctp/buildbucket"
-	"go.chromium.org/chromiumos/platform/dev-util/src/chromiumos/ctp/common"
-	"go.chromium.org/chromiumos/platform/dev-util/src/chromiumos/ctp/site"
+	"go.chromium.org/chromiumos/ctp/buildbucket"
+	"go.chromium.org/chromiumos/ctp/common"
+	"go.chromium.org/chromiumos/ctp/site"
 )
 
 // CTP builder contains fields needed to send a build to CTP
