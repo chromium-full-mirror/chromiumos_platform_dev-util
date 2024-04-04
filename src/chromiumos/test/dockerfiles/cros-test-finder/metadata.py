@@ -5,7 +5,6 @@
 
 """Prep everything for for a Docker Build Context."""
 
-
 import argparse
 import os
 import pathlib
@@ -145,10 +144,15 @@ class DockerPrep:
             shutil.copyfile(full_md_path, os.path.join(self.full_out, d))
 
         for f, d in _CHROOT_METADATA_FILES:
-            full_md_path = FromSysrootPath(self.chroot, f)
+            # Search the broot first.
+            full_md_path = FromSysrootPath(
+                self.build_path, os.path.join("build", "broot", f)
+            )
             if not os.path.exists(full_md_path):
-                print("Path %s does not exist, skipping" % full_md_path)
-                continue
+                full_md_path = FromSysrootPath(self.chroot, f)
+                if not os.path.exists(full_md_path):
+                    print("Path %s does not exist, skipping" % full_md_path)
+                    continue
             shutil.copyfile(full_md_path, os.path.join(self.full_out, d))
 
     def copy_dockerfiles(self):
