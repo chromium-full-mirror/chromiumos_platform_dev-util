@@ -635,7 +635,7 @@ def get_downstreamed_list(
         subtree=downstream_subtree,
         exclude_file_patterns=exclude_file_patterns,
     )
-    downstreamed_revs = []
+    downstreamed_revs = downstream_hashes[:]
 
     for counter, rev in enumerate(downstream_hashes):
         if counter > limit and limit != 0:
