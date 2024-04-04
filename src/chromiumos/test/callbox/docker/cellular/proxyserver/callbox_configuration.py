@@ -16,6 +16,7 @@ from acts.controllers.rohdeschwarz_lib import cmw500
 from acts.controllers.rohdeschwarz_lib import cmw500_cellular_simulator as cmw
 from acts.controllers.rohdeschwarz_lib import cmx500_cellular_simulator as cmx
 from acts.controllers.rohdeschwarz_lib import cmx500_events
+from acts.controllers.rohdeschwarz_lib import cmx500_tx_measurement as cmx_tx
 from acts.controllers.rohdeschwarz_lib.cmw500_handover_simulator import (
     Cmw500HandoverSimulator,
 )
@@ -375,6 +376,7 @@ class CMX500Configuration(CallboxConfiguration):
         )
         self.handover = Cmx500HandoverSimulator(self.simulator.cmx)
         self._set_technology(technology)
+        cmx_tx.delete_all_multievals()
 
     def nr5g_sa_handover(self, band, channel, bw):
         """Performs a handover to 5G SA.
@@ -476,6 +478,8 @@ class CMX500Configuration(CallboxConfiguration):
             self.simulator.cmx.set_keep_rrc(True)
         self.simulator.wait_until_quiet()
 
+        self._init_tx_meas()
+
     def start(self):
         """Starts a simulation on the callbox."""
         self._stop_connection_watcher()
@@ -500,6 +504,9 @@ class CMX500Configuration(CallboxConfiguration):
                 )
             )
 
+        # Reinitialize tx_measure since the primary cell may have changed.
+        self._init_tx_meas()
+
     def close(self):
         """Releases any resources held open by the controller."""
         self.simulator.destroy()
@@ -509,7 +516,6 @@ class CMX500Configuration(CallboxConfiguration):
     def _set_technology(self, technology):
         """Switches the active simulation technology implementation."""
         self.iperf = None
-        self.tx_measurement = None
         if technology == CellularTechnology.LTE:
             if not self._lte_simulation:
                 self._lte_simulation = CrOSLteSimulation.CrOSLteSimulation(
@@ -540,6 +546,16 @@ class CMX500Configuration(CallboxConfiguration):
             raise ValueError(f"Unsupported technology for CMW500: {technology}")
 
         self.technology = technology
+
+        # Reinitialize tx_measure since the primary cell may change.
+        self._init_tx_meas()
+
+    def _init_tx_meas(self):
+        cell = self.simulator.cmx.primary_cell
+        if cell:
+            self.tx_measurement = cmx_tx.create_measurement(cell.cell)
+        else:
+            self.tx_measurement = None
 
     def _stop_connection_watcher(self):
         if self._unsub_connect_event:
