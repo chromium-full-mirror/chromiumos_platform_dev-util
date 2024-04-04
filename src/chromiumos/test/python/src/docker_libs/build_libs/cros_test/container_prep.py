@@ -62,6 +62,7 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
             os.path.dirname(self.full_autotest),
             self.full_out,
             self.chroot,
+            self.out_path,
             self.sysroot,
         )
 
