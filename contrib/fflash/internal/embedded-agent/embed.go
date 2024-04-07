@@ -16,19 +16,19 @@ func SelfCheck() error {
 	return nil
 }
 
-//go:embed dut-agent-amd64.xz
-var x8664Xzip []byte
+//go:embed dut-agent-amd64.zst
+var x8664Zst []byte
 
-//go:embed dut-agent-arm64.xz
-var aarch64Xzip []byte
+//go:embed dut-agent-arm64.zst
+var aarch64Zst []byte
 
 // ExecutableForArch returns the executable binary of dut-agent for the arch.
 func ExecutableForArch(arch string) ([]byte, error) {
 	switch arch {
 	case ArchAarch64:
-		return aarch64Xzip, nil
+		return aarch64Zst, nil
 	case ArchX8664:
-		return x8664Xzip, nil
+		return x8664Zst, nil
 	default:
 		return nil, fmt.Errorf("unknown arch %q", arch)
 	}

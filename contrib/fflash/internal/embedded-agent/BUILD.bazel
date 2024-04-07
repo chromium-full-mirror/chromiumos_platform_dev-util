@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 load("@rules_go//go:def.bzl", "go_library")
+load(":defs.bzl", "zstd_compress")
 
 go_library(
     name = "embedded-agent",
@@ -11,25 +12,21 @@ go_library(
         "embed.go",
     ],
     embedsrcs = [
-        "dut-agent-amd64.xz",
-        "dut-agent-arm64.xz",
+        "dut-agent-amd64.zst",
+        "dut-agent-arm64.zst",
     ],
     importpath = "chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/embedded-agent",
     visibility = ["//:__subpackages__"],
 )
 
-XZ_CMD = "xz -6 --stdout --keep $(<) > $(@)"
-
-genrule(
-    name = "dut-agent-amd64_xz",
-    srcs = ["//cmd/dut-agent:dut-agent-amd64"],
-    outs = ["dut-agent-amd64.xz"],
-    cmd = XZ_CMD,
+zstd_compress(
+    name = "dut-agent-amd64_zst",
+    src = "//cmd/dut-agent:dut-agent-amd64",
+    out = "dut-agent-amd64.zst",
 )
 
-genrule(
-    name = "dut-agent-arm64_xz",
-    srcs = ["//cmd/dut-agent:dut-agent-arm64"],
-    outs = ["dut-agent-arm64.xz"],
-    cmd = XZ_CMD,
+zstd_compress(
+    name = "dut-agent-arm64_zst",
+    src = "//cmd/dut-agent:dut-agent-arm64",
+    out = "dut-agent-arm64.zst",
 )
