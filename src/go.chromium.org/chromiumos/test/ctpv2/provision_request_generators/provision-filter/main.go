@@ -20,56 +20,60 @@ import (
 )
 
 func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
-	// Eg "Release", "Cq", "snapshot", etc. Its used to construct new paths.
-	channel := ""
 	// Will be the map of hardware which we can make provisionInfo for directly
 	foundHW := make(map[string]bool)
 	// Milestone which the task is being run from.
 	milestone := int64(0)
 
-	for _, target := range req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements() {
-		var gcsPath string
-		var err error
+	var swRequirements *api.LegacySW
 
-		log.Println("request: ", target)
-		swRequirements := target.GetSwRequirement()
-		log.Println("SW Target: ", swRequirements)
+	var err error
 
-		channel = swRequirements.GetBuild()
-		gcsPath = swRequirements.GetGcsPath()
+	for _, target := range req.GetSuiteInfo().GetSuiteMetadata().GetSchedulingUnits() {
+		swRequirements = target.GetPrimaryTarget().GetSwReq()
+		primaryHwTarget := target.GetPrimaryTarget().GetSwarmingDef()
+		addToFoundCache(primaryHwTarget, foundHW)
+		generateProvisionInfo(primaryHwTarget, target.GetPrimaryTarget().GetSwReq(), log)
 
-		// For now, only return errors on this flow for DDD suites where its required.
-		if dddSuite(req) {
-			milestone, err = milestoneFromGcs(gcsPath)
-			if err != nil {
-				return req, fmt.Errorf("unable to determine milestone for provision builder: %s", err)
-			}
+		for _, t := range target.GetCompanionTargets() {
+			generateProvisionInfo(t.GetSwarmingDef(), t.GetSwReq(), log)
+			addToFoundCache(t.GetSwarmingDef(), foundHW)
 		}
+	}
 
-		for _, hwTarget := range target.HwRequirements.HwDefinition {
-			switch hw := hwTarget.GetDutInfo().GetDutType().(type) {
-			case *dut_api.Dut_Chromeos:
-				board := hw.Chromeos.GetDutModel().GetBuildTarget()
-				variant := hwTarget.GetVariant()
-				fmt.Println(board)
-				if variant != "" {
-					board = fmt.Sprintf("%s-%s", board, variant)
-				}
-				foundHW[board] = true
-			default:
-				continue
-			}
-			hwTarget.ProvisionInfo = generateProvisionInfo(hwTarget.GetProvisionInfo(), gcsPath)
+	for _, legacyTarget := range req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements() {
+
+		for _, innerTarget := range legacyTarget.GetHwRequirements().GetHwDefinition() {
+			swRequirements = legacyTarget.GetSwRequirement()
+			generateProvisionInfo(innerTarget, swRequirements, log)
+			addToFoundCache(innerTarget, foundHW)
+
 		}
 	}
 
 	if dddSuite(req) {
 		// For DDD suites, we need to create the targets for all found boards on the milestone.
-		req, err := createTargetsForBoards(log, req, channel, foundHW, milestone)
+		milestone, err = milestoneFromGcs(swRequirements.GetGcsPath())
+		if err != nil {
+			return req, fmt.Errorf("unable to determine milestone for provision builder: %s", err)
+		}
+
+		req, err := createTargetsForBoards(log, req, swRequirements.GetBuild(), foundHW, milestone)
 		return req, err
 	}
-
 	return req, nil
+}
+
+func addToFoundCache(hwTarget *api.SwarmingDefinition, foundHW map[string]bool) {
+	switch hw := hwTarget.GetDutInfo().GetDutType().(type) {
+	case *dut_api.Dut_Chromeos:
+		board := hw.Chromeos.GetDutModel().GetBuildTarget()
+		variant := hwTarget.GetVariant()
+		if variant != "" {
+			board = fmt.Sprintf("%s-%s", board, variant)
+		}
+		foundHW[board] = true
+	}
 }
 
 // Extract the milestone # as an int64 from the standard gcs path.
@@ -117,25 +121,41 @@ func createTargetsForBoards(log *log.Logger, req *api.InternalTestplan, channel 
 		found, ok := foundHW[targ]
 		// If we already have provision info provided, don't overwrite that.
 		if found && ok {
+			log.Println(fmt.Sprintf("FOUND: %s", targ))
+
 			continue
 		}
+		log.Println(fmt.Sprintf("NOT FOUND: %s", targ))
+
 		board, err := boardOnly(targ)
 		if err != nil {
 			return nil, err
 		}
 		gcsPath := createGcsPath(targ, channel, build, milestone)
+		if len(req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements()) > 0 {
+			hwTarget := &api.HWRequirements{
+				HwDefinition: buildHWTargetOld(board, getVariantFromBuildTarg(targ), generateProvisionInfoOld(nil, gcsPath)),
+				// the OPTIONAL mark indicates to HW filters this board does not need to be added to the test request
+				State: api.HWRequirements_OPTIONAL,
+			}
 
-		hwTarget := &api.HWRequirements{
-			HwDefinition: buildHWTarget(board, getVariantFromBuildTarg(targ), generateProvisionInfo(nil, gcsPath)),
-			// the OPTIONAL mark indicates to HW filters this board does not need to be added to the test request
-			State: api.HWRequirements_OPTIONAL,
-		}
+			targRequirements := &api.TargetRequirements{
+				HwRequirements: hwTarget,
+				SwRequirement:  &api.LegacySW{GcsPath: gcsPath},
+			}
+			req.GetSuiteInfo().GetSuiteMetadata().TargetRequirements = append(req.GetSuiteInfo().GetSuiteMetadata().TargetRequirements, targRequirements)
+		} else {
+			targ := &api.Target{
+				SwarmingDef: buildHWTarget(board, getVariantFromBuildTarg(targ)),
+				SwReq:       &api.LegacySW{GcsPath: gcsPath},
+			}
+			generateProvisionInfo(targ.SwarmingDef, targ.SwReq, log)
 
-		targRequirements := &api.TargetRequirements{
-			HwRequirements: hwTarget,
-			SwRequirement:  &api.LegacySW{GcsPath: gcsPath},
+			SU := &api.SchedulingUnit{
+				PrimaryTarget: targ,
+			}
+			req.GetSuiteInfo().GetSuiteMetadata().SchedulingUnits = append(req.GetSuiteInfo().GetSuiteMetadata().SchedulingUnits, SU)
 		}
-		req.GetSuiteInfo().GetSuiteMetadata().TargetRequirements = append(req.GetSuiteInfo().GetSuiteMetadata().TargetRequirements, targRequirements)
 	}
 	return req, nil
 
@@ -160,21 +180,37 @@ func dddSuite(req *api.InternalTestplan) bool {
 	return req.GetSuiteInfo().GetSuiteRequest().GetDddSuite()
 }
 
+func generateCrosImageProvisionInfo(target *api.SwarmingDefinition, swReq *api.LegacySW, log *log.Logger) {
+	current := target.GetProvisionInfo()
+	path := swReq.GetGcsPath()
+	log.Println(fmt.Sprintf("generateCrosImageProvisionInfo PATH: %s", path))
+	log.Println(fmt.Sprintf("generateCrosImageProvisionInfo sw: %s", swReq))
+
+	if path != "" {
+		installInfo := &api.InstallRequest{
+			ImagePath: &conf.StoragePath{
+				Path:     path,
+				HostType: conf.StoragePath_GS,
+			},
+		}
+
+		info := &api.ProvisionInfo{
+			Type:           api.ProvisionInfo_CROS,
+			InstallRequest: installInfo,
+		}
+		target.ProvisionInfo = append(current, info)
+
+	}
+}
+
 // Currently this is simple... just append the new provision info onto the existing.
 // We are appending it in case another provsion filter has run and populated info.
-func generateProvisionInfo(current []*api.ProvisionInfo, path string) []*api.ProvisionInfo {
-	installInfo := &api.InstallRequest{
-		ImagePath: &conf.StoragePath{
-			Path:     path,
-			HostType: conf.StoragePath_GS,
-		},
+func generateProvisionInfo(target *api.SwarmingDefinition, swReq *api.LegacySW, log *log.Logger) {
+	switch target.GetDutInfo().GetDutType().(type) {
+	case *dut_api.Dut_Chromeos:
+		log.Println("chromeos DUT")
+		generateCrosImageProvisionInfo(target, swReq, log)
 	}
-
-	info := &api.ProvisionInfo{
-		Type:           api.ProvisionInfo_CROS,
-		InstallRequest: installInfo,
-	}
-	return append(current, info)
 
 }
 
@@ -277,7 +313,22 @@ func buildNewer(platform string, platform2 string) bool {
 
 }
 
-func buildHWTarget(boardName string, variant string, provInfo []*api.ProvisionInfo) []*api.SwarmingDefinition {
+func buildHWTarget(boardName string, variant string) *api.SwarmingDefinition {
+	dut := &dut_api.Dut{}
+
+	Cros := &dut_api.Dut_ChromeOS{DutModel: &dut_api.DutModel{
+		BuildTarget: boardName,
+	}}
+	dut.DutType = &dut_api.Dut_Chromeos{Chromeos: Cros}
+	def := &api.SwarmingDefinition{DutInfo: dut}
+	if variant != "" {
+		def.Variant = variant
+	}
+
+	return def
+}
+
+func buildHWTargetOld(boardName string, variant string, provInfo []*api.ProvisionInfo) []*api.SwarmingDefinition {
 	dut := &dut_api.Dut{}
 
 	Cros := &dut_api.Dut_ChromeOS{DutModel: &dut_api.DutModel{
@@ -293,6 +344,22 @@ func buildHWTarget(boardName string, variant string, provInfo []*api.ProvisionIn
 
 	f := []*api.SwarmingDefinition{def}
 	return f
+}
+
+func generateProvisionInfoOld(current []*api.ProvisionInfo, path string) []*api.ProvisionInfo {
+	installInfo := &api.InstallRequest{
+		ImagePath: &conf.StoragePath{
+			Path:     path,
+			HostType: conf.StoragePath_GS,
+		},
+	}
+
+	info := &api.ProvisionInfo{
+		Type:           api.ProvisionInfo_CROS,
+		InstallRequest: installInfo,
+	}
+	return append(current, info)
+
 }
 
 func main() {

@@ -4,13 +4,12 @@
 package main
 
 import (
-	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
-	"fmt"
 	"log"
 	"os"
 	"strings"
 
-	dut_api "go.chromium.org/chromiumos/config/go/test/lab/api"
+	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
+
 	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -29,25 +28,7 @@ func hwTargetsFromReq(req *api.InternalTestplan) (hwTargets []*api.SwarmingDefin
 		if target.GetHwRequirements().GetState() == api.HWRequirements_OPTIONAL {
 			continue
 		}
-
-		sw := target.SwRequirement.Variant
-		fmt.Println(sw)
-
-		for _, hwTarget := range target.GetHwRequirements().GetHwDefinition() {
-			hwTargets = append(hwTargets, hwTarget)
-			// Placeholder code for now.
-			// TODO: We might need to swap this to UUIDs
-			// Or something else due to proto size limitations on larger suites.
-			// This switch/case shows how to pull the board out.
-			// Though we will also likely need the model, and possibly other markers as well.
-			switch hw := hwTarget.GetDutInfo().GetDutType().(type) {
-			case *dut_api.Dut_Chromeos:
-				_ = hw.Chromeos.GetDutModel().GetBuildTarget()
-			default:
-				continue
-			}
-
-		}
+		hwTargets = append(hwTargets, target.GetHwRequirements().GetHwDefinition()...)
 	}
 	return hwTargets
 
@@ -64,27 +45,30 @@ func tcDeps(tc *api.CTPTestCase) (deps []string) {
 // generateTcHwReqs will return a list that represents all HW the test
 // is to be scheduled on. Each testcase will need its own unique list;
 // which will later sharded/organized based on HW/SW requirements.
-func generateTcHwReqs(hwTargets []*api.SwarmingDefinition, tcDeps []string) (tcHwReqs []*api.HWRequirements) {
+func generateTcHwReqs(hwTargets []*api.SchedulingUnit, tcDeps []string) (tcHwReqs []*api.SchedulingUnitOptions) {
 
 	for _, target := range hwTargets {
 		// We need to clone the target as different tests can set different hw requirements.
 		// If we just set the field directly then it would change for all tests every time we change
 		// the field.
-		t := proto.Clone(target).(*api.SwarmingDefinition)
+		t := proto.Clone(target).(*api.SchedulingUnit)
 		swarmingLabels := tcDepsToSwarmingLabels(tcDeps)
-		if len(t.SwarmingLabels) > 0 {
-			t.SwarmingLabels = append(t.SwarmingLabels, swarmingLabels...)
+
+		// If labels are already added by the request, respect by appending the TC given labels.
+		// Otherwise, just the TC given labels.
+		if len(t.GetPrimaryTarget().GetSwarmingDef().GetSwarmingLabels()) > 0 {
+			t.PrimaryTarget.SwarmingDef.SwarmingLabels = append(t.PrimaryTarget.SwarmingDef.SwarmingLabels, swarmingLabels...)
 		} else {
-			t.SwarmingLabels = swarmingLabels
+			t.PrimaryTarget.SwarmingDef.SwarmingLabels = swarmingLabels
 		}
-		targ := &api.HWRequirements{
-			// For legacy solver, each HwDefinition is a list of 1
+		targ := &api.SchedulingUnitOptions{
+			// For legacy solver, each SchedulingUnitOption is a list of 1
 			// This is because for a test dut matching will follow this logic:
-			// HwDefinition = [[a], [b]]; must run the test on a AND b
-			// HwDefinition = [[a, b], [c]]; must run on A OR B, AND C
+			// SchedulingUnitOptions = [[a], [b]]; must run the test on a AND b
+			// SchedulingUnitOptions = [[a, b], [c]]; must run on A OR B, AND C
 			// Legacy always lists of 1 item. Others, eg 3D; will give OR options.
-			HwDefinition: []*api.SwarmingDefinition{t},
-			State:        api.HWRequirements_REQUIRED,
+			SchedulingUnits: []*api.SchedulingUnit{t},
+			State:           api.SchedulingUnitOptions_REQUIRED,
 		}
 		tcHwReqs = append(tcHwReqs, targ)
 	}
@@ -109,16 +93,43 @@ func tcDepsToSwarmingLabels(tcDeps []string) []string {
 func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
 	// Step 1. Get all the HWTargets from the suite metadata
 	// these might contain provision info.
-	var hwTargets = hwTargetsFromReq(req)
+	hwTargets := req.GetSuiteInfo().GetSuiteMetadata().GetSchedulingUnits()
+	hwTargetsLegacy := hwTargetsFromReq(req)
 
 	// Step 2.  Iterate through the tests, adding the HW to each test
 	// Include the deps from the test metadata into the HW.
 	for _, tc := range req.GetTestCases() {
 		tcDeps := tcDeps(tc)
-		tc.HwRequirements = generateTcHwReqs(hwTargets, tcDeps)
+		if len(hwTargets) != 0 {
+			tc.SchedulingUnitOptions = generateTcHwReqs(hwTargets, tcDeps)
+		} else {
+			tc.HwRequirements = generateTcHwReqsLegacy(hwTargetsLegacy, tcDeps)
+
+		}
 	}
 
 	return req, nil
+}
+
+// generateTcHwReqsLegacy is the same as generateTcHwReqs; but using the legacy API
+// to be deprecated soon.
+func generateTcHwReqsLegacy(hwTargets []*api.SwarmingDefinition, tcDeps []string) (tcHwReqs []*api.HWRequirements) {
+	for _, target := range hwTargets {
+		t := proto.Clone(target).(*api.SwarmingDefinition)
+		swarmingLabels := tcDepsToSwarmingLabels(tcDeps)
+		if len(t.SwarmingLabels) > 0 {
+			t.SwarmingLabels = append(t.SwarmingLabels, swarmingLabels...)
+		} else {
+			t.SwarmingLabels = swarmingLabels
+		}
+		targ := &api.HWRequirements{
+			HwDefinition: []*api.SwarmingDefinition{t},
+			State:        api.HWRequirements_REQUIRED,
+		}
+		tcHwReqs = append(tcHwReqs, targ)
+	}
+
+	return tcHwReqs
 }
 
 func main() {
