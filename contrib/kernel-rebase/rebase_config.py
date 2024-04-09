@@ -158,3 +158,7 @@ disp_overwrite["3c6ead5c25ad"] = [
 disp_overwrite[
     "8f91972ac6f4"
 ] = "drop"  # Revert "Bluetooth: Fix a refcnt underflow problem for hci_conn"
+disp_overwrite[
+    "7dd4aecb1f30"
+] = "drop"  # CHROMIUM: Bluetooth: Use addr instead of hci_conn in LE Connection complete
+disp_overwrite["a1d603d646dd"] = "drop"  # CHROMIUM: Bluetooth: Fix LE pair
