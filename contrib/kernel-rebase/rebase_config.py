@@ -231,3 +231,6 @@ disp_overwrite[
 disp_overwrite[
     "a3805dd36acd"
 ] = "drop"  # CHROMIUM: arm64: dts: sc7280: Add all details needed for EAS enablement
+disp_overwrite[
+    "c810b19c3dc2"
+] = "drop"  # REVISIT: ANDROID: power: wakeup_reason: add an API to log wakeup reasons
