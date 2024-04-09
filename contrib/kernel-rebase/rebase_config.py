@@ -189,3 +189,6 @@ disp_overwrite[
 disp_overwrite[
     "d53cd35fcab1"
 ] = "drop"  # FROMLIST: x86/topology: Fix max_siblings calculation
+disp_overwrite[
+    "c484c2cc10d0"
+] = "drop"  # CHROMIUM: hrtimer: Add a sysctl to lower resolution of timers
