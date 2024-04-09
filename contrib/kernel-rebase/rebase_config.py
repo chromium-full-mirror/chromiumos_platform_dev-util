@@ -195,3 +195,39 @@ disp_overwrite[
 disp_overwrite[
     "719aa220616b"
 ] = "drop"  # CHROMIUM: tick-sched: Set last_tick correctly so that timer interrupts happen less
+disp_overwrite[
+    "2cf6f2d48db1"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add krabby board
+disp_overwrite[
+    "8b097990bc68"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add corsola-steelix and rusty board
+disp_overwrite[
+    "3a863e619c68"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add tentacruel board
+disp_overwrite[
+    "b1ed2ad77ad5"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add corsola-magneton board
+disp_overwrite[
+    "3be5eaf58b34"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add magikarp board
+disp_overwrite[
+    "6de4bf555daa"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add kingler board
+disp_overwrite[
+    "fbf81184897b"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Rename some properties of it6505dptx node
+disp_overwrite[
+    "6de4bf555daa"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add kingler board
+disp_overwrite[
+    "e4bd95034d5c"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Adjust swing level-2
+disp_overwrite[
+    "971d4e980317"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Fix the dma-ranges for jpgenc
+disp_overwrite[
+    "3ec9388f79a4"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Adjust i2c-scl-delay to 22000
+disp_overwrite[
+    "a3805dd36acd"
+] = "drop"  # CHROMIUM: arm64: dts: sc7280: Add all details needed for EAS enablement
