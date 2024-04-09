@@ -23,6 +23,10 @@ export image_feature=(
   'WIFI_ROUTER_FEATURE_IEEE_802_11_N'
   'WIFI_ROUTER_FEATURE_IEEE_802_11_A'
   'WIFI_ROUTER_FEATURE_IEEE_802_11_AC'
+
+  # This is performance based and expected that all OpenWrt models can handle
+  # it. If this changes later, this should be moved to per-model build scripts.
+  'WIFI_ROUTER_FEATURE_DOUBLE_BRIDGE_OVER_VETH'
 )
 export sdk_config=(
   # For hostapd.
