@@ -192,3 +192,6 @@ disp_overwrite[
 disp_overwrite[
     "c484c2cc10d0"
 ] = "drop"  # CHROMIUM: hrtimer: Add a sysctl to lower resolution of timers
+disp_overwrite[
+    "719aa220616b"
+] = "drop"  # CHROMIUM: tick-sched: Set last_tick correctly so that timer interrupts happen less
