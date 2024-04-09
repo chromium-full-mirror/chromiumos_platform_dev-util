@@ -162,3 +162,27 @@ disp_overwrite[
     "7dd4aecb1f30"
 ] = "drop"  # CHROMIUM: Bluetooth: Use addr instead of hci_conn in LE Connection complete
 disp_overwrite["a1d603d646dd"] = "drop"  # CHROMIUM: Bluetooth: Fix LE pair
+disp_overwrite[
+    "bccfdf53c1b2"
+] = "drop"  # FROMLIST: fuse: Definitions and ioctl for passthrough
+disp_overwrite[
+    "e807baabcf21"
+] = "drop"  # FROMLIST: fuse: Passthrough initialization and release
+disp_overwrite[
+    "89a75916a564"
+] = "drop"  # FROMLIST: fuse: Introduce synchronous read and write for passthrough
+disp_overwrite[
+    "7df297fddff2"
+] = "drop"  # FROMLIST: fuse: Handle asynchronous read and write in passthrough
+disp_overwrite[
+    "bdf09513d0ea"
+] = "drop"  # FROMLIST: fuse: Use daemon creds in passthrough mode
+disp_overwrite[
+    "5d03cf94b4e6"
+] = "drop"  # FROMLIST: fuse: Introduce passthrough for mmap
+disp_overwrite[
+    "55e6f1de885e"
+] = "drop"  # FROMLIST: fuse: Allocate unlikely used ioctl number for passthrough V1
+disp_overwrite[
+    "8f6407c6b59f"
+] = "drop"  # CHROMIUM: fuse: Reposition FUSE_PASSTHROUGH flag
