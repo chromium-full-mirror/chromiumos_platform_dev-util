@@ -234,3 +234,6 @@ disp_overwrite[
 disp_overwrite[
     "c810b19c3dc2"
 ] = "drop"  # REVISIT: ANDROID: power: wakeup_reason: add an API to log wakeup reasons
+disp_overwrite[
+    "c4f808c7b1a5"
+] = "drop"  # FROMLIST: PM: sleep: Expose last succeeded resumed timestamp in sysfs
