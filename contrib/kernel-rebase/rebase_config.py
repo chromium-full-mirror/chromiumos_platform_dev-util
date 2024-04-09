@@ -96,6 +96,7 @@ topic_patches["chromeos"] = [
 topic_patches["mm"] = [
     "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr.patch",
     "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr2.patch",
+    "fixups/FIXUP: CHROMIUM: mm: per-process reclaim pages.patch",
 ]
 
 topic_patches["media"] = [
