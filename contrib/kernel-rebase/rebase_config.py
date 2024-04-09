@@ -186,3 +186,6 @@ disp_overwrite[
 disp_overwrite[
     "8f6407c6b59f"
 ] = "drop"  # CHROMIUM: fuse: Reposition FUSE_PASSTHROUGH flag
+disp_overwrite[
+    "d53cd35fcab1"
+] = "drop"  # FROMLIST: x86/topology: Fix max_siblings calculation
