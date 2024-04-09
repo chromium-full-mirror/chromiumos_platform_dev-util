@@ -49,6 +49,7 @@ topic_patches = {}
 topic_patches["block-fs"] = [
     "fixups/FIXUP: FROMLIST: overlayfs: handle XATTR_NOSECURITY flag for get xattr method.patch",
     "fixups/FIXUP: CHROMIUM: verity: bring over dm-verity-chromeos.c.patch",
+    "fixups/FIXUP: CHROMIUM: Revert ext4: get discard out of jbd2 commit kthread contex.patch",
 ]
 
 topic_patches["drivers"] = [
