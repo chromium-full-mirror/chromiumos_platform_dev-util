@@ -82,7 +82,6 @@ type RdbStreamConfig struct {
 	ResultFormat            string
 	ResultFile              string
 	SourcesFile             string
-	InvPropertiesFile       string
 	ArtifactDir             string
 	Realm                   string
 	RequireBuildInvocation  bool
@@ -106,10 +105,6 @@ func (rdbClient *RdbClient) StreamCommand(ctx context.Context, rdbStreamConfig *
 
 	if strings.TrimSpace(rdbStreamConfig.LocationTagsFile) != "" {
 		streamArgs = append(streamArgs, "-location-tags-file", rdbStreamConfig.LocationTagsFile)
-	}
-
-	if strings.TrimSpace(rdbStreamConfig.InvPropertiesFile) != "" {
-		streamArgs = append(streamArgs, "-inv-properties-file", rdbStreamConfig.InvPropertiesFile)
 	}
 
 	if strings.TrimSpace(rdbStreamConfig.SourcesFile) != "" {

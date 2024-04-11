@@ -36,9 +36,6 @@ const (
 	// File name for test result json
 	TestResultJsonFileName = "testResult.json"
 
-	// File name for invocation-level properties json
-	InvPropertiesFile = "invProperties.json"
-
 	// File name for code sources under test
 	CodeSourcesJsonFileName = "sources.jsonpb"
 
@@ -99,16 +96,9 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 	err := common_utils.WriteProtoJsonFile(ctx, testResultFilePath, rps.TestResultProto)
 	if err != nil {
 		return fmt.Errorf("error during writing test result proto to file: %w", err)
+	} else {
+		log.Printf("test result file created in path: %q", testResultFilePath)
 	}
-	log.Printf("test result file created in path: %q", testResultFilePath)
-
-	// Write test invocation proto to invocation-level properties file
-	invPropertiesFilePath := path.Join(rps.TempDirPath, InvPropertiesFile)
-	err = common_utils.WriteProtoJsonFile(ctx, invPropertiesFilePath, rps.TestResultProto.GetTestInvocation())
-	if err != nil {
-		return fmt.Errorf("error during writing test invocation proto to file: %w", err)
-	}
-	log.Printf("invocation properties file created in path: %q", invPropertiesFilePath)
 
 	sourcesFilePath := path.Join(rps.TempDirPath, CodeSourcesJsonFileName)
 	hasSources, err := downloadSources(ctx, sourcesFilePath, rps.Sources)
@@ -130,12 +120,7 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 
 	// Upload test results
 	baseTags := map[string]string{}
-	config := &rdb_client.RdbStreamConfig{
-		BaseTags:          baseTags,
-		BaseVariant:       rps.BaseVariant,
-		ResultFile:        testResultFilePath,
-		ResultFormat:      ResultAdapterResultFormat,
-		InvPropertiesFile: invPropertiesFilePath}
+	config := &rdb_client.RdbStreamConfig{BaseTags: baseTags, BaseVariant: rps.BaseVariant, ResultFile: testResultFilePath, ResultFormat: ResultAdapterResultFormat}
 	if hasSources {
 		config.SourcesFile = sourcesFilePath
 	}
