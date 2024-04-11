@@ -520,6 +520,9 @@ class NebraskaTest(NebraskaBaseTest):
 
         self.assertNotIn("_eol_date", update_check.attrib)
 
+        self.assertNotIn("_extended_date", update_check.attrib)
+        self.assertNotIn("_extended_opt_in_required", update_check.attrib)
+
         urls = update_check.findall("urls/url")
         self.assertEqual(len(urls), 1)
         self.assertEqual(urls[0].attrib["codebase"], _PAYLOADS_ADDRESS)
@@ -1214,6 +1217,43 @@ class NebraskaTest(NebraskaBaseTest):
         root = ElementTree.fromstring(response)
         update_check = root.find("app/updatecheck")
         self.assertEqual(update_check.attrib["_eol_date"], "1000")
+
+    def testExtendedDateAndOptIn(self):
+        """Tests the extended date and opt in are passed correctly."""
+        self.GenerateAppData()
+        neb = nebraska.Nebraska()
+        neb.UpdateConfig(
+            update_app_index=nebraska.AppIndex(self.tempdir),
+            update_payloads_address=_PAYLOADS_ADDRESS,
+        )
+        request = GenerateXMLRequest([GenerateXMLAppRequest()])
+
+        neb.UpdateConfig(extended_date=20)
+        neb.UpdateConfig(extended_opt_in_required=True)
+        response = neb.GetResponseToRequest(nebraska.Request(request))
+        root = ElementTree.fromstring(response)
+        update_check = root.find("app/updatecheck")
+        self.assertEqual(update_check.attrib["_extended_date"], "20")
+        self.assertEqual(
+            update_check.attrib["_extended_opt_in_required"], "true"
+        )
+
+    def testExtendedOptInFalseIsNotSent(self):
+        """Tests the opt in is not even sent if false."""
+        self.GenerateAppData()
+        neb = nebraska.Nebraska()
+        neb.UpdateConfig(
+            update_app_index=nebraska.AppIndex(self.tempdir),
+            update_payloads_address=_PAYLOADS_ADDRESS,
+        )
+        request = GenerateXMLRequest([GenerateXMLAppRequest()])
+
+        neb.UpdateConfig(extended_opt_in_required=False)
+        response = neb.GetResponseToRequest(nebraska.Request(request))
+        root = ElementTree.fromstring(response)
+        update_check = root.find("app/updatecheck")
+        self.assertNotIn("_extended_date", update_check.attrib)
+        self.assertNotIn("_extended_opt_in_required", update_check.attrib)
 
 
 if __name__ == "__main__":

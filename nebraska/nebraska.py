@@ -557,6 +557,12 @@ class Response(object):
                     update_check_attribs["_eol_date"] = str(
                         self._config.eol_date
                     )
+                if self._config.extended_date is not None:
+                    update_check_attribs["_extended_date"] = str(
+                        self._config.extended_date
+                    )
+                if self._config.extended_opt_in_required:
+                    update_check_attribs["_extended_opt_in_required"] = "true"
                 update_check = ElementTree.SubElement(
                     app_response, "updatecheck", attrib=update_check_attribs
                 )
@@ -567,7 +573,7 @@ class Response(object):
                         "url",
                         attrib={
                             "codebase": os.path.join(self._payloads_address, "")
-                        }
+                        },
                     )
                 manifest = ElementTree.SubElement(
                     update_check,
@@ -634,6 +640,12 @@ class Response(object):
                     update_check_attribs["_eol_date"] = str(
                         self._config.eol_date
                     )
+                if self._config.extended_date is not None:
+                    update_check_attribs["_extended_date"] = str(
+                        self._config.extended_date
+                    )
+                if self._config.extended_opt_in_required:
+                    update_check_attribs["_extended_opt_in_required"] = "true"
                 ElementTree.SubElement(
                     app_response, "updatecheck", attrib=update_check_attribs
                 )
@@ -930,6 +942,13 @@ class Config(object):
 
         # The number of days from unix epoch which device goes end of life.
         self.eol_date = None
+
+        # The number of days from unix epoch when extended auto update period
+        # starts.
+        self.extended_date = None
+        # Indicates that the device requires opt-in to enter extended auto
+        # updates.
+        self.extended_opt_in_required = None
 
         # Indicates whether we want a full payload or not. None means we don't
         # care. Can be set a boolean value.
