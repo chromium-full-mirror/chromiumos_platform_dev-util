@@ -248,7 +248,7 @@ func (s *section) parse(tokens []string) error {
 		// Ignored, as auth mechanism is global for all SSH connections.
 		// It is implemented with explicitly passed sshKeyPaths.
 	case "Port":
-		// Ignored, DefaultPort (22) is used.
+		// Ignored, default port (22) is used.
 	case "ProxyCommand":
 		if err := s.parseProxyCommand(tokens[1:]); err != nil {
 			return errors.Annotate(err, "parse SSH config").Err()
@@ -338,12 +338,13 @@ func expandHostToken(token, host string) string {
 	}
 	hostname, port, err := net.SplitHostPort(host)
 	if err != nil {
-		// The port is not specified, using the given value.
+		// The port is not specified, using the default value.
 		hostname = host
+		port = "22"
 	}
-	r := strings.NewReplacer("%h", hostname)
+	r := strings.NewReplacer("%h", hostname, "%p", port)
 	hostname = r.Replace(token)
-	if port != "" && port != "22" {
+	if !strings.HasSuffix(token, ":%p") && port != "22" {
 		hostname = net.JoinHostPort(hostname, port)
 	}
 	return hostname
