@@ -38,14 +38,16 @@ class RemoteRunnerDirect(remote_runner.RemoteRunner):
             )
 
         # Create a temporary file on the host to get the DUT file time.
-        tmp_file = f"{self.dut.test_dir}/{df.TEST_START_FILE}"
-        self.dut.write_file(tmp_file, f"{run_id}")
+        tmp_name = ".file_no_use"
+        tmp_file = f"{self.dut.test_dir}/{tmp_name}"
+        self.dut.write_file(tmp_file, f"this file can be removed")
         entries = self.dut.dir_entries(f"{self.dut.test_dir}")
         mtime = 0
         for e in entries:
-            if e.name == df.TEST_START_FILE:
+            if e.name == tmp_name:
                 mtime = e.mtime
                 break
+        self.dut.remove_path(tmp_file)
 
         # Run the command in asynchronous mode.
         _, _, is_done = self.dut.executing_command(script, timeout=10)

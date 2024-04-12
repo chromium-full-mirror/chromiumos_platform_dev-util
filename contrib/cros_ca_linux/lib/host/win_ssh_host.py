@@ -8,13 +8,12 @@
 # pylint: disable=W0223
 
 import datetime
-from pathlib import Path
 import re
 from typing import List
 
-import lib.definition as df
 from lib.host import base_host
 from lib.host import ssh_host
+from lib.host import win_remote_host
 from lib.utils import logging as lg
 
 
@@ -134,7 +133,9 @@ def dir_output_as_existence(shell, output):
         if re.search(pattern, output):
             return False
     else:
-        pattern = "(File Not Found|The system cannot find the file specified)"
+        pattern = (
+            "(File Not Found|The system cannot find the (file|path) specified)"
+        )
         if re.search(pattern, output):
             return False
     return True
@@ -144,59 +145,20 @@ def dir_error_is_not_found(shell, output):
     return not dir_output_as_existence(shell, output)
 
 
-def normalize_win_path_for_ssh(path: str):
-    return path.replace("/", "\\").replace("\\", "\\\\")
+class WinSSHHost(win_remote_host.WinRemoteHost, ssh_host.SSHHost):
+    """A class representing a remote Windows host operating with ssh command"""
 
-
-class WinSSHHost(ssh_host.SSHHost):
-    """A class representing a remote Windows host"""
-
-    test_dir: Path = df.TEST_WIN_ROOT_DIR  # Dir for the test
-    src_dir: Path = df.TEST_WIN_SRC_DIR  # Dir for the source code
-    results_dir: Path = df.TEST_WIN_RESULTS_DIR  # Dir for the test results
-    local_runner_path: Path = (
-        df.TEST_WIN_RUNNER_PATH
-    )  # Dir for the test results
-
-    support_tgz: bool = True  # Supported by powershell
-
-    def __init__(
-        self, hostname, username, port=22, password=None, key_filename=None
-    ):
-        """Initializes a Host object with connection details.
-
-        Args:
-            hostname: The hostname or IP address of the remote server.
-            username: The username for authentication.
-            port: The SSH port of the remote server.
-            password: The password for authentication.
-            key_filename: The path to a private key file for authentication.
-        """
-        self._shell = "cmd"
-        if not password:
-            password = "test0000"
-        super().__init__(hostname, username, port, password, key_filename)
-
-    def get_ps_command(self, command):
-        """Get the Powershell command."""
-        if self._shell == "powershell":
-            return command
-        return "powershell " + command
-
-    def _connect(self):
-        """Connects to the remote host using ssh."""
-        super(WinSSHHost, self)._connect()
-
-        stdout, _, _ = self.exec_command("dir", 20)
-        if "Volume Serial Number" in stdout:
-            self._shell = "cmd"
-        elif "LastWriteTime" in stdout:
-            self._shell = "powershell"
-        logger.debug("Remote shell: %s", self._shell)
+    def normalize_path(self, path: str) -> str:
+        """Normalize the windows path for SSH"""
+        # Going through SSH commandline, a singe backslash should be
+        # double backslashed.
+        p = path.replace("/", "\\").replace("\\", "\\\\")
+        # Add quote to the file path in case spaces are included.
+        return f'\\"{p}\\"'
 
     def lstat(self, path) -> base_host.DirEntry:
         command = self.get_ps_command(
-            rf"Get-Item \"{normalize_win_path_for_ssh(path)}\""
+            rf"Get-Item \"{self.normalize_path(path)}\""
         )
         stdout, _, _ = self.exec_command(command, 20)
         # Powershell Get-Item has same output as dir.
@@ -215,7 +177,7 @@ class WinSSHHost(ssh_host.SSHHost):
             True if file exists. Otherwise False.
         """
         try:
-            command = rf"dir \"{normalize_win_path_for_ssh(path)}\""
+            command = rf"dir \"{self.normalize_path(path)}\""
             stdout, _, _ = self.exec_command(command, 20)
         except Exception as e:
             if dir_error_is_not_found(self._shell, repr(e)):
@@ -230,32 +192,6 @@ class WinSSHHost(ssh_host.SSHHost):
             entries: list of DirEntry
         """
         stdout, _, _ = self.exec_command(
-            rf"dir \"{normalize_win_path_for_ssh(path)}\"", 30
+            rf"dir \"{self.normalize_path(path)}\"", 30
         )
         return dir_output_as_entries(self._shell, stdout)
-
-    def remove_path(self, path):
-        if not self.path_exist(path):
-            return
-        command = self.get_ps_command(
-            rf"rm -r -force \"{normalize_win_path_for_ssh(path)}\""
-        )
-        self.exec_command(command, 30)
-
-    def make_dir(self, dir_path):
-        """Creates a directory on a remote host with parent directory creation.
-
-        Args:
-            dir_path: The path to create the directory on the remote server.
-        """
-        if self.path_exist(dir_path):
-            return
-        command = self.get_ps_command(
-            "New-Item -force -ItemType Directory -Path "
-            + rf"\"{normalize_win_path_for_ssh(dir_path)}\""
-        )
-        self.exec_command(command, 30)
-
-    def _exec_unzip(self, command, timeout):
-        command = self.get_ps_command(command)
-        self.exec_command(command, timeout)

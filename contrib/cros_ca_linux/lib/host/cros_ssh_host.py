@@ -149,6 +149,11 @@ class CrOSSSHHost(ssh_host.SSHHost):
             raise Exception(f"No dir entry found for {path}")
         return entries[0]
 
+    def normalize_path(self, path: str) -> str:
+        """Normalize the windows path for SSH"""
+        # Add quote to the file path in case spaces are included.
+        return f'\\"{path}\\"'
+
     def path_exist(self, path):
         """Check if a file path exists.
 
@@ -159,7 +164,7 @@ class CrOSSSHHost(ssh_host.SSHHost):
             True if file exists. Otherwise False.
         """
         try:
-            command = rf"ls \"{path}\""
+            command = rf"ls \"{self.normalize_path(path)}\""
             stdout, _, _ = self.exec_command(command, 20)
         except Exception as e:
             if ls_error_is_not_found(repr(e)):
@@ -173,13 +178,15 @@ class CrOSSSHHost(ssh_host.SSHHost):
         Returns:
             entries: list of DirEntry
         """
-        stdout, _, _ = self.exec_command(rf'ls -la "{path}"', 30)
+        stdout, _, _ = self.exec_command(
+            rf'ls -la "{self.normalize_path(path)}"', 30
+        )
         return ls_output_as_entries(stdout)
 
     def remove_path(self, path):
         if not self.path_exist(path):
             return
-        command = rf'rm -rf "{path}"'
+        command = rf'rm -rf "{self.normalize_path(path)}"'
         self.exec_command(command, 30)
 
     def make_dir(self, dir_path):
@@ -190,7 +197,7 @@ class CrOSSSHHost(ssh_host.SSHHost):
         """
         if self.path_exist(dir_path):
             return
-        command = rf'mkdir -p "{dir_path}"'
+        command = rf'mkdir -p "{self.normalize_path(dir_path)}"'
 
         self.exec_command(command, 30)
 

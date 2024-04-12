@@ -23,6 +23,7 @@ SSH_SCP_TIMEOUT = 60
 
 
 def execute_local_command(command, check=True, timeout=SSH_EXECUTION_TIMEOUT):
+    logger.debug("command=%s", command)
     try:
         with open("/dev/null", "rb") as dev_null:
             process = subprocess.run(
@@ -99,7 +100,8 @@ class SSHHost(base_host.BaseHost):
         self.key_filename = (
             key_filename if key_filename else df.SSH_PRIVATE_KEY_FILE
         )
-        super().__init__(
+        base_host.BaseHost.__init__(
+            self,
             hostname,
             username,
             port,
@@ -110,19 +112,25 @@ class SSHHost(base_host.BaseHost):
         self._client = None  # Private attribute to store the SSH client
         self._sftp = None
         self._use_sshpass = True
+        self.ssh_version = 8.9
 
     def _connect(self):
         """Connects to the remote host using ssh."""
         os.chmod(self.key_filename, 0o400)
 
         try:
-            execute_local_command("ssh -V", True, 1)
+            stdout, stderr, _ = execute_local_command("ssh -V", True, 1)
         except Exception:
             raise Exception(
                 "Could not find ssh command. Please install ssh before "
                 + "proceeding"
             )
-
+        p = r"OpenSSH_(?P<version>\d+\.\d+).*"
+        match = re.match(p, stdout + stderr)
+        if not match:
+            raise Exception(f"SSH version {stdout+stderr} is unknown.")
+        self.ssh_version = float(match.group("version"))
+        logger.debug("ssh client version: %f", self.ssh_version)
         try:
             execute_local_command("sshpass -V", True, 1)
             sshpass_available = True
@@ -153,7 +161,7 @@ class SSHHost(base_host.BaseHost):
                     + "Trying connect with ssh and private key..."
                 )
 
-                logger.info(txt)
+                logger.debug(txt)
                 self._use_sshpass = False
 
         command = self.ssh_command("echo '1'")
@@ -162,11 +170,10 @@ class SSHHost(base_host.BaseHost):
                 command, False, SSH_EXECUTION_TIMEOUT
             )
             if code != 0:
-                logger.error(stderr_data)
                 raise Exception(f"Error to connect to the host: {stderr_data}")
-        except Exception:
+        except Exception as e:
             raise Exception(
-                f"Error connecting to {self.hostname}. Please check DUT "
+                f"Error connecting to {self.hostname}: {e}.\nPlease check DUT "
                 + "availability, or its password / publick key configuration."
             )
 
@@ -197,15 +204,17 @@ class SSHHost(base_host.BaseHost):
                 f"sshpass -p {self.password} scp -r {SSH_OPTIONS} "
                 + f"-P {self.port} {self.username}@{self.hostname}:"
             )
-        command = f"{prefix}/{remotepath} {localpath}"
-
+        # Add quote in case the path has space.
+        command = f'{prefix}"\\"{remotepath}\\""  "{localpath}"'
+        if self.ssh_version >= 9.0:
+            command = f'{prefix}"{remotepath}"  "{localpath}"'
         # TODO: Handle the executing error and raise exception
         execute_local_command(command, True, SSH_SCP_TIMEOUT)
 
     def scp_upload(self, localpath, remotepath):
         prefix = (
             f"scp -r {SSH_OPTIONS} -i {self.key_filename} "
-            + f"-P {self.port} {localpath} {self.username}@{self.hostname}:"
+            + f'-P {self.port} "{localpath}" {self.username}@{self.hostname}:'
         )
         if self._use_sshpass:
             prefix = (
@@ -213,7 +222,10 @@ class SSHHost(base_host.BaseHost):
                 + f"-P {self.port} {localpath} "
                 + f"{self.username}@{self.hostname}:"
             )
-        command = f"{prefix}/{remotepath}"
+        # Add quote in case the path has space.
+        command = f'{prefix}"\\"{remotepath}\\""'
+        if self.ssh_version >= 9.0:
+            command = f'{prefix}"{remotepath}"'
         # TODO: Handle the executing error and raise exception
         execute_local_command(command, True, SSH_SCP_TIMEOUT)
 
@@ -308,7 +320,7 @@ class SSHHost(base_host.BaseHost):
             # Copy the temporary file to the destination
             self.upload(temp_file.name, filepath)
 
-    def _exec_unzip(self, command, timeout):
+    def _exec_unzip(self, command: str, timeout: int) -> None:
         self.exec_command(command, timeout)
 
     def upload(self, local_path, remote_path):

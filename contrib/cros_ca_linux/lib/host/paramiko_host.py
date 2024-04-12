@@ -58,7 +58,9 @@ class ParamikoHost(base_host.BaseHost):
         self.key_filename = (
             key_filename if key_filename else df.SSH_PRIVATE_KEY_FILE
         )
-        super().__init__(hostname, username, port, password, self.key_filename)
+        base_host.BaseHost.__init__(
+            self, hostname, username, port, password, self.key_filename
+        )
 
         self._client = None  # Private attribute to store the SSH client
         self._sftp = None
@@ -76,6 +78,7 @@ class ParamikoHost(base_host.BaseHost):
             key_filename=self.key_filename,
         )
         self._connected = True
+        self._sftp = None  # Invalidate the sftp client.
 
     def get_sftp(self):
         if not self._sftp:
@@ -145,6 +148,7 @@ class ParamikoHost(base_host.BaseHost):
         Returns:
             The standard output data, standard error data, and exit status.
         """
+        logger.debug("command=%s", command)
         if not self._connected:
             raise AssertionError("Not connected to host. Please connect first.")
         _, stdout, stderr = self._client.exec_command(command)

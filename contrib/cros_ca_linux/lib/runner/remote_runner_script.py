@@ -13,8 +13,8 @@ from lib.runner import base_runner as br
 from lib.runner import remote_runner
 
 
-# TODO: change the batch script to read run.bat from WIN Test Dir.
-starter_path = "c:/tools/selenium"  # script dir on the Windows DUT
+# cros_ca execution dir on the Windows DUT
+starter_path = str(df.TEST_WIN_EXECTION_DIR)
 
 
 class RemoteRunnerScript(remote_runner.RemoteRunner):
@@ -36,8 +36,7 @@ class RemoteRunnerScript(remote_runner.RemoteRunner):
             script += f" --var={k}={variables[k]}"
         script += f" {parsed_test.test_name}"
 
-        # TODO: The batch runner on the DUT needs to be re-written,
-        #       and can be updated and put to start dir automatically.
+        self.dut.make_dir(starter_path)
         self.dut.remove_path(f"{starter_path}/test_ended.txt")
         self.dut.write_file(f"{starter_path}/run.bat", script)
         self.dut.write_file(f"{starter_path}/start_test.txt", "")

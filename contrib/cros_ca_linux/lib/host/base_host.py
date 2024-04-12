@@ -7,6 +7,7 @@
 # The following line disable the abstract function implementation warning.
 # pylint: disable=W0223
 
+import datetime
 import os
 from pathlib import Path
 from typing import List, Union
@@ -98,10 +99,14 @@ class BaseHost:
                 logger.info("Connected to host: %s", self.hostname)
             self._connected = True
         except Exception as e:
-            logger.warning("Connection error: %s", e)
             self._connected = False
 
             raise  # Re-raise the exception for caller handling
+
+    def reconnect(self):
+        """Reconnect to the remote host"""
+        self._connected = False
+        self.connect()
 
     def close(self):
         """Disconnects from the host, if connected."""
@@ -375,6 +380,17 @@ class BaseHost:
         else:
             return os.path.join(os.path.expanduser("~"), "downloads")
 
+    def deploy(self) -> None:
+        """Deploy the environment for testing"""
+
+    def reboot(self, timeout: datetime.timedelta) -> None:
+        """Reboot the host and wait until rebooted or timeout
+
+        Args:
+            timeout: The timeout waiting for host been access again
+        """
+        raise NotImplementedError("reboot() must be implemented in a subclass")
+
     def update_src_version(self):
         """Update the source code on the host"""
         if not self.src_dir:
@@ -388,10 +404,19 @@ class BaseHost:
     def update_dependency(self):
         pass
 
+    def normalize_path(self, path: str) -> str:
+        """Normalize the path for the specific OS"""
+        return path
+
     def update_dir(
-        self, name: str, here_dir: Path, there_dir: Path, includes=None
-    ):
-        there_ver_file = str(there_dir / ".program_ver.txt")
+        self,
+        name: str,
+        here_dir: Path,
+        there_dir: Path,
+        includes: List[str] = None,  # List of dir entries to update
+        rm_there_dir: bool = True,
+    ) -> bool:
+        there_ver_file = str(there_dir / ".program_ver")
         update = True
         f, t = version.get_timestamp_ver(str(here_dir))
         local_ver = f"{f}: {t}"
@@ -405,20 +430,25 @@ class BaseHost:
             logger.info("%s version (here): %s", name, local_ver)
             if remote_ver:
                 logger.info("%s version (there): %s", name, remote_ver)
-            self.remove_path(str(there_dir))
-            self.make_dir(str(there_dir))
-            self.write_file(there_ver_file, local_ver)
+            if rm_there_dir:
+                self.remove_path(str(there_dir))
+            there_parent = there_dir
             version.remove_pycache(str(here_dir))
             parent = here_dir
             if not includes:
                 # Upload the whole directory
                 parent = here_dir.parent
                 includes = [here_dir.name]
+                there_parent = there_dir.parent
+            self.make_dir(str(there_parent))
             for entity in includes:
                 f = str(parent / entity)
-                self.upload(f, str(there_dir))
+                self.upload(f, str(there_parent))
+            # The dir has been uploaded. Write the version file.
+            self.write_file(there_ver_file, local_ver)
         else:
             logger.info("%s version is up to date.", name)
+        return update
 
     def mute(self, flag=True):
         """Set the device speaker to mute.

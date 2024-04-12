@@ -156,6 +156,7 @@ class BaseRunner:
 
             self.dut.connect()
             if has_local_tests:
+                self.dut.deploy()
                 self.dut.update_src_version()
                 self.dut.update_dependency()
 
@@ -184,7 +185,7 @@ class BaseRunner:
                 except Exception as e:
                     self.logger.error(f"Run test {tst} error: {e}")
                     cb = traceback.format_exc()
-                    self.logger.debug(cb)
+                    self.logger.info(cb)
                 finally:
                     self.logger.info(
                         "[%d / %d] Ended test %s", idx + 1, total, tst
@@ -194,7 +195,7 @@ class BaseRunner:
         except Exception as e:
             self.logger.error("Execution error: %s", e)
             cb = traceback.format_exc()
-            self.logger.debug(cb)
+            self.logger.info(cb)
         finally:
             self.logger.info(f"Test results saved in {self.results_dir}")
             self.logger.removeHandler(run_file_handler)
