@@ -64,10 +64,12 @@ class MergeConflictBehavior(enum.Enum):
     FAIL: Stop immediately. Don't upload anything.
     SKIP: Skip the commit that failed to merge. Summarize the failed
         commits at the end of the execution, and exit failure status.
+    STOP: Stop immediately. Upload staged changes prior to conflict.
     """
 
     FAIL = enum.auto()
     SKIP = enum.auto()
+    STOP = enum.auto()
 
 
 class MergeConflictError(Exception):
@@ -996,6 +998,10 @@ def run_copybot(args, git_dir, patch_dir):
                 logger.warning("Skipping %s", rev)
                 skipped_revs.append(rev)
                 continue
+            elif merge_conflict_behavior is MergeConflictBehavior.STOP:
+                logger.warning("Stopping at revision %s", rev)
+                skipped_revs.extend(list(reversed(commits_to_copy))[i:])
+                break
             raise MergeConflictsError(commits=[rev]) from e
 
         rewrite_commit_message(
