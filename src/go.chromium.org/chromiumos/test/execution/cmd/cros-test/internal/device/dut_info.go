@@ -215,6 +215,12 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 				carriers = append(carriers, lv)
 			}
 		}
+		// Include DUT carrier label as a 'carrier:', 'Operators' refers to the individual
+		// SIMs in DUT and is currently unused as it has been superseded by the SimInfo labels.
+		if car.GetCarrier() != "" {
+			lv := "carrier:" + strings.ToLower(car.GetCarrier())
+			carriers = append(carriers, lv)
+		}
 	}
 
 	var hwids []string

@@ -77,6 +77,9 @@ func TestFillDUTInfo(t *testing.T) {
 								Port:    9996,
 							},
 						},
+						Cellular: &labapi.Cellular{
+							Carrier: "VERIZON",
+						},
 						SimInfos: []*labapi.SIMInfo{
 							{
 								SlotId: 1,
@@ -187,6 +190,7 @@ func TestFillDUTInfo(t *testing.T) {
 			ServoHostname:   "c6-r9-r7-labstation",
 			ServoPort:       "9996",
 			Phase:           "PHASE_UNSPECIFIED",
+			CarrierList:     []string{"carrier:verizon"},
 			SimInfos: []string{
 				"sim_slot_id:1", "sim_1_num_profiles:1", "sim_1_0_iccid:1", "sim_1_0_pin:1111",
 				"sim_1_0_puk:49830420", "sim_1_0_carrier_name:NETWORK_TMOBILE",
@@ -301,6 +305,9 @@ func TestFillDUTInfoExtended(t *testing.T) {
 				Sku:           "123",
 				HwidComponent: []string{"hwid123"},
 				Hwid:          "Atlas 123-34",
+				Cellular: &labapi.Cellular{
+					Carrier: "VERIZON",
+				},
 				SimInfos: []*labapi.SIMInfo{
 					{
 						SlotId: 1,
@@ -362,6 +369,7 @@ func TestFillDUTInfoExtended(t *testing.T) {
 			HwIDList:            []string{"hwid_component:hwid123"},
 			CacheServer:         "cache1:8001",
 			HWID:                "Atlas 123-34",
+			CarrierList:         []string{"carrier:verizon"},
 			SimInfos: []string{
 				"sim_slot_id:1", "sim_1_num_profiles:1", "sim_1_0_iccid:1", "sim_1_0_pin:1111",
 				"sim_1_0_puk:49830420", "sim_1_0_carrier_name:NETWORK_TMOBILE",
