@@ -329,7 +329,13 @@ func (p *proxyConfig) serverName(host string) string {
 	if p == nil || p.config == nil {
 		return host
 	}
-	return expandHostToken(p.config.ServerName, host)
+	sn := expandHostToken(p.config.ServerName, host)
+	// Remove port since proxy server certificate validation does not allow port.
+	i := strings.Index(sn, ":")
+	if i > 0 {
+		sn = sn[:i]
+	}
+	return sn
 }
 
 func expandHostToken(token, host string) string {
