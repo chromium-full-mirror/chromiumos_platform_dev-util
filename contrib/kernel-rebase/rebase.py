@@ -505,7 +505,7 @@ class Rebaser:
                 with open("rebase_config.py", "a", encoding="utf-8") as f:
                     f.write(
                         "disp_overwrite['%s'] = '%s' # %s\n"
-                        % (fsha, "drop", subject)
+                        % (sha, "drop", subject)
                     )
             else:
                 print(
