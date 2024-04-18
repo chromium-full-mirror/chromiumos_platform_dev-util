@@ -15,12 +15,9 @@ Usage: $0 [flags] tarball
 
 tarball: The firmware tarball to be repacked"
 
-SWAP_EC_RW="$(dirname "$0")/swap_ec_rw"
-
 # Flags.
 DEFINE_string model "" "Comma-separated list of models (variants)" m
 DEFINE_string output "." "Output directory" o
-DEFINE_string ecrw "" "The EC firmware tarball to be swapped into AP firmware"
 
 # Parse command line.
 FLAGS "$@" || exit 1
@@ -30,30 +27,21 @@ eval set -- "${FLAGS_ARGV}"
 # when that is turned on first.
 set -e
 
-declare -a manifest=()
-
 make_tar() {
   local tar=$1
   local dir=$2
   local files=("${@:3}")
-  local line=()
   tar -cjvf "${tar}" -C "${dir}" "${files[@]}"
-  line=("$(basename "${tar}")" "$(stat -c '%s' "${tar}")" \
-        "BLAKE2B" "$(b2sum "${tar}" | awk '{print $1}')" \
-        "SHA512" "$(sha512sum "${tar}" | awk '{print $1}')")
-  manifest+=("$(printf '%s ' "${line[@]}")")
 }
 
 make_fw_tar() {
   local fw_dir=$1
-  local ecrw_dir=$2
-  local model=$3
+  local model=$2
   info "Packing ${model} firmware..."
-  local output=$4
+  local output=$3
   local ap="${fw_dir}/image-${model}.bin"
   local ec="${fw_dir}/${model}/ec.bin"
   local ec_manifest_fn="component_manifest.json"
-  local ecrw="${ecrw_dir}/${model}/ec.bin"
   local model_uc="${model^}"
   local ap_version
   local ec_version
@@ -62,17 +50,6 @@ make_fw_tar() {
     jq -r -c .default.host.versions.ro)"
   ap_version="$(cut -d "." -f2- <<< "${ap_version}")"
   ec_version="${ap_version}"
-
-  # Swap ecrw in AP
-  if [[ -n "${ecrw_dir}" ]]; then
-    ec_version="$(futility update --manifest -e "${ecrw}" |
-      jq -r -c .default.ec.versions.rw)"
-    ec_version="$(cut -d "-" -f2 <<< "${ec_version}")"
-    info "Swapping ecrw with version ${ec_version}"
-    "${SWAP_EC_RW}" --image "${ap}" --ec "${ecrw}" > /dev/null
-    ec_suffix="_${model_uc}_EC.${ec_version}"
-    ec="${ecrw}"
-  fi
 
   # Make AP tar
   local ap_tar="${output}/${model_uc}.${ap_version}${ec_suffix}.tbz2"
@@ -110,7 +87,6 @@ main() {
   # Extract from tarball
   local temp_dir
   temp_dir=$(mktemp -d)
-  local ap_temp_dir="${temp_dir}/ap"
 
   # Files such as component_manifest.json may not exist in the tarball,
   # so we cannot pass the file name to tar as "tar -xjf ${tarball} FILES".
@@ -127,27 +103,14 @@ main() {
     opts+=("--exclude" "${file}")
   done
 
-  info "Extracting images to ${ap_temp_dir}..."
-  mkdir "${ap_temp_dir}"
-  (cd "${ap_temp_dir}" && tar -xjf "${tarball}" "${opts[@]}")
-
-  # Extract from EC tarball
-  local ecrw_temp_dir
-  local ecrw_tarball
-  if [[ -n "${FLAGS_ecrw}" ]]; then
-    ecrw_temp_dir="${temp_dir}/ecrw"
-    info "Extracting EC images to ${ecrw_temp_dir}..."
-    mkdir "${ecrw_temp_dir}"
-    ecrw_tarball=$(readlink -f "${FLAGS_ecrw}")
-    (cd "${ecrw_temp_dir}" && tar -xjf "${ecrw_tarball}" "${opts[@]}")
-  fi
+  info "Extracting images to ${temp_dir}..."
+  (cd "${temp_dir}" && tar -xjf "${tarball}" "${opts[@]}")
 
   for model in "${models[@]}"; do
-    make_fw_tar "${ap_temp_dir}" "${ecrw_temp_dir}" "${model}" "${FLAGS_output}"
+    make_fw_tar "${temp_dir}" "${model}" "${FLAGS_output}"
   done
 
   info "Output files saved to ${FLAGS_output}/"
-  printf "%s\n" "${manifest[@]}"
   info "Done"
 }
 
