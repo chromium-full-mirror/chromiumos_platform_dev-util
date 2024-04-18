@@ -15,6 +15,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
 import lib.definition as df
+from lib.host import base_host
 from lib.host import paramiko_host
 from lib.host.ssh import port_forwarding as pf
 from lib.utils import logging as lg
@@ -83,16 +84,33 @@ class CrOSParamikoHost(paramiko_host.ParamikoHost):
 
         return None
 
-    def auto_login(self):
+    def auto_login(self, option: base_host.LoginOption):
         """Automatically log into the DUT.
+
+        Args:
+            option: Login option.
 
         Raises:
             RuntimeError: if autologin fails.
         """
         logger.info("ChromeOS auto login...")
-        _, _, result = self.exec_command(
-            "/usr/local/autotest/bin/autologin.py", 90
-        )
+
+        command = "/usr/local/autotest/bin/autologin.py "
+        # Don't keep state. Delete existing profile.
+        # This is the only way it can work together with gaia login. Without
+        # this option, if another account has already exists on the DUT,
+        # the GAIA login would fail on the screen of "Choose your setup"
+        # for personal use, for a child or for work.
+        command += "-d "
+        if option.arc:
+            command += "--arc --no-arc-syncs "
+        if option.username and option.password:
+            command += f"-u {option.username} -p {option.password} "
+        # TODO: Other Chrome options can be added here. These options
+        #       can be set in the "option" class and applied to the
+        #       autologin.py argument here.
+
+        _, _, result = self.exec_command(command, 90)
         if result != 0:
             logger.warning("Failed to do autologin. code: %d", result)
             raise RuntimeError("Failed to do autologin")
@@ -143,6 +161,10 @@ class CrOSParamikoHost(paramiko_host.ParamikoHost):
         self, opts: webdriver.ChromeOptions = None
     ) -> Union[webdriver.Chrome, webdriver.Remote]:
         """Create a selenium webdriver connecting to the browser on the DUT.
+
+        Args:
+            opts: The chrome options. Test case can pass the options
+                  it desires to use.
 
         Returns:
             selenium remote webdriver.

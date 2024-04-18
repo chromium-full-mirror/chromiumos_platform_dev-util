@@ -31,8 +31,27 @@ class WinLocalHost(base_host.BaseHost):
 
         It connects to the browser on the DUT.
 
+        Args:
+            opts: The chrome options. Test case can pass the options
+                  it desires to use.
+
         Returns:
             selenium webdriver.
         """
 
         return webdriver.Chrome(options=opts)
+
+    def auto_login(self, option: base_host.LoginOption):
+        """Automatically log into the DUT.
+
+        Args:
+            option: Login option.
+        """
+
+    def mute(self, flag=True):
+        """Set the device speaker to mute.
+
+        Args:
+            flag: True if set to mute, Fale to unmute.
+        """
+        # TODO: To be implemented.

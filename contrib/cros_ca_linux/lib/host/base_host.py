@@ -37,6 +37,14 @@ class DirEntry:
         )
 
 
+class LoginOption:
+    """The login options for CrOS"""
+
+    username: str = None
+    password: str = None
+    arc: bool = False  # For CrOS to bring up ARC.
+
+
 class BaseHost:
     """A class representing a host."""
 
@@ -165,8 +173,11 @@ class BaseHost:
             "kill_pid() must be implemented in a subclass"
         )
 
-    def auto_login(self):
+    def auto_login(self, option: LoginOption):
         """Automatically log into the DUT.
+
+        Args:
+            option: Login option.
 
         Raises:
             NotImplementedError: Always raised as this method is meant to be
@@ -211,6 +222,10 @@ class BaseHost:
         self, opts: webdriver.ChromeOptions
     ) -> Union[webdriver.Chrome, webdriver.Remote]:
         """Create a selenium webdriver connecting to the browser on the DUT.
+
+        Args:
+            opts: The chrome options. Test case can pass the options
+                  it desires to use.
 
         Returns:
             selenium webdriver.
@@ -404,6 +419,14 @@ class BaseHost:
                 self.upload(f, str(there_dir))
         else:
             logger.info("%s version is up to date.", name)
+
+    def mute(self, flag=True):
+        """Set the device speaker to mute.
+
+        Args:
+            flag: True if set to mute, Fale to unmute.
+        """
+        raise NotImplementedError("mute() must be implemented in a subclass")
 
     def __enter__(self):
         """Context manager: connects automatically on entering the block."""

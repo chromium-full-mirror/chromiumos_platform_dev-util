@@ -12,6 +12,7 @@ import time
 from selenium.webdriver import Remote
 from selenium.webdriver.common.keys import Keys
 
+from lib.host import base_host
 from lib.testing.lib import chrome_browser_test as cbt
 
 
@@ -21,7 +22,7 @@ class PythonWeb(cbt.ChromeBrowserTest):
     parameters = {"": 2, "3_tab": 3}  # Tab loop number
 
     def run(self):
-        self.dut.auto_login()
+        self.dut.auto_login(base_host.LoginOption())  # Fake login option.
         driver: Remote = self.get_webdriver()
         self.logger.debug(f'Test parameter: "{self.param}"')
         loop = self.parameter
