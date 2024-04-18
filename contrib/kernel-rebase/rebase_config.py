@@ -250,3 +250,11 @@ disp_overwrite[
 disp_overwrite[
     "0f31c6bc52d7"
 ] = "drop"  # BACKPORT: FROMLIST: net: wwan: t7xx: Fix remove rescan block
+disp_overwrite["933ba49b7349"] = [
+    "move",
+    "drm",
+]  # FIXUP: CHROMIUM: drm/print: rename drm_debug* to be more syslog-centric
+disp_overwrite["6f55d555a2bb"] = [
+    "move",
+    "drm",
+]  # FIXUP: CHROMIUM: drm/print: Add tracefs support to the drm logging helpers
