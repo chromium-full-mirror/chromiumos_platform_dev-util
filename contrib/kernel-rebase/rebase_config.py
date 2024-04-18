@@ -258,3 +258,18 @@ disp_overwrite["6f55d555a2bb"] = [
     "move",
     "drm",
 ]  # FIXUP: CHROMIUM: drm/print: Add tracefs support to the drm logging helpers
+disp_overwrite[
+    "d5d9543bbaaa"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Enable gpio pin for wowlan
+disp_overwrite[
+    "98238c3bcd94"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Update mode-switch nodes for it6505
+disp_overwrite[
+    "14f70eacae1e"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add decoder device nodes
+disp_overwrite[
+    "05110e76c61c"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add venc node
+disp_overwrite[
+    "1245bbd2e04e"
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add spmi node
