@@ -244,3 +244,9 @@ disp_overwrite["e7899c93671a"] = [
     "move",
     "mm",
 ]  # CHROMIUM: per-process reclaim correct isolate_lru_page usage
+disp_overwrite[
+    "fccf284589f4"
+] = "drop"  # CHROMIUM: net: wwan: t7xx: Modify the LINUX/LK trigger source
+disp_overwrite[
+    "0f31c6bc52d7"
+] = "drop"  # BACKPORT: FROMLIST: net: wwan: t7xx: Fix remove rescan block
