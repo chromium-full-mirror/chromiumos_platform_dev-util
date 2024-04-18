@@ -273,3 +273,6 @@ disp_overwrite[
 disp_overwrite[
     "1245bbd2e04e"
 ] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add spmi node
+disp_overwrite[
+    "f724b94f5dab"
+] = "drop"  # CHROMIUM: FIXUP: Ensure iwl7000 has precedence over iwlwifi
