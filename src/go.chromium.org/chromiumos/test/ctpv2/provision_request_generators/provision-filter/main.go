@@ -41,6 +41,7 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 		}
 	}
 
+	// TODO (oldProto-azrahman): remove old proto stuffs when schedulingUnits are fully rolled in.
 	for _, legacyTarget := range req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements() {
 
 		for _, innerTarget := range legacyTarget.GetHwRequirements().GetHwDefinition() {
@@ -61,6 +62,12 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 		req, err := createTargetsForBoards(log, req, swRequirements.GetBuild(), foundHW, milestone)
 		return req, err
 	}
+
+	// Create Dynamic Updates and lookup information.
+	if err := GenerateDynamicInfo(req); err != nil {
+		return req, err
+	}
+
 	return req, nil
 }
 
@@ -132,6 +139,7 @@ func createTargetsForBoards(log *log.Logger, req *api.InternalTestplan, channel 
 			return nil, err
 		}
 		gcsPath := createGcsPath(targ, channel, build, milestone)
+		// TODO (oldProto-azrahman): remove old proto stuffs when schedulingUnits are fully rolled in.
 		if len(req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements()) > 0 {
 			hwTarget := &api.HWRequirements{
 				HwDefinition: buildHWTargetOld(board, getVariantFromBuildTarg(targ), generateProvisionInfoOld(nil, gcsPath)),
@@ -359,7 +367,6 @@ func generateProvisionInfoOld(current []*api.ProvisionInfo, path string) []*api.
 		InstallRequest: installInfo,
 	}
 	return append(current, info)
-
 }
 
 func main() {
