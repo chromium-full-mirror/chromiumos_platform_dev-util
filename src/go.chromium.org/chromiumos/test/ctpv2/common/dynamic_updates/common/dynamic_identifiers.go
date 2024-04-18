@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package helpers
+package common
 
 import "fmt"
 
 // Constants relating to dynamic dependency storage.
 const (
 	// Base task identifiers and image metadata keys.
-	CrosProvision = "cros-provision"
-	CrosDut       = "cros-dut"
-	RdbPublish    = "rdb-publish"
+	CrosProvision    = "cros-provision"
+	AndroidProvision = "android-provision"
+	CrosDut          = "cros-dut"
+	RdbPublish       = "rdb-publish"
 
 	// Device base identifiers.
 	Primary   = "primary"

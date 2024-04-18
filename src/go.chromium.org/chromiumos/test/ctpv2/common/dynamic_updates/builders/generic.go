@@ -7,7 +7,7 @@ package builders
 import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
-	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/helpers"
+	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/common"
 	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/interfaces"
 	"go.chromium.org/luci/common/errors"
 )
@@ -36,7 +36,7 @@ func NewGenericTaskBuilder(dynamicId, containerId string) *GenericTaskBuilder {
 					ServiceAddress: &labapi.IpEndpoint{},
 					DynamicDeps: []*api.DynamicDep{
 						{
-							Key:   helpers.ServiceAddress,
+							Key:   common.ServiceAddress,
 							Value: containerId,
 						},
 					},
@@ -69,7 +69,7 @@ func (builder *GenericTaskBuilder) AddStopRequest(stop *interfaces.GenericTaskMe
 
 // addGenericRequest creates the generic request and generates the dynamic deps.
 func (builder *GenericTaskBuilder) addGenericRequest(rpc string, req *interfaces.GenericTaskMessageRequest) error {
-	genericValues, err := helpers.ConvertProtoMapToAnyMap(req.StaticInputs)
+	genericValues, err := common.ConvertProtoMapToAnyMap(req.StaticInputs)
 	if err != nil {
 		return errors.Annotate(err, "failed to add stop request's static inputs").Err()
 	}
@@ -96,7 +96,7 @@ func (builder *GenericTaskBuilder) addGenericRequest(rpc string, req *interfaces
 	}
 
 	taskDeps := builder.Task.GetGeneric().DynamicDeps
-	generatedDeps := helpers.GenerateDynamicDeps(rpc, req.DynamicInputs, GenericDynamicDepFormat)
+	generatedDeps := common.GenerateDynamicDeps(rpc, req.DynamicInputs, GenericDynamicDepFormat)
 	builder.Task.GetGeneric().DynamicDeps = append(taskDeps, generatedDeps...)
 
 	return nil

@@ -7,13 +7,14 @@ package helpers
 import (
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/common"
 	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/interfaces"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // DefaultProvisionStartUpRequest outlines the default values
 // typically required for starting up a provision task.
-func DefaultProvisionStartUpRequest(deviceId *DeviceIdentifier) *interfaces.ProvisionTaskStartUpRequest {
+func DefaultProvisionStartUpRequest(deviceId *common.DeviceIdentifier) *interfaces.ProvisionTaskStartUpRequest {
 	return &interfaces.ProvisionTaskStartUpRequest{
 		DynamicInputs: map[string]string{
 			"dut":       deviceId.GetDevice("dut"),
@@ -32,5 +33,22 @@ func DefaultCrosProvisionInstallRequest(installPath string) *interfaces.Provisio
 			Path:     installPath,
 		},
 		StaticMetadata: crosProvisionMetadata,
+	}
+}
+
+// DefaultAndroidProvisionInstallRequest sets up a android-provision request.
+func DefaultAndroidProvisionInstallRequest() *interfaces.ProvisionTaskInstallRequest {
+	androidProvisionMetadata, _ := anypb.New(&api.AndroidProvisionRequestMetadata{
+		CipdPackages: []*api.CIPDPackage{
+			{
+				VersionOneof: &api.CIPDPackage_Ref{
+					Ref: "latest_stable",
+				},
+				AndroidPackage: api.AndroidPackage_GMS_CORE,
+			},
+		},
+	})
+	return &interfaces.ProvisionTaskInstallRequest{
+		StaticMetadata: androidProvisionMetadata,
 	}
 }

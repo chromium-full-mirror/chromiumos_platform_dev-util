@@ -7,7 +7,7 @@ package builders
 import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
-	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/helpers"
+	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/common"
 	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/interfaces"
 )
 
@@ -32,7 +32,7 @@ func NewProvisionTaskBuilder(dynamicId, containerId, targetDevice string) *Provi
 					ServiceAddress: &labapi.IpEndpoint{},
 					DynamicDeps: []*api.DynamicDep{
 						{
-							Key:   helpers.ServiceAddress,
+							Key:   common.ServiceAddress,
 							Value: containerId,
 						},
 					},
@@ -56,7 +56,7 @@ func (builder *ProvisionTaskBuilder) AddStartUpRequest(startup *interfaces.Provi
 		DutServer: startup.StaticDutServer,
 	}
 	taskDeps := builder.Task.GetProvision().DynamicDeps
-	generatedDeps := helpers.GenerateDynamicDeps("startup", startup.DynamicInputs, ProvisionDynamicDepFormat)
+	generatedDeps := common.GenerateDynamicDeps("startup", startup.DynamicInputs, ProvisionDynamicDepFormat)
 	builder.Task.GetProvision().DynamicDeps = append(taskDeps, generatedDeps...)
 }
 
@@ -67,6 +67,6 @@ func (builder *ProvisionTaskBuilder) AddInstallRequest(install *interfaces.Provi
 		Metadata:  install.StaticMetadata,
 	}
 	taskDeps := builder.Task.GetProvision().DynamicDeps
-	generatedDeps := helpers.GenerateDynamicDeps("install", install.DynamicInputs, ProvisionDynamicDepFormat)
+	generatedDeps := common.GenerateDynamicDeps("install", install.DynamicInputs, ProvisionDynamicDepFormat)
 	builder.Task.GetProvision().DynamicDeps = append(taskDeps, generatedDeps...)
 }

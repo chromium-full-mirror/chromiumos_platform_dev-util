@@ -10,6 +10,14 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
+// CommonContainerVolumes provides the volumes
+// that will be provided to each container request.
+func CommonContainerVolumes() []string {
+	return []string{
+		"/creds:/creds",
+	}
+}
+
 // ContainerBuilder constructs a container request
 // with the default assumption of using a generic template.
 type ContainerBuilder struct {
@@ -23,6 +31,7 @@ type ContainerBuilder struct {
 	// Optional Inputs
 	ContainerTemplate *api.Template
 	DynamicDeps       []*api.DynamicDep
+	AdditionalVolumes []string
 }
 
 // NewContainerBuilder initializes.
@@ -34,6 +43,7 @@ func NewContainerBuilder(contId, imageKey, imagePath, artifactDir, cmd string) *
 		ContainerArtifactDir: artifactDir,
 		Cmd:                  cmd,
 		DynamicDeps:          []*api.DynamicDep{},
+		AdditionalVolumes:    []string{},
 	}
 }
 
@@ -50,6 +60,10 @@ func (builder *ContainerBuilder) SetDynamicDeps(deps map[string]string) {
 			Value: v,
 		})
 	}
+}
+
+func (builder *ContainerBuilder) SetAdditionalVolumes(volumes []string) {
+	builder.AdditionalVolumes = append(builder.AdditionalVolumes, volumes...)
 }
 
 // Build constructs the container request from the information
@@ -71,7 +85,7 @@ func (builder *ContainerBuilder) Build() *api.ContainerRequest {
 					BinaryName:        binaryName,
 					BinaryArgs:        binaryArgs,
 					DockerArtifactDir: builder.ContainerArtifactDir,
-					AdditionalVolumes: CommonContainerVolumes(),
+					AdditionalVolumes: append(builder.AdditionalVolumes, CommonContainerVolumes()...),
 				},
 			},
 		}

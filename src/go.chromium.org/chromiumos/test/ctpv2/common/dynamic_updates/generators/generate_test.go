@@ -7,6 +7,7 @@ package generators_test
 import (
 	libapi "go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates"
 	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/builders"
+	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/common"
 	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/generators"
 	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/helpers"
 	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/interfaces"
@@ -24,7 +25,7 @@ func TestGeneric(t *testing.T) {
 	dynamicUpdates := []*api.UserDefinedDynamicUpdate{}
 	Convey("Generic Generation", t, func() {
 		generator := generators.NewGenericTaskGenerator(
-			helpers.NewTaskIdentifier("generic-task").Id,
+			common.NewTaskIdentifier("generic-task").Id,
 			"user-container-id",
 			[]*builders.ContainerBuilder{
 				builders.NewContainerBuilder(
@@ -36,13 +37,13 @@ func TestGeneric(t *testing.T) {
 				),
 			},
 			map[string]interfaces.InsertInstructionGetter{
-				"beforeProvision": helpers.InsertActionWrapper(
+				"beforeProvision": common.InsertActionWrapper(
 					api.UpdateAction_Insert_PREPEND,
-					helpers.FindFirst(api.FocalTaskFinder_PROVISION),
+					common.FindFirst(api.FocalTaskFinder_PROVISION),
 				),
-				"afterProvision": helpers.InsertActionWrapper(
+				"afterProvision": common.InsertActionWrapper(
 					api.UpdateAction_Insert_APPEND,
-					helpers.FindFirst(api.FocalTaskFinder_PROVISION),
+					common.FindFirst(api.FocalTaskFinder_PROVISION),
 				),
 			},
 			&interfaces.GenericTaskMessageRequest{
@@ -84,9 +85,9 @@ func TestProvision(t *testing.T) {
 	dynamicUpdates := []*api.UserDefinedDynamicUpdate{}
 	Convey("Provision Generation", t, func() {
 		generator := generators.NewProvisionTaskGenerator(
-			helpers.NewTaskIdentifier(helpers.CrosProvision).AddDeviceId(helpers.NewPrimaryDeviceIdentifier()).Id,
+			common.NewTaskIdentifier(common.CrosProvision).AddDeviceId(common.NewPrimaryDeviceIdentifier()).Id,
 			"provision-container-id",
-			helpers.NewPrimaryDeviceIdentifier().Id,
+			common.NewPrimaryDeviceIdentifier().Id,
 			[]*builders.ContainerBuilder{
 				builders.NewContainerBuilder(
 					"provision-container-id",
@@ -96,12 +97,12 @@ func TestProvision(t *testing.T) {
 					"cros-provision server -port 0",
 				),
 			},
-			helpers.InsertActionWrapper(
+			common.InsertActionWrapper(
 				api.UpdateAction_Insert_REPLACE,
-				helpers.FindFirst(api.FocalTaskFinder_PROVISION),
+				common.FindFirst(api.FocalTaskFinder_PROVISION),
 			),
-			helpers.DefaultProvisionStartUpRequest(helpers.NewPrimaryDeviceIdentifier()),
-			helpers.DefaultCrosProvisionInstallRequest(helpers.SetPlaceholder("installPath")),
+			helpers.DefaultProvisionStartUpRequest(common.NewPrimaryDeviceIdentifier()),
+			helpers.DefaultCrosProvisionInstallRequest(common.SetPlaceholder("installPath")),
 		)
 		err := libapi.AppendUserDefinedDynamicUpdates(&dynamicUpdates, generator.Generate)
 
@@ -121,7 +122,7 @@ func TestModify(t *testing.T) {
 	dynamicUpdates := []*api.UserDefinedDynamicUpdate{}
 	Convey("Modify Generation", t, func() {
 		generator := generators.NewModifyGenerator(
-			helpers.FindFirst(api.FocalTaskFinder_TEST),
+			common.FindFirst(api.FocalTaskFinder_TEST),
 		)
 		So(generator.AddModification(
 			structpb.NewStringValue("cros-test-cq-light"),

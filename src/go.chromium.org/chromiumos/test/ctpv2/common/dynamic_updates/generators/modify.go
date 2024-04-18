@@ -6,7 +6,7 @@ package generators
 
 import (
 	"go.chromium.org/chromiumos/config/go/test/api"
-	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/helpers"
+	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/common"
 	"go.chromium.org/luci/common/errors"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -45,7 +45,7 @@ func (gen *ModifyGenerator) AddModification(payload proto.Message, instructions 
 
 // Generate converts all the modifications to dynamic updates and returns.
 func (gen *ModifyGenerator) Generate() ([]*api.UserDefinedDynamicUpdate, error) {
-	gen.DynamicUpdates = append(gen.DynamicUpdates, helpers.ModifyActionWrapper(gen.FocalTaskFinder)(gen.Modifications))
+	gen.DynamicUpdates = append(gen.DynamicUpdates, common.ModifyActionWrapper(gen.FocalTaskFinder)(gen.Modifications))
 
 	return gen.DynamicUpdates, nil
 }
