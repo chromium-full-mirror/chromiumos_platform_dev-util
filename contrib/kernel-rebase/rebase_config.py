@@ -101,6 +101,10 @@ topic_patches["media"] = [
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - Rename min_buffers_needed field in vb2_queue.patch",
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - string: Remove strlcpy.patch",
 ]
+
+topic_patches["dts"] = [
+    "fixups/FIXUP: CHROMIUM: arm64: dts: mt8186: Add corsola-steelix and rusty board.patch",
+]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
