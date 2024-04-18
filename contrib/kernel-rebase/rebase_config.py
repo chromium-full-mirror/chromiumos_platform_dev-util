@@ -81,6 +81,7 @@ topic_patches["drm"] = [
     "fixups/FIXUP: CHROMIUM: drm img-rogue: Add 1.17 IMG PowerVR Rogue driver - string: Remove strlcpy.patch",
     "fixups/FIXUP: FROMLIST: drm vkms: Support multiple DRM objects crtcs etc per VKMS device.patch",
     "fixups/FIXUP: CHROMIUM: drm rockchip: Add GEM create ioctl support.patch",
+    "fixups/FIXUP: CHROMIUM: drm-img-rogue: Add 1.17 IMG PowerVR Rogue driver.patch",
 ]
 
 topic_patches["chromeos"] = [
