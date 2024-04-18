@@ -240,3 +240,7 @@ disp_overwrite[
 disp_overwrite[
     "c4f808c7b1a5"
 ] = "drop"  # FROMLIST: PM: sleep: Expose last succeeded resumed timestamp in sysfs
+disp_overwrite["e7899c93671a"] = [
+    "move",
+    "mm",
+]  # CHROMIUM: per-process reclaim correct isolate_lru_page usage
