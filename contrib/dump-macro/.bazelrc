@@ -1,0 +1,10 @@
+# Copyright 2024 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Use traditional WORKSPACE for best compatibility.
+common --noenable_bzlmod
+
+# Use clang with C++20.
+build --cxxopt=-std=gnu++20
+build --repo_env=CC=clang
