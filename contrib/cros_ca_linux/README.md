@@ -1,0 +1,103 @@
+# Quick Start
+## 1. Check out the source code.
+Checkout the source code in a linux development machine (Host machine).
+
+## 2. Create the python virtual environment.
+Go to the project directory "cros_ca_linux".
+```
+> source script/setup_venv.sh .
+```
+You will see a "venv" folder created with all the python dependencies that the project needs.
+**Note**
+Currently in CrOS, seleniumu is still 3.01. This "venv" folder will be used by CrOS run to put selenium 4.1x into the CrOS DUT.
+
+## 3. Run the tests.
+### Windows Local Test
+- cuj.VideoPlaying:
+```
+> python3 bin/test_win_remote.py --var=duration=2 <DUT_IP> cuj.VideoPlaying
+```
+- cuj.GoogleMeet
+```
+> python3 bin/test_win_remote.py--var=typing_delay=0.01 --var=bot_num=2 --var=meet_ttl=2 --var=duration=2 <DUT_IP> cuj.GoogleMeet
+```
+
+### CrOS Local Test
+Now only support VideoPlaying. MeetCUJ is not supported yet.
+```
+> python3 bin/test_cros_remote.py --var=duration=2  <DUT_IP> cuj.VideoPlaying
+```
+
+### CrOS Remote Test
+example.PythonWeb is the example test for CrOS remote test:
+```
+> python3 bin/test_cros_remote.py <DUT_IP> example.PythonWeb
+```
+
+# Introduction
+
+This is CrOS CA linux runner package for driving tests on Chromebooks and Windows.
+
+## How it works
+
+The test runner on linux will do SSH connection to the DUT. It is assumed that the SSH configuration on the DUT is ready.
+
+TODO: See: Windows configuration for SSH and auto login.
+
+## Local test and remote test
+A local test runs on the DUT, and trigger the tests locally on the DUT through local test drivers.
+
+A remote test runs on the Host, and trigger the test through remove test driver.
+
+Both local tests and remote tests are triggered from the CrOS CA runner remotely from a linux Host.
+
+At this time, the CrOS CA test runner can trigger the following test:
+
+- Windows Local Test
+    A local test runner always runs on the Windows DUT. It trigger tests based on the tasks received from the remote runner running on the Host.
+
+    Currently the test tasks are written in the c:\tools\selenium folder by the remote runner.
+
+    It is assumed that the libraries needed to run the test are pre-installed on the DUT. But the feature of auto installation of dependencies will come soon.
+
+- CrOS Local Test
+    The remote test runner will push latest python dependencies that are not availabe on the DUTs to the DUTs, and then trigger the local test through SSH.
+
+- CrOS Remote Test
+    It brings up the Chrome on the DUT machine, with the remote debugging port opened. It also brings up the chromedriver on the DUT, so that the selenium library can connect to the chromedriver with webdriver interface.
+
+    With the chromedriver and debugging port open on the DUT, the browser based tests are running on the host (linux) machine. It drives the tests by connecting to those open ports remotely.
+
+# Credentials and Accounts on the Host
+
+## 1. Prepare Bond API credentials.
+
+Before you run the Google Meet test, you need to prepare the Bond API service key that is used to create Google Meet room.
+
+The service key is put in the Host under /creds/service_accounts/ directory in the bond_service_account.json file.
+
+Make sure you have the file and the correct JSON format in the file.
+```
+> ls /creds/service_accounts/bond_service_account.json
+```
+
+
+## 2. Prepare GAIA Account.
+
+Some tests, such as the Google Meet, need to log into the Google service with the real (GAIA) account.
+
+A GAIA account can be put in the host under /creds/test_accounts/gaia_account.yaml file.
+
+```
+> vi /creds/service_accounts/bond_service_account.json
+```
+
+Put the login account in the file as:
+```
+account: user@gmail.com
+password: <password>
+```
+
+# Test Case Design
+
+TODO: to be added.
