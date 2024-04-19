@@ -1,0 +1,38 @@
+# Copyright 2024 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+"""The Windows local host implementation."""
+
+# The following line disable the abstract function implementation warning.
+# pylint: disable=W0223
+
+from selenium import webdriver
+
+from lib.host import base_host
+
+
+class WinLocalHost(base_host.BaseHost):
+    """A class representing a local Windows host"""
+
+    def _connect(self):
+        """Connects to the local host."""
+
+    def close(self):
+        """Close the local host."""
+
+    def update_src_version(self):
+        """Update the srce code"""
+
+    def chrome_webdriver(
+        self, opts: webdriver.ChromeOptions
+    ) -> webdriver.Chrome:
+        """Create a selenium Chrome webdriver
+
+        It connects to the browser on the DUT.
+
+        Returns:
+            selenium webdriver.
+        """
+
+        return webdriver.Chrome(options=opts)
