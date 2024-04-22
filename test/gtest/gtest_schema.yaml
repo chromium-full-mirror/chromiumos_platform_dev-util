@@ -86,7 +86,6 @@ properties:
     type: integer
 additionalProperties: false
 required:
-  - author
   - name
   - harness
   - category

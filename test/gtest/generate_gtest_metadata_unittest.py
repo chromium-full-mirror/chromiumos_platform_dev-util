@@ -86,10 +86,6 @@ class Generate_Gtest_Metadata_Test(TestCase):
         Bad_Yaml = collections.namedtuple("Bad_Yaml", ["yaml", "msg"])
         cls._bad_yaml_data = [
             Bad_Yaml(
-                gtc.INVALID_YAML_NO_AUTHOR,
-                'Expected a failure, no "author" field in yaml!',
-            ),
-            Bad_Yaml(
                 gtc.INVALID_YAML_NO_NAME,
                 'Expected a failure, no "name" field in yaml!',
             ),

@@ -217,23 +217,6 @@ VALID_YAML_MULTIPLE_TEST_BED_DEPS_PROTOBUF = b'\n\xe2\x01\n\x80\x01\n\x1c\n\x1ag
 
 VALID_YAML_ALL_FILES_PROTOBUF = b'\n\xaa\x01\n4\n\x1c\n\x1agtest.MyFakeTest.FakeCase1\x12\x14MyFakeTest.FakeCase1\x12+\n)"\'\n%/usr/local/fake_test_path/test_binary\x1aE\n\x17\n\x15owneremail@google.com\x12\x06\n\x04req1\x12\x06\n\x04req2\x1a\x03\n\x011"\x11\n\x0fNothing special*\x02\x08\x01\nz\n6\n\x1e\n\x1ccrosier.MyFakeTest.FakeCase1\x12\x14MyFakeTest.FakeCase1\x12\x04\n\x022\x00\x1a:\n\x17\n\x15owneremail@google.com\x12\x06\n\x04req1\x12\x06\n\x04req2\x1a\x03\n\x011"\x06\n\x04None*\x02\x08\x01\n\x9f\x01\nA\n\x1d\n\x1bgtest.MyFakeTest2.FakeCaseX\x12\x15MyFakeTest2.FakeCaseX\x1a\t\n\x07tag one\x12+\n)"\'\n%/usr/local/fake_test_path/test_binary\x1a-\n\x17\n\x15owneremail@google.com\x1a\x00"\x0e\n\x0cJust one tag*\x00\n\xfd\x01\n\x8f\x01\n&\n$gtest.YetAnotherTest.AnotherFakeCase\x12\x1eYetAnotherTest.AnotherFakeCase\x1a\t\n\x07tag one\x1a\t\n\x07two tag\x1a\r\n\x0banother tag\x1a\n\n\x08this_tag\x1a\x08\n\x06my*tag\x1a\n\n\x08your&tag\x12)\n\'"%\n#/usr/bin/fake_test_path/test_binary\x1a>\n\x16\n\x14myemail@chromium.org\x1a\x00" \n\x1eSingle case with multiple tags*\x00\n\x95\x01\n4\n\x1c\n\x1agtest.MyFakeTest.FakeCase1\x12\x14MyFakeTest.FakeCase1\x12+\n)"\'\n%/usr/local/fake_test_path/test_binary\x1a0\n\x17\n\x15owneremail@google.com\x1a\x00"\x11\n\x0fNothing special*\x00\n\x95\x01\n4\n\x1c\n\x1agtest.MyFakeTest.FakeCase2\x12\x14MyFakeTest.FakeCase2\x12+\n)"\'\n%/usr/local/fake_test_path/test_binary\x1a0\n\x17\n\x15owneremail@google.com\x1a\x00"\x11\n\x0fNothing special*\x00\n\xac\x01\nO\n$\n"gtest.MultiCase_FakeTest.FakeCaseX\x12\x1cMultiCase_FakeTest.FakeCaseX\x1a\t\n\x07tag one\x12\x0f\n\r"\x0b\n\t/tmp/test\x1aH\n\x18\n\x16multiowners@google.com\n\x18\n\x16secondowner@google.com\x1a\x00"\x0e\n\x0cJust one tag*\x00\n\xac\x01\nO\n$\n"gtest.MultiCase_FakeTest.FakeCaseY\x12\x1cMultiCase_FakeTest.FakeCaseY\x1a\t\n\x07tag two\x12\x0f\n\r"\x0b\n\t/tmp/test\x1aH\n\x18\n\x16multiowners@google.com\n\x18\n\x16secondowner@google.com\x1a\x00"\x0e\n\x0cJust one tag*\x00\n\xaa\x02\n\x9b\x01\n$\n"gtest.MultiCase_FakeTest.FakeCaseX\x12\x1cMultiCase_FakeTest.FakeCaseX\x1a\t\n\x07one tag\x1a\t\n\x07two tag\x1a\x0b\n\tthree tag\x1a\x06\n\x04four\x1a\n\n\x08five tag\x1a\t\n\x07six tag\x1a\x0b\n\tseven tag\x1a\x06\n\x04more\x12\x1d\n\x1b"\x19\n\x17/tmp/test/gtest/my_test\x1ak\n\x18\n\x16multiowners@google.com\n\x18\n\x16secondowner@google.com\n\x19\n\x17thirdowner@chromium.org\x1a\x00"\x16\n\x14Multi case unit test*\x00\n\xe8\x01\nZ\n$\n"gtest.MultiCase_FakeTest.FakeCaseY\x12\x1cMultiCase_FakeTest.FakeCaseY\x1a\t\n\x07tag one\x1a\t\n\x07tag two\x12\x1d\n\x1b"\x19\n\x17/tmp/test/gtest/my_test\x1ak\n\x18\n\x16multiowners@google.com\n\x18\n\x16secondowner@google.com\n\x19\n\x17thirdowner@chromium.org\x1a\x00"\x16\n\x14Multi case unit test*\x00\n\xf0\x01\nb\n$\n"gtest.MultiCase_FakeTest.FakeCaseZ\x12\x1cMultiCase_FakeTest.FakeCaseZ\x1a\x05\n\x03one\x1a\x05\n\x03now\x1a\x07\n\x05never\x1a\x05\n\x03tag\x12\x1d\n\x1b"\x19\n\x17/tmp/test/gtest/my_test\x1ak\n\x18\n\x16multiowners@google.com\n\x18\n\x16secondowner@google.com\n\x19\n\x17thirdowner@chromium.org\x1a\x00"\x16\n\x14Multi case unit test*\x00\n\x95\x01\n4\n\x1c\n\x1agtest.MyFakeTest.FakeCase1\x12\x14MyFakeTest.FakeCase1\x12+\n)"\'\n%/usr/local/fake_test_path/test_binary\x1a0\n\x17\n\x15owneremail@google.com\x1a\x00"\x11\n\x0fNothing special*\x00\n\xaa\x01\nI\n\x1c\n\x1agtest.MyFakeTest.FakeCase1\x12\x14MyFakeTest.FakeCase1"\x13\n\x11fakecat:fakevalue\x12+\n)"\'\n%/usr/local/fake_test_path/test_binary\x1a0\n\x17\n\x15owneremail@google.com\x1a\x00"\x11\n\x0fNothing special*\x00\n\xe2\x01\n\x80\x01\n\x1c\n\x1agtest.MyFakeTest.FakeCase1\x12\x14MyFakeTest.FakeCase1"\x13\n\x11fakecat:fakevalue""\n anotherfakecat: anotherfakevalue"\x11\n\x0fcarrier:verizon\x12+\n)"\'\n%/usr/local/fake_test_path/test_binary\x1a0\n\x17\n\x15owneremail@google.com\x1a\x00"\x11\n\x0fNothing special*\x00'
 
-###### INVALID YAML DATA #######
-INVALID_YAML_NO_AUTHOR = """---
-name: "MyFakeTest"
-harness: "gtest"
-category: "functional"
-owners:
-  - email: "owneremail@google.com"
-criteria: "Nothing special"
-
-cases:
-  - id: "FakeCase1"
-    tags: []
-
-target_bin_location: "/usr/local/fake_test_path/test_binary"
-...
-"""
-
 INVALID_YAML_NO_NAME = """---
 author: "New Team"
 harness: "gtest"
