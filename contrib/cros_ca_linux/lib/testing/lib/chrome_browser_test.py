@@ -123,7 +123,7 @@ class ChromeBrowserTest(base_test.BaseTest):
                 driver, metric, False
             )
             time.sleep(self.getHistogram_wait_time)
-            self.logger.debug(
+            self.logger.info(
                 "histogram snapshot (open - full): %s -- %s",
                 metric,
                 histogramSnapshot,
@@ -141,12 +141,12 @@ class ChromeBrowserTest(base_test.BaseTest):
             # Switch to monitoring mode
             driver.find_element(By.ID, "enable_monitoring").click()
             time.sleep(self.getHistogram_wait_time)
-            self.logger.debug(f"Monitoring mode enabled {metric}")
+            self.logger.info("Monitoring mode enabled %s", metric)
             histogramSnapshot = self._get_histogram_snapshot(
                 driver, metric, True
             )
             time.sleep(self.getHistogram_wait_time)
-            self.logger.debug(
+            self.logger.info(
                 "histogram snapshot (monitor - delta): %s -- %s",
                 metric,
                 histogramSnapshot,
@@ -155,7 +155,7 @@ class ChromeBrowserTest(base_test.BaseTest):
                 driver, metric, False
             )
             time.sleep(self.getHistogram_wait_time)
-            self.logger.debug(
+            self.logger.info(
                 "histogram snapshot (monitor - full): %s -- %s",
                 metric,
                 histogramSnapshot,
@@ -168,7 +168,7 @@ class ChromeBrowserTest(base_test.BaseTest):
                 driver, metric, True
             )
             time.sleep(self.getHistogram_wait_time)
-            self.logger.debug(
+            self.logger.info(
                 "histogram snapshot (%s - delta): %s -- %s",
                 annotation,
                 metric,
@@ -178,7 +178,7 @@ class ChromeBrowserTest(base_test.BaseTest):
                 driver, metric, False
             )
             time.sleep(self.getHistogram_wait_time)
-            self.logger.debug(
+            self.logger.info(
                 "histogram snapshot ({annotation} - full): %s -- %s",
                 metric,
                 histogramSnapshot,
@@ -200,8 +200,9 @@ class ChromeBrowserTest(base_test.BaseTest):
 
             # capture screenshot before monitoring mode disabled
             if not self.save_screenshot(f"stopping_{metric}"):
-                self.loggger.debug(
-                    f"Failed to save a screenshot on DUT when stopping {metric}"
+                self.logger.info(
+                    "Failed to save a screenshot on DUT when stopping %s",
+                    metric,
                 )
             time.sleep(0.5)
 
@@ -210,7 +211,7 @@ class ChromeBrowserTest(base_test.BaseTest):
                 driver, metric, True
             )
             time.sleep(self.getHistogram_wait_time)
-            self.logger.debug(
+            self.logger.info(
                 "histogram snapshot (before monitoring stopped - delta): "
                 + "%s -- %s",
                 metric,
@@ -220,7 +221,7 @@ class ChromeBrowserTest(base_test.BaseTest):
                 driver, metric, False
             )
             time.sleep(self.getHistogram_wait_time)
-            self.logger.debug(
+            self.logger.info(
                 "histogram snapshot (before monitoring stopped - full): "
                 + "%s -- %s",
                 metric,
@@ -230,9 +231,9 @@ class ChromeBrowserTest(base_test.BaseTest):
             # Stop monitoring mode
             driver.find_element(By.ID, "stop").click()
             time.sleep(0.25)
-            self.logger.debug(f"monitoring mode stopped: {metric}")
+            self.logger.info("monitoring mode stopped: %s", metric)
             if not self.save_screenshot(f"stopped_{metric}"):
-                self.loggger.debug(
+                self.logger.info(
                     "Failed to save a screenshot on DUT after stopping %s",
                     metric,
                 )
@@ -243,7 +244,7 @@ class ChromeBrowserTest(base_test.BaseTest):
                 driver, metric, True
             )
             time.sleep(self.getHistogram_wait_time)
-            self.logger.debug(
+            self.logger.info(
                 "histogram snapshot (monitoring stopped - delta): %s -- %s",
                 metric,
                 histogramSnapshot,
@@ -252,7 +253,7 @@ class ChromeBrowserTest(base_test.BaseTest):
                 driver, metric, False
             )
             time.sleep(self.getHistogram_wait_time)
-            self.logger.debug(
+            self.logger.info(
                 "histogram snapshot (monitoring stopped - full): %s -- %s",
                 metric,
                 histogramSnapshot,
@@ -277,7 +278,7 @@ class ChromeBrowserTest(base_test.BaseTest):
                     ).text
                     word = header_text.split(" ")
                     samples, mean_value = word[3], word[7]
-                    self.logger.debug(
+                    self.logger.info(
                         "%s mean: %s samples: %s",
                         histogram_name,
                         mean_value,
@@ -289,18 +290,18 @@ class ChromeBrowserTest(base_test.BaseTest):
                     histogram_body = histograms.find_elements(
                         By.XPATH, "//div[@class='histogram-body']//p"
                     )[i]
-                    self.logger.debug(
-                        f"histogram body: \n{histogram_body.text}"
+                    self.logger.info(
+                        "histogram body: \n%s", histogram_body.text
                     )
             except Exception:
-                self.logger.warning(f"Failed to get data from {metric}")
+                self.logger.warning("Failed to get data from %s", metric)
 
             histogram_dict[metric] = {"sample": samples, "mean": mean_value}
             histogramSnapshot = self._get_histogram_snapshot(
                 driver, metric, False
             )
             time.sleep(self.getHistogram_wait_time)
-            self.logger.debug(
+            self.logger.info(
                 "histogram snapshot (get data - full): %s -- %s",
                 metric,
                 histogramSnapshot,

@@ -26,6 +26,7 @@ for child in df.TEST_CROS_VENV_DIR.glob("**/*"):
 sys.path.insert(0, venv_package)
 
 from bin import utils
+import lib.config as cf
 from lib.host import cros_local_host
 from lib.runner import local_runner
 import lib.utils.logging as lg
@@ -34,6 +35,9 @@ import lib.utils.logging as lg
 # pylint: enable=wrong-import-position
 
 logger = lg.logger
+# Remove the standard output from the local runner to avoid the logs
+# flushing into SSH pipe. Logs will be written to files.
+logger.removeHandler(lg.stream_handler)
 
 
 def parse_arguments(argv):
@@ -50,6 +54,7 @@ def parse_arguments(argv):
             are not present.
     """
     parser = argparse.ArgumentParser(description="Run tests on CrOS locally.")
+    utils.add_config(parser)
     utils.add_vars(parser)
     utils.add_tests(parser)
     utils.add_run_id(parser)
@@ -65,6 +70,7 @@ def main(argv):
     """
     arguments = parse_arguments(argv)
     variables = utils.parse_vars(arguments.variables)
+    cf.args_to_config(arguments)
 
     start_file = f"{df.PROJECT_ROOT_DIR}/{df.TEST_START_FILE}"
     end_file = f"{df.PROJECT_ROOT_DIR}/{df.TEST_END_FILE}"

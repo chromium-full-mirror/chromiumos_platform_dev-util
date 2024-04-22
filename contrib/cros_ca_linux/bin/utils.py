@@ -8,6 +8,11 @@ import argparse
 import re
 from typing import List
 
+import lib.config as cf
+
+
+config = cf.config
+
 
 def add_vars(parser: argparse.ArgumentParser):
     """Add var optionatl argument to parser"""
@@ -20,6 +25,16 @@ def add_vars(parser: argparse.ArgumentParser):
         help="Set a variable with key and value in format KEY=VALUE. "
         + "Can be repeated.",
     )
+
+
+def parse_vars(arg_vars: List[str]) -> dict:
+    """Parse the variables list into key / value dictionary"""
+    variables = {}
+    if arg_vars:
+        for var in arg_vars:
+            key, value = var.split("=")
+            variables[key] = value
+    return variables
 
 
 def add_run_id(parser: argparse.ArgumentParser):
@@ -42,6 +57,17 @@ def add_transport(parser: argparse.ArgumentParser):
     )
 
 
+def add_config(parser: argparse.ArgumentParser):
+    """Add config optionatl argument to parser"""
+    parser.add_argument(
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        help="Verbose / debug logging mode.",
+    )
+    # Add other confiugrations after this.
+
+
 def add_target(parser: argparse.ArgumentParser):
     """Add target argument to parser"""
     parser.add_argument(
@@ -57,16 +83,6 @@ def add_tests(parser: argparse.ArgumentParser):
     parser.add_argument(
         "tests", metavar="test", type=str, nargs="+", help="test case name"
     )
-
-
-def parse_vars(arg_vars: List[str]) -> dict:
-    """Parse the variables list into key / value dictionary"""
-    variables = {}
-    if arg_vars:
-        for var in arg_vars:
-            key, value = var.split("=")
-            variables[key] = value
-    return variables
 
 
 def parse_ssh_host_spec(host_spec, platform="ChromeOS"):

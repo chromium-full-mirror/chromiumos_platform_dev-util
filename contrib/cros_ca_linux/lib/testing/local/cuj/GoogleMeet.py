@@ -9,6 +9,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import time
 
@@ -18,6 +19,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 
+from lib.host import base_host
 from lib.testing.lib import chrome_browser_test as cbt
 
 
@@ -73,31 +75,46 @@ class GoogleMeet(cbt.ChromeBrowserTest):
         return opt
 
     def run(self):
+        if os.name != "nt":
+            # Only do this for CrOS
+            option = base_host.LoginOption()
+            option.username = self.var("gaia_account")
+            option.password = self.var("gaia_password")
+            option.arc = True
+            option.chrome_args = [
+                "--use-fake-ui-for-media-stream",
+            ]
+            self.dut.auto_login(option)
+        self.dut.mute(True)
+
         # Get the webdriver at the beginning of the test.
         driver = self.get_webdriver()
         wait = WebDriverWait(driver, 15)
 
-        # Sign in with the Google account (index = 0)
-        driver.get("https://accounts.google.com/ServiceLogin")
-        driver.find_element(By.TAG_NAME, "input").send_keys(
-            self.var("gaia_account")
-        )
-        driver.find_element(By.XPATH, '//span[text()="Next"]').find_element(
-            By.XPATH, "./.."
-        ).click()
-        _ = wait.until(
-            EC.presence_of_element_located(
-                (By.XPATH, '//span[text()="Welcome"]')
+        if os.name == "nt":
+            # Only do this for Windows. For CrOS, the DUT has been signed in
+            # with GAIA login.
+            # Sign in with the Google account (index = 0)
+            driver.get("https://accounts.google.com/ServiceLogin")
+            driver.find_element(By.TAG_NAME, "input").send_keys(
+                self.var("gaia_account")
             )
-        )
-        submit = driver.find_element(By.ID, "passwordNext")
-        _ = wait.until(EC.element_to_be_clickable(submit))
-        driver.find_element(By.NAME, "Passwd").send_keys(
-            self.var("gaia_password")
-        )
-        submit.click()
-        # time.sleep(send_keys_wait_time)
-        time.sleep(0.1)
+            driver.find_element(By.XPATH, '//span[text()="Next"]').find_element(
+                By.XPATH, "./.."
+            ).click()
+            _ = wait.until(
+                EC.presence_of_element_located(
+                    (By.XPATH, '//span[text()="Welcome"]')
+                )
+            )
+            submit = driver.find_element(By.ID, "passwordNext")
+            _ = wait.until(EC.element_to_be_clickable(submit))
+            driver.find_element(By.NAME, "Passwd").send_keys(
+                self.var("gaia_password")
+            )
+            submit.click()
+            # time.sleep(send_keys_wait_time)
+            time.sleep(0.1)
 
         # Open WebRTC Internals page (index = 0)
         driver.get("chrome://webrtc-internals")
@@ -157,7 +174,6 @@ class GoogleMeet(cbt.ChromeBrowserTest):
             By.CSS_SELECTOR, 'button[aria-label="Turn off camera (ctrl + e)"]'
         )
         camera_button.click()
-        driver.implicitly_wait(2)
 
         chat_button = wait.until(
             EC.element_to_be_clickable(
@@ -168,7 +184,6 @@ class GoogleMeet(cbt.ChromeBrowserTest):
             )
         )
         chat_button.click()
-        driver.implicitly_wait(2)
 
         text_area = wait.until(
             EC.element_to_be_clickable(
@@ -180,7 +195,6 @@ class GoogleMeet(cbt.ChromeBrowserTest):
             )
         )
         text_area.click()
-        driver.implicitly_wait(2)
 
         # capture metric snapshot after meet call effect is in place and stable
         self.get_histogram_snapshots("meet effect stablized and before typing")
@@ -260,7 +274,7 @@ class GoogleMeet(cbt.ChromeBrowserTest):
         self.get_histogram_snapshots("after typing")
 
         self.logger.info(
-            f"Typing stopped. Final counter value after typing: {counter}"
+            "Typing stopped. Final counter value after typing: %s", counter
         )
 
         if not self.save_screenshot("after_typing"):
@@ -280,10 +294,10 @@ class GoogleMeet(cbt.ChromeBrowserTest):
                 capture_output=True,
                 check=True,
             )
-            self.logger.info("tasklist output:\n", task_output.stdout)
+            self.logger.info("tasklist output:\n%s", task_output.stdout)
 
             etl_path = self.test_dir / "test.etl"
-            self.logger.info(f"xperf -d {etl_path}")
+            self.logger.info("xperf -d %s", etl_path)
             # subprocess.call(["xperf", "-d", "test.etl"])
             xperf_output = subprocess.run(
                 ["xperf", "-d", etl_path],
@@ -292,7 +306,7 @@ class GoogleMeet(cbt.ChromeBrowserTest):
                 capture_output=True,
                 check=True,
             )
-            self.logger.info("xperf utput:\n", xperf_output.stdout)
+            self.logger.info("xperf utput:\n%s", xperf_output.stdout)
 
         # If the dump file exists, remove it.
         file_path = os.path.join(
@@ -314,14 +328,14 @@ class GoogleMeet(cbt.ChromeBrowserTest):
         histogram_dict = self.get_historam_data()
 
         driver.quit()
-        self.logger.info(f"Metrics: {histogram_dict}")
+        self.logger.info("Metrics: %s", histogram_dict)
         # Add the data of dump file to result.
         with open(file_path, "r", encoding="utf-8") as f:
             webrtc_dump = json.load(f)
             histogram_dict["webrtc"] = webrtc_dump
 
         dst = os.path.join(self.histogram_dir, "webrtc_internals_dump.txt")
-        os.rename(file_path, dst)
+        shutil.move(file_path, dst)
 
         # Save data to result.json file.
         with open(

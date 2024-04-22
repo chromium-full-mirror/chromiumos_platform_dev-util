@@ -17,6 +17,7 @@ if __name__ == "__main__" and __package__ is None:
 
 from bin import utils
 from lib import definition as df
+import lib.config as cf
 from lib.host import cros_paramiko_host
 from lib.host import cros_ssh_host
 from lib.runner import remote_runner_direct
@@ -44,6 +45,7 @@ def parse_arguments(argv):
     parser = argparse.ArgumentParser(description="Run tests on CrOS.")
     utils.add_vars(parser)
     utils.add_target(parser)
+    utils.add_config(parser)
     utils.add_transport(parser)
     utils.add_tests(parser)
     # With the above config, the program accept these optional arguments:
@@ -73,6 +75,7 @@ def main(argv):
     port = ssh_specs["port"]
     username = ssh_specs["user"]
     variables = utils.parse_vars(arguments.variables)
+    cf.args_to_config(arguments)
 
     if arguments.transport == "ssh":
         # When --transport=ssh argument is given.

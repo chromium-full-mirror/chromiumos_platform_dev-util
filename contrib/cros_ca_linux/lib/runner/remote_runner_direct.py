@@ -7,6 +7,7 @@
 import time
 from typing import List
 
+import lib.config as cf
 import lib.definition as df
 from lib.host import base_host
 from lib.runner import base_runner as br
@@ -28,6 +29,7 @@ class RemoteRunnerDirect(remote_runner.RemoteRunner):
         script += (
             f" --run_id={run_id}"  # Provide run_id so test_end can be tracked.
         )
+        script += f" {cf.config_to_args()}"
         for k in variables:
             script += f" --var={k}={variables[k]}"
         script += f" {parsed_test.test_name}"
@@ -40,7 +42,7 @@ class RemoteRunnerDirect(remote_runner.RemoteRunner):
         # Create a temporary file on the host to get the DUT file time.
         tmp_name = ".file_no_use"
         tmp_file = f"{self.dut.test_dir}/{tmp_name}"
-        self.dut.write_file(tmp_file, f"this file can be removed")
+        self.dut.write_file(tmp_file, "this file can be removed")
         entries = self.dut.dir_entries(f"{self.dut.test_dir}")
         mtime = 0
         for e in entries:
@@ -49,6 +51,7 @@ class RemoteRunnerDirect(remote_runner.RemoteRunner):
                 break
         self.dut.remove_path(tmp_file)
 
+        self.logger.debug("Run the script locally on the DUT: %s", script)
         # Run the command in asynchronous mode.
         _, _, is_done = self.dut.executing_command(script, timeout=10)
         start_time = time.time()  # Record the start time

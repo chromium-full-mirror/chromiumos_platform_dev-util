@@ -25,9 +25,15 @@ if not df.PROJECT_LOG_DIR.exists():
 file_handler = logging.FileHandler(LOG_FILE)
 file_handler.setFormatter(formatter)
 
-# Configure the logger
+# Disable the default logging that could be used by other libraries.
+root_logger = logging.getLogger()
+root_logger.addHandler(logging.NullHandler())
+
+# Configure the logger for CrOS CA.
 logger = logging.getLogger("cros_ca")
+logger.propagate = False
 logger.addHandler(stream_handler)
 logger.addHandler(file_handler)
-# TODO: control level from a argument
-logger.setLevel(logging.DEBUG)
+# Default level is INFO. But can be changed by config.
+# See lib.config module.
+logger.setLevel(logging.INFO)

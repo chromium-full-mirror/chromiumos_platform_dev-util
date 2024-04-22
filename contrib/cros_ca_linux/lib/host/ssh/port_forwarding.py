@@ -4,8 +4,6 @@
 
 """Implement a call that can do the SSH port forwarding."""
 
-import os
-import signal
 import subprocess
 import time
 
@@ -98,7 +96,7 @@ class SSHLocalForwarding:
         Terminates the SSH process established for the port forwarding tunnel.
         """
         if self.ssh_process:
-            os.killpg(os.getpgid(self.ssh_process.pid), signal.SIGTERM)
+            self.ssh_process.kill()
             self.ssh_process = None
             logger.info(
                 "Port forwarding for %s has been terminated.", self.local_port

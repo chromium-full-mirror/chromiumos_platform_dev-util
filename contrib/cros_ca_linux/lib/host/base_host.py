@@ -44,6 +44,7 @@ class LoginOption:
     username: str = None
     password: str = None
     arc: bool = False  # For CrOS to bring up ARC.
+    chrome_args: List[str] = []
 
 
 class BaseHost:
@@ -98,7 +99,7 @@ class BaseHost:
             if self.hostname:
                 logger.info("Connected to host: %s", self.hostname)
             self._connected = True
-        except Exception as e:
+        except Exception:
             self._connected = False
 
             raise  # Re-raise the exception for caller handling
@@ -378,7 +379,7 @@ class BaseHost:
                 location = winreg.QueryValueEx(key, downloads_guid)[0]
             return location
         else:
-            return os.path.join(os.path.expanduser("~"), "downloads")
+            return "/home/chronos/user/Downloads"
 
     def deploy(self) -> None:
         """Deploy the environment for testing"""

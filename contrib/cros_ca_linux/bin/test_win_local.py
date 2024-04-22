@@ -17,15 +17,19 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from bin import utils
+import lib.config as cf
 import lib.definition as df
 from lib.host import win_local_host
 from lib.runner import local_runner
 from lib.utils import logging as lg
 
 
-logger = lg.logger
-
 # pylint: enable=wrong-import-position
+
+logger = lg.logger
+# Remove the standard output from the local runner to avoid the logs
+# flushing into SSH pipe. Logs will be written to files.
+logger.removeHandler(lg.stream_handler)
 
 
 def parse_arguments(argv):
@@ -45,6 +49,7 @@ def parse_arguments(argv):
         description="Run tests on Windows locally."
     )
     utils.add_vars(parser)
+    utils.add_config(parser)
     utils.add_tests(parser)
     utils.add_run_id(parser)
 
@@ -59,6 +64,7 @@ def main(argv):
     """
     arguments = parse_arguments(argv)
     variables = utils.parse_vars(arguments.variables)
+    cf.args_to_config(arguments)
 
     start_file = f"{df.PROJECT_ROOT_DIR}/{df.TEST_START_FILE}"
     end_file = f"{df.PROJECT_ROOT_DIR}/{df.TEST_END_FILE}"

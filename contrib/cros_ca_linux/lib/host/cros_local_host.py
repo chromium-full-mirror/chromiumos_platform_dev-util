@@ -15,6 +15,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 
 from lib.host import base_host
+from lib.utils.autotest import autologin
 
 
 class CrosLocalHost(base_host.BaseHost):
@@ -39,27 +40,17 @@ class CrosLocalHost(base_host.BaseHost):
             RuntimeError: if autologin fails.
         """
 
-        command = "/usr/local/autotest/bin/autologin.py "
-        # Don't keep state. Delete existing profile.
-        # This is the only way it can work together with gaia login. Without
-        # this option, if another account has already exists on the DUT,
-        # the GAIA login would fail on the screen of "Choose your setup"
-        # for personal use, for a child or for work.
-        command += "-d "
-        if option.arc:
-            command += "--arc --no-arc-syncs "
-        if option.username and option.password:
-            command += f"-u {option.username} -p {option.password} "
-        # TODO: Other Chrome options can be added here. These options
-        #       can be set in the "option" class and applied to the
-        #       autologin.py argument here.
-
-        subprocess.run(
-            command,
-            shell=True,
-            stdout=subprocess.DEVNULL,  # Supress the stdout and stderr
-            stderr=subprocess.DEVNULL,
-            check=True,
+        autologin.autologin(
+            # This is the only way it can work together with gaia login. Without
+            # this option, if another account has already exists on the DUT,
+            # the GAIA login would fail on the screen of "Choose your setup"
+            # for personal use, for a child or for work.
+            dont_override_profile=True,
+            arc=option.arc,
+            no_arc_syncs=option.arc,
+            username=option.username,
+            password=option.password,
+            extra_args=option.chrome_args,
         )
         time.sleep(2)
 

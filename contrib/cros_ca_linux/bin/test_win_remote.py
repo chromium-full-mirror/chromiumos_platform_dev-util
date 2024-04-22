@@ -16,6 +16,7 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from bin import utils
+import lib.config as cf
 import lib.definition as df
 from lib.host import win_paramiko_host
 from lib.host import win_ssh_host
@@ -44,6 +45,7 @@ def parse_arguments(argv):
     parser = argparse.ArgumentParser(description="Run tests on Windows.")
     utils.add_vars(parser)
     utils.add_transport(parser)
+    utils.add_config(parser)
     utils.add_target(parser)
     utils.add_tests(parser)
     # With the above config, the program accept these optional arguments:
@@ -73,6 +75,7 @@ def main(argv):
     port = ssh_specs["port"]
     username = ssh_specs["user"]
     variables = utils.parse_vars(arguments.variables)
+    cf.args_to_config(arguments)
 
     if arguments.transport == "ssh":
         # When --transport=ssh argument is given.

@@ -7,6 +7,7 @@
 import time
 from typing import List
 
+import lib.config as cf
 import lib.definition as df
 from lib.host import base_host
 from lib.runner import base_runner as br
@@ -32,12 +33,14 @@ class RemoteRunnerScript(remote_runner.RemoteRunner):
         script += (
             f" --run_id={run_id}"  # Provide run_id so test_end can be tracked.
         )
+        script += f" {cf.config_to_args()}"
         for k in variables:
             script += f" --var={k}={variables[k]}"
         script += f" {parsed_test.test_name}"
 
         self.dut.make_dir(starter_path)
         self.dut.remove_path(f"{starter_path}/test_ended.txt")
+        self.logger.debug("Run the script locally on the DUT: %s", script)
         self.dut.write_file(f"{starter_path}/run.bat", script)
         self.dut.write_file(f"{starter_path}/start_test.txt", "")
 

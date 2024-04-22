@@ -7,7 +7,6 @@
 import pathlib
 
 
-
 # ==== Path for project folders and files
 PROJECT_LIB_DIR = pathlib.Path(__file__).parent.resolve()
 PROJECT_ROOT_DIR = PROJECT_LIB_DIR.parent
