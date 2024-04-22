@@ -50,6 +50,8 @@ topic_patches["block-fs"] = [
     "fixups/FIXUP: FROMLIST: overlayfs: handle XATTR_NOSECURITY flag for get xattr method.patch",
     "fixups/FIXUP: CHROMIUM: verity: bring over dm-verity-chromeos.c.patch",
     "fixups/FIXUP: CHROMIUM: Revert ext4: get discard out of jbd2 commit kthread contex.patch",
+    "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr.patch",
+    "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr2.patch",
 ]
 
 topic_patches["drivers"] = [
@@ -89,8 +91,6 @@ topic_patches["chromeos"] = [
 ]
 
 topic_patches["mm"] = [
-    "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr.patch",
-    "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr2.patch",
     "fixups/FIXUP: CHROMIUM: mm: per-process reclaim pages.patch",
 ]
 
