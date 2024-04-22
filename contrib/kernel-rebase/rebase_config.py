@@ -276,3 +276,7 @@ disp_overwrite[
 disp_overwrite[
     "f724b94f5dab"
 ] = "drop"  # CHROMIUM: FIXUP: Ensure iwl7000 has precedence over iwlwifi
+disp_overwrite["57edb04330b8"] = [
+    "move",
+    "block-fs",
+]  # FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr
