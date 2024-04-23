@@ -13,7 +13,14 @@ import sys
 if __name__ == "__main__" and __package__ is None:
     # Add project root into the python path so lib importing works.
     sys.path.append(str(Path(__file__).resolve().parents[1]))
-import lib.definition as df
+
+import cros_ca_lib.definition as df
+
+# Need to move the import of bin.utils before cros_ca_lib.host.cros_local_host
+# Becuase the autologin import by cros_local_host adds the path
+# "usr/local/autotest/bin" to sys.path, that conflict with the package "bin"
+# and the "cros format" will always move this bin import to the last.
+from bin import utils
 
 
 # TODO: remove this after selenium is latest in CrOS
@@ -24,10 +31,9 @@ for child in df.TEST_CROS_VENV_DIR.glob("**/*"):
         break
 sys.path.insert(0, venv_package)
 
-from bin import utils
-from lib.host import cros_local_host
-from lib.runner import local_runner
-import lib.utils.logging as lg
+from cros_ca_lib.host import cros_local_host
+from cros_ca_lib.runner import local_runner
+import cros_ca_lib.utils.logging as lg
 
 
 # pylint: enable=wrong-import-position

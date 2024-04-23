@@ -15,12 +15,13 @@ if __name__ == "__main__" and __package__ is None:
     # Add project root into the python path so lib importing works.
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
+from cros_ca_lib import definition as df
+from cros_ca_lib.host import cros_paramiko_host
+from cros_ca_lib.host import cros_ssh_host
+from cros_ca_lib.runner import remote_runner_direct
+from cros_ca_lib.utils import logging as lg
+
 from bin import utils
-from lib import definition as df
-from lib.host import cros_paramiko_host
-from lib.host import cros_ssh_host
-from lib.runner import remote_runner_direct
-from lib.utils import logging as lg
 
 
 # pylint: enable=wrong-import-position

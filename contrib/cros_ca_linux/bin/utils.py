@@ -13,9 +13,9 @@ import re
 import time
 from typing import Callable, List
 
-import lib.config as cf
-import lib.definition as df
-import lib.utils.logging as lg
+import cros_ca_lib.config as cf
+import cros_ca_lib.definition as df
+import cros_ca_lib.utils.logging as lg
 
 
 # pylint: enable=wrong-import-position

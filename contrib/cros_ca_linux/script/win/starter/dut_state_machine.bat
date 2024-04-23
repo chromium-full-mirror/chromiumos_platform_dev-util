@@ -39,7 +39,7 @@ goto :mainloop
 
 :testStarted
 echo "Enter testStarted State"
-call run.bat
+start /wait /b run.bat
 del start_test.txt
 goto :testEnded
 
