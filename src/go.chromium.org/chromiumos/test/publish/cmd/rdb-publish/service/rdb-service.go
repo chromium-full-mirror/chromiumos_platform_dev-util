@@ -128,7 +128,7 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 
 	// Upload invocation artifacts
 	if rps.TesthausURL != "" {
-		artifact := rdb_pb.Artifact{ArtifactId: "testhaus_logs", ContentType: "", Contents: []byte(rps.TesthausURL)}
+		artifact := rdb_pb.Artifact{ArtifactId: "testhaus_logs", ContentType: "text/x-uri", Contents: []byte(rps.TesthausURL)}
 		err := rdbLib.UploadInvocationArtifacts(ctx, &artifact)
 		if err != nil {
 			return fmt.Errorf("error during rdb invocation artifact upload: %w", err)
