@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/cmd/chameleond"
+	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/cmd/image"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/dirs"
 )
 
@@ -45,7 +46,7 @@ func RootCmd() (*cobra.Command, error) {
 
 	cmd := &cobra.Command{
 		Use:           "btpeer_manager",
-		Version:       "1.1.2",
+		Version:       "1.2.0",
 		Short:         "Utility for managing btpeers",
 		SilenceErrors: true,
 		SilenceUsage:  true,
@@ -70,6 +71,7 @@ func RootCmd() (*cobra.Command, error) {
 	cmd.AddCommand(
 		cleanCmd(dirContext),
 		chameleond.RootCmd(dirContext, initDirContext),
+		image.RootCmd(dirContext, initDirContext),
 	)
 
 	return cmd, nil

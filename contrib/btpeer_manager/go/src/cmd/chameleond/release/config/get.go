@@ -12,7 +12,7 @@ import (
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/dirs"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/fileutils"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/log"
-	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/release"
+	release "go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/release/chameleond"
 )
 
 func getCmd(dirContext *dirs.DirContext) *cobra.Command {
@@ -21,7 +21,7 @@ func getCmd(dirContext *dirs.DirContext) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "get",
-		Short: "Downloads the release config from storage",
+		Short: "Downloads the chameleond release config from storage",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if dstFilePath == "" {

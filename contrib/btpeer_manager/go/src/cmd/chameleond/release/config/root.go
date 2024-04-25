@@ -14,7 +14,7 @@ const defaultLocalConfigFilename = "btpeer_chameleond_config.json"
 func RootCmd(dirContext *dirs.DirContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
-		Short: "Commands for reading and updating the release config",
+		Short: "Commands for reading and updating the chameleond release config",
 		Args:  cobra.NoArgs,
 	}
 	cmd.AddCommand(

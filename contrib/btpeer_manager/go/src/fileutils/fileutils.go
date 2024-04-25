@@ -7,6 +7,7 @@ package fileutils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -74,4 +75,17 @@ func WriteBytesToFile(ctx context.Context, input []byte, outFilePath string) err
 		return fmt.Errorf("failed to write to file %q: %w", outFilePath, err)
 	}
 	return nil
+}
+
+// PathExists returns whether the path exists. Returns a non-nil error if
+// unable to determine if the path exists.
+func PathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, fmt.Errorf("failed to check if path %q exists: %w", path, err)
 }

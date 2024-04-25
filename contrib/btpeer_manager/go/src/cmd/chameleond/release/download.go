@@ -14,7 +14,7 @@ import (
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/dirs"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/fileutils"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/log"
-	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/release"
+	release "go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/release/chameleond"
 )
 
 func downloadCmd(dirContext *dirs.DirContext) *cobra.Command {

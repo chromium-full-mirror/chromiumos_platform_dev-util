@@ -13,7 +13,7 @@ import (
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/dirs"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/fileutils"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/log"
-	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/release"
+	release "go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/release/chameleond"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -23,7 +23,7 @@ func setCmd(dirContext *dirs.DirContext) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "set",
-		Short: "Updates the release config in storage",
+		Short: "Updates the chameleond release config in storage",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if srcFilePath == "" {

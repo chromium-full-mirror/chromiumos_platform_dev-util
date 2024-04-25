@@ -14,7 +14,7 @@ import (
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/fileutils"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/log"
-	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/release"
+	release "go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/release/chameleond"
 )
 
 func uploadCmd() *cobra.Command {
@@ -83,6 +83,9 @@ func uploadCmd() *cobra.Command {
 				chameleondCommit,
 				minCrosVersion,
 			)
+			if err != nil {
+				return fmt.Errorf("failed to upload bundle at %q: %w", srcBundlePath, err)
+			}
 			bundleConfigJSON, err := fileutils.MarshalPrettyJSON(bundleConfig)
 			if err != nil {
 				return fmt.Errorf("failed to marshal bundle config to JSON: %w", err)

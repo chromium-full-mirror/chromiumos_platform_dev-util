@@ -43,6 +43,9 @@ type WorkingDirectory struct {
 	// built chameleond bundles are stored.
 	ChameleondBundlesDirPath string
 
+	// ImagesDirPath is the path to the directory where downloaded images are stored.
+	ImagesDirPath string
+
 	// ConfigDirPath is the path to the directory where config files are
 	// downloaded to and uploaded from
 	ConfigDirPath string
@@ -62,11 +65,13 @@ func NewWorkingDirectory(workingDirPath string) (*WorkingDirectory, error) {
 	workingDir := &WorkingDirectory{
 		BaseDirPath:              baseDirPath,
 		ChameleondBundlesDirPath: filepath.Join(baseDirPath, "bundles"),
+		ImagesDirPath:            filepath.Join(baseDirPath, "images"),
 		ConfigDirPath:            filepath.Join(baseDirPath, "config"),
 	}
 	dirPathsToCreate := []string{
 		workingDir.BaseDirPath,
 		workingDir.ChameleondBundlesDirPath,
+		workingDir.ImagesDirPath,
 		workingDir.ConfigDirPath,
 	}
 	for _, dirPath := range dirPathsToCreate {

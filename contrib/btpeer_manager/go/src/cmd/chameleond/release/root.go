@@ -13,7 +13,7 @@ import (
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/cmd/chameleond/release/config"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/cmd/common"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/dirs"
-	"go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/release"
+	release "go.chromiumos.org/chromiumos/platform/dev/contrib/btpeer_manager/release/chameleond"
 )
 
 func RootCmd(dirContext *dirs.DirContext, initDirContext func() error) *cobra.Command {
