@@ -10,6 +10,8 @@ import (
 	"log"
 	"path"
 
+	"google.golang.org/protobuf/proto"
+
 	"go.chromium.org/chromiumos/test/publish/clients/rdb_client"
 	common_utils "go.chromium.org/chromiumos/test/publish/cmd/common-utils"
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
@@ -44,6 +46,10 @@ const (
 
 	// Result format for rdb
 	ResultAdapterResultFormat = "cros-test-result"
+
+	// MaxSizeInvocationProperties is the maximum size of the invocation level
+	// properties stored in ResultDB.
+	MaxSizeInvocationProperties = 16 * 1024 // 16 KB
 )
 
 type RdbPublishService struct {
@@ -103,8 +109,9 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 	log.Printf("test result file created in path: %q", testResultFilePath)
 
 	// Write test invocation proto to invocation-level properties file
+	testInv := rps.TestResultProto.GetTestInvocation()
 	invPropertiesFilePath := path.Join(rps.TempDirPath, InvPropertiesFile)
-	err = common_utils.WriteProtoJsonFile(ctx, invPropertiesFilePath, rps.TestResultProto.GetTestInvocation())
+	err = common_utils.WriteProtoJsonFile(ctx, invPropertiesFilePath, testInv)
 	if err != nil {
 		return fmt.Errorf("error during writing test invocation proto to file: %w", err)
 	}
@@ -131,13 +138,18 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 	// Upload test results
 	baseTags := map[string]string{}
 	config := &rdb_client.RdbStreamConfig{
-		BaseTags:          baseTags,
-		BaseVariant:       rps.BaseVariant,
-		ResultFile:        testResultFilePath,
-		ResultFormat:      ResultAdapterResultFormat,
-		InvPropertiesFile: invPropertiesFilePath}
+		BaseTags:     baseTags,
+		BaseVariant:  rps.BaseVariant,
+		ResultFile:   testResultFilePath,
+		ResultFormat: ResultAdapterResultFormat}
 	if hasSources {
 		config.SourcesFile = sourcesFilePath
+	}
+
+	if validateInvProperties(testInv) {
+		config.InvPropertiesFile = invPropertiesFilePath
+	} else {
+		log.Printf("invocation properties file is skipped from the upload because it exceeds the maximum size of: %d bytes", MaxSizeInvocationProperties)
 	}
 
 	err = rdbLib.UploadTestResults(ctx, config)
@@ -210,4 +222,9 @@ func downloadSources(ctx context.Context, destPath string, sources *metadata.Pub
 		return false, errors.Annotate(err, "writing sources.jsonpb").Err()
 	}
 	return true, nil
+}
+
+// validateInvProperties returns false if properties is invalid.
+func validateInvProperties(properties *artifact.TestInvocation) bool {
+	return proto.Size(properties) <= MaxSizeInvocationProperties
 }
