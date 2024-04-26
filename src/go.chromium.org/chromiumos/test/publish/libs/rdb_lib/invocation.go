@@ -59,7 +59,9 @@ func Deserialize(data string) (map[string]*Invocation, error) {
 				return invMap, fmt.Errorf("error during marshaling invocation at line %d: %s", lineNum+1, err.Error())
 			}
 
-			err = protojson.Unmarshal(data, &inv.invProto)
+			// Obey proto compatibility rules.
+			unmarshalOpts := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+			err = unmarshalOpts.Unmarshal(data, &inv.invProto)
 			if err != nil {
 				return invMap, fmt.Errorf("error during unmarshalling invocation at line %d: %s", lineNum+1, err.Error())
 			}
@@ -75,7 +77,9 @@ func Deserialize(data string) (map[string]*Invocation, error) {
 			}
 
 			var testResult rdb_pb.TestResult
-			err = protojson.Unmarshal(data, &testResult)
+			// Obey proto compatibility rules.
+			unmarshalOpts := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+			err = unmarshalOpts.Unmarshal(data, &testResult)
 			if err != nil {
 				return invMap, fmt.Errorf("error during unmarshalling testResult at line %d: %s", lineNum+1, err.Error())
 			}
