@@ -236,6 +236,16 @@ def check_cq_plus1(obj):
                     gerrit_interface.label_as(cl_num, "1")
                 return
 
+        if "its dependencies weren't CQ-ed" in msg:
+            print("Dependencies weren't CQ-ed")
+
+            gerrit_interface.send_message(
+                cl_num,
+                "Won't CQ+1 again because dependencies weren't CQ-ed",
+            )
+            gerrit_interface.label_v(cl_num, "-1")
+            return
+
         if "This CL has failed the run" in msg:
             if "buildtest-cq" in msg:
                 print("CQ failed on buildtest")
