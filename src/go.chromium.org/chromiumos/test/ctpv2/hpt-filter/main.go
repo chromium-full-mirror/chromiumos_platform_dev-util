@@ -13,9 +13,14 @@ import (
 
 	conf "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
-
+	libapi "go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates"
+	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/builders"
+	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/common"
+	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/generators"
+	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/interfaces"
 	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
+	"go.chromium.org/tast/core/errors"
 )
 
 const (
@@ -58,6 +63,49 @@ func getActiveVersion(ctx context.Context, gsClient GSClient, localPath string) 
 	return v, nil
 }
 
+func addHPTContainer(dynamicUpdates []*api.UserDefinedDynamicUpdate) error {
+	hptContainer := builders.NewContainerBuilder(
+		"cros-hpt",
+		"cros-hpt",
+		"",
+		"/tmp/cros-hpt",
+		"cros-hpt server -port 0",
+	)
+
+	// Insert cros-hpt after last provisioning and last test executed step.
+	// We need to start and run cros-hpt container after provisioning.
+	// Also, we need to stop it after tests have been executed.
+	insertInstructions := map[string]interfaces.InsertInstructionGetter{
+		"afterProvision": common.InsertActionWrapper(
+			api.UpdateAction_Insert_APPEND,
+			common.FindLast(api.FocalTaskFinder_PROVISION),
+		),
+		"afterTest": common.InsertActionWrapper(
+			api.UpdateAction_Insert_APPEND,
+			common.FindLast(api.FocalTaskFinder_TEST),
+		),
+	}
+
+	// Start cros-hpt container after provisioning and stop after running the tests.
+	generator := generators.NewGenericTaskGenerator(
+		common.NewTaskIdentifier("hpt").Id,
+		"cros-hpt",
+		[]*builders.ContainerBuilder{hptContainer},
+		insertInstructions,
+		&interfaces.GenericTaskMessageRequest{
+			InsertionId: "afterProvision",
+		},
+		&interfaces.GenericTaskMessageRequest{
+			InsertionId: "afterProvision",
+		},
+		&interfaces.GenericTaskMessageRequest{
+			InsertionId: "afterTest",
+		},
+	)
+
+	return libapi.AppendUserDefinedDynamicUpdates(&dynamicUpdates, generator.Generate)
+}
+
 func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
 	ctx := context.Background()
 	gsClient, err := storage.NewGSClient(ctx, filepath.Join(hptRoot, authTokenFile))
@@ -79,6 +127,10 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 			log.Printf("Build: %s\nImagePath: %s\nVariant: %s\nBoard: %s\n", av.Version, av.SnapshotVersion, variant, av.Board)
 			hwTarget.ProvisionInfo = generateProvisionInfo(hwTarget.GetProvisionInfo(), av.Version, av.SnapshotVersion, variant)
 		}
+	}
+
+	if err := addHPTContainer(req.GetSuiteInfo().GetSuiteMetadata().GetDynamicUpdates()); err != nil {
+		return nil, errors.Wrapf(err, "Error adding hpt container.")
 	}
 
 	return req, nil
