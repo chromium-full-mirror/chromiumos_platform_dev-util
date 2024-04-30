@@ -700,14 +700,14 @@ do_prepare() {
     # need it in the CrOS repository.
     vtag=$(echo "${tag}" | grep -E "${PATTERN}")
     if [[ -n "${vtag}" ]]; then
-      if ! git push --no-verify ${dryrun} "${chromeos}" "refs/tags/${tag}"; then
+      if ! git push --no-verify -o push-justification="b/338297531" ${dryrun} "${chromeos}" "refs/tags/${tag}"; then
         die "Failed to push tag \"${tag}\" into \"${chromeos}\"."
       fi
     else
       echo "${tag} is not a release tag, not pushed"
     fi
     if [[ "${bypass}" -eq 0 ]]; then
-      if ! git push --no-verify ${dryrun} "${chromeos}" "${obranch}"; then
+      if ! git push --no-verify -o push-justification="b/338297531" ${dryrun} "${chromeos}" "${obranch}"; then
         error "Failed to upload '${obranch}' into '${chromeos}'."
         error "If the error is a validation error, and if your changes did not cause the problem,"
         error "repeat the command with '-F' option. Do not use that option unless you are sure"
@@ -715,8 +715,8 @@ do_prepare() {
         die
       fi
     else
-      if ! git push ${git_skip_validation} --no-verify ${dryrun} "${chromeos}" "${obranch}" >/dev/null 2>&1; then
-        if ! git push -o "uploadvalidator~skip" --no-verify ${dryrun} "${chromeos}" "${obranch}"; then
+      if ! git push ${git_skip_validation} --no-verify -o push-justification="b/338297531" ${dryrun} "${chromeos}" "${obranch}" >/dev/null 2>&1; then
+        if ! git push -o "uploadvalidator~skip" --no-verify -o push-justification="b/338297531" ${dryrun} "${chromeos}" "${obranch}"; then
           die "Failed to upload '${obranch}' into '${chromeos}'."
         fi
       fi
