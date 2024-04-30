@@ -41,15 +41,14 @@ type args struct {
 }
 
 // startServer is the entry point for running post-process (TestFinderService) in server mode.
-func startServer(d []string, executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error), name string) error {
+func startServer(flagSet *flag.FlagSet, executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error), name string) error {
 	a := args{}
 	t := time.Now()
 	defaultLogPath := filepath.Join(fmt.Sprintf(defaultRootPath, name), t.Format("20060102-150405"))
-	fs := flag.NewFlagSet("Run cros-provision-request-generator", flag.ExitOnError)
-	fs.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
-	fs.IntVar(&a.port, "port", defaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", defaultPort))
+	flagSet.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
+	flagSet.IntVar(&a.port, "port", defaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", defaultPort))
 
-	fs.Parse(d)
+	flagSet.Parse(os.Args[2:])
 
 	logFile, err := common.CreateLogFile(a.logPath)
 	if err != nil {
@@ -82,5 +81,12 @@ func startServer(d []string, executor func(req *api.InternalTestplan, log *log.L
 
 // Server starts the generic filter server.
 func Server(executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error), name string) error {
-	return startServer(os.Args[2:], executor, name)
+	fs := flag.NewFlagSet("Run generic-filter server", flag.ExitOnError)
+	return startServer(fs, executor, name)
+}
+
+// ServerWithFlagSet starts the generic filter server
+// with a custom flagSet extending the default flags.
+func ServerWithFlagSet(flagSet *flag.FlagSet, executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error), name string) error {
+	return startServer(flagSet, executor, name)
 }
