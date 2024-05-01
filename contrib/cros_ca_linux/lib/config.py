@@ -4,30 +4,47 @@
 
 """Program global configuration."""
 
-from typing import NamedTuple
-
 import lib.utils.logging as lg
 
 
 class Config:
     """Global configuration class."""
 
-    verbose: bool = False
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+    def update(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+    def set(self, c: "Config"):
+        self.__dict__ = c.__dict__.copy()
 
 
-config = Config()
+config: Config = Config()
 
 
-def args_to_config(arguments: NamedTuple):
+def args_to_config(args: Config):
     """Parse arguments to config"""
-    config.verbose = arguments.verbose
-    if config.verbose:
+    config.set(args)
+    if args.no_console_output:
+        # Remove the standard output from the local runner to avoid the logs
+        # flushing into SSH pipe. Logs will be written to files.
+        lg.logger.removeHandler(lg.stream_handler)
+    if args.verbose:
         lg.logger.setLevel(lg.logging.DEBUG)
         lg.logger.debug("Running with verbose mode.")
+    if args.run_id:
+        lg.logger.info("Run id: %s.", args.run_id)
 
 
 def config_to_args():
-    args = ""
-    if config.verbose:
-        args += "--verbose"
-    return args
+    arg_str = []
+    args = config
+    if args.no_console_output:
+        arg_str.append("--no_console_output")
+    if args.verbose:
+        arg_str.append("--verbose")
+    if args.run_id:
+        arg_str.append(f"--run_id {args.run_id}")
+
+    return " ".join(arg_str)

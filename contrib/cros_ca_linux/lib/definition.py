@@ -68,6 +68,7 @@ TEST_CROS_EXECTION_DIR = TEST_CROS_ROOT_DIR / "execution"
 # === Other variables:
 TEST_START_FILE = ".test_started.txt"
 TEST_END_FILE = ".test_ended.txt"
+TEST_RESULTS_FILE = "results.json"
 
 # === Test constants
 TEST_MAX_MINUTES = 60  # Max test duration

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import List
 
 from lib.runner import base_runner as br
+from lib.runner import test_result as tr
 from lib.testing.lib import base_test
 
 
@@ -25,7 +26,9 @@ class LocalRunner(br.BaseRunner):
             return []
         return [t]
 
-    def run(self, parsed_test: br.ParsedTest, test_dir: Path):
+    def run(
+        self, parsed_test: br.ParsedTest, test_dir: Path, result: tr.Result
+    ):
         test_vars = dict(
             self.variables
         )  # Make a copy so each test can modify it.

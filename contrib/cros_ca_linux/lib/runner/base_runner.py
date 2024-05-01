@@ -8,13 +8,45 @@ Runners derived from the based runner can be used to run tests
 """
 
 import datetime
+import json
+import os
 import pathlib
 import traceback
 from typing import List, Optional
 
 import lib.definition as df
 from lib.host import base_host
+from lib.runner import test_result as tr
 from lib.utils import logging as lg
+
+
+def merge_local_results(local_results: str, result: tr.TestResult) -> None:
+    if result.location == "remote":
+        # Only remote test available:
+        result.result = result.remote_result
+        result.error = result.remote_error
+        return
+    result.result = tr.Result.NOT_RUN
+    result.error = result.remote_error
+    if not os.path.exists(local_results):
+        # Local result is missing:
+        return
+    with open(local_results, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        for item in data:
+            lr = tr.fromDict(item)
+            if lr.name == result.name:
+                result.local_start_time = lr.local_start_time
+                result.local_end_time = lr.local_end_time
+                result.local_error = lr.local_error
+                result.local_result = lr.local_result
+
+                # Use local results as the final results.
+                # This might need to be changed later.
+                result.result = result.local_result
+                result.error = result.local_error
+                break
+    return
 
 
 class ParsedTest:
@@ -76,9 +108,7 @@ class BaseRunner:
         self.dut = dut
         self.variables = variables
         self.tests = tests
-        self.results_dir = results_dir / datetime.datetime.now().strftime(
-            "%Y%m%d-%H%M%S"
-        )
+        self.results_dir = results_dir
         self.results_tests_dir = self.results_dir / "tests"
         self.logger = logger
 
@@ -161,6 +191,7 @@ class BaseRunner:
                 self.dut.update_dependency()
 
             total = len(self.parsed_tests)
+            results: List[tr.TestResult] = []
             for idx, pt in enumerate(self.parsed_tests):
                 tst = pt.test_name
                 # Set up logs for the test
@@ -180,17 +211,59 @@ class BaseRunner:
                     tst,
                     pt.location,
                 )
+                result = tr.TestResult()
+                results.append(result)
+                result.name = tst
+                result.location = pt.location
+                if self.location == "remote":
+                    result.remote_start_time = datetime.datetime.now()
+                else:
+                    result.local_start_time = datetime.datetime.now()
+                err = None
                 try:
-                    self.run(pt, test_dir)
+                    self.run(pt, test_dir, result)
                 except Exception as e:
-                    self.logger.error(f"Run test {tst} error: {e}")
+                    err = e
                     cb = traceback.format_exc()
                     self.logger.info(cb)
                 finally:
+                    if self.location == "remote":
+                        result.remote_error = str(err) if err else None
+                        result.remote_result = (
+                            tr.Result.FAIL if err else tr.Result.PASS
+                        )
+                        result.remote_end_time = datetime.datetime.now()
+
+                        local_result_path = str(test_dir / df.TEST_RESULTS_FILE)
+                        merge_local_results(local_result_path, result)
+
+                    else:
+                        result.local_error = str(err) if err else None
+                        result.local_result = (
+                            tr.Result.FAIL if err else tr.Result.PASS
+                        )
+                        result.local_end_time = datetime.datetime.now()
+                    if result.error:
+                        self.logger.error(
+                            "Run test %s error: %s", tst, result.error
+                        )
                     self.logger.info(
-                        "[%d / %d] Ended test %s", idx + 1, total, tst
+                        "[%d / %d] Ended test %s. Result: %s",
+                        idx + 1,
+                        total,
+                        tst,
+                        result.result.name,
                     )
                     self.logger.removeHandler(test_file_handler)
+            results_file = self.results_dir / df.TEST_RESULTS_FILE
+            with open(results_file, "w", encoding="utf-8") as f:
+                results_dicts = [r.toDict() for r in results]
+                json.dump(results_dicts, f, indent=4)
+            summary_str = ""
+            for r in results:
+                summary_str += f"\n\t\t\t\t{r.name}:\t{r.result.name}"
+            if summary_str:
+                self.logger.info("Test summary: %s", summary_str)
 
         except Exception as e:
             self.logger.error("Execution error: %s", e)
@@ -198,8 +271,11 @@ class BaseRunner:
             self.logger.info(cb)
         finally:
             self.logger.info(f"Test results saved in {self.results_dir}")
+
             self.logger.removeHandler(run_file_handler)
             self.dut.close()
 
-    def run(self, parsed_test: ParsedTest, test_dir: pathlib.Path):
+    def run(
+        self, parsed_test: ParsedTest, test_dir: pathlib.Path, result: tr.Result
+    ):
         raise NotImplementedError("run() must be implemented in a subclass")

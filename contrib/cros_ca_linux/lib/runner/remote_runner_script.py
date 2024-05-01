@@ -4,6 +4,7 @@
 
 """The remote runner that calls the local runner by pushing test scripts."""
 
+import json
 import time
 from typing import List
 
@@ -12,6 +13,7 @@ import lib.definition as df
 from lib.host import base_host
 from lib.runner import base_runner as br
 from lib.runner import remote_runner
+from lib.runner import test_result as tr
 
 
 # cros_ca execution dir on the Windows DUT
@@ -26,14 +28,20 @@ class RemoteRunnerScript(remote_runner.RemoteRunner):
     """
 
     def call_local_test(
-        self, parsed_test: br.ParsedTest, variables: dict, test_dir: str
+        self,
+        parsed_test: br.ParsedTest,
+        variables: dict,
+        test_dir: str,
+        result: tr.TestResult,  # pylint: disable=unused-argument
     ):
         script = f"python {self.dut.local_runner_path}"
-        run_id = str(time.time())
-        script += (
-            f" --run_id={run_id}"  # Provide run_id so test_end can be tracked.
-        )
         script += f" {cf.config_to_args()}"
+        if not cf.config.run_id:
+            # Generate a run_id.
+            run_id = str(time.time())
+            script += f" --run_id={run_id}"
+        if not cf.config.no_console_output:
+            script += " --no_console_output"  # Suppress local consol output.
         for k in variables:
             script += f" --var={k}={variables[k]}"
         script += f" {parsed_test.test_name}"
@@ -57,8 +65,8 @@ class RemoteRunnerScript(remote_runner.RemoteRunner):
         )  # Make the first log sooner by setting a past time.
         self.logger.info("Checking the local test progress...")
         has_start_file = False
-        start_file = f"{self.dut.src_dir}/{df.TEST_START_FILE}"
-        end_file = f"{self.dut.src_dir}/{df.TEST_END_FILE}"
+        start_file = f"{self.dut.src_dir}/logs/{df.TEST_START_FILE}"
+        end_file = f"{self.dut.src_dir}/logs/{df.TEST_END_FILE}"
         while True:
             time.sleep(5)
             current_time = time.time()
@@ -66,16 +74,31 @@ class RemoteRunnerScript(remote_runner.RemoteRunner):
 
             try:
                 if not has_start_file and self.dut.path_exist(start_file):
-                    remote_run_id = self.dut.read_file(start_file)
-                    has_start_file = remote_run_id == run_id
+                    start_json = self.dut.read_file(start_file)
+                    self.logger.debug("start_json: %s", start_json)
+                    try:
+                        start_obj = json.loads(start_json)
+                        has_start_file = start_obj["run_id"] == run_id
+                    except Exception as e:
+                        self.logger.warning("start json load error: %s", e)
                 if has_start_file and self.dut.path_exist(end_file):
-                    remote_run_id = self.dut.read_file(end_file)
-                    if remote_run_id == run_id:
-                        self.logger.info(
-                            "Test completed. Test duration: %.2f minutes.",
-                            elapsed_time,
-                        )
-                        break
+                    end_json = self.dut.read_file(end_file)
+                    self.logger.debug("end_json: %s", end_json)
+                    try:
+                        end_obj = json.loads(end_json)
+                        if end_obj["run_id"] == run_id:
+                            self.logger.info(
+                                "Test completed. Test duration: %.2f minutes.",
+                                elapsed_time,
+                            )
+                            if end_obj["error"]:
+                                self.logger.info(
+                                    "Local test execution error: %s",
+                                    end_obj["error"],
+                                )
+                            break
+                    except Exception as e:
+                        self.logger.warning("end json load error: %s", e)
             except Exception:
                 # TODO: If the host cannot be reached for certain time,
                 #       we should terminate the test

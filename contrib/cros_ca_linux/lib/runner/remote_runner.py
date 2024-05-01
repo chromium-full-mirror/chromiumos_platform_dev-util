@@ -12,6 +12,7 @@ import shutil
 from typing import List
 
 from lib.runner import base_runner as br
+from lib.runner import test_result as tr
 
 # TODO: remove this after all metrics for in the same format.
 from lib.runner.win_batch_runner import metric_process_from_log as mp
@@ -56,7 +57,9 @@ class RemoteRunner(br.BaseRunner):
                     + "needs these variables will fail"
                 )
 
-    def run(self, parsed_test: br.ParsedTest, test_dir: Path):
+    def run(
+        self, parsed_test: br.ParsedTest, test_dir: Path, result: tr.TestResult
+    ):
         self.add_extra_vars()
         test_vars = dict(
             self.variables
@@ -100,7 +103,7 @@ class RemoteRunner(br.BaseRunner):
 
         elif parsed_test.test and parsed_test.location == "local":
             self.logger.info("Triggering the main test (from remote)...")
-            self.call_local_test(parsed_test, test_vars, test_dir)
+            self.call_local_test(parsed_test, test_vars, test_dir, result)
 
         if parsed_test.post:
             self.logger.info(f"Running the post test ({self.location})...")
@@ -117,7 +120,11 @@ class RemoteRunner(br.BaseRunner):
         self.logger.info(f"Test results saved in {test_dir}")
 
     def call_local_test(
-        self, parsed_test: br.ParsedTest, variables: dict, test_dir: str
+        self,
+        parsed_test: br.ParsedTest,
+        variables: dict,
+        test_dir: str,
+        result: tr.TestResult,
     ):
         raise NotImplementedError(
             "call_local_test() must be implemented in a subclass"

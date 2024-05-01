@@ -16,7 +16,6 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from bin import utils
-import lib.config as cf
 import lib.definition as df
 from lib.host import win_paramiko_host
 from lib.host import win_ssh_host
@@ -24,74 +23,61 @@ from lib.runner import remote_runner_script
 from lib.utils import logging as lg
 
 
-logger = lg.logger
-
 # pylint: enable=wrong-import-position
 
 
-def parse_arguments(argv):
-    """Parse command line arguments
-
-    Args:
-        argv: argument list to parse
-
-    Returns:
-        tuple of parsed arguments
-
-    Raises:
-        SystemExit if arguments are malformed, or required arguments
-            are not present.
-    """
-    parser = argparse.ArgumentParser(description="Run tests on Windows.")
-    utils.add_vars(parser)
-    utils.add_transport(parser)
-    utils.add_config(parser)
-    utils.add_target(parser)
-    utils.add_tests(parser)
-    # With the above config, the program accept these optional arguments:
-    # --var=KEY=VALUE       Set a variable with key and value in format
-    #                       KEY=VALUE. Can be repeated.
-    # --transport=TRANSPORT Set the tranport type. Can be ssh or paramiko.
-
-    args = parser.parse_args(argv)
-    try:
-        ssh_specs = utils.parse_ssh_host_spec(args.target, platform="windows")
-    except ValueError as e:
-        logger.info("Invalid target: %s", e)
-        parser.print_help()
-        sys.exit(1)
-
-    return args, ssh_specs
+logger = lg.logger
 
 
 def main(argv):
-    """Entry point for test_win script.
+    """Entry point for test.
 
     Args:
         argv: arguments list
     """
-    arguments, ssh_specs = parse_arguments(argv)
+    program = utils.TestProgram(df.TEST_HOST_RESULTS_DIR)
+
+    def add_additional_args(parser: argparse.ArgumentParser):
+        utils.add_transport(parser)
+        utils.add_target(parser)
+
+    program.parse_arguments(argv, add_additional_args, "Run tests on Windows")
+
+    try:
+        ssh_specs = utils.parse_ssh_host_spec(
+            program.args.target, platform="windows"
+        )
+    except ValueError as e:
+        logger.info("Invalid target: %s", e)
+        program.parser.print_help()
+        sys.exit(1)
     hostname = ssh_specs["hostname"]
     port = ssh_specs["port"]
     username = ssh_specs["user"]
-    variables = utils.parse_vars(arguments.variables)
-    cf.args_to_config(arguments)
 
-    if arguments.transport == "ssh":
-        # When --transport=ssh argument is given.
-        # Using ssh host has a dependency on "sshpass" tools installed locally.
-        # Otherwise the public key access has to be enabled on the DUT.
-        dut = win_ssh_host.WinSSHHost(
-            hostname=hostname, port=port, username=username
+    def run():
+        arguments = program.args
+        if arguments.transport == "ssh":
+            # When --transport=ssh argument is given.
+            # Using ssh host has a dependency on "sshpass" tools installed.
+            # Otherwise the public key access has to be enabled on the DUT.
+            dut = win_ssh_host.WinSSHHost(
+                hostname=hostname, port=port, username=username
+            )
+        else:
+            dut = win_paramiko_host.WinParamikoHost(
+                hostname=hostname, port=port, username=username
+            )
+        runner = remote_runner_script.RemoteRunnerScript(
+            dut,
+            program.variables,
+            arguments.tests,
+            program.result_dir,
+            logger,
         )
-    else:
-        dut = win_paramiko_host.WinParamikoHost(
-            hostname=hostname, port=port, username=username
-        )
-    runner = remote_runner_script.RemoteRunnerScript(
-        dut, variables, arguments.tests, df.TEST_HOST_RESULTS_DIR, logger
-    )
-    runner.run_test()
+        runner.run_test()
+
+    program.run_tests(run)
 
 
 if __name__ == "__main__":

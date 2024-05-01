@@ -5,7 +5,6 @@
 """The local runner on Windows."""
 
 import argparse
-import os
 from pathlib import Path
 import sys
 
@@ -17,7 +16,6 @@ if __name__ == "__main__" and __package__ is None:
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from bin import utils
-import lib.config as cf
 import lib.definition as df
 from lib.host import win_local_host
 from lib.runner import local_runner
@@ -27,33 +25,6 @@ from lib.utils import logging as lg
 # pylint: enable=wrong-import-position
 
 logger = lg.logger
-# Remove the standard output from the local runner to avoid the logs
-# flushing into SSH pipe. Logs will be written to files.
-logger.removeHandler(lg.stream_handler)
-
-
-def parse_arguments(argv):
-    """Parse command line arguments
-
-    Args:
-        argv: argument list to parse
-
-    Returns:
-        tuple of parsed arguments
-
-    Raises:
-        SystemExit if arguments are malformed, or required arguments
-            are not present.
-    """
-    parser = argparse.ArgumentParser(
-        description="Run tests on Windows locally."
-    )
-    utils.add_vars(parser)
-    utils.add_config(parser)
-    utils.add_tests(parser)
-    utils.add_run_id(parser)
-
-    return parser.parse_args(argv)
 
 
 def main(argv):
@@ -62,33 +33,29 @@ def main(argv):
     Args:
         argv: arguments list
     """
-    arguments = parse_arguments(argv)
-    variables = utils.parse_vars(arguments.variables)
-    cf.args_to_config(arguments)
+    program = utils.TestProgram(df.TEST_WIN_RESULTS_DIR)
 
-    start_file = f"{df.PROJECT_ROOT_DIR}/{df.TEST_START_FILE}"
-    end_file = f"{df.PROJECT_ROOT_DIR}/{df.TEST_END_FILE}"
-    if arguments.run_id:
-        # Run ID provided. Log the start / end with the run_id under
-        # df.PROJECT_ROOT_DIR.
-        try:
-            os.remove(end_file)
-        except OSError:
-            pass
-        with open(start_file, "w", encoding="utf-8") as f:
-            f.write(f"{arguments.run_id}")
-    try:
+    def add_additional_args(
+        parser: argparse.ArgumentParser,  # pylint: disable=unused-argument
+    ):
+        pass
+
+    program.parse_arguments(
+        argv, add_additional_args, "Run tests on Windows locally"
+    )
+
+    def run():
         dut = win_local_host.WinLocalHost()
         runner = local_runner.LocalRunner(
-            dut, variables, arguments.tests, df.TEST_WIN_RESULTS_DIR, logger
+            dut,
+            program.variables,
+            program.args.tests,
+            program.result_dir,
+            logger,
         )
         runner.run_test()
-    finally:
-        if arguments.run_id:
-            # Run ID provided. Log the start / end with the run_id
-            # under df.PROJECT_ROOT_DIR.
-            with open(end_file, "w", encoding="utf-8") as f:
-                f.write(f"{arguments.run_id}")
+
+    program.run_tests(run)
 
 
 if __name__ == "__main__":

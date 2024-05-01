@@ -5,12 +5,21 @@
 """The utilities used by the runners."""
 
 import argparse
+import datetime
+import json
+import os
+from pathlib import Path
 import re
-from typing import List
+import time
+from typing import Callable, List
 
 import lib.config as cf
+import lib.definition as df
+import lib.utils.logging as lg
 
 
+# pylint: enable=wrong-import-position
+logger = lg.logger
 config = cf.config
 
 
@@ -47,6 +56,15 @@ def add_run_id(parser: argparse.ArgumentParser):
     )
 
 
+def add_console_output(parser: argparse.ArgumentParser):
+    """Add run_id optionatl argument to parser"""
+    parser.add_argument(
+        "--no_console_output",
+        action="store_true",
+        help="Don't log to console.",
+    )
+
+
 def add_transport(parser: argparse.ArgumentParser):
     """Add host_type optionatl argument to parser"""
     parser.add_argument(
@@ -57,15 +75,14 @@ def add_transport(parser: argparse.ArgumentParser):
     )
 
 
-def add_config(parser: argparse.ArgumentParser):
-    """Add config optionatl argument to parser"""
+def add_verbose(parser: argparse.ArgumentParser):
+    """Add verbose to parser"""
     parser.add_argument(
         "--verbose",
         dest="verbose",
         action="store_true",
         help="Verbose / debug logging mode.",
     )
-    # Add other confiugrations after this.
 
 
 def add_target(parser: argparse.ArgumentParser):
@@ -115,3 +132,76 @@ def parse_ssh_host_spec(host_spec, platform="ChromeOS"):
         }
     else:
         raise ValueError(f"invalid SSH host spec: {host_spec}")
+
+
+class TestProgram:
+    """The test program."""
+
+    def __init__(self, result_dir: Path):
+        self.result_dir: Path = result_dir / datetime.datetime.now().strftime(
+            "%Y%m%d-%H%M%S"
+        )
+        self.args: cf.Config = None
+        self.parser: argparse.ArgumentParser = None
+        self.variables: dict = {}
+
+    def run_tests(self, run_func: Callable) -> None:
+        start_file = f"{df.PROJECT_LOG_DIR}/{df.TEST_START_FILE}"
+        end_file = f"{df.PROJECT_LOG_DIR}/{df.TEST_END_FILE}"
+        try:
+            os.remove(end_file)
+        except OSError:
+            pass
+        # Log the start with the run_id under.
+        start_json = dict(
+            run_id=self.args.run_id,
+            start_time=time.time(),
+            result_dir=str(self.result_dir),
+        )
+        with open(start_file, "w", encoding="utf-8") as f:
+            json.dump(start_json, f)
+
+        err = None
+        try:
+            run_func()
+        except Exception as e:
+            err = e
+            raise
+        finally:
+            end_json = dict(
+                run_id=self.args.run_id,
+                end_time=time.time(),
+                error=f"{err}" if err else None,
+                result_dir=str(self.result_dir),
+            )
+            with open(end_file, "w", encoding="utf-8") as f:
+                json.dump(end_json, f)
+
+    def parse_arguments(
+        self, argv: List[str], add_additional_args: callable, description: str
+    ) -> None:
+        """Parse command line arguments
+
+        Args:
+            argv: argument list to parse.
+            add_additional_args: func to add more args by the caller.
+            description: description of the program.
+
+        Raises:
+            SystemExit if arguments are malformed, or required arguments
+                are not present.
+        """
+        parser = argparse.ArgumentParser(description=description)
+        # Add common arguments
+        add_verbose(parser)
+        add_run_id(parser)
+        add_console_output(parser)
+        add_vars(parser)
+        # Add program specific arguments:
+        add_additional_args(parser)
+        add_tests(parser)  # Tests are the last arguments.
+
+        self.parser = parser
+        self.args = parser.parse_args(argv, cf.Config())
+        self.variables = parse_vars(self.args.variables)
+        cf.args_to_config(self.args)
