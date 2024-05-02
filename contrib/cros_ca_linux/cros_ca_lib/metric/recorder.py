@@ -53,7 +53,8 @@ class Recorder(abc.ABC):
 
     def add_result(self, result: Dict[str, Any]) -> None:
         """Add result to the recorder summary"""
-        self.results.update(result)
+        if result is not None:
+            self.results.update(result)
 
     def _summarize(self) -> Dict[str, Any]:
         """Summarize using all the summaries"""

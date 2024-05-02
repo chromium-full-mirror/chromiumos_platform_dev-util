@@ -20,7 +20,7 @@ class PythonWeb(cbt.ChromeBrowserTest):
 
     parameters = {"": 2, "3_tab": 3}  # Tab loop number
 
-    def run(self) -> None:
+    def _run(self) -> None:
         self.dut.auto_login(base_host.LoginOption())  # Fake login option.
         driver: Remote = self.get_webdriver()
         self.logger.debug(f'Test parameter: "{self.param}"')

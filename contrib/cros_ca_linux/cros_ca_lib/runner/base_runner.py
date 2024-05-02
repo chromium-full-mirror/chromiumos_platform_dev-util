@@ -143,7 +143,7 @@ class BaseRunner:
         if not prepare_file.exists():
             pm = ""  # prepare module
         else:
-            pm = f"{TEST_BASE_PACKAGE}.{l}.{cat}.remote_prepare.{tc}"
+            pm = f"{TEST_BASE_PACKAGE}.{l}.{cat}.{pl}_prepare.{tc}"
 
         post_file = (
             df.PROJECT_ROOT_DIR

@@ -47,14 +47,14 @@ class LocalRunner(br.BaseRunner):
             # Get the class dynamically using getattr. Class name is test
             # case name.
             cls = getattr(module, parsed_test.cls_name)
-            test_instance: base_test.BaseTest = cls(
+            prepare_instance: base_test.BasePrepare = cls(
                 self.dut,
                 parsed_test.param,
                 self.variables,
                 test_dir,
                 self.logger,
             )
-            new_vars = test_instance.prepare_test()
+            new_vars = prepare_instance.prepare_test()
             for k in new_vars:
                 test_vars[k] = new_vars[k]  # Override if alredy exists.
 
@@ -65,10 +65,10 @@ class LocalRunner(br.BaseRunner):
             # Get the class dynamically using getattr. Class name is test
             # case name.
             cls = getattr(module, parsed_test.cls_name)
-            test_instance: base_test.BaseTest = cls(
+            run_instance: base_test.BaseTest = cls(
                 self.dut, parsed_test.param, test_vars, test_dir, self.logger
             )
-            test_instance.run_test()
+            run_instance.run_test()
 
         if parsed_test.post:
             self.logger.info(f"Running the post test ({self.location})...")
@@ -77,7 +77,7 @@ class LocalRunner(br.BaseRunner):
             # Get the class dynamically using getattr. Class name is test
             # case name.
             cls = getattr(module, parsed_test.cls_name)
-            test_instance: base_test.BaseTest = cls(
+            post_instance: base_test.BasePost = cls(
                 self.dut, parsed_test.param, test_vars, test_dir, self.logger
             )
-            test_instance.post_test()
+            post_instance.post_test()

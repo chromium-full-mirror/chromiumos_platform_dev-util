@@ -11,3 +11,9 @@ class BatteryRemainingCapacity(
     metric.Metric[int], simple_name="battery_remaining_capacity", units="mWh"
 ):
     """Metric of battery remaining capacity"""
+
+
+class BatteryDischargeRate(
+    metric.Metric[int], simple_name="battery_discharge_rate", units="mW"
+):
+    """Metric of battery discharge rate"""

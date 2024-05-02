@@ -4,7 +4,9 @@
 
 """System monitor file"""
 
+import contextlib
 import ctypes
+import threading
 from typing import Optional
 
 import psutil
@@ -12,22 +14,37 @@ import pythoncom
 import wmi
 
 
+@contextlib.contextmanager
+def connect_wmi(namespace: Optional[str] = None) -> wmi.WMI:
+    is_main_thread = threading.current_thread() is threading.main_thread()
+    if not is_main_thread:
+        pythoncom.CoInitialize()
+    try:
+        if namespace is not None:
+            yield wmi.WMI(namespace=namespace)
+        else:
+            yield wmi.WMI()
+    finally:
+        if not is_main_thread:
+            pythoncom.CoUninitialize()
+
+
 def get_cpu_usage() -> int:
     """Get cpu usage by wmi."""
-    # psutil.cpu_percent() show the difference to the previous call,
-    # not the actual cpu usage, so we use wmi instead.
-    pythoncom.CoInitialize()
-    c = wmi.WMI()
-    percent = c.Win32_Processor()[0].LoadPercentage
-    if percent is None:
-        percent = 0
-    pythoncom.CoUninitialize()
-    return percent
+    with connect_wmi() as c:
+        percent = c.Win32_Processor()[0].LoadPercentage
+        return 0 if percent is None else percent
 
 
 def get_memory() -> float:
     """Get memory usage."""
     return psutil.virtual_memory()
+
+
+def get_battery_discharge_rate() -> int:
+    """Get battery discharge rate in mW."""
+    with connect_wmi(namespace="wmi") as c:
+        return c.batterystatus()[0].dischargeRate
 
 
 def get_battery_sensor():

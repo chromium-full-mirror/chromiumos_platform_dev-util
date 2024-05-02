@@ -23,3 +23,4 @@ def init() -> None:
     power.BatteryRemainingCapacity(
         sys_monitor.get_battery_remaining_capacity,
     )
+    power.BatteryDischargeRate(sys_monitor.get_battery_discharge_rate)

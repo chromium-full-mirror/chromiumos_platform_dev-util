@@ -79,14 +79,14 @@ class RemoteRunner(br.BaseRunner):
             # Get the class dynamically using getattr. Class name is test case
             # name.
             cls = getattr(module, parsed_test.cls_name)
-            test_instance: bt.BaseTest = cls(
+            prepare_instance: bt.BasePrepare = cls(
                 self.dut,
                 parsed_test.param,
                 test_vars,
                 test_dir,
                 self.logger,
             )
-            new_vars = test_instance.prepare_test()
+            new_vars = prepare_instance.prepare_test()
             for k in new_vars:
                 test_vars[k] = new_vars[k]  # Override if alredy exists.
 
@@ -97,10 +97,10 @@ class RemoteRunner(br.BaseRunner):
             # Get the class dynamically using getattr. Class name is test case
             # name.
             cls = getattr(module, parsed_test.cls_name)
-            test_instance: bt.BaseTest = cls(
+            run_instance: bt.BaseRun = cls(
                 self.dut, parsed_test.param, test_vars, test_dir, self.logger
             )
-            test_instance.run_test()
+            run_instance.run_test()
 
         elif parsed_test.test and parsed_test.location == "local":
             self.logger.info("Triggering the main test (from remote)...")
@@ -113,10 +113,10 @@ class RemoteRunner(br.BaseRunner):
             # Get the class dynamically using getattr. Class name is test case
             # name.
             cls = getattr(module, parsed_test.cls_name)
-            test_instance: bt.BaseTest = cls(
+            post_instance: bt.BasePost = cls(
                 self.dut, parsed_test.param, test_vars, test_dir, self.logger
             )
-            test_instance.post_test()
+            post_instance.post_test()
 
         self.logger.info(f"Test results saved in {test_dir}")
 

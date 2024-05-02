@@ -8,7 +8,7 @@
 # pylint: disable=W0223
 
 import time
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Union
 
 from cros_ca_lib.testing.lib import base_test
 from selenium import webdriver
@@ -49,7 +49,7 @@ HISTOGRAM_MERICS = [
 ]
 
 
-class ChromeBrowserTest(base_test.BaseTest):
+class ChromeBrowserTest(base_test.BaseRun):
     """Base class for Chrome browser tests using Selenium WebDriver."""
 
     # The test cases can override these values in their class definition.
@@ -75,9 +75,6 @@ class ChromeBrowserTest(base_test.BaseTest):
             self.web_driver = self.dut.chrome_webdriver(opts)
 
         return self.web_driver
-
-    def run(self) -> Optional[Dict[str, Any]]:
-        pass
 
     def _get_histogram_snapshot(
         self,

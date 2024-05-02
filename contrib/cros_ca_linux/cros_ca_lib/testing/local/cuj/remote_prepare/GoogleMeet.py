@@ -4,11 +4,9 @@
 
 """GoogleMeet test case."""
 
-# The following line disable the abstract function implementation warning.
-# pylint: disable=W0223
-
 import tempfile
 import time
+from typing import Any, Dict
 
 import cros_ca_lib.definition as df
 from cros_ca_lib.testing.lib import base_test
@@ -19,7 +17,7 @@ from cros_ca_lib.utils.autotest import bond_http_api
 bot_video_file_path = "jamboard_three_close_video_hd.1280_720.yuv"
 
 
-class GoogleMeet(base_test.BaseTest):
+class GoogleMeet(base_test.BasePrepare):
     """Test case for Google Meet."""
 
     required_vars = {
@@ -46,7 +44,7 @@ class GoogleMeet(base_test.BaseTest):
         "16p": 16,
     }
 
-    def prepare(self) -> dict:
+    def _prepare(self) -> Dict[str, Any]:
         meet_code = None
         try:
             meet_code = self.var("meet_code")

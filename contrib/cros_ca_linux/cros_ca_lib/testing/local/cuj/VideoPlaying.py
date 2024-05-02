@@ -4,9 +4,6 @@
 
 """VideoPlaying test case."""
 
-# The following line disable the abstract function implementation warning.
-# pylint: disable=W0223
-
 import os
 import subprocess
 import time
@@ -55,7 +52,19 @@ class VideoPlaying(cbt.ChromeBrowserTest):
             )
         return opt
 
-    def run(self) -> None:
+    def _login(self) -> None:
+        if os.name != "nt":
+            # Only CrOS needs login
+            option = base_host.LoginOption()
+            option.username = self.var(df.VAR_GAIA_ACCOUNT)
+            option.password = self.var(df.VAR_GAIA_PASSWORD)
+            option.arc = True
+            self.dut.auto_login(option)
+
+    def _run(self) -> None:
+        self._login()
+        self.dut.mute(True)
+
         # with rd.TimerRecorder(
         #     self.test_name,
         #     summary.ListSummary(loading.CPUUSage),
@@ -67,16 +76,6 @@ class VideoPlaying(cbt.ChromeBrowserTest):
         self._run_test()
 
     def _run_test(self) -> Dict[str, Any]:
-        # TODO: Get OS name like "Windows", "ChromeOS", "Mac", etc
-        if os.name != "nt":
-            # Only do this for CrOS
-            option = base_host.LoginOption()
-            option.username = self.var(df.VAR_GAIA_ACCOUNT)
-            option.password = self.var(df.VAR_GAIA_PASSWORD)
-            option.arc = True
-            self.dut.auto_login(option)
-        self.dut.mute(True)
-
         # Get the webdriver at the beginning of the test.
         driver = self.get_webdriver()
         wait = WebDriverWait(driver, 15)

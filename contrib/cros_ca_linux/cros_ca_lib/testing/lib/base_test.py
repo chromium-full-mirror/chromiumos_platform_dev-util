@@ -5,6 +5,7 @@
 """The base test class definition."""
 
 from pathlib import Path
+from typing import Any, Dict
 
 from cros_ca_lib.host import base_host
 from cros_ca_lib.utils import logging as lg
@@ -21,7 +22,7 @@ class BaseTest:
         self,
         dut: base_host.BaseHost,
         param: str,
-        variables: dict,
+        variables: Dict[str, Any],
         test_dir: Path,
         logger: lg.logging.Logger,
     ):
@@ -44,40 +45,10 @@ class BaseTest:
         self.screenshots_dir = test_dir / "screenshots"
         self.histogram_dir = test_dir / "histograms"
 
-        self.check_parameters()
-        self.check_vars()
+        self._check_parameters()
+        self._check_vars()
 
-    def run(self) -> None:
-        raise NotImplementedError("run() must be implemented in a subclass")
-
-    def run_test(self) -> None:
-        self.run()
-
-    def prepare(self) -> dict:
-        """Prepare the test.
-
-        Returns:
-            dict with extra key / value pairs.
-        """
-        raise NotImplementedError("prepare() must be implemented in a subclass")
-
-    def prepare_test(self) -> dict:
-        """Prepare the test.
-
-        Returns:
-            dict with extra key / value pairs.
-        """
-        return self.prepare()
-
-    def post(self) -> dict:
-        """Run post procedure of the test."""
-        raise NotImplementedError("prepare() must be implemented in a subclass")
-
-    def post_test(self) -> dict:
-        """Run post procedure of the test."""
-        self.post()
-
-    def check_vars(self):
+    def _check_vars(self):
         vars_missing = []
         if self.required_vars:
             for key, value in self.required_vars.items():
@@ -105,7 +76,7 @@ class BaseTest:
         if len(vars_missing) > 0:
             raise ValueError(f"Missing required variables: {vars_missing}")
 
-    def check_parameters(self):
+    def _check_parameters(self):
         if len(self.parameters) == 0 and self.param == "":
             return
         if self.param not in self.parameters:
@@ -113,6 +84,7 @@ class BaseTest:
 
     @property
     def parameter(self):
+        """Get the test case specific parameter value by the param."""
         return self.parameters[self.param]
 
     def var(self, name: str) -> str:
@@ -131,3 +103,44 @@ class BaseTest:
             return self.variables[name]
         else:
             raise ValueError(f"Missing var: {name}")
+
+
+class BaseRun(BaseTest):
+    """Base class for running test."""
+
+    def run_test(self) -> None:
+        """Running the test."""
+        self._run()
+
+    def _run(self) -> None:
+        raise NotImplementedError("run() must be implemented in a subclass")
+
+
+class BasePrepare(BaseTest):
+    """Base class for preparing test."""
+
+    def prepare_test(self) -> Dict[str, Any]:
+        """Prepare the test.
+
+        Returns:
+            dict with extra key / value pairs.
+        """
+        return self._prepare()
+
+    def _prepare(self) -> Dict[str, Any]:
+        raise NotImplementedError("prepare() must be implemented in a subclass")
+
+
+class BasePost(BaseTest):
+    """Base class for post processing after runing the test."""
+
+    def post_test(self) -> Dict[str, Any]:
+        """Run post procedure of the test.
+
+        Returns:
+            dict with extra key / value pairs.
+        """
+        self._post()
+
+    def _post(self) -> Dict[str, Any]:
+        raise NotImplementedError("prepare() must be implemented in a subclass")
