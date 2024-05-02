@@ -103,7 +103,12 @@ ${FLAGS_fw_version}"
 
   local scp_dir_name="chromeos-scp-firmware-${FLAGS_board}-${FLAGS_fw_version}"
   mkdir "${TMP}/${scp_dir_name}"
-  mv "${TMP}/${FLAGS_board}_scp_private/scp.img" "${TMP}/${scp_dir_name}"
+  cp "${TMP}/${FLAGS_board}_scp_private/scp.img" "${TMP}/${scp_dir_name}"
+
+  if [[ -f "${TMP}/${FLAGS_board}_scp_core1_private/scp-dual.img" ]]; then
+    echo "Found additional scp-dual.img for SCP core1"
+    cp "${TMP}/${FLAGS_board}_scp_core1_private/scp-dual.img" "${TMP}/${scp_dir_name}"
+  fi
 
   tar cjf "${TMP}/${SCP_FW_TAR_NAME}" -C "${TMP}" "${scp_dir_name}"
 }
