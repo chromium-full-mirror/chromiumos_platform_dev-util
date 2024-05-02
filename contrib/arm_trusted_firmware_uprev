@@ -70,6 +70,7 @@ MASTER="refs/heads/master"
 MASTER_REMOTE="refs/remotes/cros/master"
 PREV="refs/heads/prev"
 PREV_REMOTE="refs/remotes/cros/prev"
+JUSTIFICATION_BUG="b/338349867"
 
 run_git() {
   git --no-pager -C "${ARM_TF_PATH}" "$@"
@@ -120,10 +121,13 @@ to fix this repository.
   fi
 
   if [[ "${FLAGS_master_only}" -eq "${FLAGS_TRUE}" ]]; then
-    run_git push cros "${commit}":"${MASTER}" || \
+    run_git push cros \
+      -o push-justification="${JUSTIFICATION_BUG}" \
+      "${commit}":"${MASTER}" || \
       die "Push failed (see above)"
   else
     run_git push --atomic cros \
+      -o push-justification="${JUSTIFICATION_BUG}" \
       "${PREV_REMOTE}4":"${PREV}5" \
       "${PREV_REMOTE}3":"${PREV}4" \
       "${PREV_REMOTE}2":"${PREV}3" \
