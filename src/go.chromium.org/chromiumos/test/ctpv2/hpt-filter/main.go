@@ -13,6 +13,7 @@ import (
 
 	conf "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 	libapi "go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates"
 	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/builders"
 	"go.chromium.org/chromiumos/test/ctpv2/common/dynamic_updates/common"
@@ -21,16 +22,22 @@ import (
 	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
 	"go.chromium.org/tast/core/errors"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const (
-	artifactsBucket = "e2e-coverage-artifacts"
-	versionPath     = "active_version/brya"
-	versionFile     = "current.json"
-	hptRoot         = "/tmp/cros-hpt"
-	authTokenFile   = "authToken.txt"
-	gsPrefix        = "gs://"
-	archiveBucket   = "chromeos-image-archive"
+	artifactsBucket   = "e2e-coverage-artifacts"
+	versionPath       = "active_version/brya"
+	versionFile       = "current.json"
+	hptRoot           = "/tmp/cros-hpt"
+	authTokenFile     = "authToken.txt"
+	gsPrefix          = "gs://"
+	archiveBucket     = "chromeos-image-archive"
+	authTokenFilePath = "/tmp/cros-hpt/authToken.txt"
+	perfProject       = "google.com:cr-code-cov-merger"
+	perfTopic         = "perf-data"
+	perfBucket        = "e2e_perf_data"
 )
 
 type ActiveVersion struct {
@@ -63,7 +70,7 @@ func getActiveVersion(ctx context.Context, gsClient GSClient, localPath string) 
 	return v, nil
 }
 
-func addHPTContainer(dynamicUpdates []*api.UserDefinedDynamicUpdate) error {
+func hptGenerator(version string) *generators.GenericTaskGenerator {
 	hptContainer := builders.NewContainerBuilder(
 		"cros-hpt",
 		"cros-hpt",
@@ -86,6 +93,15 @@ func addHPTContainer(dynamicUpdates []*api.UserDefinedDynamicUpdate) error {
 		),
 	}
 
+	inputs := map[string]proto.Message{
+		"authTokenFilePath": structpb.NewStringValue(authTokenFilePath),
+		"version":           structpb.NewStringValue(version),
+		"projectId":         structpb.NewStringValue(perfProject),
+		"topicId":           structpb.NewStringValue(perfTopic),
+		"bucket":            structpb.NewStringValue(perfBucket),
+		"dutIP":             &labapi.IpEndpoint{},
+	}
+
 	// Start cros-hpt container after provisioning and stop after running the tests.
 	generator := generators.NewGenericTaskGenerator(
 		common.NewTaskIdentifier("hpt").Id,
@@ -93,7 +109,11 @@ func addHPTContainer(dynamicUpdates []*api.UserDefinedDynamicUpdate) error {
 		[]*builders.ContainerBuilder{hptContainer},
 		insertInstructions,
 		&interfaces.GenericTaskMessageRequest{
-			InsertionId: "afterProvision",
+			InsertionId:  "afterProvision",
+			StaticInputs: inputs,
+			DynamicInputs: map[string]string{
+				"dutIP.value": common.NewPrimaryDeviceIdentifier().GetCrosDutServer(),
+			},
 		},
 		&interfaces.GenericTaskMessageRequest{
 			InsertionId: "afterProvision",
@@ -103,7 +123,7 @@ func addHPTContainer(dynamicUpdates []*api.UserDefinedDynamicUpdate) error {
 		},
 	)
 
-	return libapi.AppendUserDefinedDynamicUpdates(&dynamicUpdates, generator.Generate)
+	return generator
 }
 
 func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
@@ -129,7 +149,8 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 		}
 	}
 
-	if err := addHPTContainer(req.GetSuiteInfo().GetSuiteMetadata().GetDynamicUpdates()); err != nil {
+	du := req.GetSuiteInfo().GetSuiteMetadata().GetDynamicUpdates()
+	if err := libapi.AppendUserDefinedDynamicUpdates(&du, hptGenerator(av.Version).Generate); err != nil {
 		return nil, errors.Wrapf(err, "Error adding hpt container.")
 	}
 
