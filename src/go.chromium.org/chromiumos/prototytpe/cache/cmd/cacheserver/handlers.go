@@ -5,7 +5,6 @@
 package main
 
 import (
-	"go.chromium.org/chromiumos/test/util/portdiscovery"
 	"context"
 	"fmt"
 	"io"
@@ -20,6 +19,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"go.chromium.org/chromiumos/test/util/portdiscovery"
 
 	"golang.org/x/sys/unix"
 )
@@ -221,8 +222,16 @@ func (h *HTTPHandlers) extractHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("extracting %v from %v", fileToExtract, localTarFilePath)
 	extractCmd := exec.Command("tar", "-Oxf", localTarFilePath, fileToExtract)
+	var stderr strings.Builder
 	extractCmd.Stdout = w
+	extractCmd.Stderr = &stderr
 	if err := extractCmd.Run(); err != nil {
-		http.Error(w, fmt.Sprintf("error when extracting %v from %v", fileToExtract, localTarFilePath), http.StatusInternalServerError)
+		log.Printf("tar failed, err = %v stderr = %s", err, stderr.String())
+		// Real cache servers return a 404 error when the requested file is not present in the archive.
+		if strings.Contains(stderr.String(), "Not found in archive") {
+			http.Error(w, stderr.String(), http.StatusNotFound)
+		} else {
+			http.Error(w, fmt.Sprintf("error when extracting %v from %v: %v\n%s", fileToExtract, localTarFilePath, err, stderr.String()), http.StatusInternalServerError)
+		}
 	}
 }
