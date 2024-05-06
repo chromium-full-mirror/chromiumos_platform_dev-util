@@ -336,10 +336,16 @@ def _remove_tests_not_in_list(
     suites: List[Suite], test_ids: Set[str]
 ) -> List[Suite]:
     """Removes the tests from the Suites that are not in the test list."""
-    return [
-        suite._replace(tests=suite.tests.intersection(test_ids))
-        for suite in suites
-    ]
+    suites_out = []
+    for suite in suites:
+        updated_tests = []
+        for test in suite.tests:
+            if test not in test_ids:
+                print(f"Removing test: {test}")
+            else:
+                updated_tests.append(test)
+        suites_out.append(suite._replace(tests=updated_tests))
+    return suites_out
 
 
 def validate_centralized_suites(
