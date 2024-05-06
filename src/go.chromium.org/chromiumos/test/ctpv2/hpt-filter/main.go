@@ -70,7 +70,7 @@ func getActiveVersion(ctx context.Context, gsClient GSClient, localPath string) 
 	return v, nil
 }
 
-func hptGenerator(version string) *generators.GenericTaskGenerator {
+func hptGenerator(av *ActiveVersion) *generators.GenericTaskGenerator {
 	hptContainer := builders.NewContainerBuilder(
 		"cros-hpt",
 		"cros-hpt",
@@ -95,7 +95,9 @@ func hptGenerator(version string) *generators.GenericTaskGenerator {
 
 	inputs := map[string]proto.Message{
 		"authTokenFilePath": structpb.NewStringValue(authTokenFilePath),
-		"version":           structpb.NewStringValue(version),
+		"board":             structpb.NewStringValue(av.Board),
+		"version":           structpb.NewStringValue(av.Version),
+		"snapshotVersion":   structpb.NewStringValue(av.SnapshotVersion),
 		"projectId":         structpb.NewStringValue(perfProject),
 		"topicId":           structpb.NewStringValue(perfTopic),
 		"bucket":            structpb.NewStringValue(perfBucket),
@@ -150,7 +152,7 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 	}
 
 	du := req.GetSuiteInfo().GetSuiteMetadata().GetDynamicUpdates()
-	if err := libapi.AppendUserDefinedDynamicUpdates(&du, hptGenerator(av.Version).Generate); err != nil {
+	if err := libapi.AppendUserDefinedDynamicUpdates(&du, hptGenerator(av).Generate); err != nil {
 		return nil, errors.Wrapf(err, "Error adding hpt container.")
 	}
 
