@@ -56,7 +56,9 @@ type perfCollector struct {
 	storage               storageWriter
 	bucket                string
 	publisher             publisher
-	version               *version
+	version               string
+	snapshotVersion       string
+	board                 string
 	// terminated chan is used by the collector to notify that it has successfully terminated.
 	terminated chan bool
 
@@ -95,8 +97,8 @@ func (p perfCollector) publish(ctx context.Context, bucket, ObjectPath string) e
 	record := hpt.PerfRecord{
 		Bucket:            &bucket,
 		ObjectPath:        &ObjectPath,
-		Version:           &p.version.Version,
-		SnapshotBuildPath: &p.version.SnapshotVersion,
+		Version:           &p.version,
+		SnapshotBuildPath: &p.snapshotVersion,
 		Board:             &board,
 	}
 	out, err := protojson.Marshal(&record)
@@ -120,13 +122,17 @@ func (p perfCollector) gatherPerf(ctx context.Context, perfDir, uuid, workDir st
 		}
 		// Next zip the perf data.
 		tarFilePath, err := p.tar(ctx, localPath, workDir)
+		if err != nil {
+			return err
+		}
+
 		// Next clean up the local file since we dont need it.
 		if err := os.Remove(localPath); err != nil {
 			return err
 		}
 		gsObject := storage.GSObject{
 			Bucket: p.bucket,
-			Object: filepath.Join(p.version.Board, p.version.Version, time.Now().Format(time.DateOnly), uuid, filepath.Base(tarFilePath)),
+			Object: filepath.Join(p.board, p.version, time.Now().Format(time.DateOnly), uuid, filepath.Base(tarFilePath)),
 		}
 		if err := p.storage.Write(ctx, tarFilePath, gsObject); err != nil {
 			return err

@@ -5,8 +5,6 @@
 package main
 
 import (
-	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
-	"go.chromium.org/chromiumos/test/util/common"
 	"context"
 	"fmt"
 	"log"
@@ -14,9 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
+	"go.chromium.org/chromiumos/test/util/common"
+
 	"cloud.google.com/go/pubsub"
 	"github.com/google/uuid"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -33,7 +35,7 @@ type perfServer struct {
 	exec          execUtil
 	logger        *log.Logger
 	dut           *api.DutServiceClient
-	storageClient *storage.StorageClient
+	storageClient storageWriter
 	healthMonitor *monitor
 	perfCollector *perfCollector
 	perfCmd       *perfCmd
@@ -71,61 +73,11 @@ func (dutExecUtil) RunCmdAsync(ctx context.Context, cmd string, args []string, d
 	return nil
 }
 
-func NewServer(ctx context.Context, logger *log.Logger, dut *api.DutServiceClient, credentialsFile, projectId, topicId, bucket, workDir, artifactsBucket string) (*perfServer, error) {
-	storageClient, err := storage.NewStorageClientWithCredsFile(ctx, credentialsFile)
-	if err != nil {
-		return nil, err
+func NewServer(ctx context.Context, logger *log.Logger, workDir string) *perfServer {
+	return &perfServer{
+		logger:  logger,
+		workDir: workDir,
 	}
-	pubsubClient, err := pubsub.NewClient(ctx, projectId, option.WithCredentialsFile(credentialsFile))
-	topic := pubsubClient.Topic(topicId)
-	publisher := &common.Publisher{
-		Topic: topic,
-	}
-	exec := dutExecUtil{}
-	// TODO(b/327285753): Throw error if DUT's version does not match active version.
-	version, err := activeVersion{}.Get(ctx, storageClient, artifactsBucket, workDir)
-	if err != nil {
-		return nil, err
-	}
-	perfCollector := perfCollector{
-		fileFetcher:           dutFileFetcher{},
-		exec:                  exec,
-		dut:                   *dut,
-		perfCollectorInterval: perfCollectorInterval,
-		tarUtil:               common.Zip{},
-		storage:               storageClient,
-		bucket:                bucket,
-		publisher:             publisher,
-		stopCollector:         make(chan bool),
-		terminated:            make(chan bool),
-		version:               version,
-	}
-	perfCmd := perfCmd{
-		dut:                  *dut,
-		exec:                 exec,
-		perfInitPollInterval: perfInitPollInterval,
-		perfInitWaitTimeout:  perfInitWaitTimeout,
-	}
-	healthMonitor := monitor{
-		exec:                exec,
-		dut:                 *dut,
-		healthCheckInterval: healthCheckInterval,
-		perf:                &perfCmd,
-		stopMonitoring:      make(chan bool),
-		terminated:          make(chan bool),
-	}
-	server := &perfServer{
-		exec:          exec,
-		logger:        logger,
-		dut:           dut,
-		storageClient: storageClient,
-		healthMonitor: &healthMonitor,
-		perfCollector: &perfCollector,
-		perfCmd:       &perfCmd,
-		stopMonitor:   make(chan bool),
-		workDir:       workDir,
-	}
-	return server, nil
 }
 
 func waitForTermination(ch chan bool, processName string) error {
@@ -155,12 +107,114 @@ func (ps *perfServer) cleanPerfDir(ctx context.Context) error {
 	return err
 }
 
+func (ps *perfServer) setupDUTConnection(dutIP string) (api.DutServiceClient, error) {
+	conn, err := grpc.Dial(dutIP, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+
+	defer conn.Close()
+
+	return api.NewDutServiceClient(conn), nil
+}
+
+func (ps *perfServer) setupPublisher(ctx context.Context, topic, project, credsFile string) (*common.Publisher, error) {
+	pubsubClient, err := pubsub.NewClient(ctx, project, option.WithCredentialsFile(credsFile))
+	if err != nil {
+		return nil, err
+	}
+	return &common.Publisher{
+		Topic: pubsubClient.Topic(topic),
+	}, nil
+}
+
+// setupPerfCollector sets up all the necessary plumbing before we can actually start perf.
+// This includes setting up the clients so that we can store and publish data.
+// Additionally, this makes sure we have an active connection to the DUT.
+func (ps *perfServer) setupPerfCollector(ctx context.Context, msg *api.GenericMessage) (*perfCollector, error) {
+	args := msg.GetValues()
+	credentialsFile := string(args["authTokenFilePath"].GetValue())
+
+	sc, err := storage.NewStorageClientWithCredsFile(ctx, credentialsFile)
+	if err != nil {
+		return nil, err
+	}
+
+	project := string(args["projectId"].GetValue())
+	topic := string(args["topicId"].GetValue())
+	pub, err := ps.setupPublisher(ctx, topic, project, credentialsFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not setup publisher for project: %s and topic: %s due to err: %w", project, topic, err)
+	}
+
+	dutIP := string(args["dutIP"].GetValue())
+	dut, err := ps.setupDUTConnection(dutIP)
+	if err != nil {
+		return nil, fmt.Errorf("could not set up connection to DUT at IP %s: %w", dutIP, err)
+	}
+
+	exec := dutExecUtil{}
+	// TODO(b/327285753): Throw error if DUT's version does not match active version.
+	pc := perfCollector{
+		fileFetcher:           dutFileFetcher{},
+		exec:                  exec,
+		dut:                   dut,
+		perfCollectorInterval: perfCollectorInterval,
+		tarUtil:               common.Zip{},
+		storage:               sc,
+		bucket:                string(args["bucket"].GetValue()),
+		publisher:             pub,
+		stopCollector:         make(chan bool),
+		terminated:            make(chan bool),
+		board:                 string(args["board"].GetValue()),
+		version:               string(args["version"].GetValue()),
+		snapshotVersion:       string(args["snapshotVersion"].GetValue()),
+	}
+
+	return &pc, nil
+}
+
+func (ps *perfServer) setupServer(ctx context.Context, msg *api.GenericMessage) error {
+	pc, err := ps.setupPerfCollector(ctx, msg)
+	if err != nil {
+		return fmt.Errorf("could not set up perf collector: %w", err)
+	}
+	ps.perfCollector = pc
+	ps.storageClient = pc.storage
+	ps.stopMonitor = make(chan bool)
+	ps.exec = pc.exec
+	ps.dut = &pc.dut
+
+	ps.perfCmd = &perfCmd{
+		dut:                  *ps.dut,
+		exec:                 ps.exec,
+		perfInitPollInterval: perfInitPollInterval,
+		perfInitWaitTimeout:  perfInitWaitTimeout,
+	}
+
+	ps.healthMonitor = &monitor{
+		exec:                ps.exec,
+		dut:                 *ps.dut,
+		healthCheckInterval: healthCheckInterval,
+		perf:                ps.perfCmd,
+		stopMonitoring:      make(chan bool),
+		terminated:          make(chan bool),
+	}
+	return nil
+}
+
 // Start is called by TestRunner before cros-test
-func (ps *perfServer) Start(ctx context.Context, _ *api.GenericStartRequest) (*api.GenericStartResponse, error) {
+func (ps *perfServer) Start(ctx context.Context, req *api.GenericStartRequest) (*api.GenericStartResponse, error) {
 	log.Println("Received start request.")
 	if fileInfo, err := os.Stat(ps.workDir); os.IsNotExist(err) || !fileInfo.IsDir() {
 		return nil, fmt.Errorf("%s does not exist or is not a directory", ps.workDir)
 	}
+
+	// Setup perf collector so that we can start perf on DUT.
+	if err := ps.setupServer(ctx, req.GetMessage()); err != nil {
+		return nil, fmt.Errorf("unable to setup perf server: %w", err)
+	}
+
 	// In rare event, previous runs might miss terminating perf and cleaning perf dir.
 	// Lets do that before starting a new perf cmd.
 	if err := ps.perfCmd.killAll(ctx); err != nil {
@@ -173,6 +227,7 @@ func (ps *perfServer) Start(ctx context.Context, _ *api.GenericStartRequest) (*a
 	if err != nil {
 		return nil, err
 	}
+
 	go ps.healthMonitor.start(pid)
 	go ps.perfCollector.start(outputPerfDir, ps.workDir)
 	return &api.GenericStartResponse{}, nil
