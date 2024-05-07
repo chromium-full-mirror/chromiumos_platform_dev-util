@@ -285,3 +285,6 @@ disp_overwrite["57edb04330b8"] = [
     "move",
     "block-fs",
 ]  # FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr
+disp_overwrite[
+    "397d52eba612"
+] = "drop"  # CHROMIUM: media: imx319: add workaround for link freq definition mismatch
