@@ -39,6 +39,7 @@ def main(argv):
 
     def add_additional_args(parser: argparse.ArgumentParser):
         utils.add_transport(parser)
+        utils.add_result_dir(parser)
         utils.add_target(parser)
 
     program.parse_arguments(argv, add_additional_args, "Run tests on Windows")

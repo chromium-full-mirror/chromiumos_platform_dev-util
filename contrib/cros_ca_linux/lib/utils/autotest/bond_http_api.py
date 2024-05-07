@@ -38,9 +38,10 @@ example_audio_file = "what_color_is_cheese_32bit_48k_stereo.raw"
 class BondHttpApi:
     """Utility class for sending requests to BonD for bots."""
 
-    def __init__(self):
+    def __init__(self, creds_file=None):
         self._last_token_request_time = None
         self._last_token = None
+        self._creds_file = creds_file if creds_file else _SERVICE_CREDS_FILE
 
     def GetAvailableWorkers(self):
         """Gets the number of available workers for a conference."""
@@ -213,7 +214,8 @@ class BondHttpApi:
         return self._last_token
 
     def _CreateApiCredentials(self):
-        return GoogleCredentials.from_stream(_SERVICE_CREDS_FILE)
+        logger.debug("Creds file: %s", self._creds_file)
+        return GoogleCredentials.from_stream(self._creds_file)
 
     def _CheckTokenExpired(self):
         elapsed = datetime.datetime.now() - self._last_token_request_time

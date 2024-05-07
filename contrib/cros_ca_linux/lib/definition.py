@@ -72,3 +72,15 @@ TEST_RESULTS_FILE = "results.json"
 
 # === Test constants
 TEST_MAX_MINUTES = 60  # Max test duration
+
+# === Common Test variables:
+VAR_BOND_CREDENTIALS = "bond_credentials"
+VAR_GAIA_ACCOUNT = "gaia_account"
+VAR_GAIA_PASSWORD = "gaia_password"
+
+# Vars that are used only in the remote host and not passed to DUTs.
+VARS_REMOTE_ONLY = [
+    VAR_BOND_CREDENTIALS,
+]
+
+default_bond_creds_file = "/creds/service_accounts/bond_service_account.json"

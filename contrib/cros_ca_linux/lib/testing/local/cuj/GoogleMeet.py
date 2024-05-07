@@ -19,6 +19,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 
+import lib.definition as df
 from lib.host import base_host
 from lib.testing.lib import chrome_browser_test as cbt
 
@@ -32,12 +33,12 @@ xperf = False  # If run xperf during the test
 class GoogleMeet(cbt.ChromeBrowserTest):
     """Test case for Google Meet."""
 
-    required_vars = dict(
-        typing_delay="Key typing delay in seconds",
-        gaia_account="The test account",
-        gaia_password="The password of the test account",
-        meet_code="Google Meet code to join.",
-    )
+    required_vars = {
+        "typing_delay": "Key typing delay in seconds",
+        f"{df.VAR_GAIA_ACCOUNT}": "The test account",
+        f"{df.VAR_GAIA_PASSWORD}": "The password of the test account",
+        "meet_code": "Google Meet code to join.",
+    }
     optional_vars = dict(
         xperf=f"If run xperf during the test. Default is {xperf}",
         duration=f"Scheduled test duration. Default is {test_duration} minute",
@@ -78,8 +79,8 @@ class GoogleMeet(cbt.ChromeBrowserTest):
         if os.name != "nt":
             # Only do this for CrOS
             option = base_host.LoginOption()
-            option.username = self.var("gaia_account")
-            option.password = self.var("gaia_password")
+            option.username = self.var(df.VAR_GAIA_ACCOUNT)
+            option.password = self.var(df.VAR_GAIA_PASSWORD)
             option.arc = True
             option.chrome_args = [
                 "--use-fake-ui-for-media-stream",
@@ -97,7 +98,7 @@ class GoogleMeet(cbt.ChromeBrowserTest):
             # Sign in with the Google account (index = 0)
             driver.get("https://accounts.google.com/ServiceLogin")
             driver.find_element(By.TAG_NAME, "input").send_keys(
-                self.var("gaia_account")
+                self.var(df.VAR_GAIA_ACCOUNT)
             )
             driver.find_element(By.XPATH, '//span[text()="Next"]').find_element(
                 By.XPATH, "./.."
@@ -110,7 +111,7 @@ class GoogleMeet(cbt.ChromeBrowserTest):
             submit = driver.find_element(By.ID, "passwordNext")
             _ = wait.until(EC.element_to_be_clickable(submit))
             driver.find_element(By.NAME, "Passwd").send_keys(
-                self.var("gaia_password")
+                self.var(df.VAR_GAIA_PASSWORD)
             )
             submit.click()
             # time.sleep(send_keys_wait_time)

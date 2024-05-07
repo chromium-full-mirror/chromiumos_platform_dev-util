@@ -7,8 +7,10 @@
 # The following line disable the abstract function implementation warning.
 # pylint: disable=W0223
 
+import tempfile
 import time
 
+import lib.definition as df
 from lib.testing.lib import base_test
 from lib.testing.local.cuj import GoogleMeet as gm
 from lib.utils.autotest import bond_http_api
@@ -20,19 +22,23 @@ bot_video_file_path = "jamboard_three_close_video_hd.1280_720.yuv"
 class GoogleMeet(base_test.BaseTest):
     """Test case for Google Meet."""
 
-    required_vars = dict(
-        typing_delay="Key typing delay in seconds",
-        gaia_account="The test account",
-        gaia_password="The password of the test account",
-    )
-    optional_vars = dict(
-        xperf=f"If run xperf during the test. Default is {gm.xperf}",
-        meet_ttl="Google Meet length in minutes. "
+    required_vars = {
+        "typing_delay": "Key typing delay in seconds",
+        f"{df.VAR_GAIA_ACCOUNT}": "The test account",
+        f"{df.VAR_GAIA_PASSWORD}": "The password of the test account",
+    }
+    optional_vars = {
+        f"{df.VAR_BOND_CREDENTIALS}": (
+            "The Bond API credentials in JSON format. If not provided, the one"
+            + f" in {df.default_bond_creds_file} will be used"
+        ),
+        "meet_ttl": "Google Meet length in minutes. "
         + f"Default is {gm.meet_ttl} minute",
-        meet_code="Google Meet code that can be re-used. Default is None",
-        duration="Scheduled test duration. "
+        "meet_code": "Google Meet code that can be re-used. Default is None",
+        "duration": "Scheduled test duration. "
         + f"Default is {gm.test_duration} minute",
-    )
+        "xperf": f"If run xperf during the test. Default is {gm.xperf}",
+    }
     parameters = {
         # Total participant number in the meet
         "": 2,  # Default is 2
@@ -54,15 +60,34 @@ class GoogleMeet(base_test.BaseTest):
             except Exception:
                 pass
             bot_num = self.parameter - 1
-            meet_code = self.get_meet_code(bot_ttl, bot_num)
+            bond_credentials = None
+            try:
+                bond_credentials = self.var(df.VAR_BOND_CREDENTIALS)
+            except Exception:
+                pass
+            if bond_credentials:
+                with tempfile.NamedTemporaryFile(
+                    delete=True, buffering=0
+                ) as temp_file:
+                    temp_file.write(
+                        bond_credentials.encode()
+                    )  # Encode content to bytes before writing
+                    meet_code = self.get_meet_code(
+                        bot_ttl, bot_num, temp_file.name
+                    )
+            else:
+                meet_code = self.get_meet_code(
+                    bot_ttl, bot_num, df.default_bond_creds_file
+                )
         return dict(meet_code=meet_code)
 
-    def get_meet_code(self, bots_ttl_min, bot_count):
+    def get_meet_code(self, bots_ttl_min, bot_count, creds_file):
         """Get Meet code from Bond API
 
         Args:
             bots_ttl_min: Meet TTL in minutes.
             bot_count: number of bots to add to the Meet.
+            creds_file: Bond API credential file.
 
         Returns:
             meet code.
@@ -72,7 +97,7 @@ class GoogleMeet(base_test.BaseTest):
         if bot_count <= 0:
             raise ValueError("Bot count must have at least 1 bot")
 
-        bond_api = bond_http_api.BondHttpApi()
+        bond_api = bond_http_api.BondHttpApi(creds_file)
         meet_code = bond_api.CreateConference()
 
         first_bot_added = False

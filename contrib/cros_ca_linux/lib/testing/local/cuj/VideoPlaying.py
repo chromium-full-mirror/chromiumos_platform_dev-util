@@ -17,6 +17,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 
+import lib.definition as df
 from lib.host import base_host
 from lib.testing.lib import chrome_browser_test as cbt
 
@@ -28,10 +29,10 @@ xperf = False  # If run xperf during the test
 class VideoPlaying(cbt.ChromeBrowserTest):
     """VideoPlaying does the video playing test."""
 
-    required_vars = dict(
-        gaia_account="The test account",
-        gaia_password="The password of the test account",
-    )
+    required_vars = {
+        f"{df.VAR_GAIA_ACCOUNT}": "The test account",
+        f"{df.VAR_GAIA_PASSWORD}": "The password of the test account",
+    }
     optional_vars = dict(
         xperf=f"If run xperf during the test. Default is {xperf}",
         duration=f"Scheduled test duration. Default is {test_duration} minute",
@@ -55,8 +56,8 @@ class VideoPlaying(cbt.ChromeBrowserTest):
         if os.name != "nt":
             # Only do this for CrOS
             option = base_host.LoginOption()
-            option.username = self.var("gaia_account")
-            option.password = self.var("gaia_password")
+            option.username = self.var(df.VAR_GAIA_ACCOUNT)
+            option.password = self.var(df.VAR_GAIA_PASSWORD)
             option.arc = True
             self.dut.auto_login(option)
         self.dut.mute(True)

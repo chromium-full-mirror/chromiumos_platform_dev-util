@@ -24,7 +24,7 @@ config = cf.config
 
 
 def add_vars(parser: argparse.ArgumentParser):
-    """Add var optionatl argument to parser"""
+    """Add var optional argument to parser"""
     parser.add_argument(
         "--var",
         dest="variables",
@@ -41,13 +41,13 @@ def parse_vars(arg_vars: List[str]) -> dict:
     variables = {}
     if arg_vars:
         for var in arg_vars:
-            key, value = var.split("=")
+            key, value = var.split("=", 1)
             variables[key] = value
     return variables
 
 
 def add_run_id(parser: argparse.ArgumentParser):
-    """Add run_id optionatl argument to parser"""
+    """Add run_id optional argument to parser"""
     parser.add_argument(
         "--run_id",
         action="store",
@@ -57,7 +57,7 @@ def add_run_id(parser: argparse.ArgumentParser):
 
 
 def add_console_output(parser: argparse.ArgumentParser):
-    """Add run_id optionatl argument to parser"""
+    """Add no_console_output optional argument to parser"""
     parser.add_argument(
         "--no_console_output",
         action="store_true",
@@ -66,7 +66,7 @@ def add_console_output(parser: argparse.ArgumentParser):
 
 
 def add_transport(parser: argparse.ArgumentParser):
-    """Add host_type optionatl argument to parser"""
+    """Add transport optional argument to parser"""
     parser.add_argument(
         "--transport",
         action="store",
@@ -76,12 +76,22 @@ def add_transport(parser: argparse.ArgumentParser):
 
 
 def add_verbose(parser: argparse.ArgumentParser):
-    """Add verbose to parser"""
+    """Add verbose optional argument to parser"""
     parser.add_argument(
         "--verbose",
         dest="verbose",
         action="store_true",
         help="Verbose / debug logging mode.",
+    )
+
+
+def add_result_dir(parser: argparse.ArgumentParser):
+    """Add result_dir optional argument to parser"""
+    parser.add_argument(
+        "--result_dir",
+        type=str,
+        action="store",
+        help="The directory of the test logs",
     )
 
 
@@ -91,7 +101,7 @@ def add_target(parser: argparse.ArgumentParser):
         "target",
         type=str,
         action="store",
-        help='the DUT SSH connection spec of the form "[user@]host[:port]"',
+        help='The DUT SSH connection spec of the form "[user@]host[:port]"',
     )
 
 
@@ -205,3 +215,11 @@ class TestProgram:
         self.args = parser.parse_args(argv, cf.Config())
         self.variables = parse_vars(self.args.variables)
         cf.args_to_config(self.args)
+
+        if hasattr(self.args, "result_dir") and self.args.result_dir:
+            result_dir = Path(self.args.result_dir)
+            if not result_dir.exists():
+                raise ValueError(f"result_dir {result_dir} doesn't exist")
+            self.result_dir = result_dir / datetime.datetime.now().strftime(
+                "%Y%m%d-%H%M%S"
+            )

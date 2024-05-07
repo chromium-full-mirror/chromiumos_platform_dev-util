@@ -11,6 +11,7 @@ from pathlib import Path
 import shutil
 from typing import List
 
+import lib.definition as df
 from lib.runner import base_runner as br
 from lib.runner import test_result as tr
 
@@ -41,8 +42,8 @@ class RemoteRunner(br.BaseRunner):
     def add_extra_vars(self):
         """Add extra variables to the runner."""
         # Google gaia account
-        a_key = "gaia_account"
-        p_key = "gaia_password"
+        a_key = df.VAR_GAIA_ACCOUNT
+        p_key = df.VAR_GAIA_PASSWORD
         if a_key not in self.variables or p_key not in self.variables:
             try:
                 a, p = accounts.get_gaia_account()

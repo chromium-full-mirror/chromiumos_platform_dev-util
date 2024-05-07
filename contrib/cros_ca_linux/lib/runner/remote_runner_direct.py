@@ -32,14 +32,20 @@ class RemoteRunnerDirect(remote_runner.RemoteRunner):
     ):
         script = f"python {self.dut.local_runner_path}"
         script += f" {cf.config_to_args()}"
+        run_id = cf.config.run_id
         if not cf.config.run_id:
             # Generate a run_id.
             run_id = str(time.time())
-            script += f" --run_id={run_id}"
+            script += f' --run_id="{run_id}"'
         if not cf.config.no_console_output:
-            script += " --no_console_output"  # Suppress local consol output.
+            script += " --no_console_output"  # Suppress local console output.
         for k in variables:
-            script += f" --var={k}={variables[k]}"
+            if k in df.VARS_REMOTE_ONLY:
+                # Ignore remote only vars.
+                continue
+            # Escape before single quote the value.
+            escaped_v = variables[k].replace('"', '\\"')
+            script += f' --var={k}="{escaped_v}"'
         script += f" {parsed_test.test_name}"
 
         if not self.dut.path_exist(str(self.dut.local_runner_path)):

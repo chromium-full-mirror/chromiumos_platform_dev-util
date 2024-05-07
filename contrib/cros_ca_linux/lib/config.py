@@ -45,6 +45,7 @@ def config_to_args():
     if args.verbose:
         arg_str.append("--verbose")
     if args.run_id:
-        arg_str.append(f"--run_id {args.run_id}")
+        escaped = args.run_id.replace('"', '\\"')
+        arg_str.append(f'--run_id="{escaped}"')
 
     return " ".join(arg_str)
