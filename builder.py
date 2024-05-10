@@ -9,10 +9,14 @@ from __future__ import print_function
 import logging
 import os
 import subprocess
-import tempfile
 
 import cherrypy  # pylint: disable=import-error
-import portage  # pylint: disable=import-error
+
+# This must happen before any local modules get a chance to import
+# anything from chromite.
+import setup_chromite  # pylint: disable=unused-import,import-error
+
+from chromite.lib import gmerge_binhost
 
 
 # Relative path to the wrapper directory inside the sysroot.
@@ -50,157 +54,10 @@ def _OutputOf(command):
     _Log("Executing: " + command_name)
 
     with subprocess.Popen(command, stdout=subprocess.PIPE) as p:
-        output_blob = p.communicate()[0]
+        output_blob = p.communicate()[0].decode("utf-8")
         if p.returncode != 0:
             raise subprocess.CalledProcessError(p.returncode, command_name)
         return output_blob
-
-
-def _FilterInstallMaskFromPackage(in_path, out_path):
-    """Filter files matching DEFAULT_INSTALL_MASK out of a tarball.
-
-    Args:
-        in_path: Unfiltered tarball.
-        out_path: Location to write filtered tarball.
-    """
-
-    # Grab metadata about package in xpak format.
-    my_xpak = portage.xpak.xpak_mem(portage.xpak.tbz2(in_path).get_data())
-
-    # Build list of files to exclude. The tar command uses a slightly
-    # different exclude format than gmerge, so it needs to be adjusted
-    # appropriately.
-    masks = os.environ.get("DEFAULT_INSTALL_MASK", "").split()
-    # Look for complete paths matching the specified pattern.  Leading slashes
-    # are removed so that the paths are relative. Trailing slashes are removed
-    # so that we delete the directory itself when the '/usr/include/' path is
-    # given.
-    masks = [mask.strip("/") for mask in masks]
-    masks = ['--exclude="./%s"' % mask for mask in masks]
-    excludes = "--anchored " + " ".join(masks)
-
-    gmerge_dir = os.path.dirname(out_path)
-    os.makedirs(gmerge_dir, mode=0o755, exist_ok=True)
-
-    with open(in_path, "rb") as f:
-        data = f.read(3)
-    if data == b"BZh":
-        decomp = "lbzip2 -dc"
-    else:
-        decomp = "zstd -dcf"
-
-    tmpd = tempfile.mkdtemp()
-    try:
-        # Extract package to temporary directory (excluding masked files).
-        cmd = f"{decomp} %s | sudo tar -x -C %s %s --wildcards"
-        subprocess.check_call(cmd % (in_path, tmpd, excludes), shell=True)
-
-        # Build filtered version of package.
-        cmd = "sudo tar -c --use-compress-program=zstd -C %s . > %s"
-        subprocess.check_call(cmd % (tmpd, out_path), shell=True)
-    finally:
-        subprocess.check_call(["sudo", "rm", "-rf", tmpd])
-
-    # Copy package metadata over to new package file.
-    portage.xpak.tbz2(out_path).recompose_mem(my_xpak)
-
-
-def UpdateGmergeBinhost(sysroot, pkgs, deep):
-    """Add packages to our gmerge-specific binhost.
-
-    Files matching DEFAULT_INSTALL_MASK are not included in the tarball.
-    """
-    # Portage internal api expects the sysroot to ends with a '/'.
-    sysroot = os.path.join(sysroot, "")
-
-    gmerge_pkgdir = os.path.join(sysroot, "gmerge-packages")
-    stripped_link = os.path.join(sysroot, "stripped-packages")
-
-    # Create gmerge pkgdir and give us permission to write to it.
-    subprocess.check_call(["sudo", "mkdir", "-p", gmerge_pkgdir])
-    subprocess.check_call(
-        ["sudo", "ln", "-snf", os.path.basename(gmerge_pkgdir), stripped_link]
-    )
-
-    username = os.environ["PORTAGE_USERNAME"]
-    subprocess.check_call(["sudo", "chown", username, gmerge_pkgdir])
-
-    # Load databases.
-    trees = portage.create_trees(config_root=sysroot, target_root=sysroot)
-    vardb = trees[sysroot]["vartree"].dbapi
-    bintree = trees[sysroot]["bintree"]
-    bintree.populate()
-    gmerge_tree = portage.dbapi.bintree.binarytree(
-        sysroot, gmerge_pkgdir, settings=bintree.settings
-    )
-    gmerge_tree.populate()
-
-    # The portage API here is subtle.  Results from these lookups are a pkg_str
-    # object which derive from Python strings but attach some extra metadata
-    # (like package file sizes and build times).  Helpers like __cmp__ aren't
-    # changed, so the set logic can works.  But if you use a pkg_str from one
-    # bintree in another, it can fail to resolve, while stripping off the extra
-    # metadata allows the bintree to do the resolution internally.  Hence we
-    # normalize all results here to strings.
-    strmatches = lambda matches: set(str(x) for x in matches)
-    if deep:
-        # If we're in deep mode, fill in the binhost completely.
-        gmerge_matches = strmatches(gmerge_tree.dbapi.cpv_all())
-        bindb_matches = strmatches(bintree.dbapi.cpv_all())
-        installed_matches = strmatches(vardb.cpv_all()) & bindb_matches
-    else:
-        # Otherwise, just fill in the requested package.
-        gmerge_matches = set()
-        bindb_matches = set()
-        installed_matches = set()
-        for pkg in pkgs:
-            gmerge_matches.update(strmatches(gmerge_tree.dbapi.match(pkg)))
-            bindb_matches.update(strmatches(bintree.dbapi.match(pkg)))
-            installed_matches.update(
-                strmatches(vardb.match(pkg)) & bindb_matches
-            )
-
-    # Remove any stale packages that exist in the local binhost but are not
-    # installed anymore.
-    if bindb_matches - installed_matches:
-        subprocess.check_call(
-            [_SysrootCmd(sysroot, "eclean"), "-d", "packages"]
-        )
-
-    # Remove any stale packages that exist in the gmerge binhost but are not
-    # installed anymore.
-    changed = False
-    for pkg in gmerge_matches - installed_matches:
-        gmerge_path = gmerge_tree.getname(pkg)
-        if os.path.exists(gmerge_path):
-            os.unlink(gmerge_path)
-            changed = True
-
-    # Copy any installed packages that have been rebuilt to the gmerge binhost.
-    for pkg in installed_matches:
-        (build_time,) = bintree.dbapi.aux_get(pkg, ["BUILD_TIME"])
-        build_path = bintree.getname(pkg)
-        gmerge_path = gmerge_tree.getname(pkg)
-
-        # If a package exists in the gmerge binhost with the same build time,
-        # don't rebuild it.
-        if pkg in gmerge_matches and os.path.exists(gmerge_path):
-            (old_build_time,) = gmerge_tree.dbapi.aux_get(pkg, ["BUILD_TIME"])
-            if old_build_time == build_time:
-                continue
-
-        _Log("Filtering install mask from %s" % pkg)
-        _FilterInstallMaskFromPackage(build_path, gmerge_path)
-        changed = True
-
-    # If the gmerge binhost was changed, update the Packages file to match.
-    if changed:
-        env_copy = os.environ.copy()
-        env_copy["PKGDIR"] = gmerge_pkgdir
-        cmd = [_SysrootCmd(sysroot, "emaint"), "-f", "binhost"]
-        subprocess.check_call(cmd, env=env_copy)
-
-    return bool(installed_matches)
 
 
 class Builder:
@@ -261,7 +118,7 @@ class Builder:
 
             # Sync gmerge binhost.
             deep = additional_args.get("deep")
-            if not UpdateGmergeBinhost(sysroot, [pkg], deep):
+            if not gmerge_binhost.UpdateGmergeBinhost(sysroot, [pkg], deep):
                 return self.SetError("Package %s is not installed" % pkg)
 
             return "Success\n"
