@@ -46,6 +46,8 @@ type CTPBuilder struct {
 	CFT bool
 	// TRV2 determines whether we will use Test Runner V2
 	TRV2 bool
+	// DynamicTRV2 determines whether we will use Dynamic Test Runner V2.
+	DynamicTRV2 bool
 	// CpconPublish determines whether we will upload to cpcon
 	CpconPublish bool
 	// CTPBuildTags are any tags that should be associated solely with the CTP
@@ -337,11 +339,12 @@ func (c *CTPBuilder) TestPlatformRequest(buildTags map[string]string) (*test_pla
 				MaximumDuration: durationpb.New(
 					time.Duration(c.TimeoutMins) * time.Minute),
 			},
-			RunViaCft:           c.CFT,
-			RunViaTrv2:          c.TRV2,
-			Trv2StepsConfig:     cftSteps,
-			ScheduleViaScheduke: c.UseScheduke,
-			Results:             c.ResultsUploadConfig,
+			RunViaCft:            c.CFT,
+			RunViaTrv2:           c.TRV2,
+			TranslateTrv2Request: c.DynamicTRV2,
+			Trv2StepsConfig:      cftSteps,
+			ScheduleViaScheduke:  c.UseScheduke,
+			Results:              c.ResultsUploadConfig,
 		},
 	}
 	// Handling multi-DUTs use case if secondaryBoards provided.
