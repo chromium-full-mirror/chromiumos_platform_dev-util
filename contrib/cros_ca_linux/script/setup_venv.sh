@@ -29,7 +29,7 @@ echo "Activating the virtual env..."
 # shellcheck source=/dev/null
 source "${project_dir}/venv/bin/activate"
 
-pip install -r "${project_dir}/requirements.txt"
+pip install --require-hashes -r "${project_dir}/requirements.txt"
 
 echo ""
 echo "Project virtual environment is ready. Type \"deactivate\" to exit the virtual environment."
