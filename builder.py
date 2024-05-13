@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-# Copyright 2009-2011 The ChromiumOS Authors
+# Copyright 2024 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -24,8 +23,8 @@ def _SysrootCmd(sysroot, cmd):
     """Path to the sysroot wrapper for |cmd|.
 
     Args:
-      sysroot: Path to the sysroot.
-      cmd: Name of the command.
+        sysroot: Path to the sysroot.
+        cmd: Name of the command.
     """
     return os.path.join(sysroot, _SYSROOT_BUILD_BIN, cmd)
 
@@ -39,30 +38,30 @@ def _OutputOf(command):
     """Runs command, a list of arguments beginning with an executable.
 
     Args:
-      command: A list of arguments, beginning with the executable
+        command: A list of arguments, beginning with the executable
 
     Returns:
-      The output of the command
+        The output of the command
 
     Raises:
-      subprocess.CalledProcessError if the command fails
+        subprocess.CalledProcessError if the command fails
     """
     command_name = " ".join(command)
     _Log("Executing: " + command_name)
 
-    p = subprocess.Popen(command, stdout=subprocess.PIPE)
-    output_blob = p.communicate()[0]
-    if p.returncode != 0:
-        raise subprocess.CalledProcessError(p.returncode, command_name)
-    return output_blob
+    with subprocess.Popen(command, stdout=subprocess.PIPE) as p:
+        output_blob = p.communicate()[0]
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError(p.returncode, command_name)
+        return output_blob
 
 
 def _FilterInstallMaskFromPackage(in_path, out_path):
     """Filter files matching DEFAULT_INSTALL_MASK out of a tarball.
 
     Args:
-      in_path: Unfiltered tarball.
-      out_path: Location to write filtered tarball.
+        in_path: Unfiltered tarball.
+        out_path: Location to write filtered tarball.
     """
 
     # Grab metadata about package in xpak format.
@@ -204,7 +203,7 @@ def UpdateGmergeBinhost(sysroot, pkgs, deep):
     return bool(installed_matches)
 
 
-class Builder(object):
+class Builder:
     """Builds packages for the devserver."""
 
     def _ShouldBeWorkedOn(self, board, pkg):
@@ -212,7 +211,8 @@ class Builder(object):
         if pkg in _OutputOf(["cros_workon", "--board=" + board, "list"]):
             return False
 
-        # If it's in the list of possible workon targets, we should be working on it
+        # If it's in the list of possible workon targets, we should be working
+        # on it
         return pkg in _OutputOf(
             ["cros_workon", "--board=" + board, "--all", "list"]
         )
@@ -245,8 +245,8 @@ class Builder(object):
             ) and self._ShouldBeWorkedOn(board, pkg):
                 return self.SetError(
                     "Package is not cros_workon'd on the devserver machine.\n"
-                    "Either start working on the package or pass --accept_stable "
-                    "to gmerge"
+                    "Either start working on the package or pass "
+                    "--accept_stable to gmerge"
                 )
 
             sysroot = "/build/%s/" % board
