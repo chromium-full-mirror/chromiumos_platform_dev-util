@@ -14,7 +14,9 @@ from cros_ca_lib.host import base_host
 from cros_ca_lib.metric import recorder as rd
 from cros_ca_lib.metric import summary
 from cros_ca_lib.metric.system import power
+from cros_ca_lib.runner.post_processing import power as process_power
 from cros_ca_lib.testing.lib import chrome_browser_test as cbt
+from cros_ca_lib.utils.autotest import power_dashboard as dashboard
 import requests
 
 
@@ -114,10 +116,20 @@ class Browsing(cbt.ChromeBrowserTest):
 
         with rd.TimerRecorder(
             self.test_name,
+            summary.ListSummary(power.BatteryRemainingCapacity),
             summary.ListSummary(power.BatteryDischargeRate),
         ) as recorder:
             self._run_test(config)
         recorder.save(self.test_dir)
+        process_power.calculate_battery_life(
+            self.metric_file, self.test_name + ".t"
+        )
+        dashboard.save_html(
+            self.metric_file,
+            self.test_name + ".t",
+            self.test_dir,
+            ["minutes_battery_life"],
+        )
 
     def _run_test(self, config: BrowsingConfig) -> None:
         driver = self.get_webdriver()
@@ -143,9 +155,8 @@ class Browsing(cbt.ChromeBrowserTest):
                     config.secs_per_scroll,
                 ):
                     end_time = start_time + datetime.timedelta(seconds=sec)
-                    interval = (
-                        end_time - datetime.datetime.now()
-                    ).total_seconds()
+                    current_time = datetime.datetime.now()
+                    interval = (end_time - current_time).total_seconds()
                     if interval > 0:
                         time.sleep(interval)
                     driver.execute_script(
@@ -155,7 +166,8 @@ class Browsing(cbt.ChromeBrowserTest):
                 end_time = start_time + datetime.timedelta(
                     seconds=config.secs_per_page
                 )
-                interval = (end_time - datetime.datetime.now()).total_seconds()
+                current_time = datetime.datetime.now()
+                interval = (end_time - current_time).total_seconds()
                 if interval > 0:
                     time.sleep(interval)
         driver.quit()

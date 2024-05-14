@@ -94,6 +94,18 @@ def get_battery_state() -> Optional[SYSTEM_BATTERY_STATE]:
     return result if retval == 0 else None
 
 
+def get_battery_max_capacity() -> Optional[int]:
+    """Retrieve the system battery max capacity in mWh.
+
+    Returns:
+        System battery max capacity in mWh, None if fail to retrieve.
+    """
+    battery_state = get_battery_state()
+    if battery_state is None:
+        return None
+    return battery_state.MaxCapacity
+
+
 def get_battery_remaining_capacity() -> Optional[int]:
     """Retrieve the system battery remaining capacity in mWh.
 

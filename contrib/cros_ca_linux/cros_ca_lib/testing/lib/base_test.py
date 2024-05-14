@@ -44,6 +44,7 @@ class BaseTest:
         self.test_dir = test_dir
         self.screenshots_dir = test_dir / "screenshots"
         self.histogram_dir = test_dir / "histograms"
+        self.metric_file = test_dir / "results-chart.json"
 
         self._check_parameters()
         self._check_vars()
