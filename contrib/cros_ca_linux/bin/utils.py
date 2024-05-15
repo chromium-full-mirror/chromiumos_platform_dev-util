@@ -95,6 +95,20 @@ def add_result_dir(parser: argparse.ArgumentParser):
     )
 
 
+def add_sleep_before_test(parser: argparse.ArgumentParser):
+    """Add sleep before test optional arument to parser"""
+    parser.add_argument(
+        "--sleep_before_test",
+        type=int,
+        action="store",
+        default=0,
+        help=(
+            "The sleep time in minutes before running each tests and"
+            " iterations"
+        ),
+    )
+
+
 def add_target(parser: argparse.ArgumentParser):
     """Add target argument to parser"""
     parser.add_argument(
@@ -109,6 +123,16 @@ def add_tests(parser: argparse.ArgumentParser):
     """Add tests argument to parser"""
     parser.add_argument(
         "tests", metavar="test", type=str, nargs="+", help="test case name"
+    )
+
+
+def add_iteration(parser: argparse.ArgumentParser):
+    """Add iteration times artument to parser"""
+    parser.add_argument(
+        "--iteration",
+        type=int,
+        default=1,
+        help="Iteration times for each test case.",
     )
 
 
@@ -207,6 +231,8 @@ class TestProgram:
         add_run_id(parser)
         add_console_output(parser)
         add_vars(parser)
+        add_iteration(parser)
+        add_sleep_before_test(parser)
         # Add program specific arguments:
         add_additional_args(parser)
         add_tests(parser)  # Tests are the last arguments.

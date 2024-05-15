@@ -63,7 +63,7 @@ class RemoteRunnerScript(remote_runner.RemoteRunner):
 
         self.dut.make_dir(starter_path)
         self.dut.remove_path(f"{starter_path}/test_ended.txt")
-        self.logger.debug("Run the script locally on the DUT: %s", script)
+        self.logger.debug("Run the script locally on the DUT:\n%s", script)
         self.dut.write_file(f"{starter_path}/run.bat", script)
         self.dut.write_file(f"{starter_path}/start_test.txt", "")
 

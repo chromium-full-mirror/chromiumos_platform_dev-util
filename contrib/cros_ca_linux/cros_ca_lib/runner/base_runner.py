@@ -38,7 +38,7 @@ def merge_local_results(local_results: str, result: tr.TestResult) -> None:
     with open(local_results, "r", encoding="utf-8") as f:
         data = json.load(f)
         for item in data:
-            lr = tr.fromDict(item)
+            lr = tr.from_dict(item)
             if lr.name == result.name:
                 result.local_start_time = lr.local_start_time
                 result.local_end_time = lr.local_end_time
@@ -97,8 +97,10 @@ class BaseRunner:
         dut: base_host.BaseHost,
         variables: dict,
         tests: List[str],
+        iteration: int,
         results_dir: pathlib.Path,
         logger: lg.logging.Logger,
+        sleep_before_test: int = 0,
     ):
         """Initializes a Host RemoteRunner with connection details.
 
@@ -106,15 +108,20 @@ class BaseRunner:
             dut: The DUT client object for interacting with the device.
             variables: Variables and values to run the test.
             tests: List of test case names.
+            iteration: The number of iterations the test should run.
             results_dir: Directory to put the test results.
             logger: The logger that the test should use.
+            sleep_before_test: The sleep time before running the test,
+                in minutes.
         """
         self.dut = dut
         self.variables = variables
         self.tests = tests
+        self.iteration = iteration
         self.results_dir = results_dir
         self.results_tests_dir = self.results_dir / "tests"
         self.logger = logger
+        self.sleep_before_test = sleep_before_test
 
     def find_parsed_test(
         self, test, location, prepare_location
@@ -196,74 +203,13 @@ class BaseRunner:
                 self.dut.update_src_version()
                 self.dut.update_dependency()
 
-            total = len(self.parsed_tests)
             results: List[tr.TestResult] = []
             for idx, pt in enumerate(self.parsed_tests):
-                tst = pt.test_name
-                # Set up logs for the test
-                test_dir = self.results_tests_dir / tst
-                if not test_dir.exists():
-                    test_dir.mkdir(parents=True)
-                # File handler for a log file
-                test_log_file = test_dir / f"test_{self.location}.log"
-                test_file_handler = lg.logging.FileHandler(test_log_file)
-                test_file_handler.setFormatter(lg.formatter)
-                self.logger.addHandler(test_file_handler)
+                results.extend(self._run_test(idx + 1, pt))
 
-                self.logger.info(
-                    "[%d / %d] Start test %s (%s)",
-                    idx + 1,
-                    total,
-                    tst,
-                    pt.location,
-                )
-                result = tr.TestResult()
-                results.append(result)
-                result.name = tst
-                result.location = pt.location
-                if self.location == "remote":
-                    result.remote_start_time = datetime.datetime.now()
-                else:
-                    result.local_start_time = datetime.datetime.now()
-                err = None
-                try:
-                    self.run(pt, test_dir, result)
-                except Exception as e:
-                    err = e
-                    cb = traceback.format_exc()
-                    self.logger.info(cb)
-                finally:
-                    if self.location == "remote":
-                        result.remote_error = str(err) if err else None
-                        result.remote_result = (
-                            tr.Result.FAIL if err else tr.Result.PASS
-                        )
-                        result.remote_end_time = datetime.datetime.now()
-
-                        local_result_path = str(test_dir / df.TEST_RESULTS_FILE)
-                        merge_local_results(local_result_path, result)
-
-                    else:
-                        result.local_error = str(err) if err else None
-                        result.local_result = (
-                            tr.Result.FAIL if err else tr.Result.PASS
-                        )
-                        result.local_end_time = datetime.datetime.now()
-                    if result.error:
-                        self.logger.error(
-                            "Run test %s error: %s", tst, result.error
-                        )
-                    self.logger.info(
-                        "[%d / %d] Ended test %s. Result: %s",
-                        idx + 1,
-                        total,
-                        tst,
-                        result.result.name,
-                    )
-                    self.logger.removeHandler(test_file_handler)
             results_file = self.results_dir / df.TEST_RESULTS_FILE
             with open(results_file, "w", encoding="utf-8") as f:
-                results_dicts = [r.toDict() for r in results]
+                results_dicts = [r.to_dict() for r in results]
                 json.dump(results_dicts, f, indent=4)
             summary_str = ""
             for r in results:
@@ -280,6 +226,99 @@ class BaseRunner:
 
             self.logger.removeHandler(run_file_handler)
             self.dut.close()
+
+    def _run_test(self, test_no: int, pt: ParsedTest) -> List[tr.TestResult]:
+        # Set up logs for the test
+        test_dir = self.results_tests_dir / pt.test_name
+        results: List[tr.TestResult] = []
+        if self.iteration > 1:
+            for iter_no in range(1, self.iteration + 1):
+                results.append(
+                    self._run_test_iteration(iter_no, test_no, test_dir, pt)
+                )
+        else:
+            results.append(
+                self._run_test_iteration(None, test_no, test_dir, pt)
+            )
+        return results
+
+    def _sleep(self) -> None:
+        if self.sleep_before_test > 0:
+            self.logger.info(
+                "Sleep %d minutes before running the test",
+                self.sleep_before_test,
+            )
+            self.dut.sleep(self.sleep_before_test * 60)
+
+    def _run_test_iteration(
+        self,
+        iteration_no: Optional[int],
+        test_no: int,
+        test_dir: pathlib.Path,
+        pt: ParsedTest,
+    ) -> tr.TestResult:
+        self._sleep()
+        if iteration_no is not None:
+            test_dir = test_dir / f"iteration_{iteration_no}"
+            round_no = (
+                f"Test {test_no} / {len(self.parsed_tests)} - "
+                f"Iteration {iteration_no} / {self.iteration}"
+            )
+        else:
+            round_no = f"{test_no} / {len(self.parsed_tests)}"
+
+        if not test_dir.exists():
+            test_dir.mkdir(parents=True)
+
+        # File handler for a log file
+        test_log_file = test_dir / f"test_{self.location}.log"
+        test_file_handler = lg.logging.FileHandler(test_log_file)
+        test_file_handler.setFormatter(lg.formatter)
+        self.logger.addHandler(test_file_handler)
+
+        self.logger.info(
+            "[%s] Start test %s (%s)", round_no, pt.test_name, pt.location
+        )
+        result = tr.TestResult()
+        result.name = pt.test_name
+        result.iteration = iteration_no
+        result.location = pt.location
+        if self.location == "remote":
+            result.remote_start_time = datetime.datetime.now()
+        else:
+            result.local_start_time = datetime.datetime.now()
+        err = None
+        try:
+            self.run(pt, test_dir, result)
+        except Exception as e:
+            err = e
+            cb = traceback.format_exc()
+            self.logger.info(cb)
+        finally:
+            if self.location == "remote":
+                result.remote_error = str(err) if err else None
+                result.remote_result = tr.Result.FAIL if err else tr.Result.PASS
+                result.remote_end_time = datetime.datetime.now()
+
+                local_result_path = str(test_dir / df.TEST_RESULTS_FILE)
+                merge_local_results(local_result_path, result)
+
+            else:
+                result.local_error = str(err) if err else None
+                result.local_result = tr.Result.FAIL if err else tr.Result.PASS
+                result.local_end_time = datetime.datetime.now()
+            if result.error:
+                self.logger.error(
+                    "Run test %s error: %s", pt.test_name, result.error
+                )
+            self.logger.info(
+                "[%s] Ended test %s. Result: %s",
+                round_no,
+                pt.test_name,
+                result.result.name,
+            )
+            self.logger.removeHandler(test_file_handler)
+        return result
 
     def run(
         self, parsed_test: ParsedTest, test_dir: pathlib.Path, result: tr.Result

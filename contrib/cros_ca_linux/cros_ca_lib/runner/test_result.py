@@ -6,6 +6,7 @@
 
 import datetime
 import enum
+from typing import Any, Dict, Optional
 
 
 class Result(enum.Enum):
@@ -21,23 +22,26 @@ class TestResult:
 
     def __init__(self):
         self.name: str = ""
+        self.iteration: Optional[int] = None
         self.location: str = ""
         self.result: Result = Result.NOT_RUN
-        self.error: str = None
+        self.error: Optional[str] = None
 
         self.remote_result: Result = Result.NOT_RUN
-        self.remote_error: str = None
-        self.remote_start_time: datetime.datetime = None
-        self.remote_end_time: datetime.datetime = None
+        self.remote_error: Optional[str] = None
+        self.remote_start_time: Optional[datetime.datetime] = None
+        self.remote_end_time: Optional[datetime.datetime] = None
 
         self.local_result: Result = Result.NOT_RUN
-        self.local_error: str = None
-        self.local_start_time: datetime.datetime = None
-        self.local_end_time: datetime.datetime = None
+        self.local_error: Optional[str] = None
+        self.local_start_time: Optional[datetime.datetime] = None
+        self.local_end_time: Optional[datetime.datetime] = None
 
-    def toDict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to a json ready dict"""
         return dict(
             name=self.name,
+            iteration=self.iteration,
             location=self.location,
             result=self.result.name,
             error=self.error,
@@ -75,10 +79,15 @@ def string_to_result(name: str) -> Result:
     return Result[name]
 
 
-def fromDict(data: dict) -> TestResult:
-    # Create a TestResult object manually from the dictionary
+def from_dict(data: Dict[str, Any]) -> TestResult:
+    """Create a TestResult object manually from the dictionary.
+
+    Args:
+        data: The data to create from.
+    """
     r = TestResult()
     r.name = data.get("name")
+    r.iteration = data.get("iteration")
     r.location = data.get("location")
     r.result = string_to_result(data.get("result"))
     r.error = data.get("error")

@@ -43,8 +43,10 @@ def test_win_local():
             dut,
             program.variables,
             program.args.tests,
+            program.args.iteration,
             program.result_dir,
             logger,
+            program.args.sleep_before_test,
         )
         runner.run_test()
 

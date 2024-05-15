@@ -74,8 +74,10 @@ def main(argv):
             dut,
             program.variables,
             arguments.tests,
+            arguments.iteration,
             program.result_dir,
             logger,
+            program.args.sleep_before_test,
         )
         runner.run_test()
 

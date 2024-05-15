@@ -10,6 +10,7 @@
 import datetime
 import os
 from pathlib import Path
+import time
 from typing import List, Union
 
 import cros_ca_lib.definition as df
@@ -460,6 +461,14 @@ class BaseHost:
             flag: True if set to mute, Fale to unmute.
         """
         raise NotImplementedError("mute() must be implemented in a subclass")
+
+    def sleep(self, time_in_seconds: float):
+        """Do sleep
+
+        Args:
+            time_in_seconds: sleep duration in seconds
+        """
+        time.sleep(time_in_seconds)
 
     def __enter__(self):
         """Context manager: connects automatically on entering the block."""
