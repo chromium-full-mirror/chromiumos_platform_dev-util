@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/test_platform"
 	test_platform_common "go.chromium.org/chromiumos/infra/proto/go/test_platform/common"
@@ -107,6 +108,8 @@ type CTPBuilder struct {
 	TimeoutMins int
 	// UseScheduke determines if we use Scheduke to schedule the CTP build
 	UseScheduke bool
+	// UserDefinedFilters are run within CTPv2.
+	UserDefinedFilters []*api.CTPFilter
 }
 
 // ScheduleCTPBuild sends a buildbucket request based on CTPBuilder
@@ -342,6 +345,7 @@ func (c *CTPBuilder) TestPlatformRequest(buildTags map[string]string) (*test_pla
 			RunViaCft:            c.CFT,
 			RunViaTrv2:           c.TRV2,
 			TranslateTrv2Request: c.DynamicTRV2,
+			UserDefinedFilters:   c.UserDefinedFilters,
 			Trv2StepsConfig:      cftSteps,
 			ScheduleViaScheduke:  c.UseScheduke,
 			Results:              c.ResultsUploadConfig,

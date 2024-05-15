@@ -5,7 +5,8 @@ go 1.20
 require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.9
-	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20230929075858-f9cecbf6e916
+	go.chromium.org/chromiumos/config/go v0.0.0-20240309015314-b8a183866804
+	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240515181838-a7a5fd53a4ff
 	go.chromium.org/luci v0.0.0-20230103053340-8a57daa72e32
 	google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef
 	google.golang.org/grpc v1.51.0
@@ -18,7 +19,6 @@ require (
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/klauspost/compress v1.15.14 // indirect
-	go.chromium.org/chromiumos/config/go v0.0.0-20230102123018-be9aaedc3af8 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
 	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/oauth2 v0.3.0 // indirect

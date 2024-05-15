@@ -70,8 +70,12 @@ github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1
 go.chromium.org/chromiumos/config/go v0.0.0-20210225201405-02ec5b5e84b7/go.mod h1:wYK3pDBzaV0iuiofGxE7qQusO012P2usQGyeE64yOCc=
 go.chromium.org/chromiumos/config/go v0.0.0-20230102123018-be9aaedc3af8 h1:GIm2/VvJi2dGk46VPoOn8HQeCtVZ/9YRSdwYBSChewU=
 go.chromium.org/chromiumos/config/go v0.0.0-20230102123018-be9aaedc3af8/go.mod h1:JR2kUZJhcMXE7Uw+DZIWn6+a4P21Rutfiak7MGK2gQY=
+go.chromium.org/chromiumos/config/go v0.0.0-20240309015314-b8a183866804 h1:ZDLgfi4fcFxtMH4iFCE2BpGneLm1kVvseFzMtGvcN9E=
+go.chromium.org/chromiumos/config/go v0.0.0-20240309015314-b8a183866804/go.mod h1:JR2kUZJhcMXE7Uw+DZIWn6+a4P21Rutfiak7MGK2gQY=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20230929075858-f9cecbf6e916 h1:T2tT9clqJ1iTg4siMCqbXVvta81Ter1BlSJGt/fP40Q=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20230929075858-f9cecbf6e916/go.mod h1:FA/cWXnIm9fHk7ZY1UX9yvquxllhmGuyOoaf6xmgT3k=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240515181838-a7a5fd53a4ff h1:S8yvDsbJfCGqHDAyqccFQhrTILTe0eXEWPotMaxvcWw=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240515181838-a7a5fd53a4ff/go.mod h1:FA/cWXnIm9fHk7ZY1UX9yvquxllhmGuyOoaf6xmgT3k=
 go.chromium.org/luci v0.0.0-20230103053340-8a57daa72e32 h1:ha9I7+QwSWXrKCYvreui0I8M+aICzsUGc8KaiylDCKg=
 go.chromium.org/luci v0.0.0-20230103053340-8a57daa72e32/go.mod h1:ZobsDYCFImY530wcip6xBHFgTLdiHvup5ZBKc+OaTwU=
 go.opentelemetry.io/proto/otlp v0.7.0/go.mod h1:PqfVotwruBrMGOCsRd/89rSnXhoiJIqeYNgFYFoEGnI=
