@@ -6,6 +6,7 @@
 
 import logging
 import time
+import typing as t
 
 from . import _ina2xx
 from . import _ina3221
@@ -14,11 +15,17 @@ from . import _ina3221
 logger = logging.getLogger(__name__)
 
 
-class InaInst(object):
+class InaInst:
     """INA Base class."""
 
-    def __init__(self, device, ch_config, reg_info, sample_time=1, **kwargs):
-
+    def __init__(
+        self,
+        device: object,
+        ch_config: dict,
+        reg_info,
+        sample_time: float = 1,
+        **kwargs
+    ) -> None:
         """INA Base Class Init.
 
         Measures both shunt and bus during continuous mode.
@@ -34,10 +41,10 @@ class InaInst(object):
         suggested minimum sampling time is 1 s.
 
         Args:
-          device: (object) I2C bus object with pertinent address
-          ch_config: (dictionary) containing channel information
-          reg_info: (module) containing pertinent register information
-          sample_time: (float) interval (seconds) to read from ina device.
+            device: I2C bus object with pertinent address
+            ch_config: containing channel information
+            reg_info: containing pertinent register information
+            sample_time: interval (seconds) to read from ina device.
         """
 
         self.device = device
@@ -83,14 +90,15 @@ class InaInst(object):
 
         if self.ct == 7:
             logger.warning(
-                "Total conversion time is %.2f. Consider reducing sampling time.",
+                "Total conversion time is %.2f. Consider "
+                "reducing sampling time.",
                 self.sample_time,
             )
 
         self.start_time = None
         self.prev_time = None
-        self.data_single = []
-        self.acc = {}
+        self.data_single: t.List[t.List] = []
+        self.acc: dict = {}
 
         self._reset_acc_data()
         self._reset_device()
@@ -109,7 +117,8 @@ class InaInst(object):
 
     def _reset_device(self):
         self.device.write_to(
-            self.reg_info.CONF, self.reg_info.RESET.to_bytes(2, byteorder="big")
+            self.reg_info.CONF,
+            self.reg_info.RESET.to_bytes(2, byteorder="big"),
         )
 
     def _read_bytes(self, reg, num_bytes):

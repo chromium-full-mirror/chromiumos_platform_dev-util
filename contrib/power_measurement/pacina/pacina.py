@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-
 # Copyright 2023 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+
 """Main file for pacina utility"""
 
 import argparse
@@ -13,54 +13,53 @@ import pathlib
 import signal
 import sys
 import time
-from typing import Optional
-from typing import List
+import typing as t
 import urllib
 
+import cs_config
+import cs_types
+import cs_util
 import pandas as pd  # pylint: disable=import-error
 import plotly.express  # pylint: disable=import-error
 from pyftdi.ftdi import Ftdi  # pylint: disable=import-error
 from pyftdi.i2c import I2cController  # pylint: disable=import-error
 
-import cs_config
-import cs_types
-import cs_util
 
 logger = logging.getLogger(__name__)
 
 # Style for the DataFrame Table HTML generation
 styles = [
-    dict(selector="tr:hover", props=[("background-color", "#ffff99")]),
-    dict(
-        selector="",
-        props=[
+    {"selector": "tr:hover", "props": [("background-color", "#ffff99")]},
+    {
+        "selector": "",
+        "props": [
             ("border-collapse", "collapse"),
             ("width", "100%"),
             ("font-family", "sans-serif"),
         ],
-    ),
-    dict(
-        selector="th",
-        props=[
+    },
+    {
+        "selector": "th",
+        "props": [
             ("font-size", "100%"),
             ("face", "Open Sans"),
             ("text-align", "left"),
             ("background-color", "#4a86e8"),
             ("color", "white"),
         ],
-    ),
-    dict(selector="caption", props=[("caption-side", "bottom")]),
+    },
+    {"selector": "caption", "props": [("caption-side", "bottom")]},
 ]
 
 
 class SignalHandler:
     """Signal Handler that sets a flag."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.terminate_signal = False
         signal.signal(signal.SIGINT, self._signal_handler)
 
-    def _signal_handler(self, signum, unused_frame):
+    def _signal_handler(self, signum, unused_frame) -> None:
         """Define a signal handler for record so we can stop on CTRL-C.
 
         Autotest can call subprocess.kill which will make us stop waiting and
@@ -69,20 +68,20 @@ class SignalHandler:
         logger.warning("Signal handler called with signal %d", signum)
         self.terminate_signal = True
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return self.terminate_signal
 
 
 def generate_reports(
-    start_time,
-    log_path,
-    log_prefix,
-    dut_info,
-    data,
-    avg_power,
-    config_rails,
-    power_state=None,
-):
+    start_time: float,
+    log_path: pathlib.Path,
+    log_prefix: str,
+    dut_info: t.Optional[dict],
+    data: list,
+    avg_power: dict,
+    config_rails: t.List[dict],
+    power_state: str,
+) -> None:
     header_record = [
         "time_abs",
         "time_relative",
@@ -183,7 +182,7 @@ def generate_reports(
         if dut_info:
             test_info_path = log_path / (log_prefix + "test-info.json")
             stop_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            test_info = {}
+            test_info: dict = {}
             test_info["id"] = log_prefix
             test_info["measurement_phase"] = power_state
             test_info["measurement_start_time"] = time.strftime(
@@ -204,7 +203,7 @@ def generate_reports(
             f.write(s.render())
 
             test_info["upload_data"] = True
-            with open(test_info_path, "w") as fjson:
+            with open(test_info_path, "w", encoding="utf-8") as fjson:
                 json.dump(test_info, fjson, indent=2, separators=(",", ": "))
 
         f.write(sdf_avg.render())
@@ -216,9 +215,8 @@ def generate_reports(
                     default_height="50%",
                 )
             )
-    print(
-        f"Report: file://{urllib.parse.quote(str(summary_html_path.absolute()))}"
-    )
+    report_file_path = urllib.parse.quote(str(summary_html_path.absolute()))
+    print(f"Report: file://{report_file_path}")
 
 
 def parse_args(argv):
@@ -228,12 +226,16 @@ def parse_args(argv):
         "--single",
         help=(
             "Use to take a single voltage, current "
-            " power measurement of all rails"
+            "power measurement of all rails",
         ),
         action="store_true",
     )
     parser.add_argument(
-        "-t", "--time", default=10, help="Time to capture in seconds"
+        "-t",
+        "--time",
+        default=10.0,
+        help="Time to capture in seconds",
+        type=float,
     )
     parser.add_argument(
         "--configs",
@@ -261,7 +263,7 @@ def parse_args(argv):
             "plt-1h",
             "plt-10h",
         ],
-        help=("Power State Information"),
+        help="Power State Information",
     )
     parser.add_argument(
         "-O",
@@ -282,9 +284,7 @@ def parse_args(argv):
         "--ftdi-urls",
         nargs="*",
         default=["ftdi:///"],
-        help=(
-            "FTDI URLs. Number of URLs needs to match number of config files"
-        ),
+        help="FTDI URLs. Number of URLs needs to match number of config files",
     )
     parser.add_argument(
         "--dut-info",
@@ -324,7 +324,7 @@ def parse_args(argv):
 
 
 @contextlib.contextmanager
-def managed_ftdi(ftdi_url):
+def managed_ftdi(ftdi_url: str) -> t.Iterator[I2cController]:
     """Managed FTDI resource."""
     ftdi_inst = I2cController()
     ftdi_inst.configure(ftdi_url)
@@ -334,15 +334,19 @@ def managed_ftdi(ftdi_url):
         ftdi_inst.close()
 
 
-def log_power_continuous(log_duration, sample_time, configs):
+def log_power_continuous(
+    log_duration: float,
+    sample_time: float,
+    configs: t.List[cs_config.BusConfig],
+) -> None:
     logger.info("Measuring Power for %ss.", log_duration)
     terminate_signal = SignalHandler()
 
     stime = time.time()
-    timeout = stime + float(log_duration)
+    timeout = stime + log_duration
 
     # Current sensors get reset by the first read (setting t=0)
-    tprev_sample = 0
+    tprev_sample = 0.0
     sample_index = 0
     while True:
         tcur_sample = time.time()
@@ -359,25 +363,28 @@ def log_power_continuous(log_duration, sample_time, configs):
         if terminate_signal:
             break
         print(
-            "Logging: %.2f / %.2f s..."
-            % (tcur_sample - stime, float(log_duration)),
+            "Logging: %.2f / %.2f s..." % (tcur_sample - stime, log_duration),
             end="\r",
         )
 
         # Depending on the system, it takes ~150ms to read 4 ch.
-        # This results in second FTDI bus to have more samples than the sampling
-        # time.
+        # This results in second FTDI bus to have more samples than the
+        # sampling time.
         for config in configs:
             config.log_continuous()
         sample_index = sample_index + 1
 
 
-def log_power_single(configs, log_path, log_prefix):
+def log_power_single(
+    configs: t.List[cs_config.BusConfig],
+    log_path: pathlib.Path,
+    log_prefix: str,
+) -> None:
     header_single = ["Rail", "Voltage (V)", "Current (A)", "Power (W)"]
     data = []
     gpio_data = []
     logger.info(
-        ("Taking a single voltage, current " "power measurement of all rails")
+        "Taking a single voltage, current power measurement of all rails"
     )
 
     for config in configs:
@@ -402,8 +409,7 @@ def log_power_single(configs, log_path, log_prefix):
     logger.info("Output written to %s", single_log_path)
 
 
-def main(argv: Optional[List[str]] = None) -> Optional[int]:
-
+def main(argv: t.Optional[t.List[str]] = None) -> None:
     args = parse_args(argv)
 
     logging.basicConfig(level=args.loglevel)
@@ -424,7 +430,8 @@ def main(argv: Optional[List[str]] = None) -> Optional[int]:
     if args.dut_info and not args.dut:
         logger.error("Specify target DUT.")
         return
-    elif args.dut_info and args.dut:
+
+    if args.dut_info and args.dut:
         dut_info = json.load(args.dut_info)
         if args.dut not in dut_info.keys():
             logger.error(args.dut + " not found in " + args.dut_info.name)
@@ -460,7 +467,7 @@ def main(argv: Optional[List[str]] = None) -> Optional[int]:
 
     # Prepare output directory.
 
-    if log_prefix:
+    if dut_info and log_prefix:
         log_path = args.output / dut_info["program"]
     else:
         log_path = args.output / time.strftime(
@@ -470,13 +477,13 @@ def main(argv: Optional[List[str]] = None) -> Optional[int]:
     log_path.mkdir(parents=True, exist_ok=True)
 
     # based on the config files, generate cs instances
-    configs = []
-    config_rails = []
+    configs: t.List[cs_config.BusConfig] = []
+    config_rails: t.List[dict] = []
 
     with contextlib.ExitStack() as stack:
         for ftdi_url, input_config in zip(args.ftdi_urls, args.configs):
             logger.info(
-                "Measuring power from " + ftdi_url + " using " + input_config
+                "Measuring power from %s using %s", ftdi_url, input_config
             )
             ftdi = stack.enter_context(managed_ftdi(ftdi_url))
             config = cs_config.BusConfig(
@@ -497,7 +504,7 @@ def main(argv: Optional[List[str]] = None) -> Optional[int]:
         log_power_continuous(args.time, args.sample_time, configs)
 
     logger.info("Completed Logging")
-    avg_power = {}
+    avg_power: dict = {}
     data = []
 
     for config in configs:
@@ -517,4 +524,4 @@ def main(argv: Optional[List[str]] = None) -> Optional[int]:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    main(sys.argv[1:])

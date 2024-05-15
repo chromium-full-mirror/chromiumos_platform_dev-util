@@ -86,7 +86,9 @@ class BusConfig:
                 unused_mux,
                 unused_is_calib,
             ) in input_config.inas:
-                self.load_current_sensor_config(drv, addr_ch, name, rsense, nom)
+                self.load_current_sensor_config(
+                    drv, addr_ch, name, rsense, nom
+                )
             logger.info("Found [inas] in the config file")
         except AttributeError:
             logger.debug("Could not find [inas] in the config file")
