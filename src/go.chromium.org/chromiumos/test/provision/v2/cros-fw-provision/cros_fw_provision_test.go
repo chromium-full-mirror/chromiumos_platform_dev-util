@@ -440,7 +440,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 							"with open(\"/var/tmp/someTempDir/futility.log\", \"wb\", buffering=0) as outFile:\n"+
 							"  rc = subprocess.run([\"futility\", %s], stdout=outFile, stderr=outFile, check=False, bufsize=0)\n"+
 							"  outFile.write(f\"EXIT CODE: {rc.returncode}\\n\".encode(\"utf-8\"))\n  outFile.flush()\n"+
-							"subprocess.run([\"sync\", \"-d\", \"/var/tmp\", \"/usr/local/tmp\"])\n", expectedFutilityPyArgs)),
+							"  subprocess.run([\"sync\", \"-d\", \"/var/tmp\", \"/usr/local/tmp\"])\n  subprocess.run([\"reboot\"])\n", expectedFutilityPyArgs)),
 					}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
 					dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
 						Command: "bash",
@@ -533,14 +533,18 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 				Command: "rm",
 				Args:    []string{"-rf", "/var/tmp/someTempDir"},
 			}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
-			dsc.EXPECT().Restart(gomock.Any(), gomock.Any()).Return(&longrunning.Operation{Done: true}, nil),
-			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
-				Command: "true",
-			}}).Return(nil, fmt.Errorf("ssh timeout")),
-			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
-				Command: "true",
-			}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
 		)
+		if !testCase.ec_ro || testCase.updateRw {
+			gomock.InOrder(
+				dsc.EXPECT().Restart(gomock.Any(), gomock.Any()).Return(&longrunning.Operation{Done: true}, nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "true",
+				}}).Return(nil, fmt.Errorf("ssh timeout")),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "true",
+				}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
+			)
+		}
 		if testCase.updateRo && testCase.updateRw {
 			gomock.InOrder(
 				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{

@@ -8,8 +8,9 @@ package state_machine
 
 import (
 	"context"
-	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 	"log"
+
+	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 
 	"github.com/pkg/errors"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -24,9 +25,11 @@ type FirmwarePostInstallState struct {
 func (s FirmwarePostInstallState) Execute(ctx context.Context, log *log.Logger) (*api.FirmwareProvisionResponse, api.InstallResponse_Status, error) {
 	fwMetadata := s.service.GetVersions()
 	s.service.DeleteArchiveDirectories()
-	err := s.service.RestartDut(ctx, false)
-	if err != nil {
-		return fwMetadata, api.InstallResponse_STATUS_DUT_UNREACHABLE_POST_FIRMWARE_UPDATE, firmwareservice.UnreachablePostProvisionErr(err)
+	if s.service.RestartRequired {
+		err := s.service.RestartDut(ctx, false)
+		if err != nil {
+			return fwMetadata, api.InstallResponse_STATUS_DUT_UNREACHABLE_POST_FIRMWARE_UPDATE, firmwareservice.UnreachablePostProvisionErr(err)
+		}
 	}
 
 	versions, err := s.service.ActiveFirmwareVersions(ctx)

@@ -80,6 +80,9 @@ type FirmwareService struct {
 
 	CacheServer      url.URL
 	ExpectedVersions FirmwareVersions
+
+	// RestartRequired indicates that a firmware update was performed, but the DUT has not yet rebooted.
+	RestartRequired bool
 }
 
 type versionJSON struct {
@@ -561,6 +564,7 @@ func (fws *FirmwareService) runFutility(ctx context.Context, rwOnly bool, futili
 		// TODO(sfrolov): extra args from fw-config.json
 	}
 
+	fws.RestartRequired = true
 	connection := fws.GetConnectionToFlashingDevice()
 	if ecImagePath != "" {
 		// If we are flashing EC, we might lose SSH access, so use nohup to run futility in a temporary python script, and poll for results
@@ -583,7 +587,8 @@ with open("`)
 		scriptBody.WriteString(`], stdout=outFile, stderr=outFile, check=False, bufsize=0)
   outFile.write(f"EXIT CODE: {rc.returncode}\n".encode("utf-8"))
   outFile.flush()
-subprocess.run(["sync", "-d", "/var/tmp", "/usr/local/tmp"])
+  subprocess.run(["sync", "-d", "/var/tmp", "/usr/local/tmp"])
+  subprocess.run(["reboot"])
 `)
 		_, _, err := RunDUTCommand(ctx, fws.DUTServer, time.Minute, "cat", []string{">", pyScript}, []byte(scriptBody.String()))
 		if err != nil {
@@ -610,6 +615,7 @@ subprocess.run(["sync", "-d", "/var/tmp", "/usr/local/tmp"])
 			if m != nil {
 				log.Printf("Futility output:\n%s", buf)
 				if m[1] == "0" {
+					fws.RestartRequired = false
 					return nil
 				}
 				return errors.Errorf("futility failed: %q", buf)
