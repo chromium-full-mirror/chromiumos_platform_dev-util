@@ -34,6 +34,13 @@ logger = logging.getLogger(__name__)
 # than 1 MHz won't yield positive results.
 I2C_CLOCK_FREQUENCY: t.Final[int] = 1 * 1000 * 1000  # MHz
 
+# Please read '3 Buffers and the Latency Timer' section of the following doc:
+# https://ftdichip.com/wp-content/uploads/2020/08/AN232B-04_DataLatencyFlow.pdf
+# before attempting to change this value.
+#
+# Due to USB frame size being 1 ms, it cannot be lower than 2ms.
+FTDI_LATENCY_TIMER: t.Final[int] = 2  # ms
+
 # Style for the DataFrame Table HTML generation
 styles = [
     {"selector": "tr:hover", "props": [("background-color", "#ffff99")]},
@@ -335,6 +342,7 @@ def managed_ftdi(ftdi_url: str) -> t.Iterator[I2cController]:
     """Managed FTDI resource."""
     ftdi_inst = I2cController()
     ftdi_inst.configure(ftdi_url, frequency=I2C_CLOCK_FREQUENCY)
+    ftdi_inst.ftdi.set_latency_timer(FTDI_LATENCY_TIMER)
     try:
         yield ftdi_inst
     finally:
