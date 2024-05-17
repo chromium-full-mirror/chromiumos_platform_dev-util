@@ -27,6 +27,13 @@ from pyftdi.i2c import I2cController  # pylint: disable=import-error
 
 logger = logging.getLogger(__name__)
 
+# The default frequency is 100 kHz. PAC supports up to
+# - I2C Fast Mode Plus (1MHz)
+# - I2C High-Speed mode (3.4 MHz)
+# Due to observed i2c clock stretching on PAC side, most likely values higher
+# than 1 MHz won't yield positive results.
+I2C_CLOCK_FREQUENCY: t.Final[int] = 1 * 1000 * 1000  # MHz
+
 # Style for the DataFrame Table HTML generation
 styles = [
     {"selector": "tr:hover", "props": [("background-color", "#ffff99")]},
@@ -327,7 +334,7 @@ def parse_args(argv):
 def managed_ftdi(ftdi_url: str) -> t.Iterator[I2cController]:
     """Managed FTDI resource."""
     ftdi_inst = I2cController()
-    ftdi_inst.configure(ftdi_url)
+    ftdi_inst.configure(ftdi_url, frequency=I2C_CLOCK_FREQUENCY)
     try:
         yield ftdi_inst
     finally:
