@@ -79,6 +79,15 @@ func parseAndRunCmds(req *api.Request, log *log.Logger, dutClient api.DutService
 			},
 		}
 		return &resp, err
+	case *api.Request_GetAvlInfoRequest:
+		log.Println("GetAvlInfo Task")
+		cmdResp, err := commands.GetAvlInfo(log, dutClient)
+		resp := api.RunActivityResponse{
+			Response: &api.RunActivityResponse_GetAvlInfoResponse{
+				GetAvlInfoResponse: cmdResp,
+			},
+		}
+		return &resp, err
 	default:
 		log.Println("None")
 		return nil, fmt.Errorf("can only be one of registered types")
