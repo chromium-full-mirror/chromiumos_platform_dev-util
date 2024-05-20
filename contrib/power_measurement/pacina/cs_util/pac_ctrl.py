@@ -6,8 +6,10 @@
 
 import logging
 import time
+import typing as t
 
 import cs_types
+from pyftdi.i2c import I2cPort  # pylint: disable=import-error
 
 from . import _pac19xx
 
@@ -22,10 +24,10 @@ class Pac19xxInst:
 
     def __init__(
         self,
-        device,
-        ch_config=None,
-        polarity=cs_types.Polarity.UNIPOLAR,
-        refresh_global=False,
+        device: I2cPort,
+        ch_config: t.Optional[dict] = None,
+        polarity: cs_types.Polarity = cs_types.Polarity.UNIPOLAR,
+        refresh_global: bool = False,
         p_polar=None,
         p_bit_shift=None,
         v_polar=None,
@@ -34,22 +36,22 @@ class Pac19xxInst:
         """Base PAC19XX class init.
 
         Args:
-          device: (object) I2C bus object with pertinent address
-          ch_config: (dictionary) containing channel information
-          polarity: (string) PAC19XX polarity to use
-          refresh_global: (boolean) Enable global refresh
-          p_polar: Coefficient for power calculations
-          p_bit_shift: bit shifting during power read
-          v_polar: Coefficient for voltage calculations
+            device: I2C bus object with pertinent address
+            ch_config: containing channel information
+            polarity: PAC19XX polarity to use
+            refresh_global: Enable global refresh
+            p_polar: Coefficient for power calculations
+            p_bit_shift: bit shifting during power read
+            v_polar: Coefficient for voltage calculations
         """
 
         self.device = device
         self.polarity = polarity
         self.ch_config = ch_config
 
-        self.data = []
-        self.data_single = []
-        self.acc = {}
+        self.data: list = []
+        self.data_single: list = []
+        self.acc: dict = {}
         self.start_time = None
         self._p_polar = p_polar
         self._v_polar = v_polar
@@ -68,10 +70,16 @@ class Pac19xxInst:
         if ch_config:
             self.refresh_global = refresh_global
             self._set_polarity()
-            self._disable_slow()
+            self._set_ctrl_register()
             self._reset_acc_data()
         else:
             self.refresh_global = False
+
+    def _set_polarity(self) -> None:
+        raise NotImplementedError
+
+    def _set_ctrl_register(self) -> None:
+        raise NotImplementedError
 
     def _reset_acc_data(self):
         self.start_time = None
@@ -241,14 +249,9 @@ class Pac193xInst(Pac19xxInst):
             device.frequency,
         )
 
-    def _disable_slow(self):
+    def _set_ctrl_register(self):
         logger.info("Disabling SLOW for PAC193X")
         self.device.write_to(_pac19xx.CTRL, b"\x08")
-        self.device.write_to(_pac19xx.REFRESH, 0)
-        time.sleep(self._REFRESH_WAIT_TIME)
-
-    def _enable_slow(self):
-        self.device.write_to(_pac19xx.CTRL, b"\x00")
         self.device.write_to(_pac19xx.REFRESH, 0)
         time.sleep(self._REFRESH_WAIT_TIME)
 
@@ -286,8 +289,10 @@ class Pac195xInst(Pac19xxInst):
         ch_config=None,
         polarity=cs_types.Polarity.UNIPOLAR,
         refresh_global=False,
+        fast_mode=True,
         **kwargs,
     ):
+        self.fast_mode = fast_mode
         super().__init__(
             device,
             ch_config,
@@ -307,14 +312,20 @@ class Pac195xInst(Pac19xxInst):
     def set_gpio_name(self, rail):
         self.gpio = rail
 
-    def _disable_slow(self):
-        logger.info("Disabling SLOW for PAC195X")
-        self.device.write_to(_pac19xx.CTRL, b"\x05\x00")
-        self.device.write_to(_pac19xx.REFRESH, 0)
-        time.sleep(self._REFRESH_WAIT_TIME)
-
-    def _enable_slow(self):
-        self.device.write_to(_pac19xx.CTRL, b"\x07\x00")
+    def _set_ctrl_register(self) -> None:
+        # Reference:
+        # https://ww1.microchip.com/downloads/aemDocuments/documents/MSLD/ProductDocuments/DataSheets/PAC195X-Family-Data-Sheet-DS20006539.pdf
+        # REGISTER 7-2: CTRL (ADDRESS 01H) REGISTER
+        logger.info("Setting CTRL register for PAC195X")
+        enable_fast_mode = 0b10100000
+        disable_slow_mode = 0b01
+        default_gpio_alert = 0b0100
+        ctrl_high = default_gpio_alert | disable_slow_mode
+        ctrl_low = 0
+        if self.fast_mode:
+            logger.info("Enabling PAC Fast mode")
+            ctrl_high |= enable_fast_mode
+        self.device.write_to(_pac19xx.CTRL, bytes([ctrl_high, ctrl_low]))
         self.device.write_to(_pac19xx.REFRESH, 0)
         time.sleep(self._REFRESH_WAIT_TIME)
 

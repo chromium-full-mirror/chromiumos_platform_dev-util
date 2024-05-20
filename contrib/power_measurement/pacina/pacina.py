@@ -333,7 +333,13 @@ def parse_args(argv):
         dest="loglevel",
         const=logging.INFO,
     )
-
+    parser.add_argument(
+        "--no-fast-mode",
+        dest="fast_mode",
+        default=True,
+        action="store_false",
+        help="Disable PAC Fast Mode sampling",
+    )
     return parser.parse_args(argv)
 
 
@@ -502,11 +508,12 @@ def main(argv: t.Optional[t.List[str]] = None) -> None:
             )
             ftdi = stack.enter_context(managed_ftdi(ftdi_url))
             config = cs_config.BusConfig(
-                input_config,
-                ftdi,
-                cs_util.supported_pns,
+                config_fpath=input_config,
+                ftdi_inst=ftdi,
+                drvs=cs_util.supported_pns,
                 polarity=args.polarity,
                 sample_time=args.sample_time,
+                fast_mode=args.fast_mode,
             )
 
             configs.append(config)

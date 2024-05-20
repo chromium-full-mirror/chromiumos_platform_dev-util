@@ -10,6 +10,7 @@ import os
 import time
 
 import cs_types
+from pyftdi.i2c import I2cController  # pylint: disable=import-error
 from pyftdi.i2c import I2cNackError  # pylint: disable=import-error
 
 
@@ -48,23 +49,27 @@ class BusConfig:
 
     def __init__(
         self,
-        config_fpath,
-        ftdi_inst,
-        drvs,
-        polarity=cs_types.Polarity.UNIPOLAR,
-        sample_time=1,
+        config_fpath: str,
+        ftdi_inst: I2cController,
+        drvs: dict,
+        polarity: cs_types.Polarity = cs_types.Polarity.UNIPOLAR,
+        sample_time: float = 1,
+        fast_mode: bool = True,
     ):
         spec = importlib.util.spec_from_file_location(
             "input_config", config_fpath
         )
+        if spec is None or spec.loader is None:
+            raise ValueError(f"Could not load: {config_fpath} file.")
+
         input_config = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(input_config)
 
-        self.sensors = {}
-        self.rails = []
-        self.data = []
-        self.gpios = {}
-        self.gpio_vals = None
+        self.sensors: dict = {}
+        self.rails: list = []
+        self.data: list = []
+        self.gpios: dict = {}
+        self.gpio_vals: list = []
         self.config_name = os.path.basename(config_fpath)
 
         try:
@@ -135,6 +140,7 @@ class BusConfig:
                     polarity=polarity,
                     refresh_global=self.en_refresh_g,
                     sample_time=sample_time,
+                    fast_mode=fast_mode,
                 )
                 if sensor.gpio:
                     sensor.cs.set_gpio_name(sensor.gpio)
