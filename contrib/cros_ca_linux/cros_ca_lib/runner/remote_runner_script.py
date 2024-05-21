@@ -42,7 +42,7 @@ class RemoteRunnerScript(remote_runner.RemoteRunner):
         #           use python to call
         script = f"cd {self.dut.local_runner_dir}\n"
         script += f"set PYTHONPATH={self.dut.src_dir}\n"
-        script += f"poetry run {self.dut.local_runner_func}"
+        script += f"python -m poetry run {self.dut.local_runner_func}"
         script += f" {cf.config_to_args()}"
         run_id = cf.config.run_id
         if not cf.config.run_id:
