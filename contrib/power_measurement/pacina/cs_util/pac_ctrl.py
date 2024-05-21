@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 class Pac19xxInst:
     """Base PAC19xx Class."""
 
-    _REFRESH_WAIT_TIME = 0.001
-
     def __init__(
         self,
         device: I2cPort,
@@ -75,6 +73,10 @@ class Pac19xxInst:
         else:
             self.refresh_global = False
 
+    @property
+    def _refresh_wait_time(self) -> float:
+        return 0.001
+
     def _set_polarity(self) -> None:
         raise NotImplementedError
 
@@ -102,7 +104,7 @@ class Pac19xxInst:
         """
         logger.debug("Resetting Accumulator")
         self.device.write_to(_pac19xx.REFRESH_G, 0)
-        time.sleep(self._REFRESH_WAIT_TIME)
+        time.sleep(self._refresh_wait_time)
 
     def _read_bytes(self, reg, num_bytes):
         val = self.device.read_from(reg, num_bytes)
@@ -253,7 +255,7 @@ class Pac193xInst(Pac19xxInst):
         logger.info("Disabling SLOW for PAC193X")
         self.device.write_to(_pac19xx.CTRL, b"\x08")
         self.device.write_to(_pac19xx.REFRESH, 0)
-        time.sleep(self._REFRESH_WAIT_TIME)
+        time.sleep(self._refresh_wait_time)
 
     def _dump_accumulator(self, ch=0):
         signed = False
@@ -290,9 +292,11 @@ class Pac195xInst(Pac19xxInst):
         polarity: cs_types.Polarity = cs_types.Polarity.UNIPOLAR,
         refresh_global: bool = False,
         fast_mode: bool = True,
+        drv: str = "pac1954",
         **kwargs,
     ):
         self.fast_mode = fast_mode
+        self.drv = drv
         if ch_config is not None:
             self.disabled_channels = self._derive_disabled_channels(
                 ch_config.keys()
@@ -336,6 +340,34 @@ class Pac195xInst(Pac19xxInst):
 
         return channels
 
+    @property
+    def _total_num_of_channels(self) -> int:
+        # Last digit in the PAC driver name corresponds to number of channels
+        assert self.drv.startswith("pac195")
+        return int(self.drv[-1])
+
+    @property
+    def _refresh_wait_time(self) -> float:
+        """Refresh wait time.
+
+        Fast mode reduces the time needed to wait for the registers stability
+        after issuing the Refresh command - instead of 1ms, we only need
+        0.2ms + 0.2ms * (num_of_channels)
+
+        Reference: Section 5.2 REFRESH Command of PAC datasheet
+        https://ww1.microchip.com/downloads/aemDocuments/documents/MSLD/ProductDocuments/DataSheets/PAC195X-Family-Data-Sheet-DS20006539.pdf
+        """
+        if not self.fast_mode:
+            return 0.001
+
+        constant_time = 0.0002
+        # Placing 1 on a bit disables a channel, so we need to count ones
+        num_of_disabled_channels = bin(self.disabled_channels).count("1")
+        channels_time = 0.0002 * (
+            self._total_num_of_channels - num_of_disabled_channels
+        )
+        return constant_time + channels_time
+
     def set_gpio_name(self, rail):
         self.gpio = rail
 
@@ -354,7 +386,7 @@ class Pac195xInst(Pac19xxInst):
             ctrl_high |= enable_fast_mode
         self.device.write_to(_pac19xx.CTRL, bytes([ctrl_high, ctrl_low]))
         self.device.write_to(_pac19xx.REFRESH, 0)
-        time.sleep(self._REFRESH_WAIT_TIME)
+        time.sleep(self._refresh_wait_time)
 
     def _dump_accumulator(self, ch=0):
         reg = self._read_val(

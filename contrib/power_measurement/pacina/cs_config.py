@@ -91,9 +91,7 @@ class BusConfig:
                 unused_mux,
                 unused_is_calib,
             ) in input_config.inas:
-                self.load_current_sensor_config(
-                    drv, addr_ch, name, rsense, nom
-                )
+                self.load_current_sensor_config(drv, addr_ch, name, rsense, nom)
             logger.info("Found [inas] in the config file")
         except AttributeError:
             logger.debug("Could not find [inas] in the config file")
@@ -141,6 +139,7 @@ class BusConfig:
                     refresh_global=self.en_refresh_g,
                     sample_time=sample_time,
                     fast_mode=fast_mode,
+                    drv=sensor.drv,
                 )
                 if sensor.gpio:
                     sensor.cs.set_gpio_name(sensor.gpio)
