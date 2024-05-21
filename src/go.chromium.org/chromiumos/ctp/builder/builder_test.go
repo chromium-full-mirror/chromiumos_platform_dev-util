@@ -13,11 +13,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"go.chromium.org/chromiumos/ctp/buildbucket"
+	"go.chromium.org/chromiumos/ctp/site"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/test_platform"
 	"go.chromium.org/chromiumos/infra/proto/go/test_platform/common"
-	"go.chromium.org/chromiumos/ctp/buildbucket"
-	"go.chromium.org/chromiumos/ctp/site"
 	"go.chromium.org/luci/auth"
 	buildbucketpb "go.chromium.org/luci/buildbucket/proto"
 	"google.golang.org/grpc"
@@ -547,6 +547,7 @@ func TestTestPlatformRequest(t *testing.T) {
 		Dimensions:      map[string]string{"foo-dim": "bar-dim"},
 		Keyvals:         map[string]string{"foo-key": "foo-val"},
 		CFT:             true,
+		RunCtpv2WithQs:  true,
 		ResultsUploadConfig: &test_platform.Request_Params_ResultsUploadConfig{
 			Mode: test_platform.Request_Params_ResultsUploadConfig_TEST_RESULTS_VISIBILITY_CUSTOM_REALM,
 		},
@@ -603,6 +604,7 @@ func TestTestPlatformRequest(t *testing.T) {
 			},
 			RunViaCft:           true,
 			RunViaTrv2:          true,
+			RunCtpv2WithQs:      true,
 			Trv2StepsConfig:     cftSteps,
 			ScheduleViaScheduke: true,
 			Results: &test_platform.Request_Params_ResultsUploadConfig{

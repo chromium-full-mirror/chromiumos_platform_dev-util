@@ -6,7 +6,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.9
 	go.chromium.org/chromiumos/config/go v0.0.0-20240309015314-b8a183866804
-	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240515181838-a7a5fd53a4ff
+	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240521170946-ec61aab12a90
 	go.chromium.org/luci v0.0.0-20230103053340-8a57daa72e32
 	google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef
 	google.golang.org/grpc v1.51.0

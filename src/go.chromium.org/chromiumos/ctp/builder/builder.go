@@ -47,6 +47,8 @@ type CTPBuilder struct {
 	CFT bool
 	// TRV2 determines whether we will use Test Runner V2
 	TRV2 bool
+	// RunCtpv2WithQs runs with Ctpv2 and Quota Scheduler if true and CFT is true
+	RunCtpv2WithQs bool
 	// DynamicTRV2 determines whether we will use Dynamic Test Runner V2.
 	DynamicTRV2 bool
 	// CpconPublish determines whether we will upload to cpcon
@@ -344,6 +346,7 @@ func (c *CTPBuilder) TestPlatformRequest(buildTags map[string]string) (*test_pla
 			},
 			RunViaCft:            c.CFT,
 			RunViaTrv2:           c.TRV2,
+			RunCtpv2WithQs:       c.RunCtpv2WithQs,
 			TranslateTrv2Request: c.DynamicTRV2,
 			UserDefinedFilters:   c.UserDefinedFilters,
 			Trv2StepsConfig:      cftSteps,

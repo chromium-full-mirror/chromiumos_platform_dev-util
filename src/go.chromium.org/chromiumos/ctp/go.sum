@@ -76,6 +76,8 @@ go.chromium.org/chromiumos/infra/proto/go v0.0.0-20230929075858-f9cecbf6e916 h1:
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20230929075858-f9cecbf6e916/go.mod h1:FA/cWXnIm9fHk7ZY1UX9yvquxllhmGuyOoaf6xmgT3k=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240515181838-a7a5fd53a4ff h1:S8yvDsbJfCGqHDAyqccFQhrTILTe0eXEWPotMaxvcWw=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240515181838-a7a5fd53a4ff/go.mod h1:FA/cWXnIm9fHk7ZY1UX9yvquxllhmGuyOoaf6xmgT3k=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240521170946-ec61aab12a90 h1:2elsNOmjPnBkHhcr7UwnV9ug34UtqLpZDdt9nUNSFfE=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240521170946-ec61aab12a90/go.mod h1:FA/cWXnIm9fHk7ZY1UX9yvquxllhmGuyOoaf6xmgT3k=
 go.chromium.org/luci v0.0.0-20230103053340-8a57daa72e32 h1:ha9I7+QwSWXrKCYvreui0I8M+aICzsUGc8KaiylDCKg=
 go.chromium.org/luci v0.0.0-20230103053340-8a57daa72e32/go.mod h1:ZobsDYCFImY530wcip6xBHFgTLdiHvup5ZBKc+OaTwU=
 go.opentelemetry.io/proto/otlp v0.7.0/go.mod h1:PqfVotwruBrMGOCsRd/89rSnXhoiJIqeYNgFYFoEGnI=
