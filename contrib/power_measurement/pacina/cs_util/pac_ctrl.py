@@ -285,14 +285,20 @@ class Pac195xInst(Pac19xxInst):
 
     def __init__(
         self,
-        device,
-        ch_config=None,
-        polarity=cs_types.Polarity.UNIPOLAR,
-        refresh_global=False,
-        fast_mode=True,
+        device: I2cPort,
+        ch_config: t.Optional[dict] = None,
+        polarity: cs_types.Polarity = cs_types.Polarity.UNIPOLAR,
+        refresh_global: bool = False,
+        fast_mode: bool = True,
         **kwargs,
     ):
         self.fast_mode = fast_mode
+        if ch_config is not None:
+            self.disabled_channels = self._derive_disabled_channels(
+                ch_config.keys()
+            )
+        else:
+            self.disabled_channels = cs_types.ALL_CHANNELS_ENABLED
         super().__init__(
             device,
             ch_config,
@@ -309,6 +315,27 @@ class Pac195xInst(Pac19xxInst):
             device.frequency,
         )
 
+    def _derive_disabled_channels(self, used_channels: t.Iterable[int]) -> int:
+        """Placing 1 on the kth bit disables (4 - kth) channel.
+
+        Channel 1: bit 3
+        Channel 2: bit 2
+        Channel 3: bit 1
+        Channel 4: bit 0
+
+        Reference:
+        https://ww1.microchip.com/downloads/aemDocuments/documents/MSLD/ProductDocuments/DataSheets/PAC195X-Family-Data-Sheet-DS20006539.pdf
+        REGISTER 7-2: CTRL (ADDRESS 01H) REGISTER
+        """
+        channels = cs_types.ALL_CHANNELS_DISABLED
+
+        for ch in set(used_channels):
+            assert 0 <= ch <= 3, "Only 4 channels are supported"
+            # -1 because we count from zero
+            channels ^= 1 << (4 - ch - 1)
+
+        return channels
+
     def set_gpio_name(self, rail):
         self.gpio = rail
 
@@ -321,7 +348,7 @@ class Pac195xInst(Pac19xxInst):
         disable_slow_mode = 0b01
         default_gpio_alert = 0b0100
         ctrl_high = default_gpio_alert | disable_slow_mode
-        ctrl_low = 0
+        ctrl_low = (self.disabled_channels & 0b1111) << 4
         if self.fast_mode:
             logger.info("Enabling PAC Fast mode")
             ctrl_high |= enable_fast_mode

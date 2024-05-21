@@ -5,6 +5,11 @@
 """Common types used by pacina.py"""
 
 import enum
+import typing as t
+
+
+ALL_CHANNELS_ENABLED: t.Final[int] = 0b0000
+ALL_CHANNELS_DISABLED: t.Final[int] = 0b1111
 
 
 class Polarity(enum.Enum):
