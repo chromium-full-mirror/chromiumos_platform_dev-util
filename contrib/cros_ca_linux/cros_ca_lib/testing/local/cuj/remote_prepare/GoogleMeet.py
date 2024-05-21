@@ -111,7 +111,7 @@ class GoogleMeet(base_test.BasePrepare):
             if len(added_bots) == 1:
                 first_bot_added = True
                 break
-            time.wait(1)
+            time.sleep(1)
 
         if not first_bot_added:
             raise Exception(
@@ -129,7 +129,7 @@ class GoogleMeet(base_test.BasePrepare):
                 to_add -= len(added_bots)
                 if to_add == 0:
                     break
-                time.wait(1)
+                time.sleep(1)
 
             if to_add > 0:
                 raise Exception(

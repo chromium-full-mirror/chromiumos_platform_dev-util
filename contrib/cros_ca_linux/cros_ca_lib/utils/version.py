@@ -10,7 +10,7 @@ import re
 import shutil
 
 
-def get_timestamp_ver(directory, relative_path="."):
+def get_timestamp_ver(directory, includes=None, relative_path="."):
     """Gets the latest (newest) timestamp and corresponding file name.
 
     Within the given directory, ignoring files and directories listed
@@ -18,6 +18,7 @@ def get_timestamp_ver(directory, relative_path="."):
 
     Args:
         directory: Path to the directory to scan.
+        includes: List of dir entities to check.
         relative_path: Relative path to the directory to scan.
 
     Returns:
@@ -31,6 +32,8 @@ def get_timestamp_ver(directory, relative_path="."):
     newest_timestamp = None
 
     for filename in os.listdir(directory):
+        if includes is not None and filename not in includes:
+            continue
         # Construct full path
         filepath = os.path.join(directory, filename)
 
@@ -63,7 +66,9 @@ def get_timestamp_ver(directory, relative_path="."):
             relative = os.path.join(
                 relative_path, filepath.replace(directory + os.sep, "")
             )
-            latest_in_subdirectory = get_timestamp_ver(filepath, relative)
+            latest_in_subdirectory = get_timestamp_ver(
+                filepath, relative_path=relative
+            )
             if (
                 latest_in_subdirectory
                 and latest_in_subdirectory[1]

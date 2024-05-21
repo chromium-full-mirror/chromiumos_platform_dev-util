@@ -420,7 +420,8 @@ class BaseHost:
     ) -> bool:
         there_ver_file = str(there_dir / ".program_ver")
         update = True
-        f, t = version.get_timestamp_ver(str(here_dir))
+        f, t = version.get_timestamp_ver(str(here_dir), includes=includes)
+
         local_ver = f"{f}: {t}"
         remote_ver = None
         if self.path_exist(there_ver_file):

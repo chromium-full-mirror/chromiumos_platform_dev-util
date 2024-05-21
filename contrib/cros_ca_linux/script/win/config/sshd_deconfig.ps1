@@ -14,7 +14,9 @@ Get-Process sshd | Stop-Process -Force
 # Remove config.
 Remove-Item -r "${env:ProgramData}\ssh"
 
-# Undo sshd default shell setting.
+# The following command can set powershell as the default shell:
+# New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell -Value "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force
+# Undo sshd default shell setting with the following command.
 Remove-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell
 
 # Revoke SeAssignPrimaryTokenPrivilege privilege from current user

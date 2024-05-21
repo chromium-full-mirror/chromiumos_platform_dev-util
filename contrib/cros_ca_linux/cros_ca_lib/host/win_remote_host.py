@@ -77,7 +77,7 @@ class WinRemoteHost(abc.ABC, base_host.BaseHost):
         if not self.path_exist(path):
             return
         command = self.get_ps_command(
-            rf"rm -r -force \"{self.normalize_path(path)}\""
+            f'rm -r -force "{self.normalize_path(path)}"'
         )
         self.exec_command(command, 30)
 
@@ -91,7 +91,7 @@ class WinRemoteHost(abc.ABC, base_host.BaseHost):
             return
         command = self.get_ps_command(
             "New-Item -force -ItemType Directory -Path "
-            + rf"\"{self.normalize_path(dir_path)}\""
+            + f'"{self.normalize_path(dir_path)}"'
         )
         self.exec_command(command, 30)
 

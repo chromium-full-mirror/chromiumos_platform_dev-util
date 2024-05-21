@@ -177,7 +177,7 @@ class WinSSHHost(win_remote_host.WinRemoteHost, ssh_host.SSHHost):
             True if file exists. Otherwise False.
         """
         try:
-            command = rf"dir \"{self.normalize_path(path)}\""
+            command = f'dir "{self.normalize_path(path)}"'
             stdout, _, _ = self.exec_command(command, 20)
         except Exception as e:
             if dir_error_is_not_found(self._shell, repr(e)):
@@ -192,6 +192,6 @@ class WinSSHHost(win_remote_host.WinRemoteHost, ssh_host.SSHHost):
             entries: list of DirEntry
         """
         stdout, _, _ = self.exec_command(
-            rf"dir \"{self.normalize_path(path)}\"", 30
+            f'dir "{self.normalize_path(path)}"', 30
         )
         return dir_output_as_entries(self._shell, stdout)
