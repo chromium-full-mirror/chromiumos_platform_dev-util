@@ -9,12 +9,10 @@ import os
 import shutil
 import subprocess
 import time
-from typing import Any, Dict
 
 import cros_ca_lib.definition as df
 from cros_ca_lib.host import base_host
-
-# from cros_ca_lib.metric import recorder as rd
+from cros_ca_lib.metric import recorder as rd
 from cros_ca_lib.testing.lib import chrome_browser_test as cbt
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -93,12 +91,15 @@ class GoogleMeet(cbt.ChromeBrowserTest):
         self._login()
         self.dut.mute(True)
 
-        # with rd.SimpleRecorder(self.test_name) as recorder:
-        #     recorder.add_result(self._run_test())
-        # recorder.save(self.test_dir)
-        self._run_test()
+        recorder = rd.SimpleRecorder(self.test_name)
+        try:
+            recorder.start()
+            self._run_test(recorder)
+        finally:
+            recorder.stop()
+        recorder.save(self.test_dir)
 
-    def _run_test(self) -> Dict[str, Any]:
+    def _run_test(self, recorder: rd.Recorder) -> None:
         # Get the webdriver at the beginning of the test.
         driver = self.get_webdriver()
         wait = WebDriverWait(driver, 15)
@@ -333,16 +334,13 @@ class GoogleMeet(cbt.ChromeBrowserTest):
         driver.find_element(By.XPATH, '//div[@id="dump"]//button').click()
         time.sleep(self.button_click_wait_time)
 
-        histogram_dict = self.get_historam_data()
-
+        recorder.add_histograms(self.get_historam_data())
         driver.quit()
-        self.logger.info("Metrics: %s", histogram_dict)
+
         # Add the data of dump file to result.
         with open(file_path, "r", encoding="utf-8") as f:
             webrtc_dump = json.load(f)
-            histogram_dict["webrtc"] = webrtc_dump
+            recorder.add_result({"webrtc": webrtc_dump})
 
         dst = os.path.join(self.histogram_dir, "webrtc_internals_dump.txt")
         shutil.move(file_path, dst)
-
-        return histogram_dict

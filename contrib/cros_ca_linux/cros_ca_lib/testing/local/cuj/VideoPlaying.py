@@ -7,12 +7,11 @@
 import os
 import subprocess
 import time
-from typing import Any, Dict
 
 import cros_ca_lib.definition as df
 from cros_ca_lib.host import base_host
+from cros_ca_lib.metric import recorder as rd
 
-# from cros_ca_lib.metric import recorder as rd
 # from cros_ca_lib.metric import summary
 # from cros_ca_lib.metric.system import loading
 # from cros_ca_lib.metric.system import power
@@ -71,17 +70,22 @@ class VideoPlaying(cbt.ChromeBrowserTest):
         self._login()
         self.dut.mute(True)
 
-        # with rd.TimerRecorder(
+        # recorder = rd.TimerRecorder(
         #     self.test_name,
         #     summary.ListSummary(loading.CPUUSage),
         #     summary.ListSummary(loading.MemoryUsage),
         #     summary.ListSummary(power.BatteryRemainingCapacity),
-        # ) as recorder:
-        #     recorder.add_result(self._run_test())
-        # recorder.save(self.test_dir)
-        self._run_test()
+        # )
 
-    def _run_test(self) -> Dict[str, Any]:
+        recorder = rd.SimpleRecorder(self.test_name)
+        try:
+            recorder.start()
+            self._run_test(recorder)
+        finally:
+            recorder.stop()
+        recorder.save(self.test_dir)
+
+    def _run_test(self, recorder: rd.Recorder) -> None:
         # Get the webdriver at the beginning of the test.
         driver = self.get_webdriver()
         wait = WebDriverWait(driver, 15)
@@ -275,6 +279,5 @@ class VideoPlaying(cbt.ChromeBrowserTest):
             )
             self.logger.info("xperf utput:\n", xperf_output.stdout)
 
-        result = self.get_historam_data()
+        recorder.add_histograms(self.get_historam_data())
         driver.quit()
-        return result

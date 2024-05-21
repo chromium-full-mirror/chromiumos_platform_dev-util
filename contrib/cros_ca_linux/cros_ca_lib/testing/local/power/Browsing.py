@@ -114,13 +114,18 @@ class Browsing(cbt.ChromeBrowserTest):
         config = to_browsing_config(data)
         print(f"config: {config}")
 
-        with rd.TimerRecorder(
+        recorder = rd.TimerRecorder(
             self.test_name,
             summary.ListSummary(power.BatteryRemainingCapacity),
             summary.ListSummary(power.BatteryDischargeRate),
-        ) as recorder:
+        )
+        try:
+            recorder.start()
             self._run_test(config)
+        finally:
+            recorder.stop()
         recorder.save(self.test_dir)
+
         process_power.calculate_battery_life(
             self.metric_file, self.test_name + ".t"
         )

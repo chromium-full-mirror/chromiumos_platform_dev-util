@@ -27,6 +27,7 @@ class Recorder(abc.ABC):
     Attributes:
         name: The name of this recorder.
         results: The recorded results.
+        summaries: The summaries to record
     """
 
     def __init__(
@@ -40,34 +41,45 @@ class Recorder(abc.ABC):
         ]
         self.results: Dict[str, Any] = {}
 
-    @abc.abstractmethod
+    def start(self) -> None:
+        self._start()
+
     def _start(self) -> None:
         pass
 
-    @abc.abstractmethod
+    def stop(self) -> None:
+        self._stop()
+
     def _stop(self) -> None:
-        pass
+        self._summarize()
+
+    def _record(self) -> None:
+        for m in self._summaries:
+            m.record()
 
     def _extra_attrs(self) -> Dict[str, Any]:
+        """All summaries recorded will have these extra attributes."""
         return {}
 
     def add_result(self, result: Dict[str, Any]) -> None:
         """Add result to the recorder summary"""
-        if result is not None:
-            self.results.update(result)
+        self.results.update(result)
 
-    def _summarize(self) -> Dict[str, Any]:
+    def add_histograms(self, histograms: List[summary.Histogram]) -> None:
+        """Add histogram to the recorder summary"""
+        for histogram in histograms:
+            self.results.update(histogram.to_json_dict())
+
+    def _summarize(self) -> None:
         """Summarize using all the summaries"""
-        results = self.results.copy()
         for s in self._summaries:
-            results.update(s.summarize(self._extra_attrs()))
-        return results
+            self.add_histograms([s.summarize(self._extra_attrs())])
 
     def save(self, path: Path) -> None:
         """Save the summarized result to path/results-chart.json"""
         metrics_file = path / "results-chart.json"
         with open(metrics_file, "w", encoding="utf-8") as f:
-            json.dump(self._summarize(), f, indent=2)
+            json.dump(self.results, f, indent=2)
 
     def __enter__(self) -> "TimerRecorder":
         self._start()
@@ -94,26 +106,23 @@ class Recorder(abc.ABC):
 class SimpleRecorder(Recorder):
     """Recorder to record nothing except the data added by add_result."""
 
-    def _start(self) -> None:
-        pass
-
-    def _stop(self) -> None:
-        pass
+    # disable pylint due to the pylint bug
+    # https://github.com/pylint-dev/pylint/issues/2270
+    def __init__(  # pylint: disable=useless-super-delegation
+        self, name: str
+    ) -> None:
+        super().__init__(name)
 
 
 class BeginEndRecorder(Recorder):
     """Recorder to record at begin and end."""
 
     def _start(self) -> None:
-        for m in self._summaries:
-            m.record()
+        self._record()
 
     def _stop(self) -> None:
-        for m in self._summaries:
-            m.record()
-
-    def _extra_attrs(self) -> Dict[str, Any]:
-        return {"improvement_direction": "down"}
+        self._record()
+        super()._stop()
 
 
 class TimerRecorder(Recorder):
@@ -122,11 +131,6 @@ class TimerRecorder(Recorder):
     Attributes:
         wait_stop: Wait for all worker threads to stop when stop the recorder.
     """
-
-    _common_attrs = {
-        "improvement_direction": "down",
-        "type": "list_of_scalar_values",
-    }
 
     def __init__(
         self,
@@ -149,10 +153,8 @@ class TimerRecorder(Recorder):
         self._timestamps = []
 
     def _extra_attrs(self) -> Dict[str, Any]:
-        return {
-            **self._common_attrs,
-            "interval": self._timestamp_name(),
-        }
+        """Add interval attribute to all recorded summaries."""
+        return {"interval": self._timestamp_name()}
 
     def _timestamp_name(self) -> str:
         return f"{self.name}.t"
@@ -179,13 +181,9 @@ class TimerRecorder(Recorder):
             self._timer.shutdown()
         if self._workers is not None:
             self._workers.shutdown(self.wait_stop)
-        self.add_result(
-            {self._timestamp_name(): {"summary": self._timestamp_summary()}}
-        )
+        self.add_histograms([self._timestamp_histogram()])
+        super()._stop()
 
-    def _timestamp_summary(self) -> Dict[str, Any]:
-        return {
-            "units": "s",
-            **self._common_attrs,
-            "values": self._timestamps,
-        }
+    def _timestamp_histogram(self) -> summary.Histogram:
+        data = summary.HistogramValues("s", "down", values=self._timestamps)
+        return summary.Histogram(self._timestamp_name(), "summary", data)
