@@ -229,7 +229,9 @@ def generate_reports(
                     default_height="50%",
                 )
             )
-    report_file_path = urllib.parse.quote(str(summary_html_path.absolute()))
+    report_file_path = urllib.parse.quote(  # type: ignore[attr-defined]
+        str(summary_html_path.absolute())
+    )
     print(f"Report: file://{report_file_path}")
 
 
@@ -244,12 +246,20 @@ def parse_args(argv):
         ),
         action="store_true",
     )
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
         "-t",
         "--time",
-        default=10.0,
-        help="Time to capture in seconds",
+        help="Time to capture in seconds. Mutually exclusive with -m",
+        default=0.0,
         type=float,
+    )
+    group.add_argument(
+        "-m",
+        "--measurements",
+        help="Number of measurements to capture. Mutually exclusive with -t",
+        default=0,
+        type=int,
     )
     parser.add_argument(
         "--configs",
@@ -357,9 +367,14 @@ def managed_ftdi(ftdi_url: str) -> t.Iterator[I2cController]:
 
 def log_power_continuous(
     log_duration: float,
+    measurements: int,
     sample_time: float,
     configs: t.List[cs_config.BusConfig],
 ) -> None:
+    assert (log_duration != 0) ^ (
+        measurements != 0
+    ), "Specify EITHER log_duration or number of measurements"
+
     logger.info("Measuring Power for %ss.", log_duration)
     terminate_signal = SignalHandler()
 
@@ -371,7 +386,7 @@ def log_power_continuous(
     sample_index = 0
     while True:
         tcur_sample = time.time()
-        if tcur_sample > timeout:
+        if log_duration and tcur_sample > timeout:
             if sample_index > 1:
                 break
         else:
@@ -383,10 +398,19 @@ def log_power_continuous(
                 tprev_sample = tcur_sample
         if terminate_signal:
             break
-        print(
-            "Logging: %.2f / %.2f s..." % (tcur_sample - stime, log_duration),
-            end="\r",
-        )
+        if measurements and measurements <= sample_index:
+            break
+        if log_duration:
+            print(
+                "Logging: %.2f / %.2f s..."
+                % (tcur_sample - stime, log_duration),
+                end="\r",
+            )
+        else:
+            print(
+                "Logging: %.2f / %.2f" % (sample_index, measurements),
+                end="\r",
+            )
 
         # Depending on the system, it takes ~150ms to read 4 ch.
         # This results in second FTDI bus to have more samples than the
@@ -523,7 +547,9 @@ def main(argv: t.Optional[t.List[str]] = None) -> None:
             log_power_single(configs, log_path, log_prefix)
             return
 
-        log_power_continuous(args.time, args.sample_time, configs)
+        log_power_continuous(
+            args.time, args.measurements, args.sample_time, configs
+        )
 
     logger.info("Completed Logging")
     avg_power: dict = {}
