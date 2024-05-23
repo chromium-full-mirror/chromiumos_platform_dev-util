@@ -61,6 +61,14 @@ func generateTcHwReqs(hwTargets []*api.SchedulingUnit, tcDeps []string) (tcHwReq
 		} else {
 			t.PrimaryTarget.SwarmingDef.SwarmingLabels = swarmingLabels
 		}
+
+		if t.GetPrimaryTarget().GetSwarmingDef().GetProvisionInfo() != nil {
+			t.PrimaryTarget.SwarmingDef.ProvisionInfo = []*api.ProvisionInfo{}
+		}
+		if t.GetPrimaryTarget().GetSwReq() != nil {
+			t.PrimaryTarget.SwReq = &api.LegacySW{}
+		}
+
 		targ := &api.SchedulingUnitOptions{
 			// For legacy solver, each SchedulingUnitOption is a list of 1
 			// This is because for a test dut matching will follow this logic:

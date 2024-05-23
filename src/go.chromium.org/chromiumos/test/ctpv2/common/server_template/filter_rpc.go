@@ -26,7 +26,7 @@ func NewServer(logger *log.Logger, executor func(req *api.InternalTestplan, log 
 		executor: executor,
 	}
 
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.MaxRecvMsgSize(1024*1024*32), grpc.MaxSendMsgSize(1024*1024*32))
 	var conns []*grpc.ClientConn
 	closer := func() {
 		for _, conn := range conns {
