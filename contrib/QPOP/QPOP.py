@@ -1,0 +1,607 @@
+# Copyright 2024 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import argparse
+from datetime import datetime
+import json
+import os
+import re
+import shutil
+import subprocess
+
+
+Info = "[INFO] "
+Info_Pass = Info + "PASS:"
+Info_Fail = Info + "FAIL:"
+
+test_status_NA = "N/A"
+test_status_PASS = "PASS"
+test_status_FAIL = "FAIL"
+
+chromeos_directory = os.environ.get("HOME") + "/chromiumos"
+capabilities_path = (
+    chromeos_directory
+    + "/src/platform/tast-tests/src/go.chromium.org/tast-tests/cros/remote/bundles/cros/wwcb/data/Capabilities.json"
+)
+tast_out_directory = chromeos_directory + "/out/"
+result_directory = tast_out_directory + "tmp/qpop_"
+
+
+# Test na error.
+class TestNAError(Exception):
+    pass
+
+
+# Test fail error.
+class TestFailError(Exception):
+    pass
+
+
+class Test_Case:
+    def __init__(
+        self,
+        name,
+        category,
+        externalUsbDeviceCount=0,
+        externalDisplayCount=0,
+        externalEthernetCount=0,
+    ):
+        self._name = name
+        self._status = ""
+        self._error_message = ""
+        self._crashed = []
+        self._attempts = ""
+        self._category = category
+        self._external_usb_device_count = externalUsbDeviceCount
+        self._external_display_count = externalDisplayCount
+        self._external_ethernet_count = externalEthernetCount
+
+
+class QPOP:
+    def _read_config(self):
+        """
+        Read Capabilities.json and pass the parameter to tast script.
+        """
+        try:
+            with open(capabilities_path, "r") as f:
+                ctrl_file = json.load(f)
+        except:
+            raise TestFailError("Cannot find the Capabilities JSON file")
+        if (
+            self._category == "docking"
+            or self._category == "docking_daisychain"
+        ):
+            self._varslist.append(
+                f'utils.wwcbIPPowerIp={ctrl_file["utils.wwcbIPPowerIp"]}'
+            )
+            self._varslist.append(
+                "DockingID=" + str(ctrl_file["Upstream"]["DockingID"])
+            )
+            USBTypeAIDArray = "USBTypeAIDArray="
+            ExternalUSBTypeACount = 0
+            ExternalDisplayCount = 0
+            ExternalEthernetCount = 0
+            for cf_key, cf_value in ctrl_file["Downstream"].items():
+                if cf_key == "USB Type A":
+                    for _, port_value in cf_value.items():
+                        for usb_key, usb_value in port_value.items():
+                            if usb_key == "USBTypeAIDArray":
+                                USBTypeAIDArray += f"{usb_value},"
+                                ExternalUSBTypeACount += 1
+                elif cf_key == "Display":
+                    for _, port_value in cf_value.items():
+                        for dis_key, dis_value in port_value.items():
+                            if "ExtDispID" in dis_key:
+                                self._varslist.append(f"{dis_key}={dis_value}")
+                                ExternalDisplayCount += 1
+                elif cf_key == "Ethernet":
+                    for eth_key, eth_value in cf_value.items():
+                        if "EthernetID" in eth_key:
+                            self._varslist.append(f"{eth_key}={eth_value}")
+                            ExternalEthernetCount += 1
+            self._varslist.append(USBTypeAIDArray[:-1])
+            self._external_usb_device_count = ExternalUSBTypeACount
+            self._external_display_count = ExternalDisplayCount
+            self._external_ethernet_count = ExternalEthernetCount
+            return
+        if (
+            self._category == "monitor"
+            or self._category == "monitor_daisychain"
+        ):
+            ExternalDisplayCount = 0
+            for cf_key, cf_value in ctrl_file["Downstream"].items():
+                for _, port_value in cf_value.items():
+                    for dis_key, dis_value in port_value.items():
+                        if "ExtDispID" in dis_key:
+                            self._varslist.append(f"{dis_key}={dis_value}")
+                            ExternalDisplayCount += 1
+
+            self._external_display_count = ExternalDisplayCount
+            return
+
+    def _collect_logs(self, tast_result, test_case):
+        """
+        Copy the results of tast run to the QPOP result directory.
+        """
+        if os.path.exists(tast_out_directory + tast_result):
+            os.rename(
+                tast_out_directory + tast_result,
+                self._result_path + f"/results-{test_case}",
+            )
+        else:
+            raise FileNotFoundError("The tast result not found")
+
+    def _execute_tast(self, test_case):
+        """
+        Execute tast run.
+        """
+        args = []
+        for var in self._varslist:
+            args.append("-var=%s" % var)
+        command = f'tast run {" ".join(str(arg) for arg in args)} {self._ip} {test_case}'
+        print(
+            datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            + " "
+            + Info
+            + command
+        )
+        # Execute command by subprocess.
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        # Read command output.
+        output = ""
+        for line in iter(process.stdout.readline, b""):
+            output += line.decode().strip() + "\n"
+            print(line.decode().strip())
+
+        # Wait for command finish.
+        process.wait()
+        pattern_msg = r"\S+\s+\S+\s+\[\s*(PASS|FAIL)\s*\].*"
+        pattern_result = r"Results saved to \S*"
+
+        try:
+            # Matches pass or fail message.
+            matches_msg = re.search(pattern_msg, output)
+            # Matches result path.
+            matches_result = re.findall(pattern_result, output)
+            message = None
+            if matches_msg:
+                message = matches_msg.group(0)
+            if matches_result:
+                result_text = matches_result[0].replace("Results saved to ", "")
+        except:
+            raise TestFailError(
+                f"Failed to execute tast run, Please check tast environment"
+            )
+
+        # Collect result to QPOP result folder.
+        self._collect_logs(result_text, test_case)
+        # Check result.
+        if "[ FAIL ]" in output:
+            return False, message
+        elif "[ PASS ]" in output:
+            return True, message
+        else:
+            raise TestFailError(
+                f"Failed to execute tast run, Please check tast environment"
+            )
+
+    def __init__(self, category, ip, test_case):
+        self._category = category
+        self._ip = ip
+        self._test_case = test_case
+        self._result_path = ""
+        self._varslist = []
+        self._varslist.append(f"category={self._category}")
+        self._varslist.append(f"newTestItem=testitem")
+        self._external_usb_device_count = 0
+        self._external_display_count = 0
+        self._external_ethernet_count = 0
+        self._test_cases = []
+        # Create test case table.
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.BootDUTWithDockConnected.clamshell_mode",
+                externalDisplayCount=1,
+                externalUsbDeviceCount=1,
+                externalEthernetCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.BootDUTWithDockConnected.tablet_mode",
+                externalDisplayCount=1,
+                externalUsbDeviceCount=1,
+                externalEthernetCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.ChangeExternalDisplayPosition.*",
+                externalDisplayCount=1,
+                category=["docking", "monitor"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.ChangeExternalDisplayResolution.*",
+                externalDisplayCount=1,
+                category=["docking", "monitor"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.ConnectDisplayBeforeBootDUT.*",
+                externalDisplayCount=1,
+                category=["docking", "monitor"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.CopyFilesViaDock.*",
+                externalUsbDeviceCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.DaisyChain",
+                externalDisplayCount=2,
+                category=["docking_daisychain", "monitor_daisychain"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.DisconnectDisplayWhileShutdownDUT.*",
+                externalDisplayCount=1,
+                category=["docking", "monitor"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.DisconnectDisplayWhileSuspendDUT.*",
+                externalDisplayCount=1,
+                category=["docking", "monitor"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.NetworkSwitchingWithDock.*",
+                externalDisplayCount=1,
+                externalEthernetCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.NightLightViaDock.*",
+                externalDisplayCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.PlugUnplugExternalDisplay.*",
+                externalDisplayCount=1,
+                category=["docking", "monitor"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.PlugUnplugFlipDock.clamshell_mode",
+                externalDisplayCount=1,
+                externalUsbDeviceCount=1,
+                externalEthernetCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.PlugUnplugFlipDock.tablet_mode",
+                externalDisplayCount=1,
+                externalUsbDeviceCount=1,
+                externalEthernetCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.PowerOffInternalDisplay.*",
+                externalDisplayCount=1,
+                category=["docking", "monitor"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.RebootDUTSwitchDockPower.clamshell_mode",
+                externalDisplayCount=1,
+                externalUsbDeviceCount=1,
+                externalEthernetCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.RebootDUTSwitchDockPower.tablet_mode",
+                externalDisplayCount=1,
+                externalUsbDeviceCount=1,
+                externalEthernetCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.ReconnectExternalDisplay.*",
+                externalDisplayCount=1,
+                category=["docking", "monitor"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.ShutdownDUTWithExternalDisplay.*",
+                externalDisplayCount=1,
+                category=["docking", "monitor"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.SuspendResumeDockPlugUnplug.clamshell_mode",
+                externalDisplayCount=1,
+                externalUsbDeviceCount=1,
+                externalEthernetCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.SuspendResumeDockPlugUnplug.tablet_mode",
+                externalDisplayCount=1,
+                externalUsbDeviceCount=1,
+                externalEthernetCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.SuspendResumeWithExternalDisplay.*",
+                externalDisplayCount=1,
+                category=["docking", "monitor"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.USBChargingViaDock.*",
+                externalDisplayCount=1,
+                category=["docking"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.WindowsPersistenceWithDualDisplay.*",
+                externalDisplayCount=2,
+                category=["docking", "monitor"],
+            )
+        )
+        self._test_cases.append(
+            Test_Case(
+                name="wwcb.WindowsPersistenceWithSingleDisplay.*",
+                externalDisplayCount=1,
+                category=["docking", "monitor"],
+            )
+        )
+
+    # Clear_config_file clears the file and add the string "{}" into the file.
+    def _clear_config_file(self):
+        with open(capabilities_path, "r+") as f:
+            f.seek(0)
+            # Clear data.
+            f.truncate()
+            f.write("{}")
+        print(
+            datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            + " "
+            + Info
+            + f"Clear the capabilities file."
+        )
+
+    def run(self):
+        # Check the category is legal.
+        if self._category not in [
+            "docking",
+            "monitor",
+            "docking_daisychain",
+            "monitor_daisychain",
+        ]:
+            raise TestNAError(f"The category is not legal: {self._category}")
+
+        # Create result folder.
+        self._result_path = result_directory + datetime.now().strftime(
+            "%Y%m%d%H%M%S"
+        )
+        if not os.path.exists(self._result_path):
+            os.mkdir(self._result_path)
+
+        if self._category == "docking":
+            # Execute self test ip power.
+            status, msg = self._execute_tast("wwcb.SelftestIppower")
+            if not status:
+                raise TestFailError(f"Failed to self test for ip power: {msg}")
+            # Read the ip power ip.
+            try:
+                with open(capabilities_path, "r") as f:
+                    ctrl_file = json.load(f)
+                    self._varslist.append(
+                        f'utils.wwcbIPPowerIp={ctrl_file["utils.wwcbIPPowerIp"]}'
+                    )
+            except:
+                raise TestFailError("Cannot find the Capabilities JSON file")
+
+        # Execute self test fixture.
+        status, msg = self._execute_tast("wwcb.SelftestFixture")
+        if not status:
+            raise TestFailError(f"Failed to self test for fixture: {msg}")
+
+        # Execute self test webcam.
+        status, msg = self._execute_tast("wwcb.SelftestWebcam")
+        if not status:
+            raise TestFailError(f"Failed to self test for webcam: {msg}")
+
+        # Execute search system information.
+        status, msg = self._execute_tast("wwcb.ChromeOsInfo")
+        if not status:
+            raise TestFailError(
+                f"Failed to search chrome os informatioin: {msg}"
+            )
+
+        # After finish self-test & show the capability info, interact with user.
+        command = f"python -m json.tool {capabilities_path}"
+        # Execute command by subprocess.
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        # Read command output.
+        for line in iter(process.stdout.readline, b""):
+            print(line.decode().replace("\n", ""))
+
+        # Wait for command finish.
+        process.wait()
+
+        # After finish self-test & show the capability info, interact with user.
+        print(
+            datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            + " "
+            + Info
+            + "Please check the capability information."
+        )
+        print(
+            datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            + " "
+            + Info
+            + "If the information was wrong, please check the capability first."
+        )
+        ans = input(
+            datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            + " "
+            + Info
+            + "Would you continue to proceed the test scripts? (Y/n)"
+        )
+        if ans.lower() != "y":
+            return
+
+        # Read capabilities.
+        self._read_config()
+
+        # Remove capabilities duplicates items.
+        self._varslist = list(set(self._varslist))
+
+        # Copy capabilities to result folder.
+        if os.path.exists(capabilities_path):
+            shutil.copyfile(
+                capabilities_path, self._result_path + "/capabilitites.json"
+            )
+
+        # Single test.
+        if self._test_case:
+            singleTest = next(
+                iter(
+                    [
+                        tc
+                        for tc in self._test_cases
+                        if tc._name == self._test_case
+                    ]
+                ),
+                None,
+            )
+            if singleTest and self._category in singleTest._category:
+                # Check device count.
+                if (
+                    self._external_display_count
+                    < singleTest._external_display_count
+                    or self._external_usb_device_count
+                    < singleTest._external_usb_device_count
+                    or self._external_ethernet_count
+                    < singleTest._external_ethernet_count
+                ):
+                    singleTest._status = test_status_NA
+                    singleTest._error_message = "Insufficient devices to conduct the test, skipping this test case."
+                else:
+                    # Execute test cases.
+                    status, msg = self._execute_tast(singleTest._name)
+                    singleTest._error_message = msg
+                    if status:
+                        singleTest._status = test_status_PASS
+                    else:
+                        singleTest._status = test_status_FAIL
+            else:
+                print(
+                    datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                    + " "
+                    + Info_Fail
+                    + "Unable to find the test item or category error."
+                )
+        else:
+            for tc in self._test_cases:
+                # Category not match, skip this test case.
+                if not self._category in tc._category:
+                    continue
+                # Check device count.
+                if (
+                    self._external_display_count < tc._external_display_count
+                    or self._external_usb_device_count
+                    < tc._external_usb_device_count
+                    or self._external_ethernet_count
+                    < tc._external_ethernet_count
+                ):
+                    tc._status = test_status_NA
+                    tc._error_message = "Insufficient devices to conduct the test, skipping this test case."
+                # Execute test cases.
+                status, msg = self._execute_tast(tc._name)
+                tc._error_message = msg
+                if status:
+                    tc._status = test_status_PASS
+                else:
+                    tc._status = test_status_FAIL
+
+        # Show the result on the terminal.
+        print(
+            datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            + " "
+            + Info
+            + f"Your result would be:file://{self._result_path}"
+        )
+
+        # Clear config file.
+        self._clear_config_file()
+
+
+if __name__ == "__main__":
+    # Create argparse.
+    parser = argparse.ArgumentParser()
+
+    # Add parameters from input.
+    parser.add_argument(
+        "-c", help="Please input category of test case", required=True
+    )
+    parser.add_argument(
+        "-ip", help="Please input IP of chromebook", required=True
+    )
+    # This parameter determines whether to run tests by category or to specify a single test case for testing.
+    parser.add_argument(
+        "-tc", help="Please input name of test case", required=False
+    )
+
+    args = parser.parse_args()
+    qpop = QPOP(args.c, args.ip, args.tc)
+    qpop.run()
