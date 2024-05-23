@@ -27,6 +27,14 @@ capabilities_path = (
 tast_out_directory = chromeos_directory + "/out/"
 result_directory = tast_out_directory + "tmp/qpop_"
 
+report_path = (
+    chromeos_directory
+    + "/src/platform/dev/contrib/QPOP/test_report.html"
+)
+report_NA = "<td style='background-color:yellow;'>NA</td>"
+report_Pass = "<td style='background-color:LimeGreen;'>Pass</td>"
+report_Fail = "<td style='background-color:red;'>Fail</td>"
+
 
 # Test na error.
 class TestNAError(Exception):
@@ -59,6 +67,47 @@ class Test_Case:
 
 
 class QPOP:
+    def _generation_report_table(self, tc, no):
+        """
+        Convert each test result into an HTML table.
+        """
+        status = ""
+        error_message = tc._error_message
+        if tc._status == test_status_NA:
+            status = report_NA
+        elif tc._status == test_status_PASS:
+            status = report_Pass
+            error_message = ""
+        else:
+            status = report_Fail
+        self._html_content += f"""
+        <tr>
+        <td> {no} </td>
+        <td> {tc._name} </td>
+        {status}
+        <td> {error_message} </td>
+        <td> [] </td>
+        <td> </td>
+        </tr>
+        """
+
+    def _generation_report(self, na_count, pass_count, fail_count, total_count):
+        """
+        Read the report HTML template file and replace its contents with the actual content.
+        """
+        with open(report_path, "r") as f:
+            f.seek(0)
+            data = f.read()
+            data = (
+                data.replace("QPOP_body", self._html_content)
+                .replace("QPOP_na", str(na_count))
+                .replace("QPOP_passed", str(pass_count))
+                .replace("QPOP_failed", str(fail_count))
+                .replace("QPOP_total", str(total_count))
+            )
+            with open(self._result_path + "/test_report.html", "w") as file:
+                file.write(data)
+
     def _read_config(self):
         """
         Read Capabilities.json and pass the parameter to tast script.
@@ -162,7 +211,7 @@ class QPOP:
 
         # Wait for command finish.
         process.wait()
-        pattern_msg = r"\S+\s+\S+\s+\[\s*(PASS|FAIL)\s*\].*"
+        pattern_msg = r"\S+\s+\[\s*(PASS|FAIL)\s*\].*"
         pattern_result = r"Results saved to \S*"
 
         try:
@@ -203,6 +252,7 @@ class QPOP:
         self._external_usb_device_count = 0
         self._external_display_count = 0
         self._external_ethernet_count = 0
+        self._html_content = ""
         self._test_cases = []
         # Create test case table.
         self._test_cases.append(
@@ -512,6 +562,10 @@ class QPOP:
                 capabilities_path, self._result_path + "/capabilitites.json"
             )
 
+        NA_Count = 0
+        Pass_Count = 0
+        Fail_Count = 0
+        Total_Count = 0
         # Single test.
         if self._test_case:
             singleTest = next(
@@ -525,6 +579,7 @@ class QPOP:
                 None,
             )
             if singleTest and self._category in singleTest._category:
+                Total_Count += 1
                 # Check device count.
                 if (
                     self._external_display_count
@@ -534,6 +589,7 @@ class QPOP:
                     or self._external_ethernet_count
                     < singleTest._external_ethernet_count
                 ):
+                    NA_Count += 1
                     singleTest._status = test_status_NA
                     singleTest._error_message = "Insufficient devices to conduct the test, skipping this test case."
                 else:
@@ -542,8 +598,11 @@ class QPOP:
                     singleTest._error_message = msg
                     if status:
                         singleTest._status = test_status_PASS
+                        Pass_Count += 1
                     else:
                         singleTest._status = test_status_FAIL
+                        Fail_Count += 1
+                self._generation_report_table(singleTest, Total_Count)
             else:
                 print(
                     datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -556,6 +615,7 @@ class QPOP:
                 # Category not match, skip this test case.
                 if not self._category in tc._category:
                     continue
+                Total_Count += 1
                 # Check device count.
                 if (
                     self._external_display_count < tc._external_display_count
@@ -564,15 +624,23 @@ class QPOP:
                     or self._external_ethernet_count
                     < tc._external_ethernet_count
                 ):
+                    NA_Count += 1
                     tc._status = test_status_NA
                     tc._error_message = "Insufficient devices to conduct the test, skipping this test case."
-                # Execute test cases.
-                status, msg = self._execute_tast(tc._name)
-                tc._error_message = msg
-                if status:
-                    tc._status = test_status_PASS
                 else:
-                    tc._status = test_status_FAIL
+                    # Execute test cases.
+                    status, msg = self._execute_tast(tc._name)
+                    tc._error_message = msg
+                    if status:
+                        tc._status = test_status_PASS
+                        Pass_Count += 1
+                    else:
+                        tc._status = test_status_FAIL
+                        Fail_Count += 1
+                self._generation_report_table(tc, Total_Count)
+
+        # Create report html.
+        self._generation_report(NA_Count, Pass_Count, Fail_Count, Total_Count)
 
         # Show the result on the terminal.
         print(
