@@ -96,3 +96,11 @@ Following outputs are generated when taking continuous measurements:
 
 If `dut_info` is provided, following additional file is generated:
 * testinfo.json - containing DUT and test related information.
+
+### Benchmarks
+
+To generate the benchmarks, run:
+
+    ./benchmark_pacina.sh
+
+For more details about it, please see the docstring inside the script.
