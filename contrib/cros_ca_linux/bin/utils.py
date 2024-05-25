@@ -184,8 +184,8 @@ class TestProgram:
         end_file = f"{df.PROJECT_LOG_DIR}/{df.TEST_END_FILE}"
         try:
             os.remove(end_file)
-        except OSError:
-            pass
+        except OSError as e:
+            logger.debug("Failed to remove end file: %s", e)
         # Log the start with the run_id under.
         start_json = dict(
             run_id=self.args.run_id,

@@ -44,7 +44,8 @@ class LoginOption:
     username: str = None
     password: str = None
     arc: bool = False  # For CrOS to bring up ARC.
-    chrome_args: List[str] = []
+    chrome_args: List[str] = None
+    enable_features: List[str] = None
 
 
 class BaseHost:

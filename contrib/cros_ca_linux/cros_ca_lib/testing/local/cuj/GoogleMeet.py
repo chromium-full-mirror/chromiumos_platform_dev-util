@@ -14,6 +14,7 @@ import cros_ca_lib.definition as df
 from cros_ca_lib.host import base_host
 from cros_ca_lib.metric import recorder as rd
 from cros_ca_lib.testing.lib import chrome_browser_test as cbt
+from cros_ca_lib.testing.lib.cros import browser_args
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -75,17 +76,25 @@ class GoogleMeet(cbt.ChromeBrowserTest):
         return opt
 
     def _login(self) -> None:
-        if os.name != "nt":
-            # Only CrOS needs login
-            option = base_host.LoginOption()
-            option.username = self.var(df.VAR_GAIA_ACCOUNT)
-            option.password = self.var(df.VAR_GAIA_PASSWORD)
-            option.arc = True
-            option.chrome_args = [
-                "--use-fake-ui-for-media-stream",
+        if os.name == "nt":
+            return
+        # Only CrOS needs login
+        option = base_host.LoginOption()
+        option.username = self.var(df.VAR_GAIA_ACCOUNT)
+        option.password = self.var(df.VAR_GAIA_PASSWORD)
+        option.arc = True
+        browser_args.default_args(option)
+        browser_args.add_args(
+            option,
+            [
                 "--enable-benchmarking",
-            ]
-            self.dut.auto_login(option)
+                # Disable media permission request
+                "--use-fake-ui-for-media-stream",
+                # Disable site notification
+                "--disable-notifications",
+            ],
+        )
+        self.dut.auto_login(option)
 
     def _run(self) -> None:
         self._login()

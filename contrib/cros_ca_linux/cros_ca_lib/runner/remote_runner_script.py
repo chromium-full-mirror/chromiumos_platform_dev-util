@@ -98,10 +98,10 @@ class RemoteRunnerScript(remote_runner.RemoteRunner):
                         self.logger.warning("start json load error: %s", e)
                 if has_start_file and self.dut.path_exist(end_file):
                     end_json = self.dut.read_file(end_file)
-                    self.logger.debug("end_json: %s", end_json)
                     try:
                         end_obj = json.loads(end_json)
                         if end_obj["run_id"] == run_id:
+                            self.logger.debug("end_json: %s", end_json)
                             self.logger.info(
                                 "Test completed. Test duration: %.2f minutes.",
                                 elapsed_time,

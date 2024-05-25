@@ -54,6 +54,7 @@ class CrosLocalHost(base_host.BaseHost):
             username=option.username,
             password=option.password,
             extra_args=option.chrome_args,
+            enable_features=option.enable_features,
         )
         time.sleep(2)
 
