@@ -23,6 +23,7 @@ import pandas as pd  # pylint: disable=import-error
 import plotly.express  # pylint: disable=import-error
 from pyftdi.ftdi import Ftdi  # pylint: disable=import-error
 from pyftdi.i2c import I2cController  # pylint: disable=import-error
+import usb  # pylint: disable=import-error
 
 
 logger = logging.getLogger(__name__)
@@ -38,8 +39,11 @@ I2C_CLOCK_FREQUENCY: t.Final[int] = 1 * 1000 * 1000  # MHz
 # https://ftdichip.com/wp-content/uploads/2020/08/AN232B-04_DataLatencyFlow.pdf
 # before attempting to change this value.
 #
-# Due to USB frame size being 1 ms, it cannot be lower than 2ms.
-FTDI_LATENCY_TIMER: t.Final[int] = 2  # ms
+# Due to USB frame size being 1 ms in low speed and full speed, it cannot be
+# lower than 2ms. However, in case of USB high speed, the protocol operates on
+# microframes of size 125 µs, hence, making the 1 ms available.
+FTDI_LATENCY_TIMER__USB_STD_SPEED_MODE: t.Final[int] = 2  # ms
+FTDI_LATENCY_TIMER__USB_HIGH_SPEED_MDOE: t.Final[int] = 1  # ms
 
 # Style for the DataFrame Table HTML generation
 styles = [
@@ -353,12 +357,24 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
+def is_usb_high_speed_mode(controller: I2cController) -> bool:
+    return controller.ftdi.usb_dev.speed == usb.util.SPEED_HIGH
+
+
 @contextlib.contextmanager
 def managed_ftdi(ftdi_url: str) -> t.Iterator[I2cController]:
     """Managed FTDI resource."""
     ftdi_inst = I2cController()
     ftdi_inst.configure(ftdi_url, frequency=I2C_CLOCK_FREQUENCY)
-    ftdi_inst.ftdi.set_latency_timer(FTDI_LATENCY_TIMER)
+
+    if is_usb_high_speed_mode(ftdi_inst):
+        logger.info("USB High speed mode detected")
+        latency_timer = FTDI_LATENCY_TIMER__USB_HIGH_SPEED_MDOE
+    else:
+        latency_timer = FTDI_LATENCY_TIMER__USB_STD_SPEED_MODE
+
+    ftdi_inst.ftdi.set_latency_timer(latency_timer)
+
     try:
         yield ftdi_inst
     finally:
