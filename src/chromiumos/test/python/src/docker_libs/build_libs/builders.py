@@ -340,6 +340,7 @@ class GcloudDockerBuilder(DockerBuilder):
         )
         # Stream the cloudbuild cmd.
         out = getoutput(cloud_build_cmd)
+        print(f"gcloud build output:\n{out}")
         build_id = self._find_build_id(out)
 
         gcloud_build_final_status = self._monitor_build(build_id)
