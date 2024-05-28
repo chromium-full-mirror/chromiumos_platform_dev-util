@@ -27,17 +27,16 @@ import (
 )
 
 const (
-	artifactsBucket   = "e2e-coverage-artifacts"
-	versionPath       = "active_version/brya"
-	versionFile       = "current.json"
-	hptRoot           = "/tmp/cros-hpt"
-	authTokenFile     = "authToken.txt"
-	gsPrefix          = "gs://"
-	archiveBucket     = "chromeos-image-archive"
-	authTokenFilePath = "/tmp/cros-hpt/authToken.txt"
-	perfProject       = "google.com:cr-code-cov-merger"
-	perfTopic         = "perf-data"
-	perfBucket        = "e2e_perf_data"
+	artifactsBucket = "e2e-coverage-artifacts"
+	versionPath     = "active_version/brya"
+	versionFile     = "current.json"
+	hptRoot         = "/tmp/cros-hpt"
+	authTokenFile   = "/creds/service_accounts/service-account-chromeos.json"
+	gsPrefix        = "gs://"
+	archiveBucket   = "chromeos-image-archive"
+	perfProject     = "google.com:cr-code-cov-merger"
+	perfTopic       = "perf-data"
+	perfBucket      = "e2e_perf_data"
 )
 
 type ActiveVersion struct {
@@ -94,7 +93,7 @@ func hptGenerator(av *ActiveVersion) *generators.GenericTaskGenerator {
 	}
 
 	inputs := map[string]proto.Message{
-		"authTokenFilePath": structpb.NewStringValue(authTokenFilePath),
+		"authTokenFilePath": structpb.NewStringValue(authTokenFile),
 		"board":             structpb.NewStringValue(av.Board),
 		"version":           structpb.NewStringValue(av.Version),
 		"snapshotVersion":   structpb.NewStringValue(av.SnapshotVersion),
@@ -130,7 +129,7 @@ func hptGenerator(av *ActiveVersion) *generators.GenericTaskGenerator {
 
 func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
 	ctx := context.Background()
-	gsClient, err := storage.NewGSClient(ctx, filepath.Join(hptRoot, authTokenFile))
+	gsClient, err := storage.NewGSClient(ctx, authTokenFile)
 	if err != nil {
 		return nil, err
 	}
