@@ -157,7 +157,7 @@ def generate_reports(
     )
     power_plots.append(box_plot)
 
-    sdf_avg = df_avg.style.hide_index().set_table_styles(styles)
+    sdf_avg = df_avg.style.hide(axis="index").set_table_styles(styles)
 
     if len(config_rails) > 0:
         rail_map = pd.DataFrame(config_rails)
@@ -226,7 +226,7 @@ def generate_reports(
             with open(test_info_path, "w", encoding="utf-8") as fjson:
                 json.dump(test_info, fjson, indent=2, separators=(",", ": "))
 
-        f.write(sdf_avg.render())
+        f.write(sdf_avg.to_html())
         for pplts in power_plots:
             f.write(
                 pplts.to_html(
