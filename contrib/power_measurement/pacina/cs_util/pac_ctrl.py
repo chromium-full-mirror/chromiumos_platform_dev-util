@@ -9,7 +9,6 @@ import time
 import typing as t
 
 import cs_types
-from pyftdi.i2c import I2cPort  # pylint: disable=import-error
 
 from . import _pac19xx
 
@@ -22,7 +21,7 @@ class Pac19xxInst:
 
     def __init__(
         self,
-        device: I2cPort,
+        device: cs_types.SamplingDevice,
         ch_config: t.Optional[dict] = None,
         polarity: cs_types.Polarity = cs_types.Polarity.UNIPOLAR,
         refresh_global: bool = False,
@@ -103,7 +102,7 @@ class Pac19xxInst:
         general call address.
         """
         logger.debug("Resetting Accumulator")
-        self.device.write_to(_pac19xx.REFRESH_G, 0)
+        self.device.write_to(_pac19xx.REFRESH_G, b"")
         time.sleep(self._refresh_wait_time)
 
     def _read_bytes(self, reg, num_bytes):
@@ -254,7 +253,7 @@ class Pac193xInst(Pac19xxInst):
     def _set_ctrl_register(self):
         logger.info("Disabling SLOW for PAC193X")
         self.device.write_to(_pac19xx.CTRL, b"\x08")
-        self.device.write_to(_pac19xx.REFRESH, 0)
+        self.device.write_to(_pac19xx.REFRESH, b"")
         time.sleep(self._refresh_wait_time)
 
     def _dump_accumulator(self, ch=0):
@@ -287,7 +286,7 @@ class Pac195xInst(Pac19xxInst):
 
     def __init__(
         self,
-        device: I2cPort,
+        device: cs_types.SamplingDevice,
         ch_config: t.Optional[dict] = None,
         polarity: cs_types.Polarity = cs_types.Polarity.UNIPOLAR,
         refresh_global: bool = False,
@@ -385,7 +384,7 @@ class Pac195xInst(Pac19xxInst):
             logger.info("Enabling PAC Fast mode")
             ctrl_high |= enable_fast_mode
         self.device.write_to(_pac19xx.CTRL, bytes([ctrl_high, ctrl_low]))
-        self.device.write_to(_pac19xx.REFRESH, 0)
+        self.device.write_to(_pac19xx.REFRESH, b"")
         time.sleep(self._refresh_wait_time)
 
     def _dump_accumulator(self, ch=0):

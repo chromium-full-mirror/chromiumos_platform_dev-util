@@ -8,9 +8,9 @@ import importlib.util
 import logging
 import os
 import time
+import typing as t
 
 import cs_types
-from pyftdi.i2c import I2cController  # pylint: disable=import-error
 from pyftdi.i2c import I2cNackError  # pylint: disable=import-error
 
 
@@ -20,14 +20,14 @@ logger = logging.getLogger(__name__)
 class CurrentSensor:
     """Current sensor class for channel information."""
 
-    def __init__(self, addr, drv):
+    def __init__(self, addr: int, drv: str) -> None:
         self.addr = addr
         self.drv = drv
-        self.chs = {}
+        self.chs: t.Dict[int, t.Dict[str, t.Any]] = {}
         self.gpio = None
         self.cs = None
 
-    def add_ch_info(self, ch, name, rsense, nom=""):
+    def add_ch_info(self, ch: int, name: str, rsense: float, nom="") -> None:
         if ch in self.chs.keys():
             logger.warning(
                 "%d already exists for %s %d. Overwriting.",
@@ -38,7 +38,7 @@ class CurrentSensor:
 
         self.chs[ch] = {"vname": name, "rsense": rsense, "nom": nom}
 
-    def get_ch_info(self):
+    def get_ch_info(self) -> t.Optional[t.Dict[int, t.Dict[str, t.Any]]]:
         if not self.chs:
             return None
         return self.chs
@@ -50,12 +50,12 @@ class BusConfig:
     def __init__(
         self,
         config_fpath: str,
-        ftdi_inst: I2cController,
+        ftdi_inst: cs_types.DeviceController,
         drvs: dict,
         polarity: cs_types.Polarity = cs_types.Polarity.UNIPOLAR,
         sample_time: float = 1,
         fast_mode: bool = True,
-    ):
+    ) -> None:
         spec = importlib.util.spec_from_file_location(
             "input_config", config_fpath
         )
@@ -156,19 +156,25 @@ class BusConfig:
         for addr in unreachable_addrs:
             del self.sensors[addr]
 
-    def load_current_sensor_config(self, drv, addr_ch, name, rsense, nom):
+    def _parse_addr_and_channel(self, addr_ch: str) -> t.Tuple[int, int]:
         if ":" not in addr_ch:
             addr = int(addr_ch, 16)
             ch = 0
         else:
-            [addr, ch] = addr_ch.split(":")
-            addr = int(addr, 16)
-            ch = int(ch)
+            [addr_str, ch_str] = addr_ch.split(":")
+            addr = int(addr_str, 16)
+            ch = int(ch_str)
+        return addr, ch
+
+    def load_current_sensor_config(
+        self, drv: str, addr_ch: str, name: str, rsense: float, nom
+    ) -> None:
+        addr, ch = self._parse_addr_and_channel(addr_ch)
         if addr not in self.sensors:
             self.sensors[addr] = CurrentSensor(addr, drv)
         self.sensors[addr].add_ch_info(ch, name, rsense, nom)
 
-    def log_single(self):
+    def log_single(self) -> None:
         if 0 in self.sensors.keys() and self.en_refresh_g:
             self.sensors[0].cs.log_single()
 
@@ -180,7 +186,7 @@ class BusConfig:
             if sensor.gpio:
                 self.gpio_vals.append([sensor.gpio, sensor.cs.read_gpio()])
 
-    def log_continuous(self):
+    def log_continuous(self) -> None:
         time_now = time.time()
         if 0 in self.sensors.keys() and self.en_refresh_g:
             self.sensors[0].cs.log_continuous()
@@ -190,13 +196,13 @@ class BusConfig:
                 continue
             sensor.cs.log_continuous(time_now)
 
-    def get_acc_pwr(self):
+    def get_acc_pwr(self) -> list:
         for sensor in self.sensors.values():
             self.data.extend(sensor.cs.data)
         return self.data
 
-    def get_avg_pwr(self):
-        avg_power = {}
+    def get_avg_pwr(self) -> dict:
+        avg_power: dict = {}
         for sensor in self.sensors.values():
             avg_power = {**avg_power, **sensor.cs.acc}
         return avg_power

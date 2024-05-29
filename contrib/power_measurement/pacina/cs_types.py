@@ -18,5 +18,32 @@ class Polarity(enum.Enum):
     UNIPOLAR = "unipolar"
     BIPOLAR = "bipolar"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.value)
+
+
+class SamplingDevice(t.Protocol):
+    """Generic protocol for power measurement device interaction."""
+
+    def write_to(
+        self, regaddr: int, out: t.Union[bytes, bytearray, t.Iterable[int]]
+    ):
+        ...
+
+    def read_from(self, regaddr: int, readlen: int = 0):
+        ...
+
+    @property
+    def frequency(self) -> float:
+        raise NotImplementedError
+
+    @property
+    def address(self) -> int:
+        raise NotImplementedError
+
+
+class DeviceController(t.Protocol):
+    """Generic protocol for sampling device controller."""
+
+    def get_port(self, address: int) -> SamplingDevice:
+        ...
