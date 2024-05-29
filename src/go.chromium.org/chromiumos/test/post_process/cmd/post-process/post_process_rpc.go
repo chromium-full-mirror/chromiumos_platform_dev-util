@@ -80,20 +80,38 @@ func (s *PostTestServiceServer) StartUp(ctx context.Context, req *api.PostTestSt
 
 // RunActivity calls the parseAndRunCmds (post-process flow) in main.
 func (s *PostTestServiceServer) RunActivity(ctx context.Context, req *api.RunActivityRequest) (*api.RunActivityResponse, error) {
-	s.logger.Printf("Received GetFWInfo: %s", req)
+	s.logger.Printf("Received RunActivity: %q", req)
 
 	if s.dutClient == nil {
 		return nil, fmt.Errorf("PostService: missing DUT client")
 	}
 
-	rspn, err := parseAndRunCmds(req.Request, s.logger, s.dutClient)
-	s.logger.Printf("After Parse")
-
+	s.logger.Printf("Start to run post process activity: %s", req)
+	resp, err := parseAndRunCmds(req.Request, s.logger, s.dutClient)
 	if err != nil {
-		return nil, errors.Annotate(err, "PostService: failed to run post service").Err()
+		return nil, errors.Annotate(err, "PostService: failed to run RunActivity RPC Command").Err()
 	}
-	s.logger.Printf("PostService RPC Command was successful")
-	s.logger.Printf("Returning %s", rspn)
+	s.logger.Printf("PostService RunActivity RPC Command: %s was successful", req)
+	s.logger.Printf("Returning %q", resp)
 
-	return rspn, nil
+	return resp, nil
+}
+
+// RunActivities calls the parseAndRunCmds (post-process flow) in main.
+func (s *PostTestServiceServer) RunActivities(ctx context.Context, req *api.RunActivitiesRequest) (*api.RunActivitiesResponse, error) {
+	s.logger.Printf("Received RunActivities: %q", req)
+
+	if s.dutClient == nil {
+		return nil, fmt.Errorf("PostService: missing DUT client")
+	}
+
+	s.logger.Printf("Start to run post process activities: %s", req)
+	resp, err := parseCommandsAndRun(req, s.logger, s.dutClient)
+	if err != nil {
+		return nil, errors.Annotate(err, "PostService: failed to run RunActivities RPC Command").Err()
+	}
+	s.logger.Printf("PostService RunActivities RPC Command: %s was successful", req)
+	s.logger.Printf("Returning: %q", resp)
+
+	return resp, nil
 }

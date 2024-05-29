@@ -5,8 +5,8 @@
 package common
 
 import (
-	"go.chromium.org/chromiumos/test/execution/errors"
 	"fmt"
+	"go.chromium.org/chromiumos/test/execution/errors"
 	"io"
 	"log"
 	"os"

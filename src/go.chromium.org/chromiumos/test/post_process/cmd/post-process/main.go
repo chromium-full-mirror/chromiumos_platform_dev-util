@@ -48,51 +48,57 @@ type args struct {
 }
 
 func parseAndRunCmds(req *api.Request, log *log.Logger, dutClient api.DutServiceClient) (*api.RunActivityResponse, error) {
-	log.Println("Start parse")
+	log.Printf("Start to run post process activity: %q", req)
 
 	switch op := req.Request.(type) {
 	case *api.Request_GetFwInfoRequest:
 		log.Println("GettingFWInfo Task")
-
 		cmdResp, err := commands.GetFwInfo(log, dutClient)
-		resp := api.RunActivityResponse{
+		if err != nil {
+			return nil, err
+		}
+		return &api.RunActivityResponse{
 			Response: &api.RunActivityResponse_GetFwInfoResponse{
 				GetFwInfoResponse: cmdResp,
 			},
-		}
-		return &resp, err
+		}, err
 	case *api.Request_GetFilesFromDutRequest:
 		log.Println("GetFilesFromDut Task")
 		cmdResp, err := commands.GetFilesFromDUT(log, op.GetFilesFromDutRequest, dutClient)
-		resp := api.RunActivityResponse{
+		if err != nil {
+			return nil, err
+		}
+		return &api.RunActivityResponse{
 			Response: &api.RunActivityResponse_GetFilesFromDutResponse{
 				GetFilesFromDutResponse: cmdResp,
 			},
-		}
-		return &resp, err
+		}, err
 	case *api.Request_GetGfxInfoRequest:
 		log.Println("GetGfxInfo Task")
 		cmdResp, err := commands.GetGfxInfo(log, dutClient)
-		resp := api.RunActivityResponse{
+		if err != nil {
+			return nil, err
+		}
+		return &api.RunActivityResponse{
 			Response: &api.RunActivityResponse_GetGfxInfoResponse{
 				GetGfxInfoResponse: cmdResp,
 			},
-		}
-		return &resp, err
+		}, err
 	case *api.Request_GetAvlInfoRequest:
 		log.Println("GetAvlInfo Task")
 		cmdResp, err := commands.GetAvlInfo(log, dutClient)
-		resp := api.RunActivityResponse{
+		if err != nil {
+			return nil, err
+		}
+		return &api.RunActivityResponse{
 			Response: &api.RunActivityResponse_GetAvlInfoResponse{
 				GetAvlInfoResponse: cmdResp,
 			},
-		}
-		return &resp, err
+		}, err
 	default:
 		log.Println("None")
 		return nil, fmt.Errorf("can only be one of registered types")
 	}
-
 }
 
 // startServer is the entry point for running post-process (PostTestService) in server mode.
@@ -243,18 +249,20 @@ func runCLI(ctx context.Context, d []string) int {
 }
 
 func parseCommandsAndRun(req *api.RunActivitiesRequest, log *log.Logger, dutClient api.DutServiceClient) (*api.RunActivitiesResponse, error) {
-	log.Println("Start parse")
+	log.Printf("Start to parse post process activities: %s", req)
 	resp := &api.RunActivitiesResponse{
-		Responses: []*api.RunActivityResponse{},
+		Responses: make([]*api.RunActivityResponse, 0, len(req.Requests)),
 	}
 	for _, subReq := range req.Requests {
 		r, err := parseAndRunCmds(subReq, log, dutClient)
 		if err != nil {
-			log.Println("ERR ", err)
+			log.Printf("Failed to run post process activity: %s due to: %s", subReq, err.Error())
+			continue
 		}
-		log.Println("FINISH", r)
+		log.Printf("Successfully ran post process activity: %s with response: %s", subReq, r)
 		resp.Responses = append(resp.Responses, r)
 	}
+	log.Printf("Sucessfully finished post process activities: %s", req)
 	return resp, nil
 
 }

@@ -5,12 +5,12 @@
 package commands
 
 import (
-	"go.chromium.org/chromiumos/test/util/common"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/chromiumos/test/util/common"
 	"log"
 )
 

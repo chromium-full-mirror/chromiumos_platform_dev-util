@@ -5,8 +5,8 @@
 package commands
 
 import (
-	"go.chromium.org/chromiumos/test/util/common"
 	"context"
+	"go.chromium.org/chromiumos/test/util/common"
 	"log"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
