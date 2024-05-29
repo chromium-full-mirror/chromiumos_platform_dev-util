@@ -45,6 +45,8 @@ I2C_CLOCK_FREQUENCY: t.Final[int] = 1 * 1000 * 1000  # MHz
 FTDI_LATENCY_TIMER__USB_STD_SPEED_MODE: t.Final[int] = 2  # ms
 FTDI_LATENCY_TIMER__USB_HIGH_SPEED_MDOE: t.Final[int] = 1  # ms
 
+SAMPLING_WAIT_SLEEP_TIME: t.Final[float] = 0.050  # s
+
 # Style for the DataFrame Table HTML generation
 styles = [
     {"selector": "tr:hover", "props": [("background-color", "#ffff99")]},
@@ -400,6 +402,7 @@ def log_power_continuous(
     # Current sensors get reset by the first read (setting t=0)
     tprev_sample = 0.0
     sample_index = 0
+
     while True:
         tcur_sample = time.time()
         if log_duration and tcur_sample > timeout:
@@ -409,6 +412,9 @@ def log_power_continuous(
             if tprev_sample == 0:
                 tprev_sample = tcur_sample
             elif tcur_sample - tprev_sample < sample_time:
+                time_left = sample_time - (tcur_sample - tprev_sample)
+                if time_left > 4 * SAMPLING_WAIT_SLEEP_TIME:
+                    time.sleep(SAMPLING_WAIT_SLEEP_TIME)
                 continue
             else:
                 tprev_sample = tcur_sample
@@ -428,9 +434,6 @@ def log_power_continuous(
                 end="\r",
             )
 
-        # Depending on the system, it takes ~150ms to read 4 ch.
-        # This results in second FTDI bus to have more samples than the
-        # sampling time.
         for config in configs:
             config.log_continuous()
         sample_index = sample_index + 1
