@@ -1015,16 +1015,17 @@ def run_copybot(args, git_dir, patch_dir):
 
     if repo.rev_parse() == downstream_rev:
         logger.info("Nothing to push!")
-        return
-
-    push_refspec = get_push_refspec(args, downstream_branch)
-    if not args.dry_run and not local_downstream:
-        try:
-            repo.push(downstream_url, push_refspec, options=args.push_options)
-        except subprocess.CalledProcessError as e:
-            raise PushError(f"Failed to push to {downstream_url}") from e
     else:
-        logger.info("Skip push due to dry/local run")
+        push_refspec = get_push_refspec(args, downstream_branch)
+        if not args.dry_run and not local_downstream:
+            try:
+                repo.push(
+                    downstream_url, push_refspec, options=args.push_options
+                )
+            except subprocess.CalledProcessError as e:
+                raise PushError(f"Failed to push to {downstream_url}") from e
+        else:
+            logger.info("Skip push due to dry/local run")
 
     emptylist = [
         repo.log(rev, fmt="%H %s", num=1).stdout.strip() for rev in empty_revs
