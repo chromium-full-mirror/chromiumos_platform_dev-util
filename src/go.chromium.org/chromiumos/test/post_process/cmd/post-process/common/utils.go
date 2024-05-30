@@ -6,11 +6,12 @@ package common
 
 import (
 	"fmt"
-	"go.chromium.org/chromiumos/test/execution/errors"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+
+	"go.chromium.org/chromiumos/test/execution/errors"
 )
 
 // CreateLogFile creates a file and its parent directory for logging purpose.

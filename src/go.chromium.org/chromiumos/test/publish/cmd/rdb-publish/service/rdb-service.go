@@ -16,6 +16,7 @@ import (
 	common_utils "go.chromium.org/chromiumos/test/publish/cmd/common-utils"
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
 	"go.chromium.org/chromiumos/test/publish/libs/rdb_lib"
+	"go.chromium.org/chromiumos/test/util/common"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/config/go/test/api/metadata"
@@ -200,7 +201,7 @@ func downloadSources(ctx context.Context, destPath string, sources *metadata.Pub
 	}
 
 	sourcesProto := &rdb_pb.Sources{}
-	err = common_utils.ReadProtoJsonFile(ctx, destPath, sourcesProto)
+	err = common.ReadProtoJSONFile(ctx, destPath, sourcesProto)
 	if err != nil {
 		return false, errors.Annotate(err, "reading sources.jsonpb").Err()
 	}

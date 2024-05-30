@@ -5,14 +5,29 @@
 package commands
 
 import (
+	"context"
 	"log"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"go.chromium.org/chromiumos/test/util/common"
 )
 
 // GetAvlInfo packages AVL qualification info from AVL log files
-func GetAvlInfo(logger *log.Logger, dutClient api.DutServiceClient) (*api.GetAvlInfoResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "GetAvlInfo unimplemented")
+func GetAvlInfo(logger *log.Logger, req *api.GetAvlInfoRequest) (*api.GetAvlInfoResponse, error) {
+	ctx := context.Background()
+	avlInfos := map[string]*api.AvlInfo{}
+	for test, file := range req.GetAvlFiles() {
+		logger.Printf("Fetch: %q for test: %q\n", file, test)
+
+		avlInfo := &api.AvlInfo{}
+		err := common.ReadProtoJSONFile(ctx, file, avlInfo)
+		if err != nil {
+			logger.Printf("Failed to read AVL info from file: %q for test: %q with err: %v\n", file, test, err)
+			avlInfos[test] = &api.AvlInfo{}
+			continue
+		}
+
+		avlInfos[test] = avlInfo
+	}
+	return &api.GetAvlInfoResponse{AvlInfos: avlInfos}, nil
 }

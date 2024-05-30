@@ -7,7 +7,6 @@ package common_utils
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path"
@@ -74,37 +73,6 @@ func WriteProtoJsonFile(ctx context.Context, filePath string, inputProto proto.M
 	err = f.Close()
 	if err != nil {
 		return fmt.Errorf("closing file %q: %w", fileName, err)
-	}
-
-	return nil
-}
-
-// ReadProtoJsonFile reads a protocol buffer from the given file.
-func ReadProtoJsonFile(ctx context.Context, filePath string, outputProto proto.Message) (retErr error) {
-	_, fileName := path.Split(filePath)
-
-	f, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("opening file %q: %w", fileName, err)
-	}
-	defer func() {
-		err := f.Close()
-		if err != nil && retErr == nil {
-			retErr = fmt.Errorf("error closing file %q: %w", fileName, err)
-		}
-	}()
-
-	bytes, err := io.ReadAll(f)
-	if err != nil {
-		return fmt.Errorf("reading file %q: %w", fileName, err)
-	}
-
-	log.Printf("proto successfully read from file: %s", string(bytes))
-
-	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
-	err = opts.Unmarshal(bytes, outputProto)
-	if err != nil {
-		return fmt.Errorf("unmarshalling proto for %q: %w", fileName, err)
 	}
 
 	return nil

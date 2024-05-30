@@ -86,7 +86,7 @@ func parseAndRunCmds(req *api.Request, log *log.Logger, dutClient api.DutService
 		}, err
 	case *api.Request_GetAvlInfoRequest:
 		log.Println("GetAvlInfo Task")
-		cmdResp, err := commands.GetAvlInfo(log, dutClient)
+		cmdResp, err := commands.GetAvlInfo(log, op.GetAvlInfoRequest)
 		if err != nil {
 			return nil, err
 		}
