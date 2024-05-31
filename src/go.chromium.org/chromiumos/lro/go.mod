@@ -2,9 +2,8 @@ module go.chromium.org/chromiumos/lro
 
 go 1.23
 
-// Fix for conflicting import versions.
 // Replace version with latest and run `go mod tidy` to update.
-replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20240528184218-531527333157
+replace go.chromium.org/chromiumos/config/go => go.chromium.org/chromiumos/config/go/src/go.chromium.org/chromiumos/config/go v0.0.0-20240531012445-8857f03a0531
 
 require (
 	github.com/golang/protobuf v1.5.4
