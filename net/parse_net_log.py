@@ -47,6 +47,10 @@ raw_signal_strength_re = re.compile(
     "|".join(RAW_SIGNAL_STRENGTH_SUBSTRING_SEARCH)
 )
 
+transactionSentTime = {}
+transaction_pattern = r"transaction = ([0-9]*)#"
+transaction_re = re.compile(transaction_pattern)
+
 
 def parse_raw_message(line, mm_raw_parser_level):
     """Parses one raw message from Modemmanager"""
@@ -112,6 +116,7 @@ def parse_net_log(
     hide_date_time,
     hide_messages,
     hide_signal_messages,
+    disable_transaction_duration,
 ):
     output = ""
     first_datetime = None
@@ -148,15 +153,21 @@ def parse_net_log(
             if hide_signal_messages and raw_signal_strength_re.search(line):
                 continue
 
+            process = process_re.search(line)
+            if process:
+                process = process.group()
+            # Grep values only if values were provided
+            if process_filter and process not in process_filter:
+                continue
+            if add_seconds_counter or not disable_transaction_duration:
+                current_timestamp = search_datetime(line)
             if add_seconds_counter:
                 if not first_datetime:
                     first_datetime = search_datetime(line)
-                current_timestamp = search_datetime(line)
+
                 if first_datetime and current_timestamp:
                     time_diff = current_timestamp - first_datetime
-                    time_diff_value = "{:011.6f}".format(
-                        time_diff.total_seconds()
-                    )
+                    time_diff_value = "%011.6f" % time_diff.total_seconds()
                 else:
                     time_diff_value = "-" * 11
 
@@ -176,27 +187,49 @@ def parse_net_log(
                     + line[time_diff_pos:]
                 )
 
-            process = process_re.search(line)
+            isModemManager = False
             if process:
-                process = process.group()
-            # Grep values only if values were provided
-            if process_filter and process not in process_filter:
-                continue
-
-            if process:
+                if process == "ModemManager":
+                    isModemManager = True
                 # Remove PID
-                line = re.sub(
-                    r"{0}\[[0-9]*\]".format(process), " " + process, line
-                )
+                line = re.sub(r"%s\[[0-9]*\]" % process, " " + process, line)
 
                 # Remove logging level(i.e. DEBUG, INFO)
                 line = re.sub(
-                    "(DEBUG|INFO|WARNING|NOTICE)  {0}".format(process),
+                    "(DEBUG|INFO|WARNING|NOTICE)  %s" % process,
                     process,
                     line,
                 )
 
-            if any([x in line for x in TRANSLATED_SUBSTRING_SEARCH]):
+            if (
+                not disable_transaction_duration
+                and isModemManager
+                and any(
+                    x in line
+                    for x in TRANSLATED_SUBSTRING_SEARCH + RAW_SUBSTRING_SEARCH
+                )
+            ):
+                transaction = transaction_re.search(line)
+                if transaction and "= indicate-status" not in line:
+                    transaction_id = transaction.group()
+                    if transaction_id not in transactionSentTime:
+                        transactionSentTime[transaction_id] = current_timestamp
+                    else:
+                        time_diff = (
+                            current_timestamp
+                            - transactionSentTime[transaction_id]
+                        )
+                        time_diff_value = "%011.6f" % time_diff.total_seconds()
+                        line = re.sub(
+                            pattern=transaction_pattern,
+                            repl="transaction = \\1(time:%ss)#"
+                            % time_diff_value,
+                            string=line,
+                        )
+
+            if isModemManager and any(
+                x in line for x in TRANSLATED_SUBSTRING_SEARCH
+            ):
                 if mm_raw_parser_level > 0:
                     line = parse_raw_message(line, mm_raw_parser_level)
 
@@ -209,10 +242,10 @@ def parse_arguments(argv):
     """Parses command line arguments.
 
     Args:
-      argv: List of commandline arguments.
+        argv: List of commandline arguments.
 
     Returns:
-      Namespace object containing parsed arguments.
+        Namespace object containing parsed arguments.
     """
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
@@ -237,6 +270,13 @@ def parse_arguments(argv):
         action="store_true",
         default=False,
         help="Hide all Sent and Received messages.",
+    )
+    parser.add_argument(
+        "--disable-transaction-duration",
+        "--dtd",
+        action="store_true",
+        default=False,
+        help="Calculate the duration of each modem command.",
     )
     parser.add_argument(
         "-p", "--process", action="append", help="Filter lines by process name."
@@ -295,6 +335,7 @@ def main(argv):
         opts.hide_date_time,
         opts.hide_messages,
         opts.hide_signal_messages,
+        opts.disable_transaction_duration,
     )
     return os.EX_OK
 
