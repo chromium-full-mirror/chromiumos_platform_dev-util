@@ -1,6 +1,6 @@
 module go.chromium.org/chromiumos/lro
 
-go 1.23
+go 1.21.5
 
 // Replace version with latest and run `go mod tidy` to update.
 replace go.chromium.org/chromiumos/config/go => go.chromium.org/chromiumos/config/go/src/go.chromium.org/chromiumos/config/go v0.0.0-20240531012445-8857f03a0531
