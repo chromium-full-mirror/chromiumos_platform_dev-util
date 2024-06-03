@@ -493,20 +493,20 @@ class Gerrit:
         return result
 
     def find_pending_changes(
-        self, project, branch, hashtags=(), subtree=None, exclude_paths=()
+        self, project, branch, topic, subtree=None, exclude_paths=()
     ):
         """Find pending changes previously opened by CopyBot on Gerrit.
 
         Returns:
             A dictionary mapping upstream commit hashes to their
-            current Change-Id on Gerrit and their associated hashtags.
+            current Change-Id on Gerrit.
         """
         query = [
             "status:open",
             f"project:{project}",
             f"branch:{branch}",
+            f"hashtag:{topic}",
         ]
-        query.extend(f"hashtag:{hashtag}" for hashtag in hashtags)
         if subtree:
             query.append(f"directory:{subtree}")
         for path in exclude_paths:
@@ -518,21 +518,36 @@ class Gerrit:
             current_revision_hash = cl["current_revision"]
             current_revision_data = cl["revisions"][current_revision_hash]
             commit_message = current_revision_data["commit"]["message"]
-            origin_rev_id = get_origin_rev_id(commit_message)
-            rev_id = []
-            if origin_rev_id:
-                rev_id.append(origin_rev_id)
-            else:
-                for commit_hash in _COMMIT_HASH_PATTERN.finditer(
-                    commit_message
-                ):
-                    rev_id.append(commit_hash.group(0))
-            for rev in rev_id:
-                change_ids[rev] = {}
-                change_ids[rev]["id"] = change_id
-                change_ids[rev]["hashtags"] = cl["hashtags"].copy()
-                change_ids[rev]["current_ref"] = current_revision_data["ref"]
+            rev_id = get_origin_rev_id(commit_message)
+            if rev_id:
+                change_ids[rev_id] = change_id
         return change_ids
+
+    def get_skiplist(self, project, branch, subtree=None, exclude_paths=()):
+        """Find changes with the copybot-skip hashtag.
+
+        Returns:
+            The set of upstream commit hashes that should be skipped.
+        """
+        query = [
+            "status:open",
+            f"project:{project}",
+            f"branch:{branch}",
+            "hashtag:copybot-skip",
+        ]
+        if subtree:
+            query.append(f"directory:{subtree}")
+        for path in exclude_paths:
+            query.append(f"-directory:{path}")
+        query_result = self.search(" ".join(query))
+        skipped_hashes = set()
+        for cl in query_result:
+            current_revision_hash = cl["current_revision"]
+            current_revision = cl["revisions"][current_revision_hash]
+            commit_message = current_revision["commit"]["message"]
+            for commit_hash in _COMMIT_HASH_PATTERN.finditer(commit_message):
+                skipped_hashes.add(commit_hash.group(0))
+        return skipped_hashes
 
 
 def generate_change_id():
@@ -645,6 +660,7 @@ def find_commits_to_copy(
     include_paths,
     upstream_limit=0,
     downstream_limit=0,
+    skip_revs=(),
     exclude_file_patterns=(),
     pending_changes=(),
 ):
@@ -662,6 +678,7 @@ def find_commits_to_copy(
             check.
         downstream_limit: The maxinum number of CLs in the downstream history
             to check.
+        skip_revs: Any upstream commit hashes that should be skipped.
         exclude_file_patterns: File paths that should not be copied.
         pending_changes: Changes pending in downstream repo.
 
@@ -692,10 +709,9 @@ def find_commits_to_copy(
         if counter > upstream_limit and upstream_limit != 0:
             break
 
-        if rev in pending_changes:
-            if "copybot-skip" in pending_changes[rev]["hashtags"]:
-                logger.info("Skip %s due to copybot-skip hashtag", rev)
-                continue
+        if rev in skip_revs:
+            logger.info("Skip %s due to copybot-skip hashtag", rev)
+            continue
 
         # If change is in pending list, allow relands
         if rev in downstreamed_revs:
@@ -871,7 +887,7 @@ def run_copybot(args, git_dir, patch_dir):
         pending_changes = gerrit.find_pending_changes(
             downstream_project,
             downstream_branch,
-            [args.topic],
+            args.topic,
             downstream_subtree,
             args.exclude_file_patterns,
         )
@@ -922,6 +938,14 @@ def run_copybot(args, git_dir, patch_dir):
             args.upstream_history_limit,
         )
         args.upstream_history_limit = num_cls_to_downstream
+    skip_revs = []
+    if gerrit:
+        skip_revs = gerrit.get_skiplist(
+            downstream_project,
+            downstream_branch,
+            downstream_subtree,
+            args.exclude_file_patterns,
+        )
 
     commits_to_copy = find_commits_to_copy(
         repo,
@@ -930,6 +954,7 @@ def run_copybot(args, git_dir, patch_dir):
         downstream_rev,
         downstream_subtree,
         include_paths=args.include_downstream,
+        skip_revs=skip_revs,
         upstream_limit=args.upstream_history_limit,
         downstream_limit=args.downstream_history_limit,
         exclude_file_patterns=args.exclude_file_patterns,
@@ -954,22 +979,15 @@ def run_copybot(args, git_dir, patch_dir):
     repo.checkout(downstream_rev)
     for i, rev in enumerate(reversed(commits_to_copy)):
         logger.info("(%s/%s) Cherry-pick %s", i + 1, len(commits_to_copy), rev)
-        pending_change = False
-        if rev in pending_changes:
-            if "copybot-overwrite" not in pending_changes[rev]["hashtags"]:
-                pending_change = True
+
         try:
-            if pending_change:
-                repo.fetch(downstream_url, pending_changes[rev]["current_ref"])
-                repo.cherry_pick("FETCH_HEAD")
-            else:
-                repo.cherry_pick(
-                    rev,
-                    patch_dir,
-                    upstream_subtree,
-                    downstream_subtree,
-                    args.include_downstream,
-                )
+            repo.cherry_pick(
+                rev,
+                patch_dir,
+                upstream_subtree,
+                downstream_subtree,
+                args.include_downstream,
+            )
         except EmptyCommitError:
             logger.warning("Skip cherry-pick due to empty commit")
             empty_revs.append(rev)
@@ -985,19 +1003,15 @@ def run_copybot(args, git_dir, patch_dir):
                 skipped_revs.extend(list(reversed(commits_to_copy))[i:])
                 break
             raise MergeConflictsError(commits=[rev]) from e
-        if not pending_change:
-            change_id = None
-            pending_overwrite = pending_changes.get(rev)
-            if pending_overwrite is not None:
-                change_id = pending_changes.get(rev)["id"]
-            rewrite_commit_message(
-                repo,
-                upstream_rev=rev,
-                change_id=change_id or generate_change_id(),
-                prepend_subject=args.prepend_subject,
-                sign_off=args.add_signed_off_by,
-                keep_pseudoheaders=args.keep_pseudoheaders,
-            )
+
+        rewrite_commit_message(
+            repo,
+            upstream_rev=rev,
+            change_id=pending_changes.get(rev) or generate_change_id(),
+            prepend_subject=args.prepend_subject,
+            sign_off=args.add_signed_off_by,
+            keep_pseudoheaders=args.keep_pseudoheaders,
+        )
 
     if repo.rev_parse() == downstream_rev:
         logger.info("Nothing to push!")
