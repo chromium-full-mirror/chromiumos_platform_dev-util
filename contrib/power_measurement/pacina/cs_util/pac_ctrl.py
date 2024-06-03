@@ -160,8 +160,8 @@ class Pac19xxInst:
             self.data_single.append(
                 [
                     self.ch_config[ch]["vname"],
-                    self._read_voltage(ch),
-                    self._read_current(ch),
+                    vbus,
+                    ishunt,
                     vbus * ishunt,
                 ]
             )
