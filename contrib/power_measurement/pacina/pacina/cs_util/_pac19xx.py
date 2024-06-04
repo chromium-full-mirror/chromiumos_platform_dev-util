@@ -4,7 +4,7 @@
 
 """PAC193x and PAC195x register information"""
 
-import cs_types
+from .. import cs_types
 
 
 FSR = 0.1

@@ -33,57 +33,13 @@ sudo pip3 install pandas plotly pyftdi
 ```
 
 It is recommended to run the script outside of chroot, as the setup described in
-this documennt requires to run `pacina.py` in `sudo`.
+this documennt requires to run `run.sh` in `sudo`.
 
 ### Logging power
 
-`usage: pacina.py [-h] [-s] [-t TIME] [--configs [CONFIGS ...]]
-    [--power_state {undefined,z5,z2,z1,s5,s4,s3,s0ix,plt-1h,plt-10h}] [-O
-    OUTPUT] [-p {unipolar,bipolar}] [--ftdi-urls [FTDI_URLS ...]] [--dut-info
-    DUT_INFO] [--dut DUT] [--sample-time SAMPLE_TIME] [-d] [-v]`
+To see the usage, run:
 
-```
-options:
--h, --help
-       Show this help message and exit
-
--s, --single
-       Use to take a single voltage, current power measurement of all rails
-
--t TIME, --time TIME
-       Time to capture in seconds
-
---configs [CONFIGS ...]
-       Current sensor configuration files. Supports both servod and pacman formats. Number of config files needs to
-       match number of number of FTDI URLs.
-
---power_state {undefined,z5,z2,z1,s5,s4,s3,s0ix,plt-1h,plt-10h}
-       Power State Information
-
--O OUTPUT, --output OUTPUT
-       Path for log files
-
--p {unipolar,bipolar}, --polarity {unipolar,bipolar}
-       Measurements can either be unipolar or bipolar
-
---ftdi-urls [FTDI_URLS ...]
-       FTDI URLs. Number of URLs needs to match number of config files
-
---dut-info
-       DUT_INFO JSON file containing DUT related information
-
---dut DUT
-       Target DUT. Only used when --dut_info is used.
-
---sample-time SAMPLE_TIME
-       Target sample time in seconds
-
--d, --debug
-       Print debug messages
-
--v, --verbose
-       Print verbose messages
-```
+    ./run.sh --help
 
 ### Outputs
 Following outputs are generated when taking a single measurement (`-s, --single`):

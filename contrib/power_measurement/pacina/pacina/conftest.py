@@ -8,13 +8,14 @@
 import time
 import typing as t
 
-import cs_config
-import cs_types
-import cs_util
-from cs_util import _pac19xx
-from cs_util import pac_ctrl
 from freezegun import freeze_time  # pylint: disable=import-error
 import pytest
+
+from . import cs_config
+from . import cs_types
+from . import cs_util
+from .cs_util import _pac19xx
+from .cs_util import pac_ctrl
 
 
 CH_VNAME: t.Final[str] = "CH1"
@@ -109,7 +110,7 @@ def sampling_device():
 @pytest.fixture
 def bus_config(sampling_device):
     return cs_config.BusConfig(
-        config_fpath="cpd.tests.py",
+        config_fpath="pacina/cpd.tests.py",
         ftdi_inst=sampling_device,
         drvs=cs_util.supported_pns,
     )

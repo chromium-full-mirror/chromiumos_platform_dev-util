@@ -14,12 +14,13 @@ import sys
 import time
 import typing as t
 
-import cs_config
-import cs_types
-import cs_util
-import measure
 from pyftdi.ftdi import Ftdi  # pylint: disable=import-error
-import viz
+
+from . import cs_config
+from . import cs_types
+from . import cs_util
+from . import measure
+from . import viz
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ def parse_args(argv):
         "--single",
         help=(
             "Use to take a single voltage, current "
-            "power measurement of all rails",
+            "power measurement of all rails"
         ),
         action="store_true",
     )

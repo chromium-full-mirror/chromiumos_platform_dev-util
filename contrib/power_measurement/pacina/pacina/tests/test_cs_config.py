@@ -8,7 +8,7 @@
 from freezegun import freeze_time  # pylint: disable=import-error
 import pytest
 
-import conftest
+from .. import conftest
 
 
 @freeze_time(conftest.FROZEN_TIME)

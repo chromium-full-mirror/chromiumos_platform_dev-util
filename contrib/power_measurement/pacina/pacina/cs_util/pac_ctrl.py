@@ -8,9 +8,8 @@ import logging
 import time
 import typing as t
 
-import cs_types
-
 from . import _pac19xx
+from .. import cs_types
 
 
 logger = logging.getLogger(__name__)

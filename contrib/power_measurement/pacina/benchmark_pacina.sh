@@ -78,7 +78,7 @@ for fast_mode in "${fast_modes[@]}"; do
           -p 70 \
           -a 0x2 \
           -e \
-          ./pacina.py \
+          ./run.sh \
           -m 10000 \
           --output "${results_dir}" \
           --sample-time "${sample_time}" \

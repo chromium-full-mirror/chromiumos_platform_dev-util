@@ -11,10 +11,11 @@ import sys
 import time
 import typing as t
 
-import cs_config
 from pyftdi.ftdi import Ftdi  # pylint: disable=import-error
 from pyftdi.i2c import I2cController  # pylint: disable=import-error
 import usb  # pylint: disable=import-error
+
+from . import cs_config
 
 
 logger = logging.getLogger(__name__)

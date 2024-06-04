@@ -8,9 +8,8 @@
 from freezegun import freeze_time  # pylint: disable=import-error
 import pytest
 
-import conftest
-
 from .. import pac_ctrl
+from ... import conftest
 
 
 def test_pac195x_refresh_wait_time(pac_device, sample_ch_config_entry) -> None:

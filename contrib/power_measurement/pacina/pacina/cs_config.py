@@ -10,8 +10,9 @@ import os
 import time
 import typing as t
 
-import cs_types
 from pyftdi.i2c import I2cNackError  # pylint: disable=import-error
+
+from . import cs_types
 
 
 logger = logging.getLogger(__name__)
