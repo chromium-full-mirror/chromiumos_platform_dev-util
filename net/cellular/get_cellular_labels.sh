@@ -229,7 +229,7 @@ do
       net="NETWORK_ATT"
       carrier="${slot}_att"
       ;;
-    "Callbox Operator Nam")
+    "Callbox Operator Nam"|"USIM")
       net="NETWORK_TEST"
       carrier="${slot}_amarisoft"
       ;;
