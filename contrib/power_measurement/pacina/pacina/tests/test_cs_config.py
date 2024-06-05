@@ -9,6 +9,7 @@ from freezegun import freeze_time  # pylint: disable=import-error
 import pytest
 
 from .. import conftest
+from .. import cs_config
 
 
 @freeze_time(conftest.FROZEN_TIME)
@@ -49,3 +50,23 @@ def test_bus_config_sensors_discovery(bus_config) -> None:
     }
     # REFRESH_G sensor
     assert bus_config.sensors[0].get_ch_info() is None
+
+
+@freeze_time(conftest.FROZEN_TIME)
+def test_collect_data_from_bus_configs(
+    bus_config, log_continuous_data
+) -> None:
+    bus_config.log_continuous()  # first sample is discarded
+    bus_config.log_continuous()
+
+    data, avg_power = cs_config.collect_data_from_bus_configs([bus_config])
+    assert data == [log_continuous_data]
+    assert avg_power == {
+        conftest.CH_VNAME: {
+            "acc_power": conftest.MockedPacDevice.MEASURED_POWER
+            * conftest.MockedPacDevice.ACC_COUNT,
+            "acc_raw": conftest.MockedPacDevice.ACC_VAL,
+            "count": conftest.MockedPacDevice.ACC_COUNT,
+            "rsense": conftest.RSENSE,
+        }
+    }

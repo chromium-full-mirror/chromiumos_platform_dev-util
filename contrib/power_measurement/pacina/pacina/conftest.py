@@ -20,13 +20,17 @@ from .cs_util import pac_ctrl
 
 CH_VNAME: t.Final[str] = "CH1"
 FROZEN_TIME: t.Final[str] = "1978-01-14"
+RSENSE: t.Final[float] = 0.02
+
+LOG_SINGLE_VOLTAGE: t.Final[float] = 12.1796875
+LOG_SINGLE_CURRENT: t.Final[float] = 0.00030517578125
 
 
 @pytest.fixture
 def sample_ch_config_entry():
     return lambda vname: {
         "vname": vname,
-        "rsense": 0.02,
+        "rsense": RSENSE,
         "nom": 12.0,
     }
 

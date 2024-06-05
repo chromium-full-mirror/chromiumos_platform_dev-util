@@ -241,17 +241,12 @@ def main(argv: t.Optional[t.List[str]] = None) -> None:
             viz.dump_log_single_data_to_csv(single_log_path, data, gpio_data)
             return
 
-        measure.log_power_continuous(
-            args.time, args.measurements, args.sample_time, configs
+        data, avg_power = measure.log_power_continuous(
+            configs,
+            args.sample_time,
+            args.time,
+            args.measurements,
         )
-
-    logger.info("Completed Logging")
-    avg_power: dict = {}
-    data = []
-
-    for config in configs:
-        data.extend(config.get_acc_pwr())
-        avg_power = {**avg_power, **config.get_avg_pwr()}
 
     viz.generate_reports(
         start_time,

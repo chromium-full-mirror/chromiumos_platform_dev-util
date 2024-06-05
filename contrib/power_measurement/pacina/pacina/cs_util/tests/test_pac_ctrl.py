@@ -77,10 +77,13 @@ def test_log_continuous(pac_drv, log_continuous_data) -> None:
 
 def test_log_single(pac_drv) -> None:
     pac_drv.log_single()
-    voltage = 12.1796875
-    current = 0.00030517578125
     assert pac_drv.data_single == [
-        [conftest.CH_VNAME, voltage, current, voltage * current]
+        [
+            conftest.CH_VNAME,
+            conftest.LOG_SINGLE_VOLTAGE,
+            conftest.LOG_SINGLE_CURRENT,
+            conftest.LOG_SINGLE_VOLTAGE * conftest.LOG_SINGLE_CURRENT,
+        ]
     ]
 
 

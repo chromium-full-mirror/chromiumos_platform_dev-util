@@ -207,3 +207,14 @@ class BusConfig:
         for sensor in self.sensors.values():
             avg_power = {**avg_power, **sensor.cs.acc}
         return avg_power
+
+
+def collect_data_from_bus_configs(
+    bus_configs: t.List[BusConfig],
+) -> t.Tuple[list, dict]:
+    avg_power: dict = {}
+    data: list = []
+    for bus_config in bus_configs:
+        data.extend(bus_config.get_acc_pwr())
+        avg_power = {**avg_power, **bus_config.get_avg_pwr()}
+    return data, avg_power

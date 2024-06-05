@@ -96,11 +96,11 @@ def initialize_ftdi() -> None:
 
 
 def log_power_continuous(
-    log_duration: float,
-    measurements: int,
-    sample_time: float,
     configs: t.List[cs_config.BusConfig],
-) -> None:
+    sample_time: float,
+    log_duration: float = 0,
+    measurements: int = 0,
+) -> t.Tuple[list, dict]:
     assert (log_duration != 0) ^ (
         measurements != 0
     ), "Specify EITHER log_duration or number of measurements"
@@ -149,6 +149,9 @@ def log_power_continuous(
         for config in configs:
             config.log_continuous()
         sample_index = sample_index + 1
+
+    logger.info("Completed Logging")
+    return cs_config.collect_data_from_bus_configs(configs)
 
 
 def log_power_single(
