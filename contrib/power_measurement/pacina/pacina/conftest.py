@@ -5,6 +5,7 @@
 
 """Pytest testing fixtures file."""
 
+import contextlib
 import time
 import typing as t
 
@@ -104,6 +105,36 @@ class MockedSamplingDevice:
 
     def get_port(self, _: int) -> cs_types.SamplingDevice:
         return MockedPacDevice()
+
+    @property
+    def ftdi(self) -> cs_types.FtdiCtrlInterface:
+        return MockeFtdiCtrlInterface
+
+
+class MockeFtdiCtrlInterface:
+    """Mocked FTDI device controller interface."""
+
+    @property
+    def usb_dev(self) -> cs_types.UsbDevInterface:
+        return MockedUsbDevInterface
+
+
+class MockedUsbDevInterface:
+    """Mocked USB device interface."""
+
+    @property
+    def speed(self) -> int:
+        import usb  # pylint: disable=import-error
+
+        return usb.util.SPEED_HIGH
+
+
+@contextlib.contextmanager
+def device_controller_const(_: str):
+    try:
+        yield MockedSamplingDevice
+    finally:
+        pass
 
 
 @pytest.fixture

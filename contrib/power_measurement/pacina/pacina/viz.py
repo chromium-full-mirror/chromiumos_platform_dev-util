@@ -11,6 +11,8 @@ import time
 import typing as t
 import urllib
 
+from . import cs_types
+
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,7 @@ def generate_reports(
     data: list,
     avg_power: dict,
     config_rails: t.List[dict],
-    power_state: str,
+    power_state: cs_types.PowerState,
     header_record: t.List[str],
 ) -> None:
     # Importing lazily so that only when function is called pandas is required
@@ -146,7 +148,7 @@ def generate_reports(
             stop_time = time.strftime("%Y-%m-%d %H:%M:%S")
             test_info: dict = {}
             test_info["id"] = log_prefix
-            test_info["measurement_phase"] = power_state
+            test_info["measurement_phase"] = str(power_state)
             test_info["measurement_start_time"] = time.strftime(
                 "%Y%m%d %H%M%S", time.localtime(start_time)
             )

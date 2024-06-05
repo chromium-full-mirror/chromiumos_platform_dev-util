@@ -16,6 +16,7 @@ from pyftdi.i2c import I2cController  # pylint: disable=import-error
 import usb  # pylint: disable=import-error
 
 from . import cs_config
+from . import cs_types
 
 
 logger = logging.getLogger(__name__)
@@ -60,12 +61,12 @@ class SignalHandler:
         return self.terminate_signal
 
 
-def is_usb_high_speed_mode(controller: I2cController) -> bool:
+def is_usb_high_speed_mode(controller: cs_types.DeviceController) -> bool:
     return controller.ftdi.usb_dev.speed == usb.util.SPEED_HIGH
 
 
 @contextlib.contextmanager
-def managed_ftdi(ftdi_url: str) -> t.Iterator[I2cController]:
+def managed_ftdi(ftdi_url: str) -> t.Iterator[cs_types.DeviceController]:
     """Managed FTDI resource."""
     ftdi_inst = I2cController()
     ftdi_inst.configure(ftdi_url, frequency=I2C_CLOCK_FREQUENCY)
