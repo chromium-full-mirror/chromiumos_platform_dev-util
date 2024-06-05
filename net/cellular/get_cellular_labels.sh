@@ -99,22 +99,9 @@ sf_connect() {
 
 # Gets a DBus property of an interface of a DBus object.
 dbus_property() {
+  ifc="$1"
+  obj="$2"
   prop="$3"
-  obj="$1"
-  ifc=${MM1_IF_MODEM}
-
-  case "${prop}" in
-    Imei|OperatorName)
-      ifc=${MM1_IF_3GPP}
-      ;;
-    Eid|SimIdentifier)
-      obj="$2"
-      ifc=${MM1_IF_SIM}
-      ;;
-    *)
-      ;;
-  esac
-
   dbus-send --system --print-reply --fixed --dest="${MM1}" "${obj}" "${DB_PROP}" "string:${ifc}" "string:${prop}"
 }
 
@@ -171,11 +158,11 @@ do
     fi
   fi
   mmobj=$(mm_obj)
-  simobj=$(dbus_property "${mmobj}" " " "Sim")
+  simobj=$(dbus_property "${MM1_IF_MODEM}" "${mmobj}" "Sim")
   if [[ ${index} == 1 ]]; then
-    imei=$(dbus_property "${mmobj}" "${simobj}" "Imei")
-    mfr=$(dbus_property "${mmobj}" "${simobj}" "Manufacturer")
-    model=$(dbus_property "${mmobj}" "${simobj}" "Model")
+    imei=$(dbus_property "${MM1_IF_3GPP}" "${mmobj}" "Imei")
+    mfr=$(dbus_property "${MM1_IF_MODEM}" "${mmobj}" "Manufacturer")
+    model=$(dbus_property "${MM1_IF_MODEM}" "${mmobj}" "Model")
     modem="MODEM_TYPE_UNSPECIFIED"
     case "${mfr}" in
       "Fibocom Wireless Inc.")
@@ -211,11 +198,20 @@ do
     esac
     modeminfoUpdateCmd="shivas update dut -name ${name} -modeminfo ${modem},${imei},,${nsims}"
   fi
-  eid=$(dbus_property "${mmobj}" "${simobj}" "Eid")
-  iccid=$(dbus_property "${mmobj}" "${simobj}" "SimIdentifier")
-  net1=$(dbus_property "${mmobj}" "${simobj}" "OperatorName")
+  eid=$(dbus_property "${MM1_IF_SIM}" "${simobj}" "Eid")
+  iccid=$(dbus_property "${MM1_IF_SIM}" "${simobj}" "SimIdentifier")
+  net1=$(dbus_property "${MM1_IF_3GPP}" "${mmobj}" "OperatorName")
+  if [ -z "${net1}" ]; then
+    # Sometimes, the operator name is not in the modem properties when not yet registered.
+    net1=$(dbus_property "${MM1_IF_SIM}" "${simobj}" "OperatorName")
+  fi
+
+  own1=$(dbus_property "${MM1_IF_MODEM}" "${mmobj}" "OwnNumbers")
+  own=$(echo "${own1}" | cut -d ' ' -f 2)
   net="NETWORK_OTHER"
   carrier=""
+  pin="${PIN}"
+  puk="${PUK}"
   case "${net1}" in
     "Verizon Wireless")
       net="NETWORK_VERIZON"
@@ -232,6 +228,12 @@ do
     "Callbox Operator Nam"|"USIM")
       net="NETWORK_TEST"
       carrier="${slot}_amarisoft"
+      pin=1234
+      puk=88888888
+      # Callbox DUTs don't have a phone number
+      if [ "${own}" = "" ]; then
+        own="\"\""
+      fi
       ;;
     *)
       net="NETWORK_OTHER"
@@ -242,12 +244,11 @@ do
       carrier="${slot}_${net1,,}"
       ;;
   esac
-  own1=$(dbus_property "${mmobj}" "${simobj}" "OwnNumbers")
-  own=$(echo "${own1}" | cut -d ' ' -f 2)
+
   if [ "${own}" = "" ]; then
     own=${OWN}
   fi
-  sim_label="${sim_label} -siminfo SIM_PHYSICAL,${index},${eid},FALSE,${iccid},${PIN},${PUK},${net},${own}"
+  sim_label="${sim_label} -siminfo SIM_PHYSICAL,${index},${eid},FALSE,${iccid},${pin},${puk},${net},${own}"
   sf_label="${sf_label}${carrier}"
   if [[ ${index} != "${nsims}" ]]; then
     sf_label="${sf_label},"
