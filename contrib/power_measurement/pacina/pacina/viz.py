@@ -11,9 +11,6 @@ import time
 import typing as t
 import urllib
 
-import pandas as pd  # pylint: disable=import-error
-import plotly.express  # pylint: disable=import-error
-
 
 logger = logging.getLogger(__name__)
 
@@ -51,21 +48,16 @@ def generate_reports(
     avg_power: dict,
     config_rails: t.List[dict],
     power_state: str,
+    header_record: t.List[str],
 ) -> None:
-    header_record = [
-        "time_abs",
-        "time_relative",
-        "rail",
-        "accum",
-        "count",
-        "power",
-    ]
-    time_log_path = log_path / (log_prefix + "timeLog.csv")
+    # Importing lazily so that only when function is called pandas is required
+    import pandas as pd  # pylint: disable=import-error
+    import plotly.express  # pylint: disable=import-error
+
     summary_path = log_path / (log_prefix + "summary.csv")
     summary_html_path = log_path / (log_prefix + "summary.html")
 
     df = pd.DataFrame(data, columns=header_record)
-    df.to_csv(time_log_path)
 
     df_avg = pd.DataFrame.from_dict(avg_power, orient="index").reset_index()
     df_avg["power"] = df_avg["acc_power"] / df_avg["count"]
@@ -191,19 +183,18 @@ def generate_reports(
     print(f"Report: file://{report_file_path}")
 
 
-def dump_log_single_data_to_csv(
-    log_path: pathlib.Path, data: list, gpio_data: list
+def show_log_single_data(
+    data: list, gpio_data: list, log_single_header: t.List[str]
 ) -> None:
-    header = ["Rail", "Voltage (V)", "Current (A)", "Power (W)"]
-    df = pd.DataFrame(data, columns=header)
+    # Importing lazily so that only when function is called pandas is required
+    import pandas as pd  # pylint: disable=import-error
+
+    df = pd.DataFrame(data, columns=log_single_header)
 
     pd.options.display.float_format = "{:,.3f}".format
     print(df)
-    df.to_csv(log_path)
 
     if gpio_data:
         df_gpio = pd.DataFrame(gpio_data, columns=["GPIO", "State"])
         print("\nGPIO States")
         print(df_gpio)
-
-    logger.info("Output written to %s", log_path)

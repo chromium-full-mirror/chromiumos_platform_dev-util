@@ -7,6 +7,7 @@
 
 import argparse
 import contextlib
+import csv
 import json
 import logging
 import pathlib
@@ -25,8 +26,23 @@ from . import viz
 
 logger = logging.getLogger(__name__)
 
+MEASUREMENTS_LOG_HEADER: t.Final[t.List[str]] = [
+    "time_abs",
+    "time_relative",
+    "rail",
+    "accum",
+    "count",
+    "power",
+]
+LOG_SINGLE_HEADER: t.Final[t.List[str]] = [
+    "Rail",
+    "Voltage (V)",
+    "Current (A)",
+    "Power (W)",
+]
 
-def parse_args(argv):
+
+def parse_args(argv) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-s",
@@ -163,8 +179,71 @@ def _get_log_prefix_from_dut_info(
     )
 
 
+def dump_time_log_to_csv(
+    data: list,
+    log_path: pathlib.Path,
+    log_prefix: str,
+) -> None:
+    time_log_path = log_path / (log_prefix + "timeLog.csv")
+
+    with open(time_log_path, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(MEASUREMENTS_LOG_HEADER)
+        writer.writerows(data)
+
+    logger.info("Output written to %s", time_log_path)
+
+
+def dump_log_single_data_to_csv(
+    data: list,
+    log_path: pathlib.Path,
+) -> None:
+    with open(log_path, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(LOG_SINGLE_HEADER)
+        writer.writerows(data)
+
+    logger.info("Output written to %s", log_path)
+
+
+def validate_args(args: argparse.Namespace) -> None:
+    if args.dut_info and not args.dut:
+        raise ValueError("Specify target DUT.")
+
+    if args.dut_info and args.dut:
+        dut_info = json.load(args.dut_info)
+        if args.dut not in dut_info.keys():
+            raise ValueError(args.dut + " not found in " + args.dut_info.name)
+
+    if not args.configs:
+        raise ValueError("Current Sensor Configuration(s) Required")
+
+    if len(args.ftdi_urls) != len(args.configs):
+        logger.error(
+            "Number of config files needs to match number of FTDI URLs"
+        )
+
+
+def prepare_output_dir(
+    dut_info: t.Optional[dict],
+    log_prefix: str,
+    output: pathlib.Path,
+    start_time: float,
+) -> pathlib.Path:
+    if dut_info and log_prefix:
+        log_path = output / dut_info["program"]
+    else:
+        log_path = output / time.strftime(
+            "%Y%m%d_%H%M%S", time.localtime(start_time)
+        )
+
+    log_path.mkdir(parents=True, exist_ok=True)
+    return log_path
+
+
 def main(argv: t.Optional[t.List[str]] = None) -> None:
     args = parse_args(argv)
+    validate_args(args)
 
     logging.basicConfig(level=args.loglevel)
     measure.initialize_ftdi()
@@ -173,15 +252,8 @@ def main(argv: t.Optional[t.List[str]] = None) -> None:
     dut_info = None
     log_prefix = ""
 
-    if args.dut_info and not args.dut:
-        logger.error("Specify target DUT.")
-        return
-
     if args.dut_info and args.dut:
         dut_info = json.load(args.dut_info)
-        if args.dut not in dut_info.keys():
-            logger.error(args.dut + " not found in " + args.dut_info.name)
-            return
         dut_info = dut_info[args.dut]
         args.ftdi_urls = dut_info["ftdi_urls"]
         args.configs = dut_info["configs"]
@@ -189,29 +261,12 @@ def main(argv: t.Optional[t.List[str]] = None) -> None:
             dut_info, args.power_state, start_time
         )
 
-    if not args.configs:
-        logger.error("Current Sensor Configuration(s) Required")
-        return
-
-    if len(args.ftdi_urls) != len(args.configs):
-        logger.error(
-            "Number of config files needs to match number of FTDI URLs"
-        )
-        return
-
     for ftdi_url in args.ftdi_urls:
         Ftdi.get_device(ftdi_url)
 
-    # Prepare output directory.
-
-    if dut_info and log_prefix:
-        log_path = args.output / dut_info["program"]
-    else:
-        log_path = args.output / time.strftime(
-            "%Y%m%d_%H%M%S", time.localtime(start_time)
-        )
-
-    log_path.mkdir(parents=True, exist_ok=True)
+    log_path = prepare_output_dir(
+        dut_info, log_prefix, args.output, start_time
+    )
 
     # based on the config files, generate cs instances
     configs: t.List[cs_config.BusConfig] = []
@@ -238,7 +293,8 @@ def main(argv: t.Optional[t.List[str]] = None) -> None:
         if args.single:
             data, gpio_data = measure.log_power_single(configs)
             single_log_path = log_path / (log_prefix + "singleLog.csv")
-            viz.dump_log_single_data_to_csv(single_log_path, data, gpio_data)
+            dump_log_single_data_to_csv(data, single_log_path)
+            viz.show_log_single_data(data, gpio_data, LOG_SINGLE_HEADER)
             return
 
         data, avg_power = measure.log_power_continuous(
@@ -248,6 +304,7 @@ def main(argv: t.Optional[t.List[str]] = None) -> None:
             args.measurements,
         )
 
+    dump_time_log_to_csv(data, log_path, log_prefix)
     viz.generate_reports(
         start_time,
         log_path,
@@ -257,6 +314,7 @@ def main(argv: t.Optional[t.List[str]] = None) -> None:
         avg_power,
         config_rails,
         args.power_state,
+        MEASUREMENTS_LOG_HEADER,
     )
 
 
