@@ -15,6 +15,7 @@ from typing import List
 import cros_ca_lib.definition as df
 from cros_ca_lib.host import base_host
 from cros_ca_lib.host import ssh_host
+from cros_ca_lib.utils import control
 from cros_ca_lib.utils import logging as lg
 
 
@@ -158,7 +159,7 @@ class CrOSSSHHost(ssh_host.SSHHost):
         # Add quote to the file path in case spaces are included.
         return f'\\"{path}\\"'
 
-    def path_exist(self, path):
+    def path_exist(self, path: str) -> bool:
         """Check if a file path exists.
 
         Args:
@@ -167,10 +168,13 @@ class CrOSSSHHost(ssh_host.SSHHost):
         Returns:
             True if file exists. Otherwise False.
         """
+        command = rf"ls \"{self.normalize_path(path)}\""
+        return control.retry(lambda: self._path_exist(command))
+
+    def _path_exist(self, command: str) -> bool:
         try:
-            command = rf"ls \"{self.normalize_path(path)}\""
-            stdout, _, _ = self.exec_command(command, 20)
-        except Exception as e:
+            stdout, _, _ = self.exec_command(command, 20, 0)
+        except control.RetryableError as e:
             if ls_error_is_not_found(repr(e)):
                 return False
             raise

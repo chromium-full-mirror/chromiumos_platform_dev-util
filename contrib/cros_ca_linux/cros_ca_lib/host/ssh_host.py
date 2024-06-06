@@ -11,9 +11,11 @@ import os
 import re
 import subprocess
 import tempfile
+from typing import Tuple
 
 import cros_ca_lib.definition as df
 from cros_ca_lib.host import base_host
+from cros_ca_lib.utils import control
 from cros_ca_lib.utils import logging as lg
 
 
@@ -22,8 +24,33 @@ SSH_EXECUTION_TIMEOUT = 20
 SSH_SCP_TIMEOUT = 60
 
 
-def execute_local_command(command, check=True, timeout=SSH_EXECUTION_TIMEOUT):
+def execute_local_command(
+    command: str,
+    check=True,
+    timeout=SSH_EXECUTION_TIMEOUT,
+    retry_times=base_host.EXECUTION_DEFAULT_RETRY_TIMES,
+) -> Tuple[str, str, int]:
+    """Execute command in local system, retry if encounter retryable errors.
+
+    Args:
+        command: The command to execute
+        check: Throw error exit code is not zero, if True.
+        timeout: Execution timeout in seconds.
+        retry_times: Retry times if encounter retryable errors.
+
+    Returns:
+        A tuple contains standard output, standard error and return code
+    """
     logger.debug("command=%s", command)
+    return control.retry(
+        lambda: _execute_local_command(command, check, timeout),
+        retry_times,
+    )
+
+
+def _execute_local_command(
+    command: str, check: bool, timeout: int
+) -> Tuple[str, str, int]:
     try:
         with open("/dev/null", "rb") as dev_null:
             process = subprocess.run(
@@ -40,15 +67,14 @@ def execute_local_command(command, check=True, timeout=SSH_EXECUTION_TIMEOUT):
             stdout_data = process.stdout.decode("utf-8")
             stderr_data = process.stderr.decode("utf-8")
             return stdout_data, stderr_data, process.returncode
-
     except subprocess.TimeoutExpired:
-        raise Exception(
+        raise control.RetryableError(
             f"command execution timed out after {timeout} seconds."
         ) from None
     except subprocess.CalledProcessError as e:
-        raise Exception(
+        raise control.RetryableError(
             "command failed with exit status "
-            + f"{e.returncode}:\n{e.stderr.decode('utf-8')}"
+            f"{e.returncode}:\n{e.stderr.decode('utf-8')}"
         ) from None
     except Exception as e:
         raise Exception(f"execute command failed: {e}") from None
@@ -233,18 +259,24 @@ class SSHHost(base_host.BaseHost):
         """Disconnects from the remote host, if connected."""
         logger.info("Disconnected from host: %s", self.hostname)
 
-    def exec_command(self, command, timeout=60):
+    def exec_command(
+        self,
+        command: str,
+        timeout=60,
+        retry_times=base_host.EXECUTION_DEFAULT_RETRY_TIMES,
+    ) -> Tuple[str, str, int]:
         """Executes a command on the remote host.
 
         Args:
             command: The command to execute on the remote server.
             timeout: The timeout value
+            retry_times: Retry times if encounter retryable errors.
 
         Returns:
             standard output, standard error, and exit code
         """
         command = self.ssh_command(command)
-        return execute_local_command(command, True, timeout)
+        return execute_local_command(command, True, timeout, retry_times)
 
     def executing_command(self, command, timeout):
         """Executes a command on the remote host.

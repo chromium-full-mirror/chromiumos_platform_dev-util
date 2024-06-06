@@ -16,7 +16,7 @@ import stat
 import subprocess
 import tempfile
 import time
-from typing import List
+from typing import List, Tuple
 
 import cros_ca_lib.definition as df
 from cros_ca_lib.host import base_host
@@ -135,7 +135,12 @@ class ParamikoHost(base_host.BaseHost):
             is_done,
         )
 
-    def exec_command(self, command, timeout=30):
+    def exec_command(
+        self,
+        command: str,
+        timeout: int = 30,
+        retry_times: int = base_host.EXECUTION_DEFAULT_RETRY_TIMES,
+    ) -> Tuple[str, str, int]:
         """Runs a program on the remote host using Paramiko.
 
         It returns the command's exit status.
@@ -143,10 +148,13 @@ class ParamikoHost(base_host.BaseHost):
         Args:
             command: The command to execute on the remote server.
             timeout: timeout value.
+            retry_times: Retry times if encounter retryable errors.
 
         Returns:
             The standard output data, standard error data, and exit status.
         """
+
+        # TODO: Implement retry
         logger.debug("command=%s", command)
         if not self._connected:
             raise AssertionError("Not connected to host. Please connect first.")

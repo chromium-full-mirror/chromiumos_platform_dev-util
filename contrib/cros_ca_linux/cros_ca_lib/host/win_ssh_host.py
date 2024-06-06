@@ -14,6 +14,7 @@ from typing import List
 from cros_ca_lib.host import base_host
 from cros_ca_lib.host import ssh_host
 from cros_ca_lib.host import win_remote_host
+from cros_ca_lib.utils import control
 from cros_ca_lib.utils import logging as lg
 
 
@@ -167,7 +168,7 @@ class WinSSHHost(win_remote_host.WinRemoteHost, ssh_host.SSHHost):
             raise Exception(f"No dir entry found for {path}")
         return entries[0]
 
-    def path_exist(self, path):
+    def path_exist(self, path) -> bool:
         """Check if a file path exists.
 
         Args:
@@ -176,10 +177,13 @@ class WinSSHHost(win_remote_host.WinRemoteHost, ssh_host.SSHHost):
         Returns:
             True if file exists. Otherwise False.
         """
+        command = f'dir "{self.normalize_path(path)}"'
+        return control.retry(lambda: self._path_exist(command))
+
+    def _path_exist(self, command: str) -> bool:
         try:
-            command = f'dir "{self.normalize_path(path)}"'
-            stdout, _, _ = self.exec_command(command, 20)
-        except Exception as e:
+            stdout, _, _ = self.exec_command(command, 20, 0)
+        except control.RetryableError as e:
             if dir_error_is_not_found(self._shell, repr(e)):
                 return False
             raise

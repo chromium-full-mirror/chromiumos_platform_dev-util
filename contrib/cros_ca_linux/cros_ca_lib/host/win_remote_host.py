@@ -109,7 +109,7 @@ class WinRemoteHost(abc.ABC, base_host.BaseHost):
             # Wait for the DUT to be disconnected
             try:
                 command = "echo '1'"
-                self.exec_command(command, 20)
+                self.exec_command(command, 20, 0)
                 time.sleep(3)
             except Exception:
                 logger.info("The host is disconnected.")

@@ -11,7 +11,7 @@ import datetime
 import os
 from pathlib import Path
 import time
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import cros_ca_lib.definition as df
 from cros_ca_lib.utils import logging as lg
@@ -20,6 +20,8 @@ from selenium import webdriver
 
 
 logger = lg.logger
+
+EXECUTION_DEFAULT_RETRY_TIMES: int = 3
 
 
 class DirEntry:
@@ -135,12 +137,18 @@ class BaseHost:
             "executing_command() must be implemented in a subclass"
         )
 
-    def exec_command(self, command, timeout):
+    def exec_command(
+        self,
+        command: str,
+        timeout: int,
+        retry_times: int = EXECUTION_DEFAULT_RETRY_TIMES,
+    ) -> Tuple[str, str, int]:
         """Executes a command on the host.
 
         Args:
             command: The command to execute on the server.
             timeout: timeout value.
+            retry_times: Retry times if encounter retryable errors.
 
         Returns:
             standard data, standard err data, and exit code
