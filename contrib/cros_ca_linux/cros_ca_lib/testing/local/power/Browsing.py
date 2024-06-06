@@ -103,7 +103,7 @@ class Browsing(cbt.ChromeBrowserTest):
 
     def _run(self) -> None:
         self._login()
-        self.dut.mute(True)
+        self.dut.set_volume(0)
 
         data = load_config(
             config_path=(

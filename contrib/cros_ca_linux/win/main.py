@@ -8,10 +8,10 @@ import argparse
 import sys
 
 import cros_ca_lib.definition as df
-from cros_ca_lib.host import win_local_host
 from cros_ca_lib.runner import local_runner
 from cros_ca_lib.utils import logging as lg
 from cros_ca_win_lib import metrics
+from cros_ca_win_lib.host import win_local_host
 
 from bin import utils
 

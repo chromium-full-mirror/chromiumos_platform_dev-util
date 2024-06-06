@@ -89,7 +89,7 @@ class GoogleMeet(cbt.ChromeBrowserTest):
 
     def _run(self) -> None:
         self._login()
-        self.dut.mute(True)
+        self.dut.set_volume(0)
 
         recorder = rd.SimpleRecorder(self.test_name)
         try:

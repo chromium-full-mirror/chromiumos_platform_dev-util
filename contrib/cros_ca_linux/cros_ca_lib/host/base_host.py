@@ -455,12 +455,22 @@ class BaseHost:
         return update
 
     def mute(self, flag=True):
-        """Set the device speaker to mute.
+        """Mute or unmute all active speakers of the device.
 
         Args:
-            flag: True if set to mute, Fale to unmute.
+            flag: Mute the device if True, otherwise unmute.
         """
         raise NotImplementedError("mute() must be implemented in a subclass")
+
+    def set_volume(self, percent: int) -> None:
+        """Set the sound volume of all the active device speakers.
+
+        Args:
+            percent: The volume percentage, ranging from 0 to 100.
+        """
+        raise NotImplementedError(
+            "set_volume must be implemented in a subclass"
+        )
 
     def sleep(self, time_in_seconds: float):
         """Do sleep

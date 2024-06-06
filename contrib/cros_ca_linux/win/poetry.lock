@@ -194,6 +194,17 @@ files = [
 ]
 
 [[package]]
+name = "comtypes"
+version = "1.4.3"
+description = "Pure Python COM package"
+optional = false
+python-versions = "*"
+files = [
+    {file = "comtypes-1.4.3-py3-none-any.whl", hash = "sha256:d8b76ea5b198902d0a1487dab0e0370307136b3522b98b9b513cf7c1eb775117"},
+    {file = "comtypes-1.4.3.zip", hash = "sha256:31c440766ab26d5522c8bb9d1d50221f002cc309e47f95914e4b028fa967b863"},
+]
+
+[[package]]
 name = "exceptiongroup"
 version = "1.2.1"
 description = "Backport of PEP 654 (exception groups)"
@@ -270,6 +281,21 @@ files = [
 
 [package.extras]
 test = ["enum34", "ipaddress", "mock", "pywin32", "wmi"]
+
+[[package]]
+name = "pycaw"
+version = "20240210"
+description = "Python Core Audio Windows Library"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pycaw-20240210-py3-none-any.whl", hash = "sha256:fbbe0ee67a7d32714240e26913266a386ae4375778c417a7e8ad6076eca62f1e"},
+    {file = "pycaw-20240210.tar.gz", hash = "sha256:55e49359e9f227053f4fa15817a02d4a7bc52fc3db32e123894719a123c41d06"},
+]
+
+[package.dependencies]
+comtypes = "*"
+psutil = "*"
 
 [[package]]
 name = "pycparser"
@@ -483,4 +509,4 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "9e991f64bf0782632da3affaba275ef14efdbca3a1da07c1d5d9303dca184740"
+content-hash = "d3679edbe697bf88af9943f19d3068c40244fa12ef1bafe8a370ea7fd6de579c"

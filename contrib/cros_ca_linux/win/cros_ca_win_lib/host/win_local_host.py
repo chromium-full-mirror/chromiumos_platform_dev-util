@@ -8,7 +8,12 @@
 # pylint: disable=W0223
 
 from cros_ca_lib.host import base_host
+from cros_ca_lib.utils import logging as lg
+from cros_ca_win_lib.utils import audio
 from selenium import webdriver
+
+
+logger = lg.logger
 
 
 class WinLocalHost(base_host.BaseHost):
@@ -47,10 +52,22 @@ class WinLocalHost(base_host.BaseHost):
             option: Login option.
         """
 
-    def mute(self, flag=True):
-        """Set the device speaker to mute.
+    def mute(self, flag: bool = True) -> None:
+        """Mute or unmute all active speakers of the device.
 
         Args:
-            flag: True if set to mute, Fale to unmute.
+            flag: Mute the device if True, otherwise unmute.
         """
-        # TODO: To be implemented.
+        logger.debug("%s the device sound", "Mute" if flag else "Unmute")
+        for dev in audio.get_all_active_render_devices():
+            audio.mute_device(dev, flag)
+
+    def set_volume(self, percent: int) -> None:
+        """Set the sound volume of all the active device speakers.
+
+        Args:
+            percent: The volume percentage, ranging from 0 to 100.
+        """
+        logger.debug("Set device sound volume to %s", percent)
+        for dev in audio.get_all_active_render_devices():
+            audio.set_device_volume(dev, percent)

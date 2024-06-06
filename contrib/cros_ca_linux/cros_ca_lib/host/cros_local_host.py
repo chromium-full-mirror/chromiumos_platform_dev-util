@@ -11,10 +11,14 @@ import subprocess
 import time
 
 from cros_ca_lib.host import base_host
+from cros_ca_lib.utils import logging as lg
 from cros_ca_lib.utils.autotest import autologin
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+
+
+logger = lg.logger
 
 
 class CrosLocalHost(base_host.BaseHost):
@@ -97,14 +101,31 @@ class CrosLocalHost(base_host.BaseHost):
         s = Service("/usr/local/chromedriver/chromedriver")
         return webdriver.Chrome(service=s, options=options)
 
-    def mute(self, flag=True):
-        """Set the device speaker to mute.
+    def mute(self, flag=True) -> None:
+        """Mute or unmute all active speakers of the device.
 
         Args:
-            flag: True if set to mute, Fale to unmute.
+            flag: Mute the device if True, otherwise unmute.
         """
-        command = "cras_test_client "
-        command += f"--mute {1 if flag else 0}"
+        logger.debug("%s the device sound", "Mute" if flag else "Unmute")
+        mute = "true" if flag else "false"
+        command = f"cras_tests control set_mute {mute}"
+        subprocess.run(
+            command,
+            shell=True,
+            stdout=subprocess.DEVNULL,  # Supress the stdout and stderr
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
+
+    def set_volume(self, percent: int) -> None:
+        """Set the sound volume of all the active device speakers.
+
+        Args:
+            percent: The volume percentage, ranging from 0 to 100.
+        """
+        logger.debug("Set device sound volume to %s", percent)
+        command = f"cras_tests control set_volume {percent}"
         subprocess.run(
             command,
             shell=True,
