@@ -5,6 +5,10 @@
 package main
 
 import (
+	"log"
+	"net/url"
+	"strings"
+
 	"go.chromium.org/chromiumos/config/go/test/api"
 
 	dut_api "go.chromium.org/chromiumos/config/go/test/lab/api"
@@ -13,7 +17,7 @@ import (
 // GenerateDynamicInfo creates dynamic updates for provision
 // requests, and adds their relevant information to each
 // scheduling unit's dynamic lookup table.
-func GenerateDynamicInfo(req *api.InternalTestplan, specs *FirmwareSpecs) error {
+func GenerateDynamicInfo(req *api.InternalTestplan, specs *FirmwareSpecs, log *log.Logger) error {
 	// Create Dynamic Updates.
 	if err := generateProvisionRequests(req, specs); err != nil {
 		return err
@@ -22,9 +26,7 @@ func GenerateDynamicInfo(req *api.InternalTestplan, specs *FirmwareSpecs) error 
 	// Add provision/DUT related information to dynamic
 	// lookup table for resolving placeholders
 	// found within generated Dynamic Updates.
-	generateDynamicUpdateLookupTables(req, specs)
-
-	return nil
+	return generateDynamicUpdateLookupTables(req, specs, log)
 }
 
 // generateProvisionRequests loops through each swarming definition and
@@ -58,7 +60,7 @@ func generateProvisionRequests(req *api.InternalTestplan, specs *FirmwareSpecs) 
 
 // generateDynamicUpdateLookupTables populates the lookup table for the primary
 // and companion devices.
-func generateDynamicUpdateLookupTables(req *api.InternalTestplan, specs *FirmwareSpecs) {
+func generateDynamicUpdateLookupTables(req *api.InternalTestplan, specs *FirmwareSpecs, log *log.Logger) error {
 	suiteMetadata := req.GetSuiteInfo().GetSuiteMetadata()
 
 	for _, target := range suiteMetadata.GetSchedulingUnits() {
@@ -70,12 +72,12 @@ func generateDynamicUpdateLookupTables(req *api.InternalTestplan, specs *Firmwar
 
 		// Do primary
 		primarySwarming := target.PrimaryTarget.GetSwarmingDef()
-		addFwProvisionValuesToLookup(lookup, primarySwarming, dynamicHelper, specs)
+		addFwProvisionValuesToLookup(lookup, primarySwarming, dynamicHelper, specs, log)
 
 		// Do companions
 		for _, companion := range target.GetCompanionTargets() {
 			swarmingDef := companion.GetSwarmingDef()
-			addFwProvisionValuesToLookup(lookup, swarmingDef, dynamicHelper, specs)
+			addFwProvisionValuesToLookup(lookup, swarmingDef, dynamicHelper, specs, log)
 		}
 	}
 
@@ -87,9 +89,42 @@ func generateDynamicUpdateLookupTables(req *api.InternalTestplan, specs *Firmwar
 				hwDef.DynamicUpdateLookupTable = map[string]string{}
 			}
 			lookup := hwDef.DynamicUpdateLookupTable
-			addFwProvisionValuesToLookup(lookup, hwDef, dynamicHelper, specs)
+			addFwProvisionValuesToLookup(lookup, hwDef, dynamicHelper, specs, log)
 		}
 	}
+	return nil
+}
+
+func resolveSpec(spec string, specs *FirmwareSpecs, swarmingDef *api.SwarmingDefinition) string {
+	if spec == LATEST_FIRMWARE_BRANCH {
+		dutModel := swarmingDef.GetDutInfo().GetChromeos().GetDutModel()
+		board := dutModel.GetBuildTarget()
+		// Remove suffix
+		board = strings.TrimSuffix(board, "-kernelnext")
+		// Special case icarus models
+		if board == "jacuzzi" {
+			switch dutModel.GetModelName() {
+			case "cozmo", "pico", "pico6":
+				board = "icarus"
+			}
+		}
+		build, ok := specs.FirmwareBuilds[board]
+		if !ok {
+			return "gs://invalid_path/no branch build for board " + board
+		}
+		url, err := url.JoinPath(build.ArtifactLink, build.FirmwareByBoard)
+		if err != nil {
+			panic(err)
+		}
+		return url
+	}
+	if strings.HasPrefix(spec, "gs://") {
+		return spec
+	}
+	if spec == "" {
+		return ""
+	}
+	return "gs://invalid_path/invalid firmware-filter spec " + spec
 }
 
 // addFwProvisionValuesToLookup provides the actual values that will be
@@ -98,19 +133,15 @@ func addFwProvisionValuesToLookup(
 	lookup map[string]string,
 	swarmingDef *api.SwarmingDefinition,
 	dynamicHelper *DynamicFirmwareProvisionHelper,
-	specs *FirmwareSpecs) {
+	specs *FirmwareSpecs,
+	log *log.Logger) {
 
 	switch swarmingDef.GetDutInfo().GetDutType().(type) {
 	case *dut_api.Dut_Chromeos:
 		lookupValues := &FirmwareProvisionLookupValues{}
 
-		// TODO(jbettis): Populate these fields,
-		// Modify the function parameters as needed if you need any
-		// other values to fetch these.
-		// If Ro and Rw are not enough, extend the struct and corresponding
-		// helper functions by following the pattern present.
-		// lookupValues.Ro =
-		// lookupValues.Rw =
+		lookupValues.Ro = resolveSpec(specs.Ro, specs, swarmingDef)
+		lookupValues.Rw = resolveSpec(specs.Rw, specs, swarmingDef)
 
 		dynamicHelper.ApplyFirmwareProvisionToLookup(lookup, lookupValues)
 	}

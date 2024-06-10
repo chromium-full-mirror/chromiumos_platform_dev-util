@@ -11,6 +11,7 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/luci/common/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 // GenericFilterServiceServer ...
@@ -35,6 +36,8 @@ func NewServer(logger *log.Logger, executor func(req *api.InternalTestplan, log 
 		conns = nil
 	}
 	api.RegisterGenericFilterServiceServer(server, s)
+	// Register reflection service on gRPC server.
+	reflection.Register(server)
 
 	logger.Println("filterService listening for requests")
 	return server, closer

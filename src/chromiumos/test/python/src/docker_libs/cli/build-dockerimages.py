@@ -22,7 +22,7 @@ sys.path.append(
     str(pathlib.Path(__file__).parent.resolve() / "../../../../../../../")
 )
 
-# pylint: disable=import-error,wrong-import-position
+# pylint: disable=import-error,wrong-import-position,import-modules-only
 from src.common.exceptions import ConfigError
 from src.docker_libs.build_libs.builders import DockerBuilder
 from src.docker_libs.build_libs.builders import GcloudDockerBuilder
@@ -93,6 +93,7 @@ REGISTERED_BUILDS = {
     "cros-hpt": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "post-process": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "provision-filter": {"prepper": CommonServiceDockerPrepper, "cloud": False},
+    "firmware-filter": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "cros-ddd-filter": {"prepper": BaseServicePrepper, "cloud": False},
     "cros-legacy-hw-filter": {"prepper": BaseServicePrepper, "cloud": False},
 }
@@ -114,6 +115,7 @@ NON_CRITICAL = set(
         "cros-ddd-filter",
         "cros-legacy-hw-filter",
         "cros-fw-provision",
+        "firmware-filter",
     ]
 )
 

@@ -28,8 +28,8 @@ const (
 
 var (
 	// Firmware lookup keys.
-	FirmwareRo = helpers.LookupKey("ro")
-	FirmwareRw = helpers.LookupKey("rw")
+	FirmwareRo = helpers.LookupKey("apFwRo")
+	FirmwareRw = helpers.LookupKey("apFwRw")
 )
 
 // FirmwareProvisionLookupValues stores the relevant firmware
@@ -79,6 +79,7 @@ func (DH *DynamicFirmwareProvisionHelper) GenerateProvisionRequest(req *api.Inte
 		}
 		taskId := common.NewTaskIdentifier(CrosFwProvision).AddDeviceId(deviceId)
 		containerBuilders := []*builders.ContainerBuilder{
+			helpers.NewCrosDutContainer(deviceId),
 			newFirmwareProvisionContainer(taskId),
 		}
 
