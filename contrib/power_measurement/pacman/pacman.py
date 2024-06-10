@@ -9,6 +9,7 @@
 
 from argparse import ArgumentParser
 import datetime
+import logging
 import os
 import pathlib
 from sys import modules
@@ -21,7 +22,16 @@ import pandas
 import plotly.express
 
 
+logger = logging.getLogger(__name__)
+
+
 def main():
+    logger.warning(
+        "DEPRECATION WARNING: This project is now deprecated. Please migrate "
+        "the usage to Pacina script, available here: \n"
+        "https://chromium.googlesource.com/chromiumos/platform/dev-util/+/refs/heads/main/contrib/power_measurement/pacina/"  # noqa
+        "\nThe PACman sources will be removed on January 1st, 2025"
+    )
     """main function"""
     polarity_default = "bipolar"
 

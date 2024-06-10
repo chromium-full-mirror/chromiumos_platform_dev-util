@@ -1,3 +1,10 @@
+THIS PROJECT IS DEPRECATE IN FAVOUR OF PACINA SCRIPT. PLEASE USE IT INSTEAD
+OF THIS ONE.
+
+SOURCES: https://chromium.googlesource.com/chromiumos/platform/dev-util/+/refs/heads/main/contrib/power_measurement/pacina/
+
+THIS PROJECT WILL BE REMOVED ON JANUARY 1st 2025.
+
 ## Prereqs
 
  * If running in chroot you need to install pip:
