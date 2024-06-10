@@ -1,8 +1,4 @@
-"""Configuration file for CPD device.
-
-Please see 'CPD - How to start' doc:
-https://docs.google.com/document/d/1ez0mXx2tlEO0nTKKMqcGixz_TJYPazbC4VMGrrlrASM/edit?tab=t.0
-"""
+"""Configuration file for CPD device."""
 
 # Copyright 2024 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be

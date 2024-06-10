@@ -24,7 +24,7 @@ class InaInst:
         ch_config: dict,
         reg_info,
         sample_time: float = 1,
-        **kwargs
+        **kwargs,
     ) -> None:
         """INA Base Class Init.
 

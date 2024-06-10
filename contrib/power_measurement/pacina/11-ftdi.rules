@@ -1,0 +1,5 @@
+# Copyright 2024 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+SUBSYSTEM=="usb", ATTR{idVendor}=="0403", GROUP="plugdev", MODE="0660"`
+SUBSYSTEM=="usb_device", ATTR{idVendor}=="0403", GROUP="plugdev", MODE="0660"

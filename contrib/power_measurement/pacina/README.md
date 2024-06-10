@@ -1,45 +1,43 @@
-## Prerequisite
+# Pacina
 
-Script assumes that FTDI USB-to-I2C device(s) are used to communicate to and
-from the current sensor ICs. As such, appropriate udev permissions need to be
-set.
+Power measurement driver for PAC+INA devices.
+
+For extensive analysis of the internal workings and performance of the script
+and PAC device, see go/pac-power-measurement.
+
+For general description of the Cros-Power-Debugger (CPD), see go/cpd-care.
+
+## Installation
 
 ### Setting udev rules
 
-Add the following in `/etc/udev/rules.d/11-ftdi.rules`
+Script assumes that FTDI USB-to-I2C device(s) are used to communicate to and
+from the current sensor ICs. As such, appropriate udev permissions need to be
+set. Run:
 
-```
-SUBSYSTEM=="usb", ATTR{idVendor}=="0403", GROUP="plugdev", MODE="0660"`
-SUBSYSTEM=="usb_device", ATTR{idVendor}=="0403", GROUP="plugdev", MODE="0660"
-```
+    $ sudo cp 11-ftdi.rules /etc/udev/rules.d/11-ftdi.rules
 
-### Python Setup
+### Building python package
 
-Script can be run both inside and outside of chroot and requires the following packages:
+To install the package and its dependencies, run:
 
-```
-pandas
-plotly
-pyftdi
-```
+    $ pip install .
 
-If running in chroot, run the following commands to install the required
-packages:
+If you want to generate viz and html reports:
 
-```
-wget https://bootstrap.pypa.io/pip/3.6/get-pip.py
-sudo python ./get-pip.py
-sudo pip3 install pandas plotly pyftdi
-```
+    $ pip install ".[viz]"
 
-It is recommended to run the script outside of chroot, as the setup described in
-this documennt requires to run `run.sh` in `sudo`.
+To also run tests:
+
+    $ pip install ".[test]"
 
 ### Logging power
 
 To see the usage, run:
 
-    ./run.sh --help
+    $ ./run.sh --help
+
+Example of cpd.py config file can be found in pacina/cpd.example.py
 
 ### Outputs
 Following outputs are generated when taking a single measurement (`-s, --single`):
@@ -57,6 +55,6 @@ If `dut_info` is provided, following additional file is generated:
 
 To generate the benchmarks, run:
 
-    ./benchmark_pacina.sh
+    $ ./benchmark_pacina.sh
 
 For more details about it, please see the docstring inside the script.

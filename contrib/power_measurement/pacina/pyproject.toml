@@ -1,2 +1,22 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+requires-python = ">= 3.8"
+name = "pacina"
+dynamic = ["version"]
+dependencies = ["pyftdi"]
+description = "Power measurement driver for PAC+INA devices"
+readme = "README.md"
+license = {file = "LICENSE"}
+
+[project.optional-dependencies]
+test = ["pytest"]
+viz = ["pandas", "plotly"]
+
+[project.scripts]
+pacina-cli = "pacina.cli:main"
+
 [tool.black]
 line-length = 79
