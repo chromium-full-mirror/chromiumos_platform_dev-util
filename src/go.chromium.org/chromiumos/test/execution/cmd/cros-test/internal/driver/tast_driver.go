@@ -298,6 +298,7 @@ var allowedTastFlag = map[string]struct{}{
 	buildArtifactsURLFlag:    {},
 	connectionTimeoutFlag:    {},
 	continueAfterFailureFlag: {},
+	downloadDataFlag:         {},
 	excludeSkippedFlag:       {},
 	extraAllowedBucketsFlag:  {},
 	extraUseFlagsFlag:        {},
@@ -376,7 +377,6 @@ func newTastArgs(primary *device.DutInfo,
 	customTastArgs, runtimeVars []*api.Arg, labConfigFile string) *runArgs {
 	runFlags := []flagValue{
 		{sshRetriesFlag, "2"},
-		{downloadDataFlag, "batch"},
 		{buildFlag, "false"},
 		{downloadPrivateBundlesFlag, "true"},
 		{testRetriesFlag, "1"}, // TODO b/270193958 remove this hardcode for a var.

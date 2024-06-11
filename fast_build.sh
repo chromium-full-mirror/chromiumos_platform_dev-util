@@ -33,6 +33,7 @@ readonly EXCLUDE_PKGS=(
   "go.chromium.org/chromiumos/ctp/buildbucket"
   "go.chromium.org/chromiumos/ctp/builder"
   "go.chromium.org/chromiumos/test/ctpv2/kompress"
+  "go.chromium.org/chromiumos/test/ctpv2/hpt-filter/main.go"
 )
 
 # Readonly Go workspaces containing source to build. Note that the packages

@@ -40,7 +40,6 @@ func TestNewTastArgs(t *testing.T) {
 		},
 		runFlags: []flagValue{
 			{sshRetriesFlag, "2"},
-			{downloadDataFlag, "batch"},
 			{buildFlag, "false"},
 			{downloadPrivateBundlesFlag, "true"},
 			{testRetriesFlag, "1"},
@@ -106,7 +105,6 @@ func TestNewTastArgsCompanions(t *testing.T) {
 		},
 		runFlags: []flagValue{
 			{sshRetriesFlag, "2"},
-			{downloadDataFlag, "batch"},
 			{buildFlag, "false"},
 			{downloadPrivateBundlesFlag, "true"},
 			{testRetriesFlag, "1"},
@@ -171,7 +169,6 @@ func TestGenArgList(t *testing.T) {
 		},
 		runFlags: []flagValue{
 			{sshRetriesFlag, "2"},
-			{downloadDataFlag, "batch"},
 			{buildFlag, "false"},
 			{downloadPrivateBundlesFlag, "true"},
 			{testRetriesFlag, "1"},
@@ -262,7 +259,6 @@ func TestGenArgListWithServers(t *testing.T) {
 		},
 		runFlags: []flagValue{
 			{sshRetriesFlag, "2"},
-			{downloadDataFlag, "batch"},
 			{buildFlag, "false"},
 			{downloadPrivateBundlesFlag, "true"},
 			{testRetriesFlag, "1"},
@@ -354,7 +350,6 @@ func TestGenArgListWithDevboard(t *testing.T) {
 		},
 		runFlags: []flagValue{
 			{sshRetriesFlag, "2"},
-			{downloadDataFlag, "batch"},
 			{buildFlag, "false"},
 			{downloadPrivateBundlesFlag, "true"},
 			{testRetriesFlag, "1"},
