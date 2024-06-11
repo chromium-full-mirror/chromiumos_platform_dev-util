@@ -17,7 +17,7 @@ Follow these procedure to add new python dependencies.
 
 3. Freeze all the dependencies into development/requirements.in file
 ```
-> pip freeze > cros_ca_lib/requirements.in
+> pip freeze > development/requirements.in
 ```
 
 4. Install toolings for generating dependency hashes.
