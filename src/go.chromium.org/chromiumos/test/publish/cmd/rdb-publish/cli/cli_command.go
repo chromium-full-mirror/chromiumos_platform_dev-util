@@ -6,13 +6,13 @@
 package cli
 
 import (
-	common_utils "go.chromium.org/chromiumos/test/publish/cmd/common-utils"
-	"go.chromium.org/chromiumos/test/publish/cmd/rdb-publish/constants"
-	"go.chromium.org/chromiumos/test/publish/cmd/rdb-publish/service"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
+	common_utils "go.chromium.org/chromiumos/test/publish/cmd/common-utils"
+	"go.chromium.org/chromiumos/test/publish/cmd/rdb-publish/constants"
+	"go.chromium.org/chromiumos/test/publish/cmd/rdb-publish/service"
 	"log"
 	"os"
 	"path/filepath"

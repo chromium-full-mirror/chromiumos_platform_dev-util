@@ -54,15 +54,18 @@ const (
 )
 
 type RdbPublishService struct {
-	RetryCount          int
-	CurrentInvocationId string
-	TestResultProto     *artifact.TestResult
-	TesthausURL         string
-	TempDirPath         string
-	Sources             *metadata.PublishRdbMetadata_Sources
-	BaseVariant         map[string]string
+	RetryCount           int
+	CurrentInvocationId  string
+	TestResultProto      *artifact.TestResult
+	TesthausURL          string
+	TempDirPath          string
+	Sources              *metadata.PublishRdbMetadata_Sources
+	BaseVariant          map[string]string
+	PostProcessResponses *api.RunActivitiesResponse
 }
 
+// NewRdbPublishService creates a new ResultDB publish service to interact with
+// ResultDB.
 func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
 	m, err := unpackMetadata(req)
 	if err != nil {
@@ -79,15 +82,17 @@ func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
 	}
 
 	return &RdbPublishService{
-		RetryCount:          retryCount,
-		CurrentInvocationId: m.GetCurrentInvocationId(),
-		TestResultProto:     m.GetTestResult(),
-		TesthausURL:         m.GetTesthausUrl(),
-		Sources:             m.GetSources(),
-		BaseVariant:         m.GetBaseVariant(),
+		RetryCount:           retryCount,
+		CurrentInvocationId:  m.GetCurrentInvocationId(),
+		TestResultProto:      m.GetTestResult(),
+		TesthausURL:          m.GetTesthausUrl(),
+		Sources:              m.GetSources(),
+		BaseVariant:          m.GetBaseVariant(),
+		PostProcessResponses: m.GetPostProcessResponses(),
 	}, nil
 }
 
+// UploadToRdb uploads test results to ResultDB.
 func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 	rdbClient := rdb_client.RdbClient{RdbExecutablePath: RdbExecutablePath, ResultAdapterExecutablePath: ResultAdapterExecutablePath}
 	rdbLib := rdb_lib.RdbLib{CurrentInvocation: rps.CurrentInvocationId, RdbClient: &rdbClient}

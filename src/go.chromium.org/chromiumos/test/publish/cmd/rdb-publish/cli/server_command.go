@@ -6,11 +6,11 @@
 package cli
 
 import (
+	"flag"
+	"fmt"
 	"go.chromium.org/chromiumos/test/publish/cmd/common-utils/metadata"
 	"go.chromium.org/chromiumos/test/publish/cmd/rdb-publish/constants"
 	"go.chromium.org/chromiumos/test/publish/cmd/rdb-publish/server"
-	"flag"
-	"fmt"
 	"log"
 	"strings"
 )

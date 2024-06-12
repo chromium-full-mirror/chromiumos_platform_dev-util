@@ -30,7 +30,7 @@ func IsSubsetOf(smallerMap map[string]bool, biggerMap map[string]bool) bool {
 		return false
 	}
 
-	for k, _ := range smallerMap {
+	for k := range smallerMap {
 		if _, ok := biggerMap[k]; !ok {
 			return false
 		}
