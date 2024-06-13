@@ -20,6 +20,7 @@ sdk_url='https://archive.openwrt.org/releases/23.05.0/targets/ramips/mt7621/open
 image_builder_url='https://archive.openwrt.org/releases/23.05.0/targets/ramips/mt7621/openwrt-imagebuilder-23.05.0-ramips-mt7621.Linux-x86_64.tar.xz'
 image_feature+=(
   'WIFI_ROUTER_FEATURE_IEEE_802_11_AX'
+  'WIFI_ROUTER_FEATURE_SAE_EXT_KEY'
 )
 
 # Run build.
