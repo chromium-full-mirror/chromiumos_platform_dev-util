@@ -40,7 +40,7 @@ class CrosServodDockerPrepper(BaseDockerPrepper):
             service=service,
         )
 
-    def prep_container(self):
+    def prep_container(self, is_public: bool = False):
         CrosServodArtifactPrep(
             chroot=self.chroot,
             out_path=self.out_path,

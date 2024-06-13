@@ -40,12 +40,12 @@ class CrosTestDockerPrepper(BaseDockerPrepper):
             service=service,
         )
 
-    def prep_container(self):
+    def prep_container(self, is_public: bool = False):
         CrosTestArtifactPrep(
             chroot=self.chroot,
             out_path=self.out_path,
             sysroot=self.sysroot,
             path=self.full_out_dir,
             force_path=True,
-            service=self.service
-        ).prep()
+            service=self.service,
+        ).prep(is_public)

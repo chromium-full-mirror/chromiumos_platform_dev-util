@@ -42,7 +42,7 @@ class CrosCallBoxDockerPrepper(BaseDockerPrepper):
             service=service,
         )
 
-    def prep_container(self):
+    def prep_container(self, is_public: bool = False):
         CrosCallboxArtifactPrep(
             chroot=self.chroot,
             out_path=self.out_path,

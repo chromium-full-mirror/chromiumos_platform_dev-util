@@ -103,9 +103,7 @@ REGISTERED_BUILDS = {
 BUILD_RETRIES = 1
 RETRIES_WAIT = 31
 # callbox is not used (and a bit heavy) so do not build until its needed.
-DO_NOT_BUILD = set(
-    ["cros-callbox", "cros-servod", "cros-hpt"]
-)
+DO_NOT_BUILD = set(["cros-callbox", "cros-servod", "cros-hpt"])
 # NOTE: when promoting a service from DO_NOT_BUILD, it should be added to
 # NON_CRITICAL for at least a short time to verify health.
 NON_CRITICAL = set(
@@ -204,6 +202,12 @@ def parse_local_arguments() -> argparse.Namespace:
         default=RETRIES_WAIT,
         help="How long to wait between retries.",
     )
+    parser.add_argument(
+        "--is_public",
+        dest="is_public",
+        action="store_true",
+        help="If builder is public",
+    )
     args = parser.parse_intermixed_args()
     return args
 
@@ -247,10 +251,10 @@ def build_image(args: argparse.Namespace, service: str, output: str) -> bool:
             service=service,
         )
 
-        prepper.prep_container()
+        prepper.prep_container(args.is_public)
         gcloud_build = isCloudBuild(args, info)
         if gcloud_build:
-            prepper.build_yaml()
+            prepper.build_yaml(args.is_public)
 
         builder = GcloudDockerBuilder if gcloud_build else LocalDockerBuilder
         err = False
