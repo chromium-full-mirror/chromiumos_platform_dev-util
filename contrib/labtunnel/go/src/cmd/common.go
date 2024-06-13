@@ -29,6 +29,7 @@ const (
 )
 
 var satlabHostnameMatcher = regexp.MustCompile("^(satlab-\\w+)-(.*)-host.+$")
+var dockerNoSuchContainerMatcher = regexp.MustCompile(`No such container`)
 
 const satlabUsername = "moblab"
 
@@ -121,15 +122,23 @@ func nextLocalPort(ctx context.Context) int {
 	return -1
 }
 
-func tunnelLocalPortToRemotePort(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelName string, remoteHost string, remotePort int, sshHost string) (string, error) {
-	localPort := nextLocalPort(ctx)
-	listenHost := fmt.Sprintf("localhost:%d", localPort)
+// lookupActualHosts resolves remote & ssh host, accounting for any that are satlab.
+// Returns remote and ssh hosts
+func lookupActualHosts(remoteHost, sshHost string) (string, string, error) {
+	// user provided remote & ssh hosts, no need for lookup.
+	if remoteHost != "" && sshHost != "" {
+		return remoteHost, sshHost, nil
+	}
+
+	// default remote is "localhost"
 	if remoteHost == "" {
 		remoteHost = "localhost"
 	}
+
+	// perform lookup logic for satlab hosts
 	if satlabDroneHostOverride != "" || isSatlabHost(sshHost) {
 		if remoteHost != "localhost" {
-			return "", fmt.Errorf("tunneling to a non-localhost port through a satlab device is not supported")
+			return "", "", fmt.Errorf("tunneling to a non-localhost port through a satlab device is not supported")
 		}
 		var satlabDroneHost string
 		if satlabDroneHostOverride != "" {
@@ -138,7 +147,7 @@ func tunnelLocalPortToRemotePort(ctx context.Context, tunnelRegistry *ssh.Tunnel
 			var err error
 			satlabDroneHost, err = buildSatlabHostname(sshHost)
 			if err != nil {
-				return "", fmt.Errorf("failed to parse satlab hostnames from ssh host %q: %w", sshHost, err)
+				return "", "", fmt.Errorf("failed to parse satlab hostnames from ssh host %q: %w", sshHost, err)
 			}
 		}
 		if !strings.Contains(satlabDroneHost, "@") {
@@ -147,6 +156,21 @@ func tunnelLocalPortToRemotePort(ctx context.Context, tunnelRegistry *ssh.Tunnel
 		remoteHost = sshHost
 		sshHost = satlabDroneHost
 	}
+
+	return remoteHost, sshHost, nil
+}
+
+// tunnelLocalPortToRemotePort establishes an ssh tunnel to remoteHost:remotePort on sshHost
+// Returns its localhost:port.
+func tunnelLocalPortToRemotePort(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelName string, remoteHost string, remotePort int, sshHost string) (string, error) {
+	localPort := nextLocalPort(ctx)
+	listenHost := fmt.Sprintf("localhost:%d", localPort)
+
+	remoteHost, sshHost, err := lookupActualHosts(remoteHost, sshHost)
+	if err != nil {
+		return "", err
+	}
+
 	description := fmt.Sprintf("TUNNEL-%-10s [%s -> %s -> %s:%d]", tunnelName, listenHost, sshHost, remoteHost, remotePort)
 	sshManager.Ssh(ctx, true, description, func(ctx context.Context, r *ssh.Runner) error {
 		return r.TunnelLocalPortToRemotePort(ctx, localPort, remoteHost, remotePort, sshHost)
@@ -157,6 +181,79 @@ func tunnelLocalPortToRemotePort(ctx context.Context, tunnelRegistry *ssh.Tunnel
 		tunnelRegistry.Set(sshHost, listenHost)
 	}
 	return listenHost, nil
+}
+
+// startSatlabServod starts servod container for satlab hosts.
+// Returns the satlab, container name, container ip, and servod port.
+func startSatlabServod(ctx context.Context, remoteHost, sshHost, config string) (string, string, string, int, error) {
+	if satlabDroneHostOverride == "" && !isSatlabHost(sshHost) {
+		return "", "", "", 0, fmt.Errorf("host is not on satlab")
+	}
+	dutHost, satlab, err := lookupActualHosts(remoteHost, sshHost)
+	if err != nil {
+		return "", "", "", 0, err
+	}
+	clog.Logger.Printf("%s, %s resolved to %s, %s", remoteHost, sshHost, satlab, dutHost)
+
+	containerName := dutHost + "-labtunnel-servod"
+
+	// satlab servod start looks up board, model, and servo-serial for dut.
+	output, err := runSSHCommand(ctx, satlab, "/usr/local/bin/satlab", "servod", "start",
+		"-host", dutHost, "-servod-container-name", containerName, "-no-servod")
+	if err != nil {
+		return "", "", "", 0, fmt.Errorf("could not start servod container on satlab: %w %s", err, output)
+	}
+
+	output, err = runSSHCommand(ctx, satlab, "/usr/local/bin/docker", "exec", "-e", "CONFIG="+config, "-d", containerName, "bash", "start_servod.sh")
+	if err != nil {
+		return "", "", "", 0, fmt.Errorf("could not run servod on satlab: %w %s", err, output)
+	}
+
+	portStr, err := runSSHCommand(ctx, satlab, "/usr/local/bin/docker", "exec", containerName, "printenv", "PORT")
+	if err != nil {
+		return "", "", "", 0, fmt.Errorf("could not obtain servod port on satlab: %w %s", err, portStr)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return "", "", "", 0, fmt.Errorf("servod port %q is not recognized: %w", portStr, err)
+	}
+
+	ipStr, err := runSSHCommand(ctx, satlab, "/usr/local/bin/docker", "inspect", "-f", "'{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", containerName)
+	if err != nil {
+		return "", "", "", 0, fmt.Errorf("could not obtain servod container ip: %w %s", err, ipStr)
+	}
+
+	clog.Logger.Printf("servod is runnin in container: %s, ip: %s, port: %d on %s", containerName, ipStr, port, satlab)
+	return satlab, containerName, ipStr, port, nil
+}
+
+// stopSatlabServod stops the servod container running on satlab.
+func stopSatlabServod(ctx context.Context, satlab, servodContainer string) error {
+	output, err := runSSHCommand(ctx, satlab, "/usr/local/bin/docker", "kill", servodContainer)
+	if err != nil {
+		if dockerNoSuchContainerMatcher.MatchString(output) {
+			return nil
+		}
+		return fmt.Errorf("error stopping servod container: %w %s", err, output)
+	}
+	return nil
+}
+
+// runSSHCommand runs command on sshHost via ssh.
+// Returns output of command.
+func runSSHCommand(ctx context.Context, sshHost string, cmd ...string) (string, error) {
+	cmdArgs, err := ssh.SSHOptsCmdline(sshOptions)
+	if err != nil {
+		return "", fmt.Errorf("error parsing sshOptions: %w", err)
+	}
+
+	cmdArgs = append(cmdArgs, sshHost)
+	cmdArgs = append(cmdArgs, cmd...)
+
+	clog.Logger.Printf("runSSHCommand: ssh %s", strings.Join(cmdArgs, " "))
+	c := exec.CommandContext(ctx, "ssh", cmdArgs...)
+	out, err := c.CombinedOutput()
+	return strings.TrimSpace(string(out)), err
 }
 
 func isSatlabHost(hostname string) bool {

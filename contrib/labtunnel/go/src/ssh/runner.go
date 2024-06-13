@@ -30,16 +30,16 @@ func NewRunner(sshOpts []string) *Runner {
 	}
 }
 
-func (r *Runner) buildCmd(ctx context.Context, sshOpts []string, flags []string, posArgs []string) (*exec.Cmd, *log.Logger, error) {
-
-	// Process arguments.
+// SSHOptsCmdline converts list of ssh options to a valid cmdline.
+func SSHOptsCmdline(sshOpts []string) ([]string, error) {
 	args := make([]string, 0)
+
 	if sshOpts != nil {
 		for _, opt := range sshOpts {
 			opt = strings.TrimPrefix(opt, "-o ")
 			optParts := strings.Split(opt, "=")
 			if len(optParts) != 2 {
-				return nil, nil, fmt.Errorf("invalid ssh option %q", opt)
+				return nil, fmt.Errorf("invalid ssh option %q", opt)
 			}
 			optKey := optParts[0]
 			optValue := optParts[1]
@@ -49,6 +49,16 @@ func (r *Runner) buildCmd(ctx context.Context, sshOpts []string, flags []string,
 			args = append(args, []string{"-o", opt}...)
 		}
 	}
+	return args, nil
+}
+
+func (r *Runner) buildCmd(ctx context.Context, sshOpts []string, flags []string, posArgs []string) (*exec.Cmd, *log.Logger, error) {
+	// Process arguments.
+	args, err := SSHOptsCmdline(sshOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	if flags != nil {
 		for _, flagStr := range flags {
 			flagParts := strings.Split(flagStr, " ")
@@ -115,6 +125,7 @@ func (r *Runner) Run(ctx context.Context, flags []string, posArgs []string) erro
 	return runErr
 }
 
+// TunnelLocalPortToRemotePort establishes an ssh tunnel from localPort to remoteHost:remotePort on sshHost.
 func (r *Runner) TunnelLocalPortToRemotePort(ctx context.Context, localPort int, remoteHost string, remotePort int, sshHost string) error {
 	if remoteHost == "" {
 		remoteHost = "localhost"
