@@ -115,6 +115,16 @@ RUN touch /usr/local/f20container
 # Copy ChromeOS Omnilab Gateway Client
 COPY --chown=chromeos-test:chromeos-test chromeos_omnilab_gateway/gateway_go /usr/bin/
 
+ARG public
+RUN if [ "$public" = "True" ]; then \
+        echo 'Skipping chromeos_omnilab_gateway/gateway_go for public builder' && \
+        rm -f /usr/bin/gateway_go; \
+    else \
+        echo 'Including chromeos_omnilab_gateway/gateway_go'; \
+    fi
+
+
+
 # ###############################################################################
 # Everything above this point should not change per BOARD
 # Everything below this point is possible/likely to change per BOARD

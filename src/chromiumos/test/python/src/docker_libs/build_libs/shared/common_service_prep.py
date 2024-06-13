@@ -39,7 +39,7 @@ class CommonServiceDockerPrepper(BaseDockerPrepper):
 
         # TODO, better src discovery.
 
-    def prep_container(self):
+    def prep_container(self, is_public: bool = False):
         """Will ONLY cp the given service and dockerfile to the build context."""
         if os.path.exists(self.full_out_dir):
             print(f"Deleting existing prepdir {self.full_out_dir}")

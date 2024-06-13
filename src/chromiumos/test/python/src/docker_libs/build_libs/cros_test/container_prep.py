@@ -40,9 +40,10 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
             service=service,
         )
 
-    def prep(self):
+    def prep(self, is_public: bool = False):
         """Run the steps needed to prep the container artifacts."""
-        self.download_omnilab_gateway_client()
+        if not is_public:
+            self.download_omnilab_gateway_client()
         self.create_tarball()
         self.copy_service()
         self.copy_metadata()
@@ -91,7 +92,7 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
 
     def download_vpython3(self):
         self.cipd_install("infra/tools/luci/vpython3/linux-amd64", "latest")
-        abs_artifact_path = os.path.join(self.full_out, 'vpython3')
+        abs_artifact_path = os.path.join(self.full_out, "vpython3")
         os.chmod(abs_artifact_path, 0o755)
 
     def download_omnilab_gateway_client(self):

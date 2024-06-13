@@ -37,8 +37,7 @@ class BaseServicePrepper(BaseDockerPrepper):
             service=service,
         )
 
-
-    def prep_container(self):
+    def prep_container(self, is_public: bool = False):
         """Will ONLY cp the dockerfile + context to the build context."""
         if os.path.exists(self.full_out_dir):
             print(f"Deleting existing prepdir {self.full_out_dir}")

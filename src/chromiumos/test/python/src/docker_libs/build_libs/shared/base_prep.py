@@ -27,6 +27,7 @@ steps:
       "--cache-copy-layers",
       "--cache-ttl=366h",
       "--image-fs-extract-retry=2",
+      "{build_arg}",
 {destinations}
 {labels}
     ]
@@ -73,11 +74,11 @@ class BaseDockerPrepper:
             out_path=self.out_path,
         )
 
-    def prep_container(self):
+    def prep_container(self, is_public: bool = False):
         """To be implemented by child class."""
         raise NotImplementedError
 
-    def build_yaml(self):
+    def build_yaml(self, is_public: bool = False):
         """Construct and write the YAML into the docker context dir"""
         subs = ""
         destinations = ""
@@ -95,8 +96,13 @@ class BaseDockerPrepper:
             subs += SUB_TEMPLATE.format(var=var)
             labels += LABEL_VAR.format(var=var)
 
+        build_arg = "--build-arg=public=True" if is_public else ""
+
         cloudbuild_yaml = YAML_TEMPLATE.format(
-            subs=subs, destinations=destinations, labels=labels
+            subs=subs,
+            destinations=destinations,
+            labels=labels,
+            build_arg=build_arg,
         )
 
         with open(
