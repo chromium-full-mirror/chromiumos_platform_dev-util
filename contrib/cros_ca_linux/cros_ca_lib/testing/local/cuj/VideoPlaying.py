@@ -50,6 +50,8 @@ class VideoPlaying(cbt.ChromeBrowserTest):
             opt.add_experimental_option(
                 "excludeSwitches", ["enable-automation"]
             )
+            opt.add_argument("--enable-benchmarking")
+
         return opt
 
     def _login(self) -> None:
@@ -59,6 +61,10 @@ class VideoPlaying(cbt.ChromeBrowserTest):
             option.username = self.var(df.VAR_GAIA_ACCOUNT)
             option.password = self.var(df.VAR_GAIA_PASSWORD)
             option.arc = True
+            option.chrome_args = [
+                "--enable-benchmarking",
+            ]
+
             self.dut.auto_login(option)
 
     def _run(self) -> None:

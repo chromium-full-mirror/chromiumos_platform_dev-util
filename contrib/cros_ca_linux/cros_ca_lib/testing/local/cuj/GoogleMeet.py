@@ -72,6 +72,8 @@ class GoogleMeet(cbt.ChromeBrowserTest):
                 "profile.default_content_setting_values.notifications": 1,
             },
         )
+        opt.add_argument("--enable-benchmarking")
+
         return opt
 
     def _login(self) -> None:
@@ -81,7 +83,10 @@ class GoogleMeet(cbt.ChromeBrowserTest):
             option.username = self.var(df.VAR_GAIA_ACCOUNT)
             option.password = self.var(df.VAR_GAIA_PASSWORD)
             option.arc = True
-            option.chrome_args = ["--use-fake-ui-for-media-stream"]
+            option.chrome_args = [
+                "--use-fake-ui-for-media-stream",
+                "--enable-benchmarking",
+            ]
             self.dut.auto_login(option)
 
     def _run(self) -> None:
@@ -154,6 +159,7 @@ class GoogleMeet(cbt.ChromeBrowserTest):
             self.logger.info("No pop up window in Google Meet page, skip it")
 
         # Set full screen to match chromeos
+        self.logger.info("Enter full screen")
         more_options = wait.until(
             EC.element_to_be_clickable(
                 (
@@ -164,21 +170,17 @@ class GoogleMeet(cbt.ChromeBrowserTest):
         )
         more_options.click()
 
-        full_screen = wait.until(
-            EC.presence_of_element_located(
-                (
-                    By.XPATH,
-                    "//span[contains(text(),'Full screen')]",
-                )
-            )
+        full_screen = driver.find_element(
+            By.CSS_SELECTOR,
+            "li[delegate-controller='pc452']",
         )
-        _ = wait.until(EC.element_to_be_clickable(full_screen))
         full_screen.click()
 
+        self.logger.info("Turn off camera")
         driver.implicitly_wait(2)
         # Turn off camera
         camera_button = driver.find_element(
-            By.CSS_SELECTOR, 'button[aria-label="Turn off camera (ctrl + e)"]'
+            By.CSS_SELECTOR, 'button[aria-label="Turn off camera"]'
         )
         camera_button.click()
 
