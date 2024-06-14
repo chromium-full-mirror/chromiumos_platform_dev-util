@@ -21,6 +21,7 @@ image_builder_url='https://archive.openwrt.org/releases/23.05.0/targets/ramips/m
 image_feature+=(
   'WIFI_ROUTER_FEATURE_IEEE_802_11_AX'
   'WIFI_ROUTER_FEATURE_SAE_EXT_KEY'
+  'WIFI_ROUTER_FEATURE_GCMP'
 )
 
 # Run build.
