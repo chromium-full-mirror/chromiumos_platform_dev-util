@@ -13,6 +13,7 @@ import (
 	"go.chromium.org/luci/common/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/reflection"
 )
 
 // PostTestServiceServer implementation of dut_service.proto
@@ -42,6 +43,7 @@ func NewServer(logger *log.Logger, dutAddress string) (*grpc.Server, func(), err
 
 	server := grpc.NewServer()
 	api.RegisterPostTestServiceServer(server, s)
+	reflection.Register(server)
 	// longrunning.RegisterOperationsServer(server, s.manager)
 	logger.Println("crostestservice listen to request at ")
 	return server, s.closePostTestServer, nil

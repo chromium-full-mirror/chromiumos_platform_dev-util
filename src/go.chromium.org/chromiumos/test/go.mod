@@ -4,7 +4,7 @@ go 1.22
 
 // Replace version with latest and run `go mod tidy` to update.
 replace (
-	go.chromium.org/chromiumos/config/go => go.chromium.org/chromiumos/config/go/src/go.chromium.org/chromiumos/config/go v0.0.0-20240531012445-8857f03a0531
+	go.chromium.org/chromiumos/config/go => go.chromium.org/chromiumos/config/go/src/go.chromium.org/chromiumos/config/go v0.0.0-20240617150254-3200e2077a15
 	go.chromium.org/chromiumos/lro => go.chromium.org/chromiumos/platform/dev-util/src/go.chromium.org/chromiumos/lro v0.0.0-20240603175638-a3a60d9d4bb5
 	go.chromium.org/tast => go.chromium.org/tast/src/go.chromium.org/tast v0.0.0-20240530193934-ca093604b833
 )

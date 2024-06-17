@@ -22,6 +22,7 @@ import (
 
 	"go.chromium.org/chromiumos/test/post_process/cmd/post-process/commands"
 	"go.chromium.org/chromiumos/test/post_process/cmd/post-process/common"
+	"go.chromium.org/chromiumos/test/util/portdiscovery"
 )
 
 const (
@@ -104,12 +105,11 @@ func parseAndRunCmds(req *api.Request, log *log.Logger, dutClient api.DutService
 // startServer is the entry point for running post-process (PostTestService) in server mode.
 func startServer(d []string) int {
 	a := args{}
-	t := time.Now()
-	defaultLogPath := filepath.Join(defaultRootPath, t.Format("20060102-150405"))
+	defaultLogPath := "/tmp/post-process"
 	fs := flag.NewFlagSet("Run post-process", flag.ExitOnError)
 	fs.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
 	fs.IntVar(&a.port, "port", defaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", defaultPort))
-	fs.StringVar(&a.dutendpoint, "dutendpoint", "", fmt.Sprintf("Specify the endpoint for the running dut-service in the form of ip:port"))
+	fs.StringVar(&a.dutendpoint, "dutendpoint", "", "Specify the endpoint for the running dut-service in the form of ip:port")
 
 	fs.Parse(d)
 
@@ -122,11 +122,8 @@ func startServer(d []string) int {
 
 	logger := common.NewLogger(logFile)
 
-	// TODO(cdelagarza): Set to optional once
-	// StartUp added to rpc service definition.
-	if a.dutendpoint == "" {
-		log.Fatalln("need dut-server endpoint")
-		return 2
+	if a.dutendpoint != "" {
+		log.Println("warning: CLI arg 'dutendpoint' is deprecated, please use the StartUp RPC instead.")
 	}
 
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", a.port))
@@ -134,7 +131,13 @@ func startServer(d []string) int {
 		logger.Fatalln("Failed to create a net listener: ", err)
 		return 2
 	}
-	logger.Println("Starting PostTestService on port ", a.port)
+	logger.Println("Starting PostTestService at ", l.Addr().String())
+
+	// Write port number to ~/.cftmeta for go/cft-port-discovery
+	err = portdiscovery.WriteServiceMetadata("post-process", l.Addr().String(), logger)
+	if err != nil {
+		logger.Println("Warning: error when writing to metadata file: ", err)
+	}
 
 	server, closer, err := NewServer(logger, a.dutendpoint)
 	defer closer()
