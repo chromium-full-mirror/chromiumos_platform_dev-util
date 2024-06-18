@@ -12,8 +12,6 @@ import sys
 import time
 import typing as t
 
-from pyftdi.ftdi import Ftdi  # pylint: disable=import-error
-
 from . import cs_config
 from . import cs_types
 from . import cs_util
@@ -117,6 +115,7 @@ def run_measurements(
     device_controller_const: t.Callable[
         [str], contextlib.AbstractContextManager
     ] = measure.managed_ftdi,
+    initialize_ftdi: t.Callable[[t.List[str]], None] = measure.initialize_ftdi,
 ) -> None:
     if len(ftdi_urls) != len(configs):
         logger.error(
@@ -124,7 +123,7 @@ def run_measurements(
         )
         sys.exit(1)
 
-    measure.initialize_ftdi()
+    initialize_ftdi(ftdi_urls)
     start_time = time.time()
 
     log_prefix = (
@@ -136,9 +135,6 @@ def run_measurements(
         if dut_info
         else ""
     )
-
-    for ftdi_url in ftdi_urls:
-        Ftdi.get_device(ftdi_url)
 
     log_path = prepare_output_dir(dut_info, log_prefix, output, start_time)
 

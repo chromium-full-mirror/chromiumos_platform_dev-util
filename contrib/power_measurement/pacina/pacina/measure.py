@@ -85,7 +85,7 @@ def managed_ftdi(ftdi_url: str) -> t.Iterator[cs_types.DeviceController]:
         ftdi_inst.close()
 
 
-def initialize_ftdi() -> None:
+def initialize_ftdi(ftdi_urls: t.List[str]) -> None:
     # Adding PacDebugger V1 VID PID
     Ftdi.add_custom_vendor(0x18D1, "Google")
     Ftdi.add_custom_product(0x18D1, 0x5211, "PacDebuggerV1")
@@ -94,6 +94,9 @@ def initialize_ftdi() -> None:
     if len(ftdis) == 0:
         logger.error("No FTDIs found. Aborting!")
         sys.exit(1)
+
+    for ftdi_url in ftdi_urls:
+        Ftdi.get_device(ftdi_url)
 
 
 def log_power_continuous(

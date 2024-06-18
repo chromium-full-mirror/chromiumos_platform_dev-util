@@ -132,7 +132,7 @@ class MockedUsbDevInterface:
 @contextlib.contextmanager
 def device_controller_const(_: str):
     try:
-        yield MockedSamplingDevice
+        yield MockedSamplingDevice()
     finally:
         pass
 
