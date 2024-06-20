@@ -213,5 +213,11 @@ class CrOSSSHHost(ssh_host.SSHHost):
         self.make_dir(str(df.TEST_CROS_VENV_DIR))
         # Push the "venv" folder to the remote
         self.update_dir(
-            "Dependency", df.PROJECT_VENV_DIR, df.TEST_CROS_VENV_DIR
+            "Dependency",
+            df.PROJECT_VENV_DIR,
+            df.TEST_CROS_VENV_DIR,
+            # Use the dependency inputs as the version file
+            ver_file=str(
+                df.PROJECT_ROOT_DIR / "development" / "requirements.in"
+            ),
         )

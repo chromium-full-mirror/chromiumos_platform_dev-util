@@ -410,7 +410,10 @@ class BaseHost:
 
         self.make_dir(str(self.src_dir))
         self.update_dir(
-            "Source code", df.PROJECT_ROOT_DIR, self.src_dir, df.SRC_SYNC_DIRS
+            "Source code",
+            df.PROJECT_ROOT_DIR,
+            self.src_dir,
+            df.SRC_SYNC_DIRS,
         )
 
     def update_dependency(self):
@@ -427,22 +430,31 @@ class BaseHost:
         there_dir: Path,
         includes: List[str] = None,  # List of dir entries to update
         rm_there_dir: bool = True,
+        ver_file: str = None,  # Version file to use
     ) -> bool:
         there_ver_file = str(there_dir / ".program_ver")
-        update = True
-        f, t = version.get_timestamp_ver(str(here_dir), includes=includes)
+        if ver_file:
+            with open(ver_file, "r", encoding="utf-8") as file:
+                # Read the entire content of the file into a string
+                local_ver = file.read()
+        else:
+            f, t = version.get_timestamp_ver(str(here_dir), includes=includes)
+            local_ver = f"{f}: {t}"
 
-        local_ver = f"{f}: {t}"
         remote_ver = None
+        update = True
         if self.path_exist(there_ver_file):
             remote_ver = self.read_file(there_ver_file)
             if remote_ver == local_ver:
                 update = False
         if update:
             logger.info("Updating the %s...", name.lower())
-            logger.info("%s version (here): %s", name, local_ver)
-            if remote_ver:
-                logger.info("%s version (there): %s", name, remote_ver)
+            if ver_file:
+                logger.info("%s has a newer version file %s", name, ver_file)
+            else:
+                logger.info("%s version (here): %s", name, local_ver)
+                if remote_ver:
+                    logger.info("%s version (there): %s", name, remote_ver)
             if rm_there_dir:
                 self.remove_path(str(there_dir))
             there_parent = there_dir
