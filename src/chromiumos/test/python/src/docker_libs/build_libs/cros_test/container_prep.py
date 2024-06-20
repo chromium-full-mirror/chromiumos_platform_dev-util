@@ -42,8 +42,7 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
 
     def prep(self, is_public: bool = False):
         """Run the steps needed to prep the container artifacts."""
-        if not is_public:
-            self.download_omnilab_gateway_client()
+        self.download_omnilab_gateway_client(is_public)
         self.create_tarball()
         self.copy_service()
         self.copy_metadata()
@@ -95,14 +94,22 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
         abs_artifact_path = os.path.join(self.full_out, "vpython3")
         os.chmod(abs_artifact_path, 0o755)
 
-    def download_omnilab_gateway_client(self):
-        """Download Omnilab Gateway Client from CIPD"""
+    def download_omnilab_gateway_client(self, is_public=False):
+        """Download or create directory for Omnilab Gateway Client from CIPD"""
         gateway_dir = "chromeos_omnilab_gateway"
         pkg = f"chromeos_internal/infra/tools/{gateway_dir}"
         gateway_full_path = os.path.join(self.full_out, gateway_dir)
         ensure_file = os.path.join(self.full_out, "ensure.txt")
-        with open(ensure_file, "w", encoding="utf-8") as f:
-            f.write(f"{pkg} latest")
-        os.system(
-            f"cipd ensure -ensure-file {ensure_file} -root {gateway_full_path}"
-        )
+
+        # If download is requested, create ensure file and initiate download
+        if not is_public:
+            with open(ensure_file, "w", encoding="utf-8") as f:
+                f.write(f"{pkg} latest")
+            os.system(
+                f"cipd ensure "
+                f"-ensure-file {ensure_file} "
+                f"-root {gateway_full_path}"
+            )
+        else:
+            # If download is not requested, just create the directory
+            os.makedirs(gateway_full_path, exist_ok=True)

@@ -112,15 +112,15 @@ RUN chmod 755 /usr/bin/fsck.erofs
 # Mark for Autotest/Tast to know they are within the CFT environment.
 RUN touch /usr/local/f20container
 
-# Copy ChromeOS Omnilab Gateway Client
-COPY --chown=chromeos-test:chromeos-test chromeos_omnilab_gateway/gateway_go /usr/bin/
-
+COPY --chown=chromeos-test:chromeos-test chromeos_omnilab_gateway/ /usr/bin/
 ARG public
+
+# Conditionally check if not public and set permission to file's owner
 RUN if [ "$public" = "True" ]; then \
-        echo 'Skipping chromeos_omnilab_gateway/gateway_go for public builder' && \
-        rm -f /usr/bin/gateway_go; \
+        echo 'Skipping chromeos_omnilab_gateway/gateway_go for public builder'; \
     else \
-        echo 'Including chromeos_omnilab_gateway/gateway_go'; \
+        echo 'Including chromeos_omnilab_gateway/gateway_go' && \
+        RUN chmod 400 /usr/bin/gateway_go > /dev/null 2>&1 || true; \
     fi
 
 
