@@ -381,7 +381,7 @@ class BaseHost:
                 location = winreg.QueryValueEx(key, downloads_guid)[0]
             return location
         else:
-            return "/home/chronos/user/Downloads"
+            return "/home/chronos/user/MyFiles/Downloads"
 
     def deploy(self) -> None:
         """Deploy the environment for testing"""
