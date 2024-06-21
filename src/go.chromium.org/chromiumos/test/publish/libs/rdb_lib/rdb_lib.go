@@ -64,6 +64,11 @@ func (rdblib *RdbLib) UploadTestResults(ctx context.Context, rdbStreamConfig *rd
 
 	if rdbStreamConfig.ArtifactDir != "" {
 		resultAdapterArgs = append(resultAdapterArgs, "-artifact-directory", rdbStreamConfig.ArtifactDir)
+		resultAdapterArgs = append(resultAdapterArgs, "-enable-invocation-artifacts-upload", "true")
+	}
+
+	if rdbStreamConfig.TesthausBaseURL != "" {
+		resultAdapterArgs = append(resultAdapterArgs, "-testhaus-base-url", rdbStreamConfig.TesthausBaseURL)
 	}
 
 	resultAdapterArgs = append(resultAdapterArgs, "--", "echo")

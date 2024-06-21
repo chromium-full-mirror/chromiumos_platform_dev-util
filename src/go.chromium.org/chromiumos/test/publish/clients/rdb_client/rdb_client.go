@@ -76,6 +76,7 @@ type RdbStreamConfig struct {
 	BaseTags                map[string]string
 	BaseVariant             map[string]string
 	Cmds                    []string
+	TesthausBaseURL         string
 	TestIdPrefix            string
 	TestLocationBase        string
 	LocationTagsFile        string

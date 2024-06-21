@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"path"
 
 	"google.golang.org/protobuf/proto"
@@ -51,6 +52,9 @@ const (
 	// MaxSizeInvocationProperties is the maximum size of the invocation level
 	// properties stored in ResultDB.
 	MaxSizeInvocationProperties = 16 * 1024 // 16 KB
+
+	// Path to all results artifact directory
+	ResultsArtifactDir = "/tmp/test/results"
 )
 
 type RdbPublishService struct {
@@ -144,10 +148,12 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 	// Upload test results
 	baseTags := map[string]string{}
 	config := &rdb_client.RdbStreamConfig{
-		BaseTags:     baseTags,
-		BaseVariant:  rps.BaseVariant,
-		ResultFile:   testResultFilePath,
-		ResultFormat: ResultAdapterResultFormat}
+		BaseTags:        baseTags,
+		BaseVariant:     rps.BaseVariant,
+		ResultFile:      testResultFilePath,
+		ResultFormat:    ResultAdapterResultFormat,
+		TesthausBaseURL: rps.TesthausURL,
+	}
 	if hasSources {
 		config.SourcesFile = sourcesFilePath
 	}
@@ -156,6 +162,13 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 		config.InvPropertiesFile = invPropertiesFilePath
 	} else {
 		log.Printf("invocation properties file is skipped from the upload because it exceeds the maximum size of: %d bytes", MaxSizeInvocationProperties)
+	}
+
+	_, err = os.Stat(ResultsArtifactDir)
+	if err != nil {
+		log.Printf("Warning: test result artifact directory: %q does not exist: %v ", ResultsArtifactDir, err)
+	} else {
+		config.ArtifactDir = ResultsArtifactDir
 	}
 
 	err = rdbLib.UploadTestResults(ctx, config)
