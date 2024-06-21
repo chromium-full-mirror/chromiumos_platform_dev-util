@@ -120,7 +120,7 @@ RUN if [ "$public" = "True" ]; then \
         echo 'Skipping chromeos_omnilab_gateway/gateway_go for public builder'; \
     else \
         echo 'Including chromeos_omnilab_gateway/gateway_go' && \
-        RUN chmod 400 /usr/bin/gateway_go > /dev/null 2>&1 || true; \
+        RUN chmod 755 /usr/bin/gateway_go > /dev/null 2>&1 || true; \
     fi
 
 
@@ -143,7 +143,6 @@ RUN sudo ln -s /usr/local/autotest/site_utils/test_that.py /usr/bin/test_that
 
 # Do a final chown on /tmp/test
 RUN chmod 755 /usr/bin/cros-test
-RUN chmod 755 /usr/bin/gateway_go
 RUN chown -R chromeos-test:chromeos-test /tmp/test/
 
 
