@@ -191,3 +191,8 @@ func (f *FetchFile) readStream(stream api.DutService_FetchFileClient) error {
 	}
 	return nil
 }
+
+// IsCloudBot returns whether the process is running on cloud bot VM.
+func IsCloudBot() bool {
+	return os.Getenv("CLOUDBOTS_LAB_DOMAIN") != ""
+}

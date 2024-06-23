@@ -5,9 +5,7 @@
 package servodserver
 
 import (
-	"os"
 	"path/filepath"
-	"strings"
 )
 
 const (
@@ -15,16 +13,3 @@ const (
 )
 
 var defaultSSHConfigPathOnCloudBot = filepath.Join(defaultCloudBotSSHDir, "config")
-
-// getSwarmingBotID retrieves the swarming bot ID.
-func getSwarmingBotID() string {
-	return os.Getenv("SWARMING_BOT_ID")
-}
-
-// isCloudBot returns whether the process is running on cloud bot VM.
-func isCloudBot() bool {
-	if swarmingBotID := getSwarmingBotID(); strings.HasPrefix(swarmingBotID, "cloudbots-") {
-		return true
-	}
-	return false
-}
