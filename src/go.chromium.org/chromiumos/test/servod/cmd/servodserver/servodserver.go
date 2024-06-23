@@ -19,6 +19,7 @@ import (
 	"go.chromium.org/chromiumos/test/servod/cmd/servod"
 
 	"go.chromium.org/chromiumos/test/servod/cmd/ssh"
+	common_util "go.chromium.org/chromiumos/test/util/common"
 
 	"go.chromium.org/chromiumos/config/go/longrunning"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -40,7 +41,7 @@ func NewServodService(ctx context.Context, logger *log.Logger, commandexecutor c
 	if err != nil {
 		return nil, nil, err
 	}
-	if isCloudBot() {
+	if common_util.IsCloudBot() {
 		if err = config.Load(defaultSSHConfigPathOnCloudBot); err != nil {
 			return nil, nil, err
 		}
