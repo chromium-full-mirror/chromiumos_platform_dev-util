@@ -34,6 +34,7 @@ import (
 	"go.chromium.org/chromiumos/lro"
 	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
 	"go.chromium.org/chromiumos/test/dut/internal"
+	common_util "go.chromium.org/chromiumos/test/util/common"
 )
 
 const cacheDownloadURI = "/download/%s"
@@ -283,11 +284,7 @@ func (s *DutServiceServer) waitForReboot(ctx context.Context, req *api.RestartRe
 	// already been rebooted. This caused timeout and test failures.
 	// By checking connection IsAlive() periodically, the Wait() does return and
 	// test can continue as expected.
-	isCloudbot := false
-	if id, found := os.LookupEnv("SWARMING_BOT_ID"); found && strings.HasPrefix(id, "cloudbots-") {
-		isCloudbot = true
-	}
-	if isCloudbot {
+	if common_util.IsCloudBot() {
 		go func() {
 			t := time.NewTimer(15 * time.Second)
 			for {
@@ -511,13 +508,9 @@ func (s *DutServiceServer) ForceReconnect(ctx context.Context, req *api.ForceRec
 // reconnect starts a new ssh client connection
 func (s *DutServiceServer) reconnect(ctx context.Context) error {
 	s.logger.Printf("attempting to reconnect to DUT.")
-	isCloudbot := false
-	if id, found := os.LookupEnv("SWARMING_BOT_ID"); found && strings.HasPrefix(id, "cloudbots-") {
-		isCloudbot = true
-	}
 	var conn *ssh.Client
 	var err error
-	if isCloudbot {
+	if common_util.IsCloudBot() {
 		s.logger.Printf("GetConnectionWithRetry connecting to dut through proxy")
 		conn, err = dutssh.CloudbotsDutProxyClient(ctx, s.dutName)
 	} else {
@@ -587,10 +580,6 @@ func GetConnectionWithRetry(ctx context.Context, dutIdentifier string, wiringAdd
 
 	retryCount := 5
 	retryInterval := time.Duration(10 * time.Second)
-	isCloudbot := false
-	if id, found := os.LookupEnv("SWARMING_BOT_ID"); found && strings.HasPrefix(id, "cloudbots-") {
-		isCloudbot = true
-	}
 	var err error
 	var client *ssh.Client
 	if req.Retry != nil {
@@ -603,7 +592,7 @@ func GetConnectionWithRetry(ctx context.Context, dutIdentifier string, wiringAdd
 		err = nil
 		logger.Printf("GetConnectionWithRetry Calling GetConn!")
 
-		if isCloudbot {
+		if common_util.IsCloudBot() {
 			logger.Printf("GetConnectionWithRetry connecting to dut through proxy")
 			client, err = dutssh.CloudbotsDutProxyClient(ctx, dutIdentifier)
 		} else {
