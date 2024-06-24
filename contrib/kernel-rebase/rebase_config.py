@@ -128,6 +128,10 @@ topic_patches["arch"] = [
     "patches/FIXUP: Fix incorrect pageref management from rebase.patch",
     "fixups/FIXUP: BACKPORT: FROMLIST: KVM: x86: Add a new param slot to op get_mt_mask in kvm_x86_ops.patch",
 ]
+
+topic_patches["power-thermal"] = [
+    "fixups/FIXUP: CHROMIUM: mt8195: backport legacy SOC_LVTS_TEMP as the out-of-tree driver - thermal.patch",
+]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
