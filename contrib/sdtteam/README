@@ -1,0 +1,15 @@
+What:  AutoConfig Migration Utlity - autoconfig_converter.py
+
+Why:  Convert program and project's config.jsonproto to Starlark.
+
+How:  Usages -
+1.  /src/project/rex$ python autoconfig_converter.py -j ./screebo
+2.  /src/project/rex$ python autoconfig_converter.py --verify -j ./screebo
+
+Feature:
+1. Converts signer config data into "signer_config.star" file under program boxster repo.
+2. Converts component config data into "components_config.star" file under project boxster repo.
+3. Converts fw versions config data into "fw_version_config.star" file under project boxster repo.
+
+"--verify" option turns on running the verification tests after generating the Starlark files, to check
+that there is no difference in generated config data after convertion.
