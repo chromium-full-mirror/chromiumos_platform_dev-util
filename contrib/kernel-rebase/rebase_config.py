@@ -66,6 +66,7 @@ topic_patches["drivers"] = [
     "fixups/FIXUP: CHROMIUM: usb: typec: Implement UCSI driver for ChromeOS.patch",
     "fixups/FIXUP: BACKPORT: FROMLIST: pwm: Add support for different PWM output types.patch",
     "fixups/FIXUP: Revert staging: remove ashmem - unmapped_area.patch",
+    "patches/Revert gpiolib: legacy: Remove unused gpio_request_array and gpio_free_array.patch",
 ]
 
 topic_patches["bluetooth"] = [
