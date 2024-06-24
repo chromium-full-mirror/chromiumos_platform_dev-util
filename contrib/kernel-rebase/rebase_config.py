@@ -115,6 +115,7 @@ topic_patches["media"] = [
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - Rename min_buffers_needed field in vb2_queue.patch",
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - string: Remove strlcpy.patch",
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - Makefile.patch",
+    "fixups/FIXUP: CHROMIUM: media: add camx drivers - assign_str.patch",
 ]
 
 topic_patches["dts"] = [
