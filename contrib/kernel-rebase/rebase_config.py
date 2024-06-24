@@ -389,3 +389,7 @@ disp_overwrite[
 disp_overwrite[
     "dd70fa5a0c6e"
 ] = "drop"  # BACKPORT: FROMLIST: media: ucvideo: Add quirk for Logitech Rally Bar
+disp_overwrite["c4305a040e64"] = [
+    "move",
+    "drivers",
+]  # CHROMIUM: usb: typec: Implement UCSI driver for ChromeOS
