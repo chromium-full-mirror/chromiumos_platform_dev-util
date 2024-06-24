@@ -310,3 +310,79 @@ disp_overwrite["57edb04330b8"] = [
 disp_overwrite[
     "397d52eba612"
 ] = "drop"  # CHROMIUM: media: imx319: add workaround for link freq definition mismatch
+disp_overwrite[
+    "80e5d2e6b77f"
+] = "drop"  # CHROMIUM: media: add Intel IPU6 drivers
+disp_overwrite[
+    "f4dfa4be51fe"
+] = "drop"  # CHROMIUM: media: intel/ipu6: Do not use autosuspend for psys anymore
+disp_overwrite[
+    "f703c328dfa8"
+] = "drop"  # CHROMIUM: media: ipu6: workaround multiple double frees on error paths
+disp_overwrite[
+    "e004e96fe00f"
+] = "drop"  # CHROMIUM: media: ipu6: properly init pad flags
+disp_overwrite[
+    "1f7cd39fc4c0"
+] = "drop"  # CHROMIUM: media: ipu6: remove pm_qos on error path
+disp_overwrite["ca577f52b053"] = "drop"  # CHROMIUM: media: ipu6: remove TPG
+disp_overwrite[
+    "24c456038825"
+] = "drop"  # CHROMIUM: media: ipu6: remove ipu_psys_unmapbuf_locked() forward declaration
+disp_overwrite[
+    "34c9abe3823f"
+] = "drop"  # CHROMIUM: media: ipu6: rename bufmap member
+disp_overwrite[
+    "44430d7c4fa6"
+] = "drop"  # CHROMIUM: media: ipu6: factor out kbuffer allocation
+disp_overwrite[
+    "a86dc4e3b2f4"
+] = "drop"  # CHROMIUM: media: ipu6: validate buffer that we unmap
+disp_overwrite[
+    "aab9f85abd27"
+] = "drop"  # CHROMIUM: media: ipu6: fix ipu_psys_kbuf_unmap()
+disp_overwrite[
+    "67f04c687f2c"
+] = "drop"  # CHROMIUM: media: ipu6: add kbuffer map-count
+disp_overwrite[
+    "6ffdabad2947"
+] = "drop"  # CHROMIUM: media: ipu6: introduce psys descriptors
+disp_overwrite[
+    "f3743e7b5e1d"
+] = "drop"  # CHROMIUM: media: ipu6: remove extra buffer lookups
+disp_overwrite[
+    "20355d5b04a7"
+] = "drop"  # CHROMIUM: media: ipu6: Use unlocked dma-buf APIs
+disp_overwrite[
+    "ea6e524959d6"
+] = "drop"  # CHROMIUM: media/ipu6: Optimize the IPU MMU mapping and unmapping flow
+disp_overwrite[
+    "409c38ed52e0"
+] = "drop"  # CHROMIUM: media/ipu6: correct the 'dev' argument in pkg_dir dma free
+disp_overwrite[
+    "f2080e4863f3"
+] = "drop"  # CHROMIUM: media/ipu6: use 'unsigned long' to avoid type casting
+disp_overwrite[
+    "cc8cd102a7cf"
+] = "drop"  # CHROMIUM: media/ipu6: initialise the pad flags for all pads of subdev
+disp_overwrite[
+    "64424bcc94c1"
+] = "drop"  # CHROMIUM: media/ipu6: replace the strlcpy() with strscpy()
+disp_overwrite[
+    "511d2565e8d9"
+] = "drop"  # CHROMIUM: media/ipu6: dump the stream config after all fields updated
+disp_overwrite[
+    "33171b7f77d6"
+] = "drop"  # CHROMIUM: media/ipu6: remove the version.h inclusion
+disp_overwrite[
+    "e3da60571af8"
+] = "drop"  # CHROMIUM: media/ipu6: Add video_nr module parameter for ISYS
+disp_overwrite[
+    "12887f1d56bc"
+] = "drop"  # CHROMIUM: media/ipu6: load the firmware binaries from two paths
+disp_overwrite[
+    "c00133007231"
+] = "drop"  # CHROMIUM: media/ipu6: cleanup the MMU before remove the bus devices
+disp_overwrite[
+    "f9cecfb4784e"
+] = "drop"  # CHROMIUM: media: intel/ipu6: Fix some redundant resources freeing in pci_remove()
