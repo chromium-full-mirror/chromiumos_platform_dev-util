@@ -386,3 +386,6 @@ disp_overwrite[
 disp_overwrite[
     "f9cecfb4784e"
 ] = "drop"  # CHROMIUM: media: intel/ipu6: Fix some redundant resources freeing in pci_remove()
+disp_overwrite[
+    "dd70fa5a0c6e"
+] = "drop"  # BACKPORT: FROMLIST: media: ucvideo: Add quirk for Logitech Rally Bar
