@@ -64,6 +64,7 @@ topic_patches["drivers"] = [
     "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: configfs: Add Uevent to notify userspace2.patch",
     "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: f_audio_source: New gadget driver for audio output.patch",
     "fixups/FIXUP: CHROMIUM: usb: typec: Implement UCSI driver for ChromeOS.patch",
+    "fixups/FIXUP: BACKPORT: FROMLIST: pwm: Add support for different PWM output types.patch",
 ]
 
 topic_patches["bluetooth"] = [
