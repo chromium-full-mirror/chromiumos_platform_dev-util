@@ -124,9 +124,6 @@ topic_patches["dts"] = [
     "fixups/FIXUP: CHROMIUM: arm64: dts: mt8186: Add dpi node.patch",
 ]
 
-topic_patches["sound"] = [
-    "fixups/FIXUP: BACKPORT: FROMGIT: ASoC: Intel: avs: Remove unused IRQ-related code.patch",
-]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
 # example that first merges drm, then gpu/other, then others:
