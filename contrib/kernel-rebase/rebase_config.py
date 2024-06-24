@@ -52,6 +52,7 @@ topic_patches["block-fs"] = [
     "fixups/FIXUP: CHROMIUM: Revert ext4: get discard out of jbd2 commit kthread contex.patch",
     "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr.patch",
     "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr2.patch",
+    "fixups/FIXUP: UBUNTU: SAUCE: trace: add trace events for open exec and userlib.patch",
 ]
 
 topic_patches["drivers"] = [
