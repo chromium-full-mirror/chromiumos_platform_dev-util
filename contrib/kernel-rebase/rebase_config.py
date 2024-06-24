@@ -101,6 +101,7 @@ topic_patches["drm"] = [
 
 topic_patches["chromeos"] = [
     "fixups/FIXUP: CHROMIUM: LSM: chromiumos security module.patch",
+    "fixups/FIXUP: CHROMIUM: LSM: chromiumos security module - mark.patch",
 ]
 
 topic_patches["mm"] = [
