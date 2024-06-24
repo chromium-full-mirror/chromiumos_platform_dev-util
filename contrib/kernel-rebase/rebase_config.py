@@ -53,6 +53,7 @@ topic_patches["block-fs"] = [
     "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr.patch",
     "fixups/FIXUP: FROMLIST: Add flags option to get xattr method paired to __vfs_getxattr2.patch",
     "fixups/FIXUP: UBUNTU: SAUCE: trace: add trace events for open exec and userlib.patch",
+    "fixups/FIXUP: CHROMIUM: verity: bring over dm-verity-chromeos.c-partno.patch",
 ]
 
 topic_patches["drivers"] = [
