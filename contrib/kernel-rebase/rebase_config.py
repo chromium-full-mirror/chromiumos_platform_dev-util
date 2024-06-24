@@ -126,6 +126,7 @@ topic_patches["dts"] = [
 
 topic_patches["arch"] = [
     "patches/FIXUP: Fix incorrect pageref management from rebase.patch",
+    "fixups/FIXUP: BACKPORT: FROMLIST: KVM: x86: Add a new param slot to op get_mt_mask in kvm_x86_ops.patch",
 ]
 # order for automatic branch merging in rebase.py.
 # branches that aren't specified are merged in an unspecified order.
