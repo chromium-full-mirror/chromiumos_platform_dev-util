@@ -109,7 +109,13 @@ class CrosArtifactPrep:
             )
         else:
             shutil.copy(
-                os.path.join(self.chroot_bin, self.service), self.full_out
+                os.path.join(
+                    self.out_path,
+                    self.sysroot,
+                    "build/broot/usr/bin",
+                    self.service,
+                ),
+                self.full_out,
             )
 
     def copy_custom_service(self, service_name):

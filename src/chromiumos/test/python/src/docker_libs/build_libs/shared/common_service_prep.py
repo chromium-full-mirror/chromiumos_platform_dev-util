@@ -59,6 +59,8 @@ class CommonServiceDockerPrepper(BaseDockerPrepper):
             shutil.copy2(s, d)
 
         shutil.copy2(
-            f"{self.chroot}/usr/bin/{self.service}",
+            os.path.join(
+                self.out_path, self.sysroot, "build/broot/usr/bin", self.service
+            ),
             os.path.join(self.full_out_dir, self.service),
         )
