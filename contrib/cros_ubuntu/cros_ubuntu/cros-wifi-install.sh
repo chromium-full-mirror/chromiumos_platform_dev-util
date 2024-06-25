@@ -57,7 +57,7 @@ popd || exit # $FRAMESENDER_DIR
 # popd || exit # ${HOSTAP_DIR}/hostapd
 
 echo -e "Adding a symlink from /usr/bin/hostapd_cli to /usr/local/bin/hostapd_cli"
-ln -s /usr/bin/hostapd_cli /usr/local/bin/hostapd_cli
+sudo ln -s /usr/local/bin/hostapd_cli /usr/bin/hostapd_cli
 
 # rename Ethernet interface name to eth0
 echo -e "Renaming Ethernet interface name to eth0"
