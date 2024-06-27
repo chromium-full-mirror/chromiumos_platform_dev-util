@@ -279,6 +279,9 @@ class BaseRunner:
         self.logger.info(
             "[%s] Start test %s (%s)", round_no, pt.test_name, pt.location
         )
+
+        self.logger.info("dut_classname: %s", self.dut.__class__.__name__)
+
         result = tr.TestResult()
         result.name = pt.test_name
         result.iteration = iteration_no
