@@ -145,6 +145,11 @@ class CrOSSSHHost(ssh_host.SSHHost):
             password = "test0000"
         super().__init__(hostname, username, port, password, key_filename)
 
+    def name(self) -> str:
+        """The name of the host"""
+        # TODO: get version, platform, spec, etc.
+        return "CrOS Remote"
+
     def lstat(self, path) -> base_host.DirEntry:
         """Get a file or dir's information."""
         command = f'ls -dla "{path}"'

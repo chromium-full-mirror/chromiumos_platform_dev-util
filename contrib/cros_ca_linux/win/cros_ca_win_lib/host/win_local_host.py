@@ -19,6 +19,11 @@ logger = lg.logger
 class WinLocalHost(base_host.BaseHost):
     """A class representing a local Windows host"""
 
+    def name(self) -> str:
+        """The name of the host"""
+        # TODO: get version, platform, spec, etc.
+        return "Windows Local"
+
     def _connect(self):
         """Connects to the local host."""
 

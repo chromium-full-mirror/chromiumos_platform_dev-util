@@ -11,9 +11,18 @@
 import datetime
 import json
 import os
+from pathlib import Path
 import re
 import sys
+
 import numpy as np
+
+
+# pylint: disable=banned-string-format-function
+# pylint: disable=wrong-import-position
+if __name__ == "__main__" and __package__ is None:
+    # Add project root into the python path so lib importing works.
+    sys.path.append(str(Path(__file__).resolve().parents[3]))
 
 from cros_ca_lib.utils import logging as lg
 
@@ -30,14 +39,14 @@ m_id = "PageLoad.InteractiveTiming.InputDelay3"
 METRICS = [m_df, m_kp, m_mp, m_tt, m_j3, m_id]
 
 total_sample_count = {}
-metric_data_points = dict()
+metric_data_points = {}
 metric_average = {}
-metric_p50 = dict()
-metric_p75 = dict()
-metric_p80 = dict()
-metric_p90 = dict()
-metric_p95 = dict()
-metric_p99 = dict()
+metric_p50 = {}
+metric_p75 = {}
+metric_p80 = {}
+metric_p90 = {}
+metric_p95 = {}
+metric_p99 = {}
 metric_sum = {}
 ux_bucket_max = {}
 ux_bucket_min = {}
@@ -64,45 +73,33 @@ ux_buckets_high[m_tt] = [25, 50, 75, 100, 250, 500]
 ux_buckets_high[m_j3] = [2, 5, 10, 20, 30, 100]
 ux_buckets_high[m_id] = [5, 10, 20, 40, 80, 100]
 
-perf_cmd_flag = "perfcmd_false"
-recorder_mode = "python"
-release = "NA"
-typing_delay = "0"
-sentence_cnt = "0"
-device_name = "NA"
-testname = "NA"
-duration_sec = 0.0
-total_duration_sec = 0.0
-total_decoded_frames = 0
-total_dropped_frames = 0
-cycles_cnt = "0"
-instructions_cnt = "0"
-cache_ref_cnt = "0"
-cache_miss_cnt = "0"
-bus_cycles_cnt = "0"
-page_fault_cnt = "0"
-build = "NA"
+
+class GlogalInfo:
+    """To store global info of the test."""
+
+    perf_cmd_flag = "perfcmd_false"
+    recorder_mode = "python"
+    board = "NA"
+    device_name = "NA"
+    typing_delay = "0"
+    sentence_cnt = "0"
+    testname = "NA"
+    total_duration_sec = 0.0
+    total_decoded_frames = 0
+    total_dropped_frames = 0
+    cycles_cnt = "0"
+    instructions_cnt = "0"
+    cache_ref_cnt = "0"
+    cache_miss_cnt = "0"
+    bus_cycles_cnt = "0"
+    page_fault_cnt = "0"
+    build = "NA"
+
+
+gi = GlogalInfo()
+
 
 def run(lines, energy, duration, filename):
-    global perf_cmd_flag
-    global recorder_mode
-    global release
-    global typing_delay
-    global sentence_cnt
-    global device_name
-    global testname
-    global duration_sec
-    global total_duration_sec
-    global total_decoded_frames
-    global total_dropped_frames
-    global cycles_cnt 
-    global instructions_cnt
-    global cache_ref_cnt
-    global cache_miss_cnt
-    global bus_cycles_cnt
-    global page_fault_cnt
-    global build
-
     for m in METRICS:
         total_sample_count[m] = 0
         metric_data_points[m] = []
@@ -119,13 +116,13 @@ def run(lines, energy, duration, filename):
 
     output = []
 
-    # Note that there is an issue with log that sentence_cnt appears after all the
-    # final metric delta. The workaround is to scan the log twice.
+    # Note that there is an issue with log that sentence_cnt appears after all
+    # the final metric delta. The workaround is to scan the log twice.
     # First scan of the lines (lines are info from the log)
     for line in lines:
         if "Final counter value after typing" in line:
             words = line.split()
-            sentence_cnt = words[-1]
+            gi.sentence_cnt = words[-1]
         else:
             pass
 
@@ -148,33 +145,36 @@ def run(lines, energy, duration, filename):
             tmpStr = tmpStr.replace("'", "").replace(",", "")
             dropped_frames = float(tmpStr)
 
-            total_duration_sec += duration_sec
-            total_decoded_frames += decoded_frames
-            total_dropped_frames += dropped_frames
-        elif "crosuicujtest" in line:
+            gi.total_duration_sec += duration_sec
+            gi.total_decoded_frames += decoded_frames
+            gi.total_dropped_frames += dropped_frames
+        elif "Running variables:" in line:
+            print(f"Running variables line: {line}")
             words = line.split()
             index = 0
             for word in words:
                 if "typing_delay" in word:
                     index += 1
+                    typing_delay = words[index]
+                    gi.typing_delay = typing_delay.replace("'", "").replace(
+                        ",", ""
+                    )
                     break
                 else:
                     index += 1
 
-            typing_delay = words[index]
-            typing_delay = typing_delay.replace("'", "").replace(",", "")
         elif "Final counter value after typing" in line:
-            # Note that processing of sentence_cnt is moved to first scan of the lines
+            # Note that processing of sentence_cnt is moved to
+            # first scan of the lines
             pass
-        elif "dut_classname" in line:
-            words = line.split()
-            dut_classname = words[-1]
-            if "CrosLocalHost" in dut_classname:
-                build = "cros"
-            elif "WinLocalHost" in dut_classname:
-                build = "win11"
+        elif "DUT name:" in line:
+            if "CrOS" in line:
+                gi.build = "cros"
+            elif "Windows" in line:
+                gi.build = "win11"
             else:
-                fatal_error("Incorrect dut classname")
+                logger.error("Unsupported dut name: %s", line)
+                return
         else:
             delimiter = "--"
             parts = line.split(delimiter)
@@ -253,12 +253,24 @@ def run(lines, energy, duration, filename):
                         histogram["sum"] / total_sample_count[metric_name]
                     )
                     # compute percentile for all data points
-                    metric_p50[metric_name] = np.percentile(metric_data_points[metric_name], 50)
-                    metric_p75[metric_name] = np.percentile(metric_data_points[metric_name], 75)
-                    metric_p80[metric_name] = np.percentile(metric_data_points[metric_name], 80)
-                    metric_p90[metric_name] = np.percentile(metric_data_points[metric_name], 90)
-                    metric_p95[metric_name] = np.percentile(metric_data_points[metric_name], 95)
-                    metric_p99[metric_name] = np.percentile(metric_data_points[metric_name], 99)
+                    metric_p50[metric_name] = np.percentile(
+                        metric_data_points[metric_name], 50
+                    )
+                    metric_p75[metric_name] = np.percentile(
+                        metric_data_points[metric_name], 75
+                    )
+                    metric_p80[metric_name] = np.percentile(
+                        metric_data_points[metric_name], 80
+                    )
+                    metric_p90[metric_name] = np.percentile(
+                        metric_data_points[metric_name], 90
+                    )
+                    metric_p95[metric_name] = np.percentile(
+                        metric_data_points[metric_name], 95
+                    )
+                    metric_p99[metric_name] = np.percentile(
+                        metric_data_points[metric_name], 99
+                    )
 
                 t_count = total_sample_count[metric_name]
                 if t_count > 0:
@@ -267,58 +279,60 @@ def run(lines, energy, duration, filename):
                             ux_buckets_count[metric_name][i] / t_count
                         )
 
-            # Parameter typing_delay and sentence_cnt are only meaning full for meet test
-            if total_decoded_frames != 0:
-                typing_delay = "0"
-                sentence_cnt = "0"
+            # Parameter typing_delay and sentence_cnt are only meaning full for
+            # meet test
+            if gi.total_decoded_frames != 0:
+                gi.typing_delay = "0"
+                gi.sentence_cnt = "0"
 
             metric_line = (
-                "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s"
-                % (
-                    short_name[metric_name],
-                    recorder_mode,
-                    device_name,
-                    release,
-                    build,
-                    testname,
-                    energy,
-                    duration,
-                    typing_delay,
-                    sentence_cnt,
-                    0,
-                    "%.3f" % metric_average[metric_name],
-                    total_sample_count[metric_name],
-                    histogram["sum"],
-                    ux_bucket_min[metric_name],
-                    ux_bucket_max[metric_name],
-                    "%.2f" % ux_buckets_per[0],
-                    "%.2f" % ux_buckets_per[1],
-                    "%.2f" % ux_buckets_per[2],
-                    "%.2f" % ux_buckets_per[3],
-                    "%.2f" % ux_buckets_per[4],
-                    "%.2f" % ux_buckets_per[5],
-                    ux_buckets_count[metric_name][0],
-                    ux_buckets_count[metric_name][1],
-                    ux_buckets_count[metric_name][2],
-                    ux_buckets_count[metric_name][3],
-                    ux_buckets_count[metric_name][4],
-                    ux_buckets_count[metric_name][5],
-                    "{:.1f}".format(total_decoded_frames),
-                    "{:.1f}".format(total_dropped_frames),
-                    cycles_cnt,
-                    instructions_cnt,
-                    cache_ref_cnt,
-                    cache_miss_cnt,
-                    bus_cycles_cnt,
-                    page_fault_cnt,#                print("matching lines: ", line)
-                    "{:.2f}".format(metric_p50[metric_name]),
-                    "{:.2f}".format(metric_p75[metric_name]),
-                    "{:.2f}".format(metric_p80[metric_name]),
-                    "{:.2f}".format(metric_p90[metric_name]),
-                    "{:.2f}".format(metric_p95[metric_name]),
-                    "{:.2f}".format(metric_p99[metric_name]),
-                    filename,
-                )
+                "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s"
+                + " %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s"
+                + " %s %s %s %s"
+            ) % (
+                short_name[metric_name],
+                gi.recorder_mode,
+                gi.device_name,
+                gi.board,
+                gi.build,
+                gi.testname,
+                energy,
+                duration,
+                gi.typing_delay,
+                gi.sentence_cnt,
+                0,
+                "%.3f" % metric_average[metric_name],
+                total_sample_count[metric_name],
+                histogram["sum"],
+                ux_bucket_min[metric_name],
+                ux_bucket_max[metric_name],
+                "%.2f" % ux_buckets_per[0],
+                "%.2f" % ux_buckets_per[1],
+                "%.2f" % ux_buckets_per[2],
+                "%.2f" % ux_buckets_per[3],
+                "%.2f" % ux_buckets_per[4],
+                "%.2f" % ux_buckets_per[5],
+                ux_buckets_count[metric_name][0],
+                ux_buckets_count[metric_name][1],
+                ux_buckets_count[metric_name][2],
+                ux_buckets_count[metric_name][3],
+                ux_buckets_count[metric_name][4],
+                ux_buckets_count[metric_name][5],
+                "{:.1f}".format(gi.total_decoded_frames),
+                "{:.1f}".format(gi.total_dropped_frames),
+                gi.cycles_cnt,
+                gi.instructions_cnt,
+                gi.cache_ref_cnt,
+                gi.cache_miss_cnt,
+                gi.bus_cycles_cnt,
+                gi.page_fault_cnt,  # print("matching lines: ", line)
+                "{:.2f}".format(metric_p50[metric_name]),
+                "{:.2f}".format(metric_p75[metric_name]),
+                "{:.2f}".format(metric_p80[metric_name]),
+                "{:.2f}".format(metric_p90[metric_name]),
+                "{:.2f}".format(metric_p95[metric_name]),
+                "{:.2f}".format(metric_p99[metric_name]),
+                filename,
             )
             output.append(metric_line)
     return output
@@ -335,8 +349,8 @@ def metric_process(energy, duration, directory):
     output = []
     pattern = (
         r"DecodedFrames|"
-        + r"dut_classname|"
-        + r"Running the main test \(local\)|"
+        + r"DUT name:|"
+        + r"Running variables:|"
         + r"Final counter value after typing|"
         + r"histogram snapshot \(after crosvideo playback - delta\)|"
         + r"histogram snapshot \(after typing - delta\)"
@@ -357,50 +371,41 @@ def main(argv):
     duration = argv[1]
     result_dir = argv[2]
 
-    global device_name
-    global release
-    global testname
-    global build
-
     # Determine perfcmd_flag, recorder_mode, device_name, and testname
     # from the result_dri
-    parts = result_dir.split("/")
+    parts = result_dir.rstrip("/").split("/")
 
     # Remove test_local.log if it is part the string
     # ./craask_dut18/20240627-024407/tests/cuj.GoogleMeet.16p/test_local.log
-    if "test_local.log" in parts[-1]:
-        del parts[-1]
-        delimiter = "/"
-        result_dir = delimiter.join(parts)
+    if "test_local.log" in parts:
+        parts.remove("test_local.log")
+        result_dir = "/".join(parts)
 
     # looking for element from the end to avoid change in folder structure
-    # Example of expected format: 
+    # Example of expected format:
     # ./craask_dut18/20240627-024407/tests/cuj.GoogleMeet.16p
-    device_name = parts[-4]
-    if "_" in device_name:
-        if "galnat" in device_name:
-            release = "dedede"
-            device_name = "galnat"            
-        elif "casta" in device_name or "hpstream14" in device_name:
-            release = "octopus"
-            device_name = "casta"            
-        elif "craask" in device_name:
-            release = "nissa"
-            device_name = "craask"            
-        else:
-            print("perf: ", perf_cmd_flag, " device: ", device_name)
-            fatal_error("Incorrect device format")
+    if "galnat" in result_dir:
+        gi.board = "dedede"
+        gi.device_name = "galnat"
+    elif "casta" in parts or "hpstream14" in result_dir:
+        gi.board = "octopus"
+        gi.device_name = "casta"
+    elif "craask" in result_dir:
+        gi.board = "nissa"
+        gi.device_name = "craask"
     else:
-        print("Incorrect filename format - device_name: ", parts)
+        logger.warning(
+            "Unkown board and device from result dir: %s", result_dir
+        )
 
     if "16p" in result_dir:
-        testname = "meet16p"
+        gi.testname = "meet16p"
     elif "2p" in result_dir:
-        testname = "meet2p"
+        gi.testname = "meet2p"
     elif "Video" in result_dir:
-        testname = "video"
+        gi.testname = "video"
     else:
-        fatal_error("Incorrect result_dri format")
+        logger.warning("Unkown testname from result dir: %s", result_dir)
 
     output = metric_process(energy, duration, result_dir)
 
@@ -413,9 +418,9 @@ def main(argv):
         with open(filepath, "w", encoding="utf-8") as file:
             for item in output:
                 file.write(f"{item}\n")
-        print(f"Metrics file generated in {filepath}")
+        logger.info("Metrics file generated in %s", filepath)
     else:
-        print(f"No metrics found for {result_dir}")
+        logger.info("No metrics found for %s", result_dir)
 
 
 if __name__ == "__main__":

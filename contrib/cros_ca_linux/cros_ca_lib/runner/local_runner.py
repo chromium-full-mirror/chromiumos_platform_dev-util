@@ -59,7 +59,8 @@ class LocalRunner(br.BaseRunner):
                 test_vars[k] = new_vars[k]  # Override if alredy exists.
 
         if parsed_test.test:
-            self.logger.info("Running the main test (local)... %s", self.variables)
+            self.logger.info("Running the main test (local)...")
+            self.logger.info("Running variables: %s", br.print_vars(test_vars))
             # Import the module dynamically
             module = importlib.import_module(parsed_test.test)
             # Get the class dynamically using getattr. Class name is test

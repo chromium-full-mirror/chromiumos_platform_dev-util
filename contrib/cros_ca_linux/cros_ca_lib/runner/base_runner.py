@@ -12,7 +12,7 @@ import json
 import os
 import pathlib
 import traceback
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import cros_ca_lib.definition as df
 from cros_ca_lib.host import base_host
@@ -22,6 +22,15 @@ from cros_ca_lib.utils import logging as lg
 
 TEST_BASE_PATH = "cros_ca_lib/testing"
 TEST_BASE_PACKAGE = "cros_ca_lib.testing"
+
+
+def print_vars(test_vars: Dict) -> str:
+    """Remove sensitive information and print the vars."""
+    cp = dict(test_vars)  # make a copy.
+    cp.pop(df.VAR_BOND_CREDENTIALS, None)
+    cp.pop(df.VAR_GAIA_ACCOUNT, None)
+    cp.pop(df.VAR_GAIA_PASSWORD, None)
+    return f"{cp}"
 
 
 def merge_local_results(local_results: str, result: tr.TestResult) -> None:
@@ -280,8 +289,7 @@ class BaseRunner:
             "[%s] Start test %s (%s)", round_no, pt.test_name, pt.location
         )
 
-        self.logger.info("dut_classname: %s", self.dut.__class__.__name__)
-
+        self.logger.info("DUT name: %s", self.dut.name())
         result = tr.TestResult()
         result.name = pt.test_name
         result.iteration = iteration_no

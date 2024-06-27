@@ -89,6 +89,10 @@ class BaseHost:
         # Use the default private key file.
         self.key_filename = key_filename
 
+    def name(self) -> str:
+        """The name of the host"""
+        raise NotImplementedError("name() must be implemented in a subclass")
+
     def _connect(self):
         """Connects to the remote host using"""
         raise NotImplementedError(

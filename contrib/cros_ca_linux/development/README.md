@@ -22,7 +22,7 @@ Follow these procedure to add new python dependencies.
 
 4. Install toolings for generating dependency hashes.
 ```
-> pip install --require-hashes -r development/base-tooling-requirements.txt
+> pip install --require-hashes --no-deps -r development/base-tooling-requirements.txt
 ```
 
 5. Generate requirements.txt with hashes.

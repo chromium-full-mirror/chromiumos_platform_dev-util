@@ -24,6 +24,11 @@ logger = lg.logger
 class CrosLocalHost(base_host.BaseHost):
     """A class representing a local Windows host"""
 
+    def name(self) -> str:
+        """The name of the host"""
+        # TODO: get version, platform, spec, etc.
+        return "CrOS Local"
+
     def _connect(self):
         """Connects to the local host."""
 

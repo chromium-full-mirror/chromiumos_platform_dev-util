@@ -60,6 +60,11 @@ class CrOSParamikoHost(paramiko_host.ParamikoHost):
 
         self._chromedriver_port = 0
 
+    def name(self) -> str:
+        """The name of the host"""
+        # TODO: get version, platform, spec, etc.
+        return "CrOS Remote"
+
     def get_pid(self, program):
         """Attempts to get the process ID (PID) of a program on a remote server.
 
