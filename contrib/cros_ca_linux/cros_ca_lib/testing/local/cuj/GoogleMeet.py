@@ -218,11 +218,16 @@ class GoogleMeet(cbt.ChromeBrowserTest):
         # capture metric snapshot after meet call effect is in place and stable
         self.get_histogram_snapshots("meet effect stablized and before typing")
 
+#        sentences = [
+#            "Wear two pairs of thick socks. Wear two pairs of thick socks."
+#            + " Wear a pair of thick socks",
+#           "Running on a cold and cloudy day Running on a cold rainy day"
+#            + " Running on a cold rainy day",
+#        ]
+
         sentences = [
-            "Wear two pairs of thick socks. Wear two pairs of thick socks."
-            + " Wear a pair of thick socks",
-            "Running on a cold and cloudy day Running on a cold rainy day"
-            + " Running on a cold rainy day",
+            "Wear two pairs of thick socks "
+            "to run on a freezing cold day"
         ]
 
         counter = 0
