@@ -116,6 +116,32 @@ def run(lines, energy, duration, filename):
 
     output = []
 
+    # looking for element from the end to avoid change in folder structure
+    # Example of expected format:
+    # ./craask_dut18/20240627-024407/tests/cuj.GoogleMeet.16p
+    if "galnat" in filename:
+        gi.board = "dedede"
+        gi.device_name = "galnat"
+    elif "casta" in filename or "hpstream14" in filename:
+        gi.board = "octopus"
+        gi.device_name = "casta"
+    elif "craask" in filename:
+        gi.board = "nissa"
+        gi.device_name = "craask"
+    else:
+        logger.warning(
+            "Unkown board and device from result dir: %s", filenamey
+        )
+
+    if "16p" in filename:
+        gi.testname = "meet16p"
+    elif "2p" in filename:
+        gi.testname = "meet2p"
+    elif "Video" in filename:
+        gi.testname = "video"
+    else:
+        logger.warning("Unkown testname from result dir: %s", filename)
+
     # Note that there is an issue with log that sentence_cnt appears after all
     # the final metric delta. The workaround is to scan the log twice.
     # First scan of the lines (lines are info from the log)
@@ -340,6 +366,7 @@ def run(lines, energy, duration, filename):
 
 def metric_process(energy, duration, directory):
     suffix = "test_local.log"
+
     matching_files = []
     for root, _, filenames in os.walk(directory):
         for filename in filenames:
@@ -370,6 +397,8 @@ def main(argv):
     energy = argv[0]
     duration = argv[1]
     result_dir = argv[2]
+    if len(argv) > 3:
+        processing_option = argv[3]
 
     # Determine perfcmd_flag, recorder_mode, device_name, and testname
     # from the result_dri
@@ -381,46 +410,24 @@ def main(argv):
         parts.remove("test_local.log")
         result_dir = "/".join(parts)
 
-    # looking for element from the end to avoid change in folder structure
-    # Example of expected format:
-    # ./craask_dut18/20240627-024407/tests/cuj.GoogleMeet.16p
-    if "galnat" in result_dir:
-        gi.board = "dedede"
-        gi.device_name = "galnat"
-    elif "casta" in parts or "hpstream14" in result_dir:
-        gi.board = "octopus"
-        gi.device_name = "casta"
-    elif "craask" in result_dir:
-        gi.board = "nissa"
-        gi.device_name = "craask"
-    else:
-        logger.warning(
-            "Unkown board and device from result dir: %s", result_dir
-        )
-
-    if "16p" in result_dir:
-        gi.testname = "meet16p"
-    elif "2p" in result_dir:
-        gi.testname = "meet2p"
-    elif "Video" in result_dir:
-        gi.testname = "video"
-    else:
-        logger.warning("Unkown testname from result dir: %s", result_dir)
-
     output = metric_process(energy, duration, result_dir)
 
-    if len(output) > 0:
-        now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"metrics_{now}.txt"
-
-        # Create the file with appropriate permissions
-        filepath = os.path.join(result_dir, filename)
-        with open(filepath, "w", encoding="utf-8") as file:
+    if "log_only" in processing_option:
             for item in output:
-                file.write(f"{item}\n")
-        logger.info("Metrics file generated in %s", filepath)
+                print(item)
     else:
-        logger.info("No metrics found for %s", result_dir)
+        if len(output) > 0:
+            now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            filename = f"metrics_{now}.txt"
+
+            # Create the file with appropriate permissions
+            filepath = os.path.join(result_dir, filename)
+            with open(filepath, "w", encoding="utf-8") as file:
+                for item in output:
+                    file.write(f"{item}\n")
+            logger.info("Metrics file generated in %s", filepath)
+        else:
+            logger.info("No metrics found for %s", result_dir)
 
 
 if __name__ == "__main__":
