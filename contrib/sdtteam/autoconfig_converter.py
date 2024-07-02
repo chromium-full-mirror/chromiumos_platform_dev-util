@@ -255,67 +255,67 @@ COMPONENTS = []
 
 def process_jsondata_fwversion(data):
     """Converts JSON device FW versions data into internal data-structure for generating as Starlark format."""
+    fw_version_info = {}
 
-    sw_configs = data["softwareConfigs"][0]
-    ap_fw_name = sw_configs["firmware"]["mainRoPayload"]["firmwareImageName"]
-    ap_ro_major_version = sw_configs["firmware"]["mainRoPayload"]["version"]["major"]
-    ap_ro_minor_version = sw_configs["firmware"]["mainRoPayload"]["version"]["minor"]
-    ap_ro_patch_version = 0
-    if 'patch' in sw_configs["firmware"]["mainRoPayload"]["version"]:
-        ap_ro_patch_version = sw_configs["firmware"]["mainRoPayload"]["version"]["patch"]
-    if 'mainRwPayload' in sw_configs["firmware"]:
-        ap_rw_major_version = sw_configs["firmware"]["mainRwPayload"]["version"]["major"]
-        ap_rw_minor_version = sw_configs["firmware"]["mainRwPayload"]["version"]["minor"]
-        ap_rw_patch_version = 0
-        if 'patch' in sw_configs["firmware"]["mainRwPayload"]["version"]:
-            ap_rw_patch_version = sw_configs["firmware"]["mainRwPayload"]["version"]["patch"]
-    else:
-        ap_rw_major_version = 0
-        ap_rw_minor_version = 0
-        ap_rw_patch_version = 0
-    ap_rw_a_hash = None  # optional, by default is None
-    if 'mainRwAHash' in sw_configs["firmware"]:
-        ap_rw_a_hash = sw_configs["firmware"]["mainRwAHash"]["digest"]
-    ec_fw_name = sw_configs["firmware"]["ecRoPayload"]["firmwareImageName"]
-    ec_ro_major_version = sw_configs["firmware"]["ecRoPayload"]["version"]["major"]
-    ec_ro_minor_version = sw_configs["firmware"]["ecRoPayload"]["version"]["minor"]
-    ec_ro_patch_version = 0
-    if 'patch' in sw_configs["firmware"]["ecRoPayload"]["version"]:
-        ec_ro_patch_version = sw_configs["firmware"]["ecRoPayload"]["version"]["patch"]
-    if 'ecRwPayload' in sw_configs["firmware"]:
-        ec_rw_major_version = sw_configs["firmware"]["ecRwPayload"]["version"]["major"]
-        ec_rw_minor_version = sw_configs["firmware"]["ecRwPayload"]["version"]["minor"]
-        ec_rw_patch_version = 0
-        if 'patch' in sw_configs["firmware"]["ecRwPayload"]["version"]:
-            ec_rw_patch_version = sw_configs["firmware"]["ecRwPayload"]["version"]["patch"]
-    else:
-        ec_rw_major_version = 0
-        ec_rw_minor_version = 0
-        ec_rw_patch_version = 0
+    for sw_configs in  data["softwareConfigs"]:
+        ap_fw_name = sw_configs["firmware"]["mainRoPayload"]["firmwareImageName"]
+        ap_ro_major_version = sw_configs["firmware"]["mainRoPayload"]["version"]["major"]
+        ap_ro_minor_version = sw_configs["firmware"]["mainRoPayload"]["version"]["minor"]
+        ap_ro_patch_version = 0
+        if 'patch' in sw_configs["firmware"]["mainRoPayload"]["version"]:
+            ap_ro_patch_version = sw_configs["firmware"]["mainRoPayload"]["version"]["patch"]
+        if 'mainRwPayload' in sw_configs["firmware"]:
+            ap_rw_major_version = sw_configs["firmware"]["mainRwPayload"]["version"]["major"]
+            ap_rw_minor_version = sw_configs["firmware"]["mainRwPayload"]["version"]["minor"]
+            ap_rw_patch_version = 0
+            if 'patch' in sw_configs["firmware"]["mainRwPayload"]["version"]:
+                ap_rw_patch_version = sw_configs["firmware"]["mainRwPayload"]["version"]["patch"]
+        else:
+            ap_rw_major_version = 0
+            ap_rw_minor_version = 0
+            ap_rw_patch_version = 0
+        ap_rw_a_hash = None  # optional, by default is None
+        if 'mainRwAHash' in sw_configs["firmware"]:
+            ap_rw_a_hash = sw_configs["firmware"]["mainRwAHash"]["digest"]
+        ec_fw_name = sw_configs["firmware"]["ecRoPayload"]["firmwareImageName"]
+        ec_ro_major_version = sw_configs["firmware"]["ecRoPayload"]["version"]["major"]
+        ec_ro_minor_version = sw_configs["firmware"]["ecRoPayload"]["version"]["minor"]
+        ec_ro_patch_version = 0
+        if 'patch' in sw_configs["firmware"]["ecRoPayload"]["version"]:
+            ec_ro_patch_version = sw_configs["firmware"]["ecRoPayload"]["version"]["patch"]
+        if 'ecRwPayload' in sw_configs["firmware"]:
+            ec_rw_major_version = sw_configs["firmware"]["ecRwPayload"]["version"]["major"]
+            ec_rw_minor_version = sw_configs["firmware"]["ecRwPayload"]["version"]["minor"]
+            ec_rw_patch_version = 0
+            if 'patch' in sw_configs["firmware"]["ecRwPayload"]["version"]:
+                ec_rw_patch_version = sw_configs["firmware"]["ecRwPayload"]["version"]["patch"]
+        else:
+            ec_rw_major_version = 0
+            ec_rw_minor_version = 0
+            ec_rw_patch_version = 0
 
-    fwversion_info = {
-        'ap_fw_name'        : ap_fw_name,
-        'ap_ro_major_version': ap_ro_major_version,
-        'ap_ro_minor_version': ap_ro_minor_version,
-        'ap_ro_patch_version': ap_ro_patch_version,
-        'ap_rw_major_version': ap_rw_major_version,
-        'ap_rw_minor_version': ap_rw_minor_version,
-        'ap_rw_patch_version': ap_rw_patch_version,
-        'ap_rw_a_hash'       : ap_rw_a_hash,
-        'ec_fw_name'         : ec_fw_name,
-        'ec_ro_major_version': ec_ro_major_version,
-        'ec_ro_minor_version': ec_ro_minor_version,
-        'ec_ro_patch_version': ec_ro_patch_version,
-        'ec_rw_major_version': ec_rw_major_version,
-        'ec_rw_minor_version': ec_rw_minor_version,
-        'ec_rw_patch_version': ec_rw_patch_version,
-    }
-
-    return fwversion_info
+        fw_info = {
+            'ap_fw_name'        : ap_fw_name,
+            'ap_ro_major_version': ap_ro_major_version,
+            'ap_ro_minor_version': ap_ro_minor_version,
+            'ap_ro_patch_version': ap_ro_patch_version,
+            'ap_rw_major_version': ap_rw_major_version,
+            'ap_rw_minor_version': ap_rw_minor_version,
+            'ap_rw_patch_version': ap_rw_patch_version,
+            'ap_rw_a_hash'       : ap_rw_a_hash,
+            'ec_fw_name'         : ec_fw_name,
+            'ec_ro_major_version': ec_ro_major_version,
+            'ec_ro_minor_version': ec_ro_minor_version,
+            'ec_ro_patch_version': ec_ro_patch_version,
+            'ec_rw_major_version': ec_rw_major_version,
+            'ec_rw_minor_version': ec_rw_minor_version,
+            'ec_rw_patch_version': ec_rw_patch_version,
+        }
+        fw_version_info[sw_configs["designConfigId"]["value"].split(":")[0].upper()]  = fw_info
+    return fw_version_info
 
 def convert_to_fwversions_starlark(star_path):
-    """Top-level function for process_jsondata_fwversion, taking config path as input.
-    Converts JSON device FW versions data into Starlark fw_version configuration format."""
+    """Top-level function that converts JSON device FW versions data into Starlark fw_version configuration format."""
 
     config_path = star_path + "/generated/config.jsonproto"
 
@@ -323,7 +323,6 @@ def convert_to_fwversions_starlark(star_path):
         input_data = json.load(f)
 
     fwversion_info = process_jsondata_fwversion(input_data)
-    #print(f"{fwversion_info}")
 
     starlark_header = """## This file is autogenerated. Please follow <firmware version configuration doc > for steps to configure the firmware configuration
 
@@ -334,66 +333,43 @@ def convert_to_fwversions_starlark(star_path):
 load("//config/util/sw_config.star", sc = "sw_config")
 """
 
-    #fwversions_str = "\n        ".join([f'"{fwkey}": "{fwval}",' for fwkey, fwval in fwversion_info.items()])
-    fwversions_str = ""
-    for fwkey, fwval in fwversion_info.items():
-        if fwkey == "ap_fw_name" or fwkey == "ec_fw_name":
-            fwversions_str += f'"{fwkey}": "{fwval}",\n        '
+    sc_fw_config_string = ""
+
+    for device_name, fw_info in fwversion_info.items():
+        ap_ro_version = f"sc.create_fw_version({fw_info['ap_ro_major_version']}, {fw_info['ap_ro_minor_version']}, {fw_info['ap_ro_patch_version']})"
+
+        # Check if all ap_rw version numbers are 0
+        if any(fw_info[key] != 0 for key in ['ap_rw_major_version', 'ap_rw_minor_version', 'ap_rw_patch_version']):
+            ap_rw_version = f"sc.create_fw_version({fw_info['ap_rw_major_version']}, {fw_info['ap_rw_minor_version']}, {fw_info['ap_rw_patch_version']})"
         else:
-            fwversions_str += f'"{fwkey}": {fwval},\n        '
-    #print(f"{fwversions_str}")
+            ap_rw_version = None  
 
-    design_name = fwversion_info["ap_fw_name"].lower()
+        # Check if all ec_rw version numbers are 0
+        if any(fw_info[key] != 0 for key in ['ec_rw_major_version', 'ec_rw_minor_version', 'ec_rw_patch_version']):
+            ec_rw_version = f"sc.create_fw_version({fw_info['ec_rw_major_version']}, {fw_info['ec_rw_minor_version']}, {fw_info['ec_rw_patch_version']})"
+        else:
+            ec_rw_version = None
 
-    starlark_code = f"""{starlark_header}\n_FW_VERSION_INFO = {{
-    "{design_name}": {{
-        {fwversions_str}
-    }}
-}}
+        ec_ro_version = f"sc.create_fw_version({fw_info['ec_ro_major_version']}, {fw_info['ec_ro_minor_version']}, {fw_info['ec_ro_patch_version']})"
+        ap_rw_a_hash = fw_info['ap_rw_a_hash'] or "None" 
 
-def _create_fw_version_configs(fw_version_info):
-    fw_version_config = {{}}
-
-    for key, value in fw_version_info.items():  # Iterate over designs
-        ap_fw_name = value['ap_fw_name']
-        ap_ro_major_version = value['ap_ro_major_version']
-        ap_ro_minor_version = value['ap_ro_minor_version']
-        ap_ro_patch_version = value['ap_ro_patch_version']
-        ap_rw_major_version = value['ap_rw_major_version']
-        ap_rw_minor_version = value['ap_rw_minor_version']
-        ap_rw_patch_version = value['ap_rw_patch_version']
-        ap_rw_a_hash = value['ap_rw_a_hash']  # Removed extra comma
-        ec_fw_name = value['ec_fw_name']
-        ec_ro_major_version = value['ec_ro_major_version']
-        ec_ro_minor_version = value['ec_ro_minor_version']
-        ec_ro_patch_version = value['ec_ro_patch_version']
-        ec_rw_major_version = value['ec_rw_major_version']
-        ec_rw_minor_version = value['ec_rw_minor_version']
-        ec_rw_patch_version = value['ec_rw_patch_version']
-
-        fw_version_config[key] = sc.create_fw_payloads_by_names(
-            ap_fw_name=ap_fw_name,
-            ec_fw_name=ec_fw_name if ec_fw_name else "%s_EC" % ap_fw_name,
-            ap_ro_version=sc.create_fw_version(ap_ro_major_version,    ap_ro_minor_version, ap_ro_patch_version),
-            ap_rw_a_hash=ap_rw_a_hash,
-            ap_rw_version=sc.create_fw_version(ap_rw_major_version, ap_rw_minor_version, ap_rw_patch_version),
-            ec_ro_version=sc.create_fw_version(ec_ro_major_version, ec_ro_minor_version, ec_ro_patch_version),
-            ec_rw_version=sc.create_fw_version(ec_rw_major_version, ec_rw_minor_version, ec_rw_patch_version)
+        # Conditionally add ap_rw_version and ec_rw_version if not None
+        ap_rw_version_line = f"  ap_rw_version={ap_rw_version},\n" if ap_rw_version is not None else ""
+        ec_rw_version_line = f"  ec_rw_version={ec_rw_version}\n" if ec_rw_version is not None else ""
+        ap_rw_a_hash_line = f"  ap_rw_a_hash={ap_rw_a_hash},\n" if ap_rw_a_hash is not None else ""
+        sc_fw_config_string += (
+            f"SC_FW_CONFIG_{device_name} = sc.create_fw_payloads_by_names(\n"
+            f"  ap_fw_name='{fw_info['ap_fw_name']}',\n"
+            f"  ec_fw_name='{fw_info['ec_fw_name']}',\n"
+            f"  ap_ro_version={ap_ro_version},\n"
+            + ap_rw_a_hash_line
+            + ap_rw_version_line + 
+            f"  ec_ro_version={ec_ro_version},\n"
+            + ec_rw_version_line + 
+            ")\n"
         )
 
-    return fw_version_config
-
-fw_config = {{}}
-fw_config["{design_name}"] = _create_fw_version_configs(_FW_VERSION_INFO)["{design_name}"]
-
-def get_fw_config_by_design(design_name):
-    if design_name not in fw_config:
-        fw_config[design_name] =   _create_fw_version_configs(_FW_VERSION_INFO)[design_name]
-    return fw_config[design_name]
-"""
-
-    #print(f"{starlark_code}")
-    return starlark_code
+    return starlark_header + "\n"+ sc_fw_config_string
 
 ##########################################################################################
 #  Verfication Tests
