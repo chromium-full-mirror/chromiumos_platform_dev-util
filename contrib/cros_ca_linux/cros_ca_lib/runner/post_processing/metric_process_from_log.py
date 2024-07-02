@@ -130,7 +130,7 @@ def run(lines, energy, duration, filename):
         gi.device_name = "craask"
     else:
         logger.warning(
-            "Unkown board and device from result dir: %s", filenamey
+            "Unkown board and device from result dir: %s", filename
         )
 
     if "16p" in filename:
