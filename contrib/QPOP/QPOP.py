@@ -121,9 +121,13 @@ class QPOP:
             self._category == "docking"
             or self._category == "docking_daisychain"
         ):
+            if len(str(ctrl_file["utils.wwcbIPPowerIp"]))<=0:
+                raise TestFailError("Cannot read ip power ip")
             self._varslist.append(
                 f'utils.wwcbIPPowerIp={ctrl_file["utils.wwcbIPPowerIp"]}'
             )
+            if len(str(ctrl_file["Upstream"]["DockingID"]))<=0:
+                raise TestFailError
             self._varslist.append(
                 "DockingID=" + str(ctrl_file["Upstream"]["DockingID"])
             )
@@ -135,21 +139,22 @@ class QPOP:
                 if cf_key == "USB Type A":
                     for _, port_value in cf_value.items():
                         for usb_key, usb_value in port_value.items():
-                            if usb_key == "USBTypeAIDArray":
+                            if usb_key == "USBTypeAIDArray" and len(usb_value)>0:
                                 USBTypeAIDArray += f"{usb_value},"
                                 ExternalUSBTypeACount += 1
                 elif cf_key == "Display":
                     for _, port_value in cf_value.items():
                         for dis_key, dis_value in port_value.items():
-                            if "ExtDispID" in dis_key:
+                            if "ExtDispID" in dis_key and len(dis_value)>0:
                                 self._varslist.append(f"{dis_key}={dis_value}")
                                 ExternalDisplayCount += 1
                 elif cf_key == "Ethernet":
                     for eth_key, eth_value in cf_value.items():
-                        if "EthernetID" in eth_key:
+                        if "EthernetID" in eth_key and len(eth_value)>0:
                             self._varslist.append(f"{eth_key}={eth_value}")
                             ExternalEthernetCount += 1
-            self._varslist.append(USBTypeAIDArray[:-1])
+            if ExternalUSBTypeACount > 0:
+                self._varslist.append(USBTypeAIDArray[:-1])
             self._external_usb_device_count = ExternalUSBTypeACount
             self._external_display_count = ExternalDisplayCount
             self._external_ethernet_count = ExternalEthernetCount
@@ -162,7 +167,7 @@ class QPOP:
             for cf_key, cf_value in ctrl_file["Downstream"].items():
                 for _, port_value in cf_value.items():
                     for dis_key, dis_value in port_value.items():
-                        if "ExtDispID" in dis_key:
+                        if "ExtDispID" in dis_key and len(dis_value)>0:
                             self._varslist.append(f"{dis_key}={dis_value}")
                             ExternalDisplayCount += 1
 
