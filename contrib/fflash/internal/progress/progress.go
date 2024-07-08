@@ -22,7 +22,11 @@ const rateEstimationWindow = 5
 func formatUnit(n float64) string {
 	var unit string
 	for _, unit = range []string{"", "K", "M", "G", "T"} {
-		if n < 1000 {
+		// Cap at 999.5 to ensure values in [999.5, 1000) are formatted using the
+		// next unit as "1.00" instead of 1000. Otherwise they will be printed as
+		// "1.00+03" because it is too long for "%.3g".
+		// For example, 999500 should be "1.00M" instead of "1.00e+03K".
+		if n < 999.5 {
 			break
 		}
 		n /= 1000
