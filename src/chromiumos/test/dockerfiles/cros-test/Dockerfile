@@ -5,7 +5,7 @@
 FROM python:3.8-slim-buster AS build
 
 # attr, unzip are for CTS specifically.
-# squashfs-tools is for Uprev specifically.
+# squashfs-tools, and zstd is for Uprev specifically.
 RUN apt-get update \
     && apt-get install -y \
       attr \
@@ -20,7 +20,8 @@ RUN apt-get update \
       sudo \
       unzip \
       wget \
-      xxd
+      xxd \
+      zstd
 
 # grab gsutil
 RUN echo \
