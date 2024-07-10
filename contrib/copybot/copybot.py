@@ -35,6 +35,8 @@ Usage: copybot.py [options...] upstream_repo:branch downstream_repo:branch
 # >
 # [VPYTHON:END]
 
+from __future__ import annotations
+
 import argparse
 import dataclasses
 import enum
@@ -47,7 +49,7 @@ import shlex
 import subprocess
 import tempfile
 import time
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 import urllib
 
 import requests  # pylint: disable=import-error
@@ -412,8 +414,13 @@ class Pseudoheaders:
         self._header_list = list(header_list)
 
     @classmethod
-    def from_commit_message(cls, commit_message):
+    def from_commit_message(cls, commit_message, offset=1):
         """Parse pseudoheaders from a commit message.
+
+        Args:
+            commit_message: commit message from git log.
+            offset: which line to start processing the message from.
+                Lines less than the offset will not be altered.
 
         Returns:
             Two values, a Pseudoheaders dictionary, and the commit
@@ -424,7 +431,7 @@ class Pseudoheaders:
 
         header_list = []
         for i, line in enumerate(message_lines):
-            if i == 0 or not cls._PSEUDOHEADER_PATTERN.match(line):
+            if i < offset or not cls._PSEUDOHEADER_PATTERN.match(line):
                 rewritten_message.append(line)
             else:
                 name, _, value = line.partition(":")
@@ -471,6 +478,10 @@ class Pseudoheaders:
         except KeyError:
             return default
 
+    def as_dict(self) -> Dict[str, str]:
+        """Get the dict of stored values."""
+        return dict(self._header_list)
+
     def __setitem__(self, key, value):
         """Add a header."""
         self._header_list.append((key, value))
@@ -495,6 +506,19 @@ class Pseudoheaders:
         for key, value in self._header_list:
             message_lines.append(f"{key}: {value}")
         return "".join(f"{line}\n" for line in message_lines)
+
+    def __str__(self):
+        return "\n".join(f"{key}:{value}" for key, value in self._header_list)
+
+    def update(self, other: Union[dict, Pseudoheaders]) -> None:
+        if isinstance(other, type(self)):
+            for key, value in other.as_dict().items():
+                self[key] = value
+        elif isinstance(other, dict):
+            for key, value in other:
+                self[key] = value
+        else:
+            raise TypeError(f"Other class has conflicting type({type(other)})")
 
 
 class Gerrit:
@@ -782,6 +806,7 @@ def rewrite_commit_message(
     prepend_subject="",
     sign_off=False,
     keep_pseudoheaders=(),
+    additional_pseudoheaders=(),
 ):
     """Reword the commit at HEAD with appropriate metadata.
 
@@ -792,6 +817,8 @@ def rewrite_commit_message(
         prepend_subject: A string to prepend the subject line with.
         sign_off: True if Signed-off-by should be added to the commit message.
         keep_pseudoheaders: Pseudoheaders which should not be prefixed.
+        additional_pseudoheaders: Psuedoheaders to be added to the commit
+            message.
     """
     commit_message = repo.get_commit_message()
     if prepend_subject:
@@ -802,6 +829,11 @@ def rewrite_commit_message(
     pseudoheaders = pseudoheaders.prefix(keep=keep_pseudoheaders)
 
     pseudoheaders["GitOrigin-RevId"] = upstream_rev
+    for additional_header in additional_pseudoheaders:
+        parsed, _ = Pseudoheaders.from_commit_message(
+            additional_header, offset=0
+        )
+        pseudoheaders.update(parsed)
     if "Change-Id" not in keep_pseudoheaders:
         pseudoheaders["Change-Id"] = change_id
 
@@ -1045,6 +1077,7 @@ def run_copybot(args, git_dir, patch_dir):
                 prepend_subject=args.prepend_subject,
                 sign_off=args.add_signed_off_by,
                 keep_pseudoheaders=args.keep_pseudoheaders,
+                additional_pseudoheaders=args.add_pseudoheader,
             )
 
     if repo.rev_parse() == downstream_rev:
@@ -1211,6 +1244,12 @@ def main(argv=None):
         default=[],
         help="Downstream include paths (relative to the subtree) separated by"
         " colons.  Note: Only supported with subtrees",
+    )
+    parser.add_argument(
+        "--add-pseudoheader",
+        action="append",
+        default=[],
+        help="Pseudoheaders to be added to the commit message",
     )
     parser.add_argument(
         "upstream",
