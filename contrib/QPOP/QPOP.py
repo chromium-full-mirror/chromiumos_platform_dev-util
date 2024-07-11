@@ -71,42 +71,48 @@ class QPOP:
         """
         Convert each test result into an HTML table.
         """
-        status = ""
-        error_message = tc._error_message
-        if tc._status == test_status_NA:
-            status = report_NA
-        elif tc._status == test_status_PASS:
-            status = report_Pass
-            error_message = ""
-        else:
-            status = report_Fail
-        self._html_content += f"""
-        <tr>
-        <td> {no} </td>
-        <td> {tc._name} </td>
-        {status}
-        <td> {error_message} </td>
-        <td> [] </td>
-        <td> </td>
-        </tr>
-        """
+        try:
+            status = ""
+            error_message = tc._error_message
+            if tc._status == test_status_NA:
+                status = report_NA
+            elif tc._status == test_status_PASS:
+                status = report_Pass
+                error_message = ""
+            else:
+                status = report_Fail
+            self._html_content += f"""
+            <tr>
+            <td> {no} </td>
+            <td> {tc._name} </td>
+            {status}
+            <td> {error_message} </td>
+            <td> [] </td>
+            <td> </td>
+            </tr>
+            """
+        except Exception as error:
+            print(f"Failed to generation report table: {error}")
 
     def _generation_report(self, na_count, pass_count, fail_count, total_count):
         """
         Read the report HTML template file and replace its contents with the actual content.
         """
-        with open(report_path, "r") as f:
-            f.seek(0)
-            data = f.read()
-            data = (
-                data.replace("QPOP_body", self._html_content)
-                .replace("QPOP_na", str(na_count))
-                .replace("QPOP_passed", str(pass_count))
-                .replace("QPOP_failed", str(fail_count))
-                .replace("QPOP_total", str(total_count))
-            )
-            with open(self._result_path + "/test_report.html", "w") as file:
-                file.write(data)
+        try:
+            with open(report_path, "r") as f:
+                f.seek(0)
+                data = f.read()
+                data = (
+                    data.replace("QPOP_body", self._html_content)
+                    .replace("QPOP_na", str(na_count))
+                    .replace("QPOP_passed", str(pass_count))
+                    .replace("QPOP_failed", str(fail_count))
+                    .replace("QPOP_total", str(total_count))
+                )
+                with open(self._result_path + "/test_report.html", "w") as file:
+                    file.write(data)
+        except Exception as error:
+            print(f"Failed to generation report: {error}")
 
     def _read_config(self):
         """
@@ -178,13 +184,16 @@ class QPOP:
         """
         Copy the results of tast run to the QPOP result directory.
         """
-        if os.path.exists(tast_out_directory + tast_result):
-            os.rename(
-                tast_out_directory + tast_result,
-                self._result_path + f"/results-{test_case}",
-            )
-        else:
-            raise FileNotFoundError("The tast result not found")
+        try:
+            if os.path.exists(tast_out_directory + tast_result):
+                os.rename(
+                    tast_out_directory + tast_result,
+                    self._result_path + f"/results-{test_case}",
+                )
+            else:
+                raise FileNotFoundError("The tast result not found")
+        except Exception as error:
+            print(f"Failed to collect logs: {error}")
 
     def _execute_tast(self, test_case):
         """
@@ -218,33 +227,34 @@ class QPOP:
         process.wait()
         pattern_msg = r"\S+\s+\[\s*(PASS|FAIL)\s*\].*"
         pattern_result = r"Results saved to \S*"
-
+        result_text = ""
+        message = None
         try:
             # Matches pass or fail message.
             matches_msg = re.search(pattern_msg, output)
             # Matches result path.
             matches_result = re.findall(pattern_result, output)
-            message = None
             if matches_msg:
                 message = matches_msg.group(0)
             if matches_result:
                 result_text = matches_result[0].replace("Results saved to ", "")
-        except:
+        except Exception as error:
+            print(f"Failed to matches result: {error}")
             raise TestFailError(
                 f"Failed to execute tast run, Please check tast environment"
             )
+        finally:
+            # Collect result to QPOP result folder.
+            self._collect_logs(result_text, test_case)
+            # Check result.
+            if "[ FAIL ]" in output:
+                return False, message
+            elif "[ PASS ]" in output:
+                return True, message
+            else:
+                return False,"Failed to execute tast run, Please check tast environment"
 
-        # Collect result to QPOP result folder.
-        self._collect_logs(result_text, test_case)
-        # Check result.
-        if "[ FAIL ]" in output:
-            return False, message
-        elif "[ PASS ]" in output:
-            return True, message
-        else:
-            raise TestFailError(
-                f"Failed to execute tast run, Please check tast environment"
-            )
+
 
     def __init__(self, category, ip, test_case):
         self._category = category
@@ -455,17 +465,20 @@ class QPOP:
 
     # Clear_config_file clears the file and add the string "{}" into the file.
     def _clear_config_file(self):
-        with open(capabilities_path, "r+") as f:
-            f.seek(0)
-            # Clear data.
-            f.truncate()
-            f.write("{}")
-        print(
-            datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-            + " "
-            + Info
-            + f"Clear the capabilities file."
-        )
+        try:
+            with open(capabilities_path, "r+") as f:
+                f.seek(0)
+                # Clear data.
+                f.truncate()
+                f.write("{}")
+            print(
+                datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                + " "
+                + Info
+                + f"Clear the capabilities file."
+            )
+        except Exception as error:
+            print(f"Failed to clear config: {error}")
 
     def run(self):
         # Check the category is legal.
