@@ -21,7 +21,8 @@ To install corp-ssh-helper-helper, mount the corp-ssh-helper-helper-client.py fi
 To do this, run the following command **outside** the chroot.
 
 ```shell
-(outside the chroot) $ echo $HOME/chromiumos/src/platform/dev/contrib/corp-ssh-helper-helper/corp-ssh-helper-helper-client.py /usr/bin/corp-ssh-helper >> ~/chromiumos/src/scripts/.local_mounts
+(outside the chroot) $ TOP=$HOME/chromiumos  # Full path to the Chromium OS top directory
+(outside the chroot) $ echo $TOP/src/platform/dev/contrib/corp-ssh-helper-helper/corp-ssh-helper-helper-client.py /usr/bin/corp-ssh-helper >> $TOP/src/scripts/.local_mounts
 ```
 
 ## Set up ~/.ssh/config
@@ -60,12 +61,9 @@ The same goes for tools like `tast run` and `cros deploy`.
 
 ## Uninstall
 
-You can uninstall this tool by deleting /usr/bin/corp-ssh-helper and ~/chromiumos/corp-ssh-helper-helper.sock **inside** the chroot.
-
-*** note
-**Warning**: Do not run the below command outside the chroot as it'll delete the real corp-ssh-helper.
-***
+You can uninstall this tool by deleting ~/chromiumos/corp-ssh-helper-helper.sock and deleting the corp-ssh-helper mount point from .local_mounts  **inside** the chroot.
 
 ```shell
-(inside the chroot) $ sudo rm /usr/bin/corp-ssh-helper ~/chromiumos/.corp-ssh-helper-helper.sock
+(inside the chroot) $ rm ~/chromiumos/.corp-ssh-helper-helper.sock
+(inside the chroot) $ vi ~/chromiumos/src/scripts/.local_mounts  # To remove the corp-ssh-helper mount point
 ```
