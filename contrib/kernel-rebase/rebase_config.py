@@ -392,3 +392,6 @@ disp_overwrite["c4305a040e64"] = [
     "move",
     "drivers",
 ]  # CHROMIUM: usb: typec: Implement UCSI driver for ChromeOS
+disp_overwrite[
+    "b4c93c2ddd99"
+] = "drop"  # FIXUP: CHROMIUM: Restrict swapon() to "zram" devices / lock down zram
