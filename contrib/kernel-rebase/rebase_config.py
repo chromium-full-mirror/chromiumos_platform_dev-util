@@ -395,3 +395,6 @@ disp_overwrite["c4305a040e64"] = [
 disp_overwrite[
     "b4c93c2ddd99"
 ] = "drop"  # FIXUP: CHROMIUM: Restrict swapon() to "zram" devices / lock down zram
+disp_overwrite[
+    "8318416bf47a"
+] = "drop"  # FROMLIST: drm/mediatek: Implement shutdown
