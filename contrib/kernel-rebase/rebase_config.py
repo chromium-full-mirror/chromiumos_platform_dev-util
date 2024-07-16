@@ -401,3 +401,6 @@ disp_overwrite["f808e6d14128"] = [
     "move",
     "mm",
 ]  # CHROMIUM: mm: per-process reclaim: fix RECLAIM_FILE
+disp_overwrite[
+    "d62edf60bfc9"
+] = "drop"  # CHROMIUM: arm64: mt8186: dts: enable MALI gpu on Corsola
