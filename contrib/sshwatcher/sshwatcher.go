@@ -88,7 +88,7 @@ func sshConnectionLoop(param hostPortPair, message chan messageType) {
 				param.host, param.port, board, osVersion, arcVersion),
 		}
 		arg := []string{
-			"-o", "ConnectTimeout=5",
+			"-o", "ConnectTimeout=10",
 			"-o", "ServerAliveCountMax=3",
 			"-o", "ServerAliveInterval=5",
 			fmt.Sprintf("-L%v:localhost:22", param.port),
