@@ -397,3 +397,7 @@ disp_overwrite[
 disp_overwrite[
     "8318416bf47a"
 ] = "drop"  # FROMLIST: drm/mediatek: Implement shutdown
+disp_overwrite["f808e6d14128"] = [
+    "move",
+    "mm",
+]  # CHROMIUM: mm: per-process reclaim: fix RECLAIM_FILE
