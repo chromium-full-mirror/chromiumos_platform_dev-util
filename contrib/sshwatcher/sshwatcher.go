@@ -95,10 +95,10 @@ func sshConnectionLoop(param hostPortPair, message chan messageType) {
 			param.host,
 			sleepCommand,
 		}
-		err = exec.Command("ssh", arg...).Run()
+		out, err := exec.Command("ssh", arg...).CombinedOutput()
 		message <- messageType{
 			host: param.host,
-			m:    fmt.Sprintf("%-10v\t %-7v\t disconnected with %v", param.host, param.port, err),
+			m:    fmt.Sprintf("%-10v\t %-7v\t disconnected with %v (%s)", param.host, param.port, err, out),
 		}
 		time.Sleep(waitBetweenSSHTries)
 	}
