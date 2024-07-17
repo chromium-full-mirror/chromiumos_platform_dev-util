@@ -286,6 +286,16 @@ class GitRepo:
             extra_args.append("--force")
         return self._run_git("add", *extra_args, path)
 
+    def get_subtree_lowest_working_dir(
+        self, path: Union[pathlib.Path, "os.PathLike[str]"]
+    ) -> pathlib.Path:
+        """Get the lowest working directory path for subtree."""
+        patch_dir = pathlib.Path(self.git_dir) / path
+        subtree = path
+        if not patch_dir.is_dir():
+            subtree = pathlib.Path(path).parents[0]
+        return subtree
+
     def cherry_pick(
         self,
         rev,
@@ -325,9 +335,18 @@ class GitRepo:
 
         exn = None
         if downstream_subtree:
-            patch = self.format_patch(rev, patch_dir, 1, upstream_subtree)
+            patch = self.format_patch(
+                rev,
+                patch_dir,
+                1,
+                self.get_subtree_lowest_working_dir(upstream_subtree),
+            )
             try:
-                self.apply(patch, downstream_subtree, include_paths)
+                self.apply(
+                    patch,
+                    self.get_subtree_lowest_working_dir(downstream_subtree),
+                    include_paths,
+                )
             except subprocess.CalledProcessError as e:
                 raise MergeConflictError() from e
             self.add(downstream_subtree, True, True)
