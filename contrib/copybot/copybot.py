@@ -572,6 +572,7 @@ def find_last_merged_rev(
     repo,
     upstream_rev,
     downstream_rev,
+    upstream_subtree=None,
     downstream_subtree=None,
     exclude_file_patterns=(),
 ):
@@ -581,6 +582,7 @@ def find_last_merged_rev(
         repo: The GitRepo.
         upstream_rev: The commit hash of the upstream HEAD.
         downstream_rev: The commit hash of the downstream HEAD.
+        upstream_subtree: The subtree of interest of the upstream repo.
         downstream_subtree: The subtree of interest of the downstream repo.
         exclude_file_patterns: List of paths to be excluded.
 
@@ -593,7 +595,11 @@ def find_last_merged_rev(
     Raises:
         ValueError: No common history could be found.
     """
-    upstream_hashes = repo.log_hashes(upstream_rev)
+    upstream_hashes = repo.log_hashes(
+        revision_range=upstream_rev,
+        subtree=upstream_subtree,
+        exclude_file_patterns=exclude_file_patterns,
+    )
     downstream_hashes = repo.log_hashes(
         revision_range=downstream_rev,
         subtree=downstream_subtree,
@@ -919,6 +925,7 @@ def run_copybot(args, git_dir, patch_dir):
             repo,
             upstream_rev,
             downstream_rev,
+            upstream_subtree,
             downstream_subtree,
             args.exclude_file_patterns,
         )
