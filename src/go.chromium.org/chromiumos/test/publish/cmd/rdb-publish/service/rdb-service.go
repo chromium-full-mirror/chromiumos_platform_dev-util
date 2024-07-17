@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 
 	"google.golang.org/protobuf/proto"
 
@@ -109,6 +110,9 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 		}
 		rps.TempDirPath = dirPath
 	}
+
+	// Populate additional info in test results.
+	ingestPostProcessResponses(rps.TestResultProto, rps.PostProcessResponses)
 
 	// Write test result to file
 	testResultFilePath := path.Join(rps.TempDirPath, TestResultJsonFileName)
@@ -246,4 +250,148 @@ func downloadSources(ctx context.Context, destPath string, sources *metadata.Pub
 // validateInvProperties returns false if properties is invalid.
 func validateInvProperties(properties *artifact.TestInvocation) bool {
 	return proto.Size(properties) <= MaxSizeInvocationProperties
+}
+
+// ingestPostProcessResponses ingests the responses of the post process service
+// into the test result.
+func ingestPostProcessResponses(testResult *artifact.TestResult, postProcessResps *api.RunActivitiesResponse) {
+	if postProcessResps == nil {
+		log.Printf("post process response is empty")
+		return
+	}
+
+	log.Printf("start to ingest post process responses: %s", postProcessResps)
+
+	buildMetadata := testResult.GetTestInvocation().GetPrimaryExecutionInfo().GetBuildInfo().GetBuildMetadata()
+	if buildMetadata == nil {
+		buildMetadata = &artifact.BuildMetadata{}
+		testResult.TestInvocation.PrimaryExecutionInfo.BuildInfo.BuildMetadata = buildMetadata
+	}
+
+	for _, resp := range postProcessResps.Responses {
+		switch resp.GetResponse().(type) {
+		case *api.RunActivityResponse_GetFwInfoResponse:
+			populateFirmwareInfo(buildMetadata, resp.GetGetFwInfoResponse())
+			populateKernelInfo(buildMetadata, resp.GetGetFwInfoResponse())
+		case *api.RunActivityResponse_GetGfxInfoResponse:
+			populateGfxInfo(buildMetadata, resp.GetGetGfxInfoResponse())
+		case *api.RunActivityResponse_GetAvlInfoResponse:
+			populateAVLInfo(testResult, resp.GetGetAvlInfoResponse())
+		default:
+			log.Printf("post process response type: %T is not supported", resp.GetResponse())
+		}
+	}
+
+	log.Printf("successfully ingested post process responses: %s", postProcessResps)
+}
+
+// populateFirmwareInfo populates firmware info and kernel version.
+func populateFirmwareInfo(buildMetadata *artifact.BuildMetadata, fwInfoResp *api.GetFWInfoResponse) {
+	if fwInfoResp == nil {
+		log.Printf("firmware info response is empty")
+		return
+	}
+
+	log.Printf("start to populate firmware info: %s", fwInfoResp)
+
+	firmware := &artifact.BuildMetadata_Firmware{}
+	if fwInfoResp.GetRoFwid() != "" {
+		firmware.RoVersion = fwInfoResp.GetRoFwid()
+	}
+	if fwInfoResp.GetRwFwid() != "" {
+		firmware.RwVersion = fwInfoResp.GetRwFwid()
+	}
+	buildMetadata.Firmware = firmware
+
+	// TODO(b/335363139): Populate GSC devboard tags
+	log.Printf("successfully populated firmware info: %s", fwInfoResp)
+}
+
+// populateKernelInfo populates kernel info.
+func populateKernelInfo(buildMetadata *artifact.BuildMetadata, fwInfoResp *api.GetFWInfoResponse) {
+	if fwInfoResp == nil {
+		log.Printf("firmware info response is empty")
+		return
+	}
+
+	log.Printf("start to populate kernel info: %s", fwInfoResp)
+
+	kernel := &artifact.BuildMetadata_Kernel{}
+	if fwInfoResp.GetKernelVersion() != "" {
+		kernel.Version = fwInfoResp.GetKernelVersion()
+	}
+	buildMetadata.Kernel = kernel
+
+	// TODO(b/335363139): Populate GSC devboard tags
+	log.Printf("successfully populated kernel info: %s", fwInfoResp)
+}
+
+// populateGfxInfo populates graphics info.
+func populateGfxInfo(buildMetadata *artifact.BuildMetadata, gfxInfoResp *api.GetGfxInfoResponse) {
+	if gfxInfoResp == nil {
+		log.Printf("graphics info response is empty")
+		return
+	}
+
+	log.Printf("start to populate graphics info: %s", gfxInfoResp)
+
+	gfxInfo := &artifact.BuildMetadata_GfxInfo{}
+	gfxLabels := gfxInfoResp.GetGfxLabels()
+	if gfxLabels != nil {
+		gfxInfo.DisplayPanelName = gfxLabels["display_panel_name"]
+		gfxInfo.DisplayPresentHdr = gfxLabels["display_present_hdr"]
+		gfxInfo.DisplayPresentPsr = gfxLabels["display_present_psr"]
+		gfxInfo.DisplayPresentVrr = gfxLabels["display_present_vrr"]
+		gfxInfo.DisplayRefreshRate = gfxLabels["display_refresh_rate"]
+		gfxInfo.DisplayResolution = gfxLabels["display_resolution"]
+		gfxInfo.GpuFamily = gfxLabels["gpu_family"]
+		gfxInfo.GpuId = gfxLabels["gpu_id"]
+		gfxInfo.GpuOpenGlesVersion = gfxLabels["gpu_open_gles_version"]
+		gfxInfo.GpuVendor = gfxLabels["gpu_vendor"]
+		gfxInfo.GpuVulkanVersion = gfxLabels["gpu_vulkan_version"]
+		gfxInfo.PlatformCpuVendor = gfxLabels["platform_cpu_vendor"]
+		gfxInfo.PlatformDiskSize, _ = strconv.ParseUint(gfxLabels["platform_disk_size"], 10, 64)
+		gfxInfo.PlatformMemorySize, _ = strconv.ParseUint(gfxLabels["platform_memory_size"], 10, 64)
+	}
+	buildMetadata.GfxInfo = gfxInfo
+
+	log.Printf("successfully populated graphics info: %s", gfxInfoResp)
+}
+
+// populateAVLInfo populates AVL qualification info.
+func populateAVLInfo(testResult *artifact.TestResult, avlInfoResp *api.GetAvlInfoResponse) {
+	if avlInfoResp == nil {
+		log.Printf("AVL info response is empty")
+		return
+	}
+
+	log.Printf("start to populate AVL qual info: %s", avlInfoResp)
+
+	avlInfoMap := avlInfoResp.GetAvlInfos()
+	for _, testRun := range testResult.GetTestRuns() {
+		testCaseInfo := testRun.GetTestCaseInfo()
+		testCaseResult := testCaseInfo.GetTestCaseResult()
+		if testCaseResult == nil {
+			continue
+		}
+
+		avlInfo := avlInfoMap[testCaseResult.GetTestCaseId().GetValue()]
+		if avlInfo == nil {
+			continue
+		}
+
+		testCaseAVLInfo := &artifact.AvlInfo{}
+		if avlInfo.GetAvlComponentType() != "" {
+			testCaseAVLInfo.AvlComponentType = avlInfo.GetAvlComponentType()
+		}
+		if avlInfo.GetAvlPartFirmware() != "" {
+			testCaseAVLInfo.AvlPartFirmware = avlInfo.GetAvlPartFirmware()
+		}
+		if avlInfo.GetAvlPartModel() != "" {
+			testCaseAVLInfo.AvlPartModel = avlInfo.GetAvlPartModel()
+		}
+		testCaseInfo.AvlInfo = testCaseAVLInfo
+	}
+
+	log.Printf("successfully populated AVL qual info: %s", avlInfoResp)
 }
