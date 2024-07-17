@@ -604,7 +604,10 @@ def find_last_merged_rev(
         commit_message = repo.get_commit_message(rev)
         origin_revid = get_origin_rev_id(commit_message)
         if rev in upstream_hashes or origin_revid:
-            counter = upstream_hashes.index(origin_revid or rev)
+            if origin_revid in upstream_hashes:
+                counter = upstream_hashes.index(origin_revid or rev)
+            else:
+                continue
             return origin_revid or rev, counter
 
     raise ValueError(
