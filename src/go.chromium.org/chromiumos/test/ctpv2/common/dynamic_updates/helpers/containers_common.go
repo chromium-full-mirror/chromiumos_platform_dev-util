@@ -22,7 +22,7 @@ func NewCrosDutContainer(deviceId *common.DeviceIdentifier) *builders.ContainerB
 		},
 	})
 	dutContainerBuilder.SetDynamicDeps(map[string]string{
-		"crosDut.cacheServer": common.NewPrimaryDeviceIdentifier().GetDevice("dut", "cacheServer", "address"),
+		"crosDut.cacheServer": common.CacheServer,
 		"crosDut.dutAddress":  deviceId.GetDevice("dutServer"),
 	})
 
@@ -43,6 +43,24 @@ func NewAndroidProvisionContainer(taskId *common.TaskIdentifier) *builders.Conta
 		"/tmp/provision",
 		"android-provision server -port 0",
 	)
+
+	return container
+}
+
+func NewCacheServerContainer() *builders.ContainerBuilder {
+	container := builders.NewContainerBuilder(
+		common.CacheServer, "",
+		"us-docker.pkg.dev/cros-registry/test-services/cacheserver:prod", "", "",
+	)
+	container.SetCustomTemplate(&api.Template{
+		Container: &api.Template_CacheServer{
+			CacheServer: &api.CacheServerTemplate{
+				ApplicationDefaultCredentials: &api.CacheServerTemplate_ServiceAccountKeyfile{
+					ServiceAccountKeyfile: "/creds/service_accounts/service-account-chromeos.json",
+				},
+			},
+		},
+	})
 
 	return container
 }

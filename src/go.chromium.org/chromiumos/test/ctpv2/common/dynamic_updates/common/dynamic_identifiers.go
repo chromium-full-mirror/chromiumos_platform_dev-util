@@ -20,6 +20,7 @@ const (
 
 	// Commonly used Dynamic Dependecy keys.
 	ServiceAddress = "serviceAddress"
+	CacheServer    = "cache-server"
 )
 
 var (
