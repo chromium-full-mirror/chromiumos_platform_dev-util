@@ -543,6 +543,7 @@ def create_brand_configs_starlark(data):
     if "brandConfigs" in data:
         for config in data["brandConfigs"]:
             brand_id = config["brandId"]["value"]
+            whitelabel_tag = None
             if "scanConfig" in config:
                 whitelabel_tag = config["scanConfig"].get(
                     "whitelabelTag", None
