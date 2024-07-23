@@ -385,6 +385,9 @@ func newTastArgs(primary *device.DutInfo,
 		{varsFileFlag, varsFilePath},
 		{systemServicesTimeoutFlag, defaultSysServicesTimeout}, // Longer timeout for VMs.
 	}
+	if primary != nil && primary.DUT != nil && primary.DUT.Id != nil && primary.DUT.Id.Value == "vm" {
+		runFlags = append(runFlags, flagValue{downloadDataFlag, "lazy"})
+	}
 	if labConfigFile != "" {
 		runFlags = append(runFlags, flagValue{dutLabConfigFlag, labConfigFile})
 	}
