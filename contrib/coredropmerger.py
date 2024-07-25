@@ -214,7 +214,7 @@ class CoreDropHelper:
             "-o",
             "uploadvalidator~skip",
             "-o",
-            "push-justification='b/346966741",
+            f"push-justification=b/{self.bug_num}",
         )
 
     def generate_merge_commit_message(self):
