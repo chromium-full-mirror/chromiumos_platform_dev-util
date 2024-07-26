@@ -8,17 +8,39 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 
 	"go.chromium.org/chromiumos/test/publish/clients/rdb_client"
 	common_utils "go.chromium.org/chromiumos/test/publish/cmd/common-utils"
 
 	"github.com/google/uuid"
+	"go.chromium.org/chromiumos/config/go/test/artifact"
 	"go.chromium.org/chromiumos/infra/proto/go/test_platform"
 	rdb_pb "go.chromium.org/luci/resultdb/proto/v1"
 )
 
 var (
-	SupportedResultAdapterFormats = map[string]bool{"gtest": true, "json": true, "single": true, "tast": true, "skylab-test-runner": true, "cros-test-result": true}
+	supportedResultAdapterFormats = map[string]bool{
+		"gtest":              true,
+		"json":               true,
+		"single":             true,
+		"tast":               true,
+		"skylab-test-runner": true,
+		"cros-test-result":   true,
+	}
+
+	boardVariantAllowlist = map[string]bool{
+		"64":                  true,
+		"-arc-r":              true,
+		"-arc-s":              true,
+		"-arc-t":              true,
+		"-arc-u":              true,
+		"-arc-v":              true,
+		"-borealis":           true,
+		"-kernelnext":         true,
+		"-manatee-kernelnext": true,
+		"-userdebug":          true,
+	}
 )
 
 const (
@@ -50,12 +72,12 @@ type RdbLib struct {
 }
 
 // UploadTestResults uploads test results to rdb
-func (rdblib *RdbLib) UploadTestResults(ctx context.Context, rdbStreamConfig *rdb_client.RdbStreamConfig) error {
+func (rdblib *RdbLib) UploadTestResults(ctx context.Context, rdbStreamConfig *rdb_client.RdbStreamConfig, testResult *artifact.TestResult) error {
 	if rdbStreamConfig.ResultFormat == "" {
 		return fmt.Errorf("result_format can not be empty for rdb upload")
 	}
-	if _, ok := SupportedResultAdapterFormats[rdbStreamConfig.ResultFormat]; !ok {
-		return fmt.Errorf("result_format %q could not be found in supported adapter formats: %T", rdbStreamConfig.ResultFormat, SupportedResultAdapterFormats)
+	if _, ok := supportedResultAdapterFormats[rdbStreamConfig.ResultFormat]; !ok {
+		return fmt.Errorf("result_format %q could not be found in supported adapter formats: %T", rdbStreamConfig.ResultFormat, supportedResultAdapterFormats)
 	}
 	if rdbStreamConfig.ResultFile == "" {
 		return fmt.Errorf("result_file can not be empty for rdb upload")
@@ -70,6 +92,9 @@ func (rdblib *RdbLib) UploadTestResults(ctx context.Context, rdbStreamConfig *rd
 	if rdbStreamConfig.TesthausBaseURL != "" {
 		resultAdapterArgs = append(resultAdapterArgs, "-testhaus-base-url", rdbStreamConfig.TesthausBaseURL)
 	}
+
+	// TODO(b/354085540): Set the board.model realm once the boardModelRealm
+	// function is fully completed.
 
 	resultAdapterArgs = append(resultAdapterArgs, "--", "echo")
 
@@ -87,6 +112,60 @@ func (rdblib *RdbLib) UploadTestResults(ctx context.Context, rdbStreamConfig *rd
 	}
 
 	return nil
+}
+
+// boardModelRealm gets the board-model realm for this test result.
+// Returns an empty value if no appropriate board-model realm was found.
+func boardModelRealm(testResult *artifact.TestResult) string {
+	if testResult == nil {
+		return ""
+	}
+
+	// If the test is a multi-DUT test, don't use the board-model realm.
+	// TODO(b/251688396): Handle multi-DUT tests.
+	if len(testResult.TestInvocation.GetSecondaryExecutionsInfo()) > 0 {
+		return ""
+	}
+
+	executionInfo := testResult.GetTestInvocation().GetPrimaryExecutionInfo()
+	board := executionInfo.GetBuildInfo().GetBoard()
+	model := executionInfo.GetDutInfo().GetDut().GetChromeos().GetDutModel().GetModelName()
+	image := executionInfo.GetBuildInfo().GetName()
+
+	// Exit early if we don't know the board, model, or image.
+	if board == "" || model == "" || image == "" {
+		return ""
+	}
+
+	// Don't use the board-model realm unless it is a base or allowlisted
+	// variant build.
+	// Note that variant builds also will be associated with board-model realm
+	// instead of board-variant-model realm which isn't supported.
+	if !isBuildPartnerVisible(board, image) {
+		return ""
+	}
+
+	// TODO(b/354085540): Validate the board-model realm by confirming it exists
+	// within the set of valid realms defined in LUCI Auth
+	return "chromeos:" + board + "-" + model
+}
+
+// isBuildPartnerVisible returns True if a build is visible to partners or False
+// otherwise. A build is partner visible if it's a base or allowlisted variant
+// build.
+func isBuildPartnerVisible(board string, image string) bool {
+	// Matches the base board name and fetches the variant suffix if it exists.
+	buildPattern := fmt.Sprintf("^%s(.*)-[a-z]+/R[0-9.\\-]+$", board)
+	buildRegex := regexp.MustCompile(buildPattern)
+	match := buildRegex.FindStringSubmatch(image)
+
+	if match == nil {
+		return false
+	}
+
+	// Checks if it's a base build or an allowlisted variant build.
+	variant := match[1]
+	return variant == "" || boardVariantAllowlist[variant]
 }
 
 // UploadInvocationArtifacts uploads invocation artifacts to rdb

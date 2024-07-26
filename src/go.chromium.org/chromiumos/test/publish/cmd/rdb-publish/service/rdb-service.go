@@ -175,7 +175,7 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 		config.ArtifactDir = ResultsArtifactDir
 	}
 
-	err = rdbLib.UploadTestResults(ctx, config)
+	err = rdbLib.UploadTestResults(ctx, config, rps.TestResultProto)
 	if err != nil {
 		return fmt.Errorf("error during rdb test results upload: %w", err)
 	}
