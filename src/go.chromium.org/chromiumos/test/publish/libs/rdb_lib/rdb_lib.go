@@ -331,10 +331,6 @@ func (rdblib *RdbLib) Exonerate(ctx context.Context, testExonerations []*rdb_pb.
 	}
 
 	rdbRpcConfig := &rdb_client.RdbRpcConfig{ServiceName: RdbServiceName, MethodName: TestExonerationMethodName, IncludeUpdateToken: true}
-	cmd, err := rdblib.RdbClient.RpcCommand(ctx, rdbRpcConfig)
-	if err != nil {
-		return fmt.Errorf("error during getting rpc command: %s", err.Error())
-	}
 
 	batchNum := 0
 	for i := 0; i < len(testExonerations); i += RpcBatchSize {
@@ -351,7 +347,14 @@ func (rdblib *RdbLib) Exonerate(ctx context.Context, testExonerations []*rdb_pb.
 		}
 		batchReq := rdb_pb.BatchCreateTestExonerationsRequest{Invocation: rdblib.CurrentInvocation, RequestId: uuid.New().String(), Requests: createTeRequests}
 
-		_, _, err := common_utils.RunCommand(ctx, cmd, "rdb-rpc-batch-exoneration", &batchReq, true)
+		// Create a new RPC command to batch upload each individual chunk of
+		// exonerations.
+		cmd, err := rdblib.RdbClient.RpcCommand(ctx, rdbRpcConfig)
+		if err != nil {
+			return fmt.Errorf("error during getting rpc command: %s", err.Error())
+		}
+
+		_, _, err = common_utils.RunCommand(ctx, cmd, "rdb-rpc-batch-exoneration", &batchReq, true)
 		if err != nil {
 			errMsg := fmt.Sprintf("error in rdb-rpc-batch-exoneration batch %d: %s", batchNum, err.Error())
 			log.Println(errMsg)
