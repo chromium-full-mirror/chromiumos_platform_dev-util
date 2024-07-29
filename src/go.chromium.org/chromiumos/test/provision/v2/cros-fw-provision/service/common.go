@@ -124,7 +124,7 @@ func ExtractFile(ctx context.Context, dut api.DutServiceClient, url, destPath st
 	err := errors.New("unknown error")
 	for i := 1; i <= 5; i++ {
 		var stderr string
-		_, stderr, err = RunDUTCommand(ctx, dut, curlExtractTimeout, "curl", []string{"-f", "-S", "-o", destPath, fmt.Sprintf("'%s'", url)}, nil)
+		_, stderr, err = RunDUTCommand(ctx, dut, curlExtractTimeout, "curl", []string{"-f", "-S", "-o", fmt.Sprintf("'%s'", destPath), fmt.Sprintf("'%s'", url)}, nil)
 
 		if err != nil {
 			log.Printf("Failed to download %q: %s", url, string(stderr))

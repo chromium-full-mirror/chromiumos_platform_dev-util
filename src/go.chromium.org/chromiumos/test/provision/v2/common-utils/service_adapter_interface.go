@@ -280,7 +280,7 @@ func (s ServiceAdapter) CopyData(ctx context.Context, sourceUrl string, destPath
 // DeleteDirectory is a thin wrapper around an rm command. Done here as it is
 // expected to be reused often by many services.
 func (s ServiceAdapter) DeleteDirectory(ctx context.Context, dir string) error {
-	if _, err := s.RunCmd(ctx, "rm", []string{"-rf", dir}); err != nil {
+	if _, err := s.RunCmd(ctx, "rm", []string{"-rf", fmt.Sprintf("'%s'", dir)}); err != nil {
 		return fmt.Errorf("could not delete directory, %w", err)
 	}
 	return nil

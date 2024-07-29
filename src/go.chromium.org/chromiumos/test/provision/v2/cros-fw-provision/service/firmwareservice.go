@@ -376,6 +376,9 @@ func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly 
 	futilityArgs = append([]string{"update", "--manifest"}, futilityArgs...)
 
 	connection := fws.GetConnectionToFlashingDevice()
+	for i, a := range futilityArgs {
+		futilityArgs[i] = escape(a)
+	}
 	out, err := connection.RunCmd(ctx, "futility", futilityArgs)
 	if err != nil {
 		return errors.Wrap(err, "failed to exec futility")
@@ -402,11 +405,11 @@ func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly 
 	if apImagePath != "" {
 		// Get the EC RW hash from the AP image, since the version in the manifest may be wrong.
 		ecImagePath := fmt.Sprintf("%s-ecrw.hash", apImagePath)
-		_, err = connection.RunCmd(ctx, "cbfstool", []string{apImagePath, "extract", "-r", "FW_MAIN_A", "-n", "ecrw.hash", "-f", ecImagePath})
+		_, err = connection.RunCmd(ctx, "cbfstool", []string{fmt.Sprintf("'%s'", apImagePath), "extract", "-r", "FW_MAIN_A", "-n", "ecrw.hash", "-f", fmt.Sprintf("'%s'", ecImagePath)})
 		if err != nil {
 			return errors.Wrap(err, "failed to extract ecrw.hash")
 		}
-		out, err = connection.RunCmd(ctx, "od", []string{"-A", "n", "-t", "x1", ecImagePath})
+		out, err = connection.RunCmd(ctx, "od", []string{"-A", "n", "-t", "x1", fmt.Sprintf("'%s'", ecImagePath)})
 		if err != nil {
 			return errors.Wrap(err, "failed to get ecrw hash")
 		}
@@ -590,13 +593,13 @@ with open("`)
   subprocess.run(["sync", "-d", "/var/tmp", "/usr/local/tmp"])
   subprocess.run(["reboot"])
 `)
-		_, _, err := RunDUTCommand(ctx, fws.DUTServer, time.Minute, "cat", []string{">", pyScript}, []byte(scriptBody.String()))
+		_, _, err := RunDUTCommand(ctx, fws.DUTServer, time.Minute, "cat", []string{">", fmt.Sprintf("'%s'", pyScript)}, []byte(scriptBody.String()))
 		if err != nil {
 			return errors.Wrap(err, "failed to create futility.py")
 		}
-		defer connection.RunCmd(ctx, "rm", []string{"-f", logFile})
+		defer connection.RunCmd(ctx, "rm", []string{"-f", fmt.Sprintf("'%s'", logFile)})
 
-		_, err = connection.RunCmd(ctx, "bash", []string{"-c", escape(fmt.Sprintf("nohup python3 %s </dev/null >&/dev/null & exit", pyScript))})
+		_, err = connection.RunCmd(ctx, "bash", []string{"-c", escape(fmt.Sprintf("nohup python3 '%s' </dev/null >&/dev/null & exit", pyScript))})
 		if err != nil {
 			return errors.Wrap(err, "failed to run nohup")
 		}
@@ -606,7 +609,7 @@ with open("`)
 		// Poll every 10s for the log file to appear and have the "EXIT CODE:" string in it.
 		for time.Now().Sub(startTime) < 5*time.Minute {
 			time.Sleep(10 * time.Second)
-			buf, err := connection.RunCmd(ctx, "cat", []string{logFile})
+			buf, err := connection.RunCmd(ctx, "cat", []string{fmt.Sprintf("'%s'", logFile)})
 			if err != nil {
 				log.Printf("failed to download %q: %v", logFile, err)
 				continue
@@ -625,6 +628,10 @@ with open("`)
 		}
 		return errors.New("Timeout waiting for futility")
 	} else {
+		for i, a := range futilityArgs {
+			futilityArgs[i] = escape(a)
+		}
+
 		if _, err := connection.RunCmd(ctx, "futility", futilityArgs); err != nil {
 			return err
 		}
@@ -779,7 +786,7 @@ func (fws *FirmwareService) DownloadAndProcess(ctx context.Context, gsPath strin
 		}
 
 		// Use mktemp to safely create a unique temp directory in /var/tmp so that it survives reboots.
-		archiveDir, err := connection.RunCmd(ctx, "mktemp", []string{"-d", "--tmpdir=/var/tmp", "cros-fw-provision.XXXXXXXXX." + archiveSubfolder})
+		archiveDir, err := connection.RunCmd(ctx, "mktemp", []string{"-d", "--tmpdir=/var/tmp", fmt.Sprintf("'cros-fw-provision.XXXXXXXXX.%s'", archiveSubfolder)})
 		if err != nil {
 			return errors.Wrap(err, "remote mktemp failed")
 		}
@@ -804,7 +811,7 @@ func (fws *FirmwareService) ProvisionWithFlashEC(ctx context.Context, ecImage, f
 	if fws.ecChip == "stm32" {
 		customBitbangRate = "--bitbang_rate=57600"
 	}
-	flashCmdArgs := fmt.Sprintf("--ro --chip=%s --board=%s --image=%s --port=%v %s --verify --verbose",
+	flashCmdArgs := fmt.Sprintf("--ro --chip=%s --board=%s --image='%s' --port=%v %s --verify --verbose",
 		fws.ecChip, fws.model, ecImage, fws.servoPort, customBitbangRate)
 	output, err := fws.GetConnectionToFlashingDevice().RunCmd(ctx, flashECScriptPath, strings.Split(flashCmdArgs, " "))
 	if err != nil {
