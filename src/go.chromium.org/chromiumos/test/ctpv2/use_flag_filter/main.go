@@ -4,13 +4,14 @@
 package main
 
 import (
-	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
 	"context"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
 
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
 
@@ -24,6 +25,7 @@ const (
 	useFlagsDirBase = "/tmp/use_flag_filter/tast_use_flags_"
 )
 
+// mapToString is helper function, converts a map to string format for pretty print in log.
 func mapToString(m map[string]map[string]bool) string {
 	result := ""
 	for k, v := range m {
@@ -36,8 +38,8 @@ func mapToString(m map[string]map[string]bool) string {
 	return result
 }
 
-// DownloadUseFlags downloads all use flags from a given gsUrl.
-func DownloadUseFlags(ctx context.Context, gsURL string, gsClient *storage.GSClient, buildTarget string, log *log.Logger, useFlagsDir string) (map[string]bool, error) {
+// downloadUseFlags downloads all use flags from a given gsUrl.
+func downloadUseFlags(ctx context.Context, gsURL string, gsClient *storage.GSClient, buildTarget string, log *log.Logger, useFlagsDir string) (map[string]bool, error) {
 
 	destFilePath := filepath.Join(useFlagsDir, buildTarget)
 
@@ -55,12 +57,19 @@ func DownloadUseFlags(ctx context.Context, gsURL string, gsClient *storage.GSCli
 
 	useFlagSet := make(map[string]bool)
 	for _, item := range useFlagList {
+		item = strings.TrimSpace(item)
+		// skip comments and empty spaces from us flag file
+		if strings.HasPrefix(item, "#") || item == "" {
+			continue
+		}
 		useFlagSet[item] = true
 	}
 
 	return useFlagSet, nil
 }
 
+// createDirectory generates a unique directory for each request.
+// This is important to avoid any race condition as multiple requests are processed by CTP on one machine.
 func createDirectory(log *log.Logger) (string, error) {
 
 	useFlagsDir := useFlagsDirBase + uuid.New().String()
@@ -72,7 +81,7 @@ func createDirectory(log *log.Logger) (string, error) {
 	return useFlagsDir, nil
 }
 
-// GenerateUseFlagDict creates a dictionary for buildTarget and respective use flag list.
+// generateUseFlagDict creates a dictionary for buildTarget and respective use flag list.
 func generateUseFlagDict(ctx context.Context, req *api.InternalTestplan, log *log.Logger) (map[string]map[string]bool, error) {
 
 	buildTargetGSMap, err := createBuildTargetGSMap(req)
@@ -108,7 +117,7 @@ func generateUseFlagDict(ctx context.Context, req *api.InternalTestplan, log *lo
 
 	for buildTarget, gcsPath := range buildTargetGSMap {
 		gcsPath = gcsPath + "/" + fileName
-		useFlagSet, err := DownloadUseFlags(ctx, gcsPath, gsClient, buildTarget, log, useFlagsDir)
+		useFlagSet, err := downloadUseFlags(ctx, gcsPath, gsClient, buildTarget, log, useFlagsDir)
 		if err != nil {
 			return nil, err
 		}
@@ -126,36 +135,51 @@ func generateUseFlagDict(ctx context.Context, req *api.InternalTestplan, log *lo
 	return useFlagDict, nil
 }
 
-// CreateBuildTargetGSMap creates a map with board+variant value as key and gspath for image location as value
+// createBuildTargetGSMap creates a map with board+variant value as key and gspath for image location as value
 func createBuildTargetGSMap(req *api.InternalTestplan) (map[string]string, error) {
 
 	buildTargetGSMap := make(map[string]string)
-	targetRequirements := req.GetSuiteInfo().GetSuiteMetadata().GetTargetRequirements()
-	for _, tr := range targetRequirements {
-		buildTargetGSKey, err := retrieveBuildTargetKey(tr.GetHwRequirements().GetHwDefinition())
-		if err != nil {
-			return nil, fmt.Errorf("Error retrieving build target key from hwDef: %s", err)
+	for _, testCases := range req.GetTestCases() {
+		for _, schedulingOptions := range testCases.GetSchedulingUnitOptions() {
+			for _, schedulingUnit := range schedulingOptions.GetSchedulingUnits() {
+				// retrieve build target values "board+variant" for each schduling unit for a test
+				buildTargetGSKey, err := retrieveBuildTargetKey(schedulingUnit.GetPrimaryTarget().GetSwarmingDef())
+				if err != nil {
+					return nil, fmt.Errorf("Error retrieving build target key from hwDef: %s", err)
+				}
+
+				// Check if buildTargetGSKey is not empty and "installPath" exists in the lookup table
+				if buildTargetGSKey != "" {
+					if installPath, exists := schedulingUnit.GetDynamicUpdateLookupTable()["installPath"]; exists {
+						buildTargetGSMap[buildTargetGSKey] = installPath
+					} else {
+						log.Printf("No gcs install path defined for scheduling unit : %s", buildTargetGSKey)
+					}
+				}
+			}
 		}
-		buildTargetGSMap[buildTargetGSKey] = tr.GetSwRequirement().GetGcsPath()
 	}
 	log.Printf("BoardGsURLMap: %s", buildTargetGSMap)
 	return buildTargetGSMap, nil
 }
 
-// RetrieveBuildTargetKey retrieves ChromeOS buildTarget+variant from the hwDef
-func retrieveBuildTargetKey(req []*api.SwarmingDefinition) (string, error) {
-	for _, hwDef := range req {
-		if hwDef.GetDutInfo().GetChromeos() != nil {
-			board := hwDef.GetDutInfo().GetChromeos().GetDutModel().GetBuildTarget()
-			retrieveBuildTargetKey := board
-			if hwDef.GetVariant() != "" {
-				retrieveBuildTargetKey += "-" + hwDef.GetVariant()
-			}
-			return retrieveBuildTargetKey, nil
+// retrieveBuildTargetKey retrieves ChromeOS buildTarget+variant from the hwDef
+func retrieveBuildTargetKey(req *api.SwarmingDefinition) (string, error) {
+
+	// only chromeos type DUTs, rest should be skipped.
+	if req.GetDutInfo().GetChromeos() != nil {
+		board := req.GetDutInfo().GetChromeos().GetDutModel().GetBuildTarget()
+		retrieveBuildTargetKey := board
+		if req.GetVariant() != "" {
+			retrieveBuildTargetKey += "-" + req.GetVariant()
 		}
+		return retrieveBuildTargetKey, nil
 	}
+
 	return "", nil
 }
+
+// checkIfTestHwDepQualify checks if includeFlags and excludeFlags from a test satisfy a given schduling unit use flag set.
 func checkIfTestHwDepQualify(includeFlags []string, excludeFlags []string, useFlagSet map[string]bool) bool {
 	// Check if all items in includeFlags are present in useFlagSet
 	for _, flag := range includeFlags {
@@ -172,6 +196,7 @@ func checkIfTestHwDepQualify(includeFlags []string, excludeFlags []string, useFl
 	return true
 }
 
+// checkIfAnyTestHwDepsQualify converts a test case build deps to includeFlags and excludeFlags for,at and then checks if it qualifies.
 func checkIfAnyTestHwDepsQualify(useFlagSet map[string]bool, testHwDeps []*api.TestCase_BuildDeps, log *log.Logger) bool {
 	for _, buildDep := range testHwDeps {
 		includeFlags, excludeFlags := createIncludeAndExcludeUseFlagList(buildDep, log)
@@ -182,6 +207,7 @@ func checkIfAnyTestHwDepsQualify(useFlagSet map[string]bool, testHwDeps []*api.T
 	return false
 }
 
+// createIncludeAndExcludeUseFlagList converts a test case build deps to list of string (includeFlags and excludeFlags).
 func createIncludeAndExcludeUseFlagList(buildDep *api.TestCase_BuildDeps, log *log.Logger) ([]string, []string) {
 	var includeFlag []string
 	var excludeFlag []string
@@ -205,65 +231,94 @@ func createIncludeAndExcludeUseFlagList(buildDep *api.TestCase_BuildDeps, log *l
 	return includeFlag, excludeFlag
 }
 
-func filterHwRequirementsBasedOnUseFlag(hwReqs []*api.HWRequirements, useFlagDict map[string]map[string]bool, testHwDeps []*api.TestCase_BuildDeps, log *log.Logger) error {
-
-	for _, hwReq := range hwReqs {
-		// hwDef will be removed if no buildDeps in test metadata is present in hwDef's use flag set in useFlagDict
-		var filteredHwDefs []*api.SwarmingDefinition
-		hwDefs := hwReq.GetHwDefinition()
-
-		for _, hwDef := range hwDefs {
-
-			// fetch use flag set for hwDef. Key is BuildTarget+variant.
-			buildTargetKey := hwDef.GetDutInfo().GetChromeos().GetDutModel().GetBuildTarget()
-			if hwDef.GetVariant() != "" {
-				buildTargetKey += "-" + hwDef.GetVariant()
-			}
-
-			if hwDef.GetDutInfo().GetChromeos() != nil && useFlagDict[buildTargetKey] != nil {
-				// check if any test buildDeps is present in the set.
-				useFlagSet := useFlagDict[buildTargetKey]
-				qualify := checkIfAnyTestHwDepsQualify(useFlagSet, testHwDeps, log)
-				if qualify {
-					filteredHwDefs = append(filteredHwDefs, hwDef)
-				} else {
-					log.Printf("DUT with build target : %s removed", buildTargetKey)
-				}
-			} else {
-				log.Printf("DUT skipped check, due to missing use flag list or DUT is not of ChromeOS type")
-				filteredHwDefs = append(filteredHwDefs, hwDef)
-			}
+// updateSchedulingUnitOption updates the list of Scheduling units.
+func updateSchedulingUnitOption(schedulingUnitOption *api.SchedulingUnitOptions, useFlagDict map[string]map[string]bool, testHwDeps []*api.TestCase_BuildDeps, log *log.Logger) (*api.SchedulingUnitOptions, error) {
+	var filteredSchedulingUnits []*api.SchedulingUnit
+	for _, schedulingUnit := range schedulingUnitOption.GetSchedulingUnits() {
+		buildTargetKey, err := retrieveBuildTargetKey(schedulingUnit.GetPrimaryTarget().GetSwarmingDef())
+		if err != nil {
+			return nil, err
 		}
-		// update hwDef list
-		hwReq.HwDefinition = filteredHwDefs
+
+		if buildTargetKey != "" && useFlagDict[buildTargetKey] != nil {
+			// check if any test buildDeps is present in the set.
+			useFlagSet := useFlagDict[buildTargetKey]
+			qualify := checkIfAnyTestHwDepsQualify(useFlagSet, testHwDeps, log)
+			if qualify {
+				filteredSchedulingUnits = append(filteredSchedulingUnits, schedulingUnit)
+			} else {
+				log.Printf("DUT with build target : %s removed", buildTargetKey)
+			}
+		} else {
+			log.Printf("DUT skipped check, due to missing use flag list or DUT is not of ChromeOS type")
+			filteredSchedulingUnits = append(filteredSchedulingUnits, schedulingUnit)
+		}
+
 	}
-	return nil
+	if len(filteredSchedulingUnits) == 0 {
+		return nil, nil
+	}
+	schedulingUnitOption.SchedulingUnits = filteredSchedulingUnits
+	return schedulingUnitOption, nil
+
 }
 
+// filterSchedulingUnitOptionsBasedOnUseFlag returns a new updated schedulingUnitOptions object.
+func filterSchedulingUnitOptionsBasedOnUseFlag(schedulingUnitOptions []*api.SchedulingUnitOptions, useFlagDict map[string]map[string]bool, testHwDeps []*api.TestCase_BuildDeps, log *log.Logger) ([]*api.SchedulingUnitOptions, error) {
+
+	var filteredSchedulingUnitOptions []*api.SchedulingUnitOptions
+	for _, schedulingUnitOption := range schedulingUnitOptions {
+		// scheduling units will be removed if no buildDeps in test metadata is present in scheduling unit use flag set in useFlagDict
+		updatedSchedulingUnitOption, err := updateSchedulingUnitOption(schedulingUnitOption, useFlagDict, testHwDeps, log)
+		if err != nil {
+			log.Printf("Error while updating scheduling unit option: %s", err)
+		}
+		if updatedSchedulingUnitOption == nil {
+			continue
+		}
+		filteredSchedulingUnitOptions = append(filteredSchedulingUnitOptions, updatedSchedulingUnitOption)
+
+	}
+	return filteredSchedulingUnitOptions, nil
+}
+
+// updateTestCases updates the schedulingUnitOptions for each test case in internal test plan request.
 func updateTestCases(req *api.InternalTestplan, useFlagDict map[string]map[string]bool, log *log.Logger) error {
 
 	for _, testCase := range req.GetTestCases() {
 		if len(testCase.GetMetadata().GetTestCase().GetBuildDependencies()) > 0 {
-			log.Printf("Pruning HwDef for test : %s", testCase.GetName())
-			err := filterHwRequirementsBasedOnUseFlag(testCase.GetHwRequirements(), useFlagDict, testCase.GetMetadata().GetTestCase().GetBuildDependencies(), log)
+			log.Printf("Pruning scheduling units for test : %s", testCase.GetName())
+			filteredSchedulingUnitOptions, err := filterSchedulingUnitOptionsBasedOnUseFlag(testCase.GetSchedulingUnitOptions(), useFlagDict, testCase.GetMetadata().GetTestCase().GetBuildDependencies(), log)
 			if err != nil {
-				return fmt.Errorf("Error filtering HwReqs: %s", err)
+				return fmt.Errorf("Error while pruning scheduling unit options: %s", err)
 			}
+			testCase.SchedulingUnitOptions = filteredSchedulingUnitOptions
 		} else {
-			log.Printf("Skippping as test : %s, doesn't  have any build deps", testCase.GetName())
+			log.Printf("Skippping as test : %s, doesn't have any build deps", testCase.GetName())
 		}
 	}
+	// remove testcase for which schedulingUnitOptions is empty
+	var newTestCases []*api.CTPTestCase
+	for _, testCase := range req.GetTestCases() {
+		if len(testCase.GetSchedulingUnitOptions()) > 0 {
+			newTestCases = append(newTestCases, testCase)
+		}
+	}
+	req.TestCases = newTestCases
+
 	return nil
 }
 
 func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
 	ctx := context.Background()
 
+	// parses the request and generates the use flag set for each board+variant
 	useFlagDict, err := generateUseFlagDict(ctx, req, log)
 	if err != nil {
 		return nil, fmt.Errorf("Error generating board-use flags map: %s", err)
 	}
 
+	// iterates each test case and removes the scheduling unit as per build dependencies and use flag set of the scheduling unit
 	err = updateTestCases(req, useFlagDict, log)
 	if err != nil {
 		return nil, fmt.Errorf("Error during use flag based test cases pruning: %s", err)
