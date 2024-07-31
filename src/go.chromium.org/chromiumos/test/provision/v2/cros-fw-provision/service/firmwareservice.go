@@ -706,10 +706,10 @@ func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
 	}
 	m := re.FindStringSubmatch(out)
 	sku := -1
-	if m != nil {
+	if m != nil && m[1] != "none" {
 		sku, err = strconv.Atoi(m[1])
 		if err != nil {
-			return errors.Wrapf(err, "parse of %q failed", m[1])
+			return errors.Wrapf(err, "parse of SKU %q failed", m[1])
 		}
 		log.Printf("DUT sku = %d", sku)
 	}
