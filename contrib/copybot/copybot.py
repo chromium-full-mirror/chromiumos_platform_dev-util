@@ -248,13 +248,15 @@ class GitRepo:
         result = self._run_git("show", rev, "--", *files)
         return result.stdout
 
-    def apply(self, patch, path=None, include_paths=None):
+    def apply(self, patch, path=None, include_paths=None, exclude_paths=None):
         """Apply a patch to the staging area."""
         extra_args = []
         if path:
             extra_args.append(f"--directory={path}")
         if include_paths:
             extra_args.extend(f"--include={path}" for path in include_paths)
+        if exclude_paths:
+            extra_args.extend(f"--exclude={path}" for path in exclude_paths)
 
         extra_args.append(patch)
         return self._run_git("apply", *extra_args)
@@ -325,6 +327,7 @@ class GitRepo:
         upstream_subtree=None,
         downstream_subtree=None,
         include_paths=None,
+        exclude_paths=None,
     ):
         """Do a `git cherry-pick`.
 
@@ -376,6 +379,7 @@ class GitRepo:
                 patch=patch,
                 path=self.get_subtree_lowest_working_dir(downstream_subtree),
                 include_paths=include_paths,
+                exclude_paths=exclude_paths,
             )
         except subprocess.CalledProcessError as e:
             raise MergeConflictError() from e
@@ -1049,10 +1053,11 @@ def run_copybot(args, git_dir, patch_dir):
             else:
                 repo.cherry_pick(
                     rev,
-                    patch_dir,
-                    upstream_subtree,
-                    downstream_subtree,
-                    args.include_downstream,
+                    patch_dir=patch_dir,
+                    upstream_subtree=upstream_subtree,
+                    downstream_subtree=downstream_subtree,
+                    include_paths=args.include_downstream,
+                    exclude_paths=args.exclude_file_patterns,
                 )
         except EmptyCommitError:
             logger.warning("Skip cherry-pick due to empty commit")
