@@ -253,8 +253,8 @@ class GitRepo:
         extra_args = []
         if path:
             extra_args.append(f"--directory={path}")
-            if include_paths:
-                extra_args.extend(f"--include={path}" for path in include_paths)
+        if include_paths:
+            extra_args.extend(f"--include={path}" for path in include_paths)
 
         extra_args.append(patch)
         return self._run_git("apply", *extra_args)
@@ -304,7 +304,9 @@ class GitRepo:
             extra_args.append("--all")
         if force:
             extra_args.append("--force")
-        return self._run_git("add", *extra_args, path)
+        if path:
+            extra_args.append(path)
+        return self._run_git("add", *extra_args)
 
     def get_subtree_lowest_working_dir(
         self, path: Union[pathlib.Path, "os.PathLike[str]"]
@@ -353,36 +355,38 @@ class GitRepo:
                     raise EmptyCommitError() from e
                 raise MergeConflictError() from e
 
-        exn = None
-        if downstream_subtree:
-            patch = self.format_patch(
-                rev,
-                patch_dir,
-                1,
-                self.get_subtree_lowest_working_dir(upstream_subtree),
-            )
+        cherry_pick_flag_list = ([], ["-Xpatience"], ["-m", "2"])
+        if downstream_subtree or upstream_subtree or include_paths:
+            cherry_pick_flag_list = ()
+        for flags in cherry_pick_flag_list:
             try:
-                self.apply(
-                    patch,
-                    self.get_subtree_lowest_working_dir(downstream_subtree),
-                    include_paths,
-                )
-            except subprocess.CalledProcessError as e:
-                raise MergeConflictError() from e
-            self.add(downstream_subtree, True, True)
-            self.commit(self.get_commit_message(rev), False, False, True)
-            return
-        else:
-            for flags in ([], ["-Xpatience"], ["-m", "2"]):
-                try:
-                    _try_cherry_pick(flags)
-                except MergeConflictError as e:
-                    exn = e
-                    continue
-                else:
-                    return
-
-        raise exn
+                _try_cherry_pick(flags)
+            except MergeConflictError:
+                continue
+            else:
+                return
+        patch = self.format_patch(
+            rev,
+            patch_dir,
+            1,
+            self.get_subtree_lowest_working_dir(upstream_subtree),
+        )
+        try:
+            self.apply(
+                patch=patch,
+                path=self.get_subtree_lowest_working_dir(downstream_subtree),
+                include_paths=include_paths,
+            )
+        except subprocess.CalledProcessError as e:
+            raise MergeConflictError() from e
+        self.add(downstream_subtree, stage=True, force=True)
+        self.commit(
+            self.get_commit_message(rev),
+            amend=False,
+            sign_off=False,
+            stage=True,
+        )
+        return
 
     def push(self, url, refspec, options=()):
         """Do a `git push`."""
