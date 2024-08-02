@@ -726,6 +726,7 @@ def find_commits_to_copy(
     downstream_limit=0,
     exclude_file_patterns=(),
     pending_changes=(),
+    skip_copybot_job_names=(),
 ):
     """Find the commits to copy to downstream.
 
@@ -743,6 +744,7 @@ def find_commits_to_copy(
             to check.
         exclude_file_patterns: File paths that should not be copied.
         pending_changes: Changes pending in downstream repo.
+        skip_copybot_job_names: Names of copybot jobs to not copy CLs from
 
     Returns:
         A list of the commit hashes to copy.
@@ -770,6 +772,20 @@ def find_commits_to_copy(
         # Early exit if limit reached to avoid inadvertent continuation
         if counter > upstream_limit and upstream_limit != 0:
             break
+
+        # Check if this is a filtered commit.
+        commit_message = repo.get_commit_message(rev)
+        pseudoheaders, commit_message = Pseudoheaders.from_commit_message(
+            commit_message
+        )
+        job_name = pseudoheaders.get("Copybot-Job-Name")
+        if job_name in skip_copybot_job_names:
+            logger.info(
+                "Skip %s due to Copybot-Job-Name: %s",
+                rev,
+                job_name,
+            )
+            continue
 
         if rev in pending_changes:
             if "copybot-skip" in pending_changes[rev].hashtags:
@@ -1027,6 +1043,7 @@ def run_copybot(args, git_dir, patch_dir):
         downstream_limit=args.downstream_history_limit,
         exclude_file_patterns=args.exclude_file_patterns,
         pending_changes=pending_changes,
+        skip_copybot_job_names=args.skip_job_name,
     )
 
     if not commits_to_copy:
@@ -1264,6 +1281,12 @@ def main(argv=None):
         action="append",
         default=[],
         help="Pseudoheaders to be added to the commit message",
+    )
+    parser.add_argument(
+        "--skip-job-name",
+        action="append",
+        default=[],
+        help="Skip CLs in upstream copied from the specified job name",
     )
     parser.add_argument(
         "upstream",
