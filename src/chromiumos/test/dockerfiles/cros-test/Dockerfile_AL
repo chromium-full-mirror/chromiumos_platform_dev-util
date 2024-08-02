@@ -1,0 +1,77 @@
+# Copyright 2024 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+FROM python:3.8-slim-buster AS build
+
+# attr, unzip are for CTS specifically.
+# squashfs-tools is for Uprev specifically.
+RUN apt-get update \
+    && apt-get install -y \
+      attr \
+      ca-certificates \
+      curl \
+      iproute2 \
+      iputils-ping \
+      python-pip \
+      sudo \
+      unzip \
+      wget \
+      xxd
+
+# grab gsutil
+RUN echo \
+    "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] \
+    http://packages.cloud.google.com/apt cloud-sdk main" | \
+    tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
+    apt-key --keyring /usr/share/keyrings/cloud.google.gpg  \
+    add - && apt-get update -y && apt-get install google-cloud-sdk=369.0.0-0 -y
+RUN rm -rf /usr/lib/google-cloud-sdk/bin/anthoscli \
+  /usr/lib/google-cloud-sdk/bin/kuberun
+
+# Point /usr/bin/python3 to usr/local/bin/python3. See b/191884161
+RUN sudo rm /usr/bin/python3*; exit 0
+RUN sudo ln -s /usr/local/bin/python3 /usr/bin/python3
+
+RUN useradd -m chromeos-test
+
+RUN echo 'chromeos-test ALL=NOPASSWD:ALL' > /etc/sudoers.d/chromeos-test
+
+# Install JDK 9 required for CTS.
+COPY install_jdk9.sh .
+RUN chmod 755 install_jdk9.sh && ./install_jdk9.sh && rm -f install_jdk9.sh
+
+# Cros-test binary is static across boards.
+COPY --chown=chromeos-test:chromeos-test cros-test /usr/bin/
+
+# ###############################################################################
+# Everything above this point should not be changing often (ie not every build)
+# Everything below this point is possible/likely to change per build
+# ###############################################################################
+
+RUN mkdir -p /tmp/test
+# Bring in metadata to 1 location (Can be different per board.)
+COPY --chown=chromeos-test:chromeos-test *.pb /tmp/test/metadata/
+
+
+# Do a final chown on /tmp/test
+RUN chmod 755 /usr/bin/cros-test
+RUN chown -R chromeos-test:chromeos-test /tmp/test/
+
+# Configure the ssh for testing under the test user
+# This **is** static between all boards/builds, but we rely on Autotest to get the SSH Key.
+# Should look into investigating how we can pull this earlier in the Dockerbuild.
+COPY aapt /usr/bin
+COPY aapt2 /usr/bin
+COPY adb /usr/bin
+
+RUN chmod 755 /usr/bin/aapt 
+RUN chmod 755 /usr/bin/aapt2
+RUN chmod 755 /usr/bin/adb
+
+COPY android-cts/ /usr/local/tradefed/android-cts
+RUN chown -R chromeos-test:chromeos-test /usr/local/tradefed/
+
+USER chromeos-test
+
