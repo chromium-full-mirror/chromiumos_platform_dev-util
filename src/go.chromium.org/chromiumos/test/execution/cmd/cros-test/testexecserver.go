@@ -29,6 +29,7 @@ func driverToTestsMapping(logger *log.Logger, mdList []*api.TestCaseMetadata) (m
 	gtestDriver := driver.NewGtestDriver(logger)
 	crosierDriver := driver.NewCrosierDriver(logger)
 	moblyDriver := driver.NewMoblyDriver(logger)
+	tradefedDriver := driver.NewTradefedDriver(logger)
 
 	driverToTests := make(map[driver.Driver][]*api.TestCaseMetadata)
 	for _, md := range mdList {
@@ -51,6 +52,8 @@ func driverToTestsMapping(logger *log.Logger, mdList []*api.TestCaseMetadata) (m
 			driverToTests[crosierDriver] = append(driverToTests[crosierDriver], md)
 		} else if md.TestCaseExec.TestHarness.GetMobly() != nil {
 			driverToTests[moblyDriver] = append(driverToTests[moblyDriver], md)
+		} else if md.TestCaseExec.TestHarness.GetTradefed() != nil {
+			driverToTests[tradefedDriver] = append(driverToTests[tradefedDriver], md)
 		} else {
 			return nil, statuserrors.NewStatusError(statuserrors.InvalidArgument,
 				errors.New("manual harness has not been supported"))

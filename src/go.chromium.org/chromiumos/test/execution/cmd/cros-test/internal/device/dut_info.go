@@ -54,6 +54,7 @@ type DutInfo struct {
 	WifiSecretSecurity  string
 	WifiSecretPassword  string
 	DUT                 *labapi.Dut
+	Ip                  string
 }
 
 // joinHostAndPort joins host and port to a single address.
@@ -108,6 +109,19 @@ func dutAddress(dut *labapi.Dut) (string, error) {
 	return joinHostAndPort(crosSsh), nil
 }
 
+// dutAddress extract the dut address from the Device information.
+func dutIp(dut *labapi.Dut) (string, error) {
+	if dut.GetDevboard() != nil {
+		// Ignore DUT address if the devboard server is set.
+		return "", nil
+	}
+	crosSsh := dut.GetChromeos().GetSsh()
+	if crosSsh == nil {
+		return "", fmt.Errorf("DUT does not have end point information: %v", dut)
+	}
+	return crosSsh.Address, nil
+}
+
 // FillDUTInfo extracts DUT information from a device.
 func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, error) {
 	if device == nil {
@@ -120,6 +134,11 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 	addr, err := dutAddress(dut)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get DUT address: %v", dut)
+	}
+
+	ip, err := dutIp(dut)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get DUT ip: %v", dut)
 	}
 
 	cacheInfo := dut.GetCacheServer()
@@ -303,6 +322,7 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 		WifiSecretSecurity:  wifiSecretSecurity,
 		WifiSecretPassword:  wifiSecretPassword,
 		DUT:                 dut,
+		Ip:                  ip,
 	}, nil
 }
 

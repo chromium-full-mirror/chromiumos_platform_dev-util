@@ -203,6 +203,7 @@ func TestFillDUTInfo(t *testing.T) {
 			WifiSecretSecurity: "wpa",
 			WifiSecretPassword: "the_p@ssw0rd",
 			DUT:                input[0].Dut,
+			Ip:                 "127.0.0.1",
 		},
 		{
 			Addr:            "[0:0:0:0:0:ffff:7f00:1]:2",
@@ -214,6 +215,7 @@ func TestFillDUTInfo(t *testing.T) {
 			ServoPort:       "9999",
 			Phase:           "PHASE_UNSPECIFIED",
 			DUT:             input[1].Dut,
+			Ip:              "0:0:0:0:0:ffff:7f00:1",
 		},
 		{
 			Addr:            "c6-r8-rack7-host7",
@@ -225,6 +227,7 @@ func TestFillDUTInfo(t *testing.T) {
 			ServoPort:       "9999",
 			Phase:           "PHASE_UNSPECIFIED",
 			DUT:             input[2].Dut,
+			Ip:              "c6-r8-rack7-host7",
 		},
 		{
 			Addr:            "0:0:0:0:0:ffff:7f00:1",
@@ -235,6 +238,7 @@ func TestFillDUTInfo(t *testing.T) {
 			DevboardServer:  "",
 			Phase:           "PHASE_UNSPECIFIED",
 			DUT:             input[3].Dut,
+			Ip:              "0:0:0:0:0:ffff:7f00:1",
 		},
 		{
 			Addr:            "",
@@ -382,6 +386,7 @@ func TestFillDUTInfoExtended(t *testing.T) {
 			WifiSecretSecurity: "wpa",
 			WifiSecretPassword: "the_p@ssw0rd",
 			DUT:                dut,
+			Ip:                 "127.0.0.1",
 		},
 	}
 	input := []*api.CrosTestRequest_Device{
