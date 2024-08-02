@@ -1,4 +1,4 @@
-// Copyright 2024 The ChromiumOS Authors
+// Copyright 2023 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,12 @@ package state_machine
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 	"go.chromium.org/chromiumos/test/provision/v2/foil-provision/service"
+	"go.chromium.org/chromiumos/test/provision/v2/foil-provision/state-machine/commands"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -33,6 +35,19 @@ func NewFoilPreInitState(service *service.FoilService) common_utils.ServiceState
 // Execute executes the steps needed to support FoilPreInitState. Xheck if the chromeOS target == current, if so skip install.
 func (s FoilPreInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Printf("State: Execute FoilPreInitState")
+	comms := []common_utils.CommandInterface{
+		commands.NewAdbRootSetup(ctx, s.service),
+		commands.NewGetEnginePidSetup(ctx, s.service),
+		commands.NewGetVersionSetup(ctx, s.service),
+		commands.NewCheckForSkipCommand(ctx, s.service),
+	}
+
+	for _, comm := range comms {
+		err := comm.Execute(log)
+		if err != nil {
+			return nil, comm.GetStatus(), fmt.Errorf("%s, %s", comm.GetErrorMessage(), err)
+		}
+	}
 
 	log.Printf("ALL DONE")
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
@@ -40,7 +55,12 @@ func (s FoilPreInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 
 // Next provides the interface if the install flag is set.
 func (s FoilPreInitState) Next() common_utils.ServiceState {
-	return nil
+	if s.service.SkipUpdate == true {
+		return nil
+	}
+	return FoilInstallState{
+		service: s.service,
+	}
 
 }
 
