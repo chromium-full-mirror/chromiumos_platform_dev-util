@@ -95,7 +95,7 @@ func (sdk *SdkRunner) CompileCustomPackages(ctx context.Context, configOptions m
 		}
 	}
 
-	// Build custom IPKs by running the specified makefiles.
+	// Build custom package files by running the specified makefiles.
 	log.Logger.Printf("Making %d source packages with sdk using a maximum of %d CPUs\n", len(sdkSourcePackageMakefileDirs), maxCPUs)
 	for _, makefile := range sdkSourcePackageMakefileDirs {
 		log.Logger.Printf("Preparing source package %q for compilation\n", makefile)
@@ -148,58 +148,59 @@ func (sdk *SdkRunner) ImportCustomPackageSources(ctx context.Context, srcDir str
 	return fileutils.CopyFilesInDirToDir(ctx, srcDir, sdk.packageDirPath)
 }
 
-// ExportCompiledCustomPackageIPKs copies built custom package IPKs matching
+// ExportCompiledCustomPackageArchives copies built custom package files matching
 // names in packageNames to dstDir.
-func (sdk *SdkRunner) ExportCompiledCustomPackageIPKs(ctx context.Context, packageNames []string, dstDir string) error {
-	// Search the for desired IPKs built by the sdk.
-	log.Logger.Println("Collecting custom built IPKs from sdk")
-	desiredPackageToIPKPath := make(map[string]string)
+func (sdk *SdkRunner) ExportCompiledCustomPackageArchives(ctx context.Context, packageNames []string, dstDir string) error {
+	// Search the for desired package archives built by the sdk.
+	log.Logger.Println("Collecting custom built package files from sdk")
+	desiredPackageToPath := make(map[string]string)
 	for _, packageName := range packageNames {
-		desiredPackageToIPKPath[packageName] = ""
+		desiredPackageToPath[packageName] = ""
 	}
 	err := filepath.Walk(path.Join(sdk.sdkDirPath, "bin"), func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.Mode().IsRegular() && strings.HasSuffix(info.Name(), ".ipk") {
-			// Is an IPK file, save path if it is a desired package.
-			packageNameEndIndex := strings.Index(info.Name(), "_")
-			if packageNameEndIndex == -1 {
-				log.Logger.Printf("WARNING: Failed to identify package name of IPK file %q\n", path)
-				return nil
-			}
-			packageName := info.Name()[0:packageNameEndIndex]
-			if _, ok := desiredPackageToIPKPath[packageName]; ok {
-				// Is a desired package, store path for later.
-				desiredPackageToIPKPath[packageName] = path
-				log.Logger.Printf("Found custom IPK of desired package %q at %q\n", packageName, path)
+		if info.Mode().IsRegular() && (strings.HasSuffix(info.Name(), ".ipk") || strings.HasSuffix(info.Name(), ".apk")) {
+			// APK package names no longer follow <pkg_name>_<version>_arch.ipk
+			// and instead are just <pkg_name>-<version>.apk, do a naive search
+			// for the package prefix to avoid errors splitting the string on the version which
+			// has no defined format.
+			for k := range desiredPackageToPath {
+				if strings.HasPrefix(info.Name(), k) {
+					if desiredPackageToPath[k] != "" {
+						return fmt.Errorf("Unable to determine correct package for package: %q, duplicate found: %q", k, desiredPackageToPath[k])
+					}
+					desiredPackageToPath[k] = path
+					log.Logger.Printf("Found custom archive of desired package %q at %q\n", k, path)
+				}
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to search for IPKs built by the local sdk: %w", err)
+		return fmt.Errorf("failed to search for package files built by the local sdk: %w", err)
 	}
 	var missingPackages []string
-	for packageName, filePath := range desiredPackageToIPKPath {
+	for packageName, filePath := range desiredPackageToPath {
 		if filePath == "" {
 			missingPackages = append(missingPackages, packageName)
 		}
 	}
 	if len(missingPackages) > 0 {
 		sort.Strings(missingPackages)
-		return fmt.Errorf("failed to find custom built IPK for desired packages: %s", strings.Join(missingPackages, " "))
+		return fmt.Errorf("failed to find custom built archives for desired packages: %s", strings.Join(missingPackages, " "))
 	}
 
-	// Copy desired IPKs to dstDir.
-	log.Logger.Printf("Cleaning old IPKs from %q\n", dstDir)
+	// Copy desired package files to dstDir.
+	log.Logger.Printf("Cleaning old package files from %q\n", dstDir)
 	if err := fileutils.CleanDirectory(dstDir); err != nil {
 		return err
 	}
-	log.Logger.Printf("Copying %d custom IPKs to %q\n", len(desiredPackageToIPKPath), dstDir)
-	for packageName, filePath := range desiredPackageToIPKPath {
+	log.Logger.Printf("Copying %d custom package files to %q\n", len(desiredPackageToPath), dstDir)
+	for packageName, filePath := range desiredPackageToPath {
 		if err := fileutils.CopyFile(ctx, filePath, dstDir); err != nil {
-			return fmt.Errorf("failed to copy package %q IPK file %q to dir %q: %w", packageName, filePath, dstDir, err)
+			return fmt.Errorf("failed to copy package %q file %q to dir %q: %w", packageName, filePath, dstDir, err)
 		}
 	}
 

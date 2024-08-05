@@ -173,11 +173,8 @@ func (ib *CrosOpenWrtImageBuilder) prepareBuilder(ctx context.Context) error {
 		}
 	}
 
-	// Copy custom-built IPKs to builder.
+	// Copy custom-built package files to builder.
 	builderPackagesDir := path.Join(ib.wd.ImageBuilderDirPath, "packages")
-	if err := fileutils.CleanDirectory(builderPackagesDir); err != nil {
-		return err
-	}
 	if err := fileutils.CopyFilesInDirToDir(ctx, ib.wd.PackagesOutputDirPath, builderPackagesDir); err != nil {
 		return err
 	}
@@ -224,10 +221,10 @@ func (ib *CrosOpenWrtImageBuilder) isSnapshotURL(openWrtDownloadsURL string) boo
 // OpenWrt packages that may be installed on OpenWrt systems/images.
 //
 // Note: This also results in all the dependencies of the custom packages to be
-// compiled as well, but only specifically chosen IPKs are saved for image
+// compiled as well, but only specifically chosen packages are saved for image
 // building.
 //
-// Compiled custom package IPKs are saved to
+// Compiled custom package archives are saved to
 // dirs.WorkingDirectory.PackagesOutputDirPath.
 func (ib *CrosOpenWrtImageBuilder) CompileCustomPackages(ctx context.Context) error {
 	if err := ib.prepareSdk(ctx); err != nil {
@@ -248,9 +245,9 @@ func (ib *CrosOpenWrtImageBuilder) CompileCustomPackages(ctx context.Context) er
 		}
 	}
 
-	log.Logger.Printf("Exporting compiled custom package IPKs to %q\n", ib.wd.PackagesOutputDirPath)
-	if err := ib.sdk.ExportCompiledCustomPackageIPKs(ctx, ib.options.IncludedCustomPackages, ib.wd.PackagesOutputDirPath); err != nil {
-		return fmt.Errorf("failed to export built custom package IPKs from sdk to %q: %w", ib.wd.PackagesOutputDirPath, err)
+	log.Logger.Printf("Exporting compiled custom package archives to %q\n", ib.wd.PackagesOutputDirPath)
+	if err := ib.sdk.ExportCompiledCustomPackageArchives(ctx, ib.options.IncludedCustomPackages, ib.wd.PackagesOutputDirPath); err != nil {
+		return fmt.Errorf("failed to export built custom package archives from sdk to %q: %w", ib.wd.PackagesOutputDirPath, err)
 	}
 	return nil
 }
@@ -266,10 +263,10 @@ func (ib *CrosOpenWrtImageBuilder) CompileCustomPackages(ctx context.Context) er
 //   - The disabling of some core OpenWrt services that are not needed.
 //
 // This does not compile custom packages, it just uses precompiled package
-// IPKs saved to dirs.WorkingDirectory.PackagesOutputDirPath as IPK overrides
+// files saved to dirs.WorkingDirectory.PackagesOutputDirPath as overrides
 // for packages and then makes adjustments to the package list for the images.
-// If an included custom package IPK is provided, the image builder will use
-// that IPK over an official IPK for with the same package name, allowing for
+// If an included custom package file is provided, the image builder will use
+// that file over an official file for with the same package name, allowing for
 // overriding official package builds with customized versions. To compile
 // custom packages, call CompileCustomPackages first in either this run or in
 // a previous run.

@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"go.chromiumos.org/chromiumos/platform/dev/contrib/cros_openwrt/image_builder/log"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -90,18 +91,43 @@ func DownloadFileFromURL(ctx context.Context, src, dstFolder string, replaceExis
 			_ = os.Remove(pendingDownloadFilePath)
 		}
 	}()
-	req, err := http.NewRequestWithContext(ctx, "GET", src, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed build HTTP GET request to download from URL %q: %w", src, err)
+
+	var reader io.Reader
+	if strings.HasPrefix(src, "gs://") {
+		// If path is a gs bucket then use gcloud client to download.
+		gcsClient, err := storage.NewClient(ctx)
+		if err != nil {
+			return "", fmt.Errorf("failed to create new GCS client using application default credentials (you need to run 'gcloud auth application-default login' first or use a cred file): %w", err)
+		}
+
+		src = strings.TrimPrefix(src, "gs://")
+		bucketName := strings.Split(src, "/")[0]
+		src = strings.TrimPrefix(src, bucketName+"/")
+
+		bucket := gcsClient.Bucket(bucketName)
+		obj := bucket.Object(src)
+		r, err := obj.NewReader(ctx)
+		if err != nil {
+			return "", fmt.Errorf("failed to read object: %q", src)
+		}
+		defer r.Close()
+		reader = r
+	} else {
+		req, err := http.NewRequestWithContext(ctx, "GET", src, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed build HTTP GET request to download from URL %q: %w", src, err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("failed request to download from URL %q: %w", src, err)
+		}
+		defer func() {
+			_ = resp.Body.Close()
+		}()
+		reader = resp.Body
 	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed request to download from URL %q: %w", src, err)
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-	if _, err := io.Copy(dstFile, resp.Body); err != nil {
+
+	if _, err := io.Copy(dstFile, reader); err != nil {
 		return "", fmt.Errorf("failed to download file from %q to %q: %w", src, pendingDownloadFilePath, err)
 	}
 	if err := os.Rename(pendingDownloadFilePath, dstFilePath); err != nil {
@@ -204,7 +230,17 @@ func (c *ContextualWriterWrapper) Write(p []byte) (n int, err error) {
 // UnpackTarXz unpacks the contents of a tar archive file compressed with xz
 // (*.tar.xz files) at archivePath into the directory at path outDir.
 func UnpackTarXz(ctx context.Context, archivePath string, outDir string) error {
-	cmd := exec.CommandContext(ctx, "tar", "-Jxf", archivePath, "-C", outDir, "--strip-components", "1")
+	var args []string
+	switch {
+	case strings.HasSuffix(archivePath, ".tar.xz"):
+		args = []string{"-Jxf", archivePath, "-C", outDir, "--strip-components", "1"}
+	case strings.HasSuffix(archivePath, ".tar.zst"):
+		args = []string{"--zstd", "-xvf", archivePath, "-C", outDir, "--strip-components", "1"}
+	default:
+		return fmt.Errorf("failed to unpack archive, unknown file extension on file: %q", archivePath)
+	}
+
+	cmd := exec.CommandContext(ctx, "tar", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

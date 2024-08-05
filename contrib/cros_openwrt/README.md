@@ -8,7 +8,7 @@ these custom packages and other image modification settings.
 OpenWrt images can be built in their entirety from source, but using the
 combined approach of the sdk and the image builder ensures that our
 built images include only the minimal amount of customizations necessary by only
-overriding the specific package IPKs we define. Plus, it's faster.
+overriding the specific packages we define. Plus, it's faster.
 
 The `cros_openwrt_image_builder` is designed to allow for building test OpenWrt
 OS images for any device already supported by OpenWrt, with minimal effort for
@@ -101,11 +101,11 @@ need to supply the path to this source directory (`cros_openwrt`) with the
    profile already with the `--image_profile <profile>` flag.
 
 8. Wait for the image builder to build the image (<5m). This will download any
-   needed official package IPKs. The custom package IPKs build by the local sdk
+   needed official precompiled packages. The custom packages built by the local sdk
    are
    included as well, and override any official ones. Any dependency of a custom
    package is downloaded if it is not explicitly included (i.e. we only use the
-   customized packages direct IPKs and not its dependencies which the sdk also
+   customized packages and not its dependencies which the sdk also
    builds).
 
 9. Open the path to the image directory displayed. For convenience, the
@@ -374,11 +374,11 @@ Flags:
       --image_builder_url string               URL to download the image builder archive from. Leave unset to use the last downloaded image builder.
       --image_feature stringArray              Wifi router features this image supports for testing (possible features: [WIFI_ROUTER_FEATURE_UNKNOWN, WIFI_ROUTER_FEATURE_INVALID, WIFI_ROUTER_FEATURE_IEEE_802_11_A, WIFI_ROUTER_FEATURE_IEEE_802_11_B, WIFI_ROUTER_FEATURE_IEEE_802_11_G, WIFI_ROUTER_FEATURE_IEEE_802_11_N, WIFI_ROUTER_FEATURE_IEEE_802_11_AC, WIFI_ROUTER_FEATURE_IEEE_802_11_AX, WIFI_ROUTER_FEATURE_IEEE_802_11_AX_E, WIFI_ROUTER_FEATURE_IEEE_802_11_BE])
       --image_profile string                   The profile to use with the image builder when making images. Leave unset to prompt for selection based off of available profiles.
-      --include_custom_package stringArray     Names of packages that should be included in built images that are built using a local sdk and included in the image builder as custom IPKs. Only custom packages in this list are saved from sdk package compilation. (default [cros-send-management-frame,hostapd-common,hostapd-utils,wpad-openssl,wpa-cli])
+      --include_custom_package stringArray     Names of packages that should be included in built images that are built using a local sdk and included in the image builder as custom packages. Only custom packages in this list are saved from sdk package compilation. (default [cros-send-management-frame,hostapd-common,hostapd-utils,wpad-openssl,wpa-cli])
       --include_official_package stringArray   Names of packages that should be included in built images that are downloaded from official OpenWrt repositories. (default [iputils-ping,iputils-arping,kmod-veth,tcpdump,procps-ng-pkill,netperf,iperf,sudo,python3-email,python3-idna,python3-light,python3-urllib])
       --sdk_compile_max_cpus int               The maximum number of CPUs to use for custom package compilation. Values less than 1 indicate that all available CPUs may be used. (default -1)
       --sdk_config stringToString              Config options to set for the sdk when compiling custom packages. (default [CONFIG_WPA_MBO_SUPPORT=y,CONFIG_WPA_ENABLE_WEP=y,CONFIG_DRIVER_11N_SUPPORT=y,CONFIG_DRIVER_11AC_SUPPORT=y,CONFIG_DRIVER_11AX_SUPPORT=y])
-      --sdk_make stringArray                   The sdk package makefile paths to use to compile custom IPKs. Making a package with the sdk will build all the IPKs that package depends upon, but only need to be included if they are expected to differ from official versions. (default [cros-send-management-frame,feeds/base/hostapd])
+      --sdk_make stringArray                   The sdk package makefile paths to use to compile custom app. Making a package with the sdk will build all the package dependencies, but only need to be included if they are expected to differ from official versions. (default [cros-send-management-frame,feeds/base/hostapd])
       --sdk_url string                         URL to download the sdk archive from. Leave unset to use the last downloaded sdk.
       --use_existing                           Shortcut to set both --use_existing_sdk and --use_existing_image_builder.
       --use_existing_image_builder             Use image builder in working directory as-is (must exist).

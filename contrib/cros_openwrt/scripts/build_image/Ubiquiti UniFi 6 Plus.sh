@@ -16,8 +16,8 @@ source "${SCRIPT_DIR}/lib/build.sh"
 # Configure options for model.
 image_profile='ubnt_unifi-6-plus'
 extra_image_name='standard-1.0.0'
-sdk_url='https://downloads.openwrt.org/releases/23.05.3/targets/mediatek/filogic/openwrt-sdk-23.05.3-mediatek-filogic_gcc-12.3.0_musl.Linux-x86_64.tar.xz'
-image_builder_url='https://downloads.openwrt.org/releases/23.05.3/targets/mediatek/filogic/openwrt-imagebuilder-23.05.3-mediatek-filogic.Linux-x86_64.tar.xz'
+sdk_url='gs://chromeos-connectivity-test-artifacts/wifi_router/prebuilt/openwrt-sdk-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst'
+image_builder_url='gs://chromeos-connectivity-test-artifacts/wifi_router/prebuilt/openwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst'
 image_feature+=(
   'WIFI_ROUTER_FEATURE_IEEE_802_11_AX'
 )
