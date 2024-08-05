@@ -928,7 +928,6 @@ def run_copybot(args, git_dir, patch_dir):
         git_dir: A temporary or local directory to use for Git operations.
         patch_dir: A temporary directory to use for storing patch files.
     """
-
     (
         _,
         upstream_url,
@@ -945,6 +944,12 @@ def run_copybot(args, git_dir, patch_dir):
     if local_downstream:
         git_dir = downstream_url
 
+    keep_pseudoheaders = list(args.keep_pseudoheaders)
+    if upstream_url == downstream_url or (
+        is_server_gob(str(downstream_url)) and is_server_gob(str(upstream_url))
+    ):
+        if "Change-Id" not in keep_pseudoheaders:
+            keep_pseudoheaders.append("Change-Id")
     merge_conflict_behavior = MergeConflictBehavior[
         args.merge_conflict_behavior
     ]
@@ -1085,7 +1090,7 @@ def run_copybot(args, git_dir, patch_dir):
                 change_id=change_id or generate_change_id(),
                 prepend_subject=args.prepend_subject,
                 sign_off=args.add_signed_off_by,
-                keep_pseudoheaders=args.keep_pseudoheaders,
+                keep_pseudoheaders=keep_pseudoheaders,
                 additional_pseudoheaders=args.add_pseudoheader,
             )
 
