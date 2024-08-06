@@ -10,9 +10,195 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	. "go.chromium.org/luci/common/testing/assertions"
 
+	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/config/go/test/artifact"
+	"go.chromium.org/chromiumos/test/publish/clients/rdb_client"
 )
+
+func TestIsChromiumTest(t *testing.T) {
+	t.Parallel()
+
+	Convey("Is Chromium Test", t, func() {
+		// Create a test result proto with resultdb_settings flag in test args.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					ExecutionMetadata: &artifact.ExecutionMetadata{
+						TestArgs: map[string]string{
+							"resultdb_settings": "test",
+						},
+					},
+				},
+			},
+		}
+
+		// Call isChromiumTest.
+		isChromium := isChromiumTest(testResult)
+
+		// Verify that the function returns true.
+		So(isChromium, ShouldBeTrue)
+	})
+
+	Convey("Is not Chromium Test", t, func() {
+		// Create a test result proto without resultdb_settings flag in test
+		// args.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					ExecutionMetadata: &artifact.ExecutionMetadata{
+						TestArgs: map[string]string{},
+					},
+				},
+			},
+		}
+
+		// Call isChromiumTest.
+		isChromium := isChromiumTest(testResult)
+
+		// Verify that the function returns false.
+		So(isChromium, ShouldBeFalse)
+	})
+}
+
+func TestExtractBaseChromiumRDBConfig(t *testing.T) {
+	t.Parallel()
+
+	Convey("Extract Base Chromium RDB Config", t, func() {
+		// Create a test args map with resultdb_settings flag.
+		testArgs := map[string]string{
+			"resultdb_settings": "eyJiYXNlX3ZhcmlhbnQiOiB7ImJ1aWxkZXIiOiAiY2hyb21lb3MtYmV0dHktY2hyb21lIiwgImNyb3NfaW1nIjogImJldHR5LXJlbGVhc2UvUjEyNy0xNTkxMi4wLjAiLCAiZGV2aWNlX3R5cGUiOiAiYmV0dHkiLCAib3MiOiAiQ2hyb21lT1MiLCAidGVzdF9zdWl0ZSI6ICJtZWRpYV91bml0dGVzdHMgUkVMRUFTRV9MS0dNIn0sICJjb2VyY2VfbmVnYXRpdmVfZHVyYXRpb24iOiB0cnVlLCAiZXhvbmVyYXRlX3VuZXhwZWN0ZWRfcGFzcyI6IHRydWUsICJpbmNsdWRlIjogZmFsc2UsICJyZXN1bHRfZm9ybWF0IjogImd0ZXN0IiwgInRlc3RfaWRfcHJlZml4IjogIm5pbmphOi8vbWVkaWE6bWVkaWFfdW5pdHRlc3RzLyJ9",
+		}
+		wantRDBConfig := map[string]interface{}{
+			"base_variant": map[string]any{
+				"builder":     "chromeos-betty-chrome",
+				"cros_img":    "betty-release/R127-15912.0.0",
+				"device_type": "betty",
+				"os":          "ChromeOS",
+				"test_suite":  "media_unittests RELEASE_LKGM",
+			},
+			"result_format":             "gtest",
+			"coerce_negative_duration":  true,
+			"exonerate_unexpected_pass": true,
+			"include":                   false,
+			"test_id_prefix":            "ninja://media:media_unittests/",
+		}
+
+		// Call extractBaseChromiumRDBConfig.
+		gotRDBSettings, err := extractBaseChromiumRDBConfig(testArgs)
+
+		// Verify that the function returns the correct rdb settings.
+		So(err, ShouldBeNil)
+		So(gotRDBSettings, ShouldResemble, wantRDBConfig)
+	})
+
+	Convey("Extract Base Chromium RDB Config with invalid base64 string", t, func() {
+		// Create a test args map with invalid resultdb_settings flag.
+		testArgs := map[string]string{
+			"resultdb_settings": "invalid_base64_string",
+		}
+
+		// Call extractBaseChromiumRDBConfig.
+		gotRDBSettings, err := extractBaseChromiumRDBConfig(testArgs)
+
+		// Verify that the function returns an error.
+		So(err, ShouldNotBeNil)
+		So(gotRDBSettings, ShouldBeNil)
+	})
+
+	Convey("Extract Base Chromium RDB Config with invalid JSON string", t, func() {
+		// Create a test args map with invalid resultdb_settings flag.
+		testArgs := map[string]string{
+			"resultdb_settings": "eyJiYXNlX3ZhcmlhbnQiOiB7ImJ1aWxkZXIiOiAiY2hyb21lb3MtYmV0dHktY2hyb21lIiwgImNyb3NfaW1nIjogImJldHR5LXJlbGVhc2UvUjEyNy0xNTkxMi4wLjAiLCAiZGV2aWNlX3R5cGUiOiAiYmV0dHkiLCAib3MiOiAiQ2hyb21lT1MiLCAidGVzdF9zdWl0ZSI6ICJtZWRpYV91bml0dGVzdHMgUkVMRUFTRV9MS0dNIn0sICJjb2VyY2VfbmVnYXRpdmVfZHVyYXRpb24iOiB0cnVlLCAiZXhvbmVyYXRlX3VuZXhwZWN0ZWRfcGFzcyI6IHRydWUsICJpbmNsdWRlIjogZmFsc2UsICJyZXN1bHRfZm9ybWF0IjogImd0ZXN0IiwgInRlc3RfaWRfcHJlZml4IjogIm5pbmphOi8vbWVkaWE6bWV9",
+		}
+
+		// Call extractBaseChromiumRDBConfig.
+		rdbSettings, err := extractBaseChromiumRDBConfig(testArgs)
+
+		// Verify that the function returns an error.
+		So(err, ShouldNotBeNil)
+		So(rdbSettings, ShouldBeNil)
+	})
+}
+
+func TestChromiumTestRDBConfig(t *testing.T) {
+	t.Parallel()
+
+	Convey("Chromium Test RDB Config", t, func() {
+		// Create a test result proto with resultdb_settings flag in test args.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{
+						TestCaseResult: &api.TestCaseResult{
+							ResultDirPath: &_go.StoragePath{
+								Path: "test/results/dir",
+							},
+						},
+					},
+					ExecutionMetadata: &artifact.ExecutionMetadata{
+						TestArgs: map[string]string{
+							"resultdb_settings": "eyJiYXNlX3ZhcmlhbnQiOiB7ImJ1aWxkZXIiOiAiY2hyb21lb3MtYmV0dHktY2hyb21lIiwgImNyb3NfaW1nIjogImJldHR5LXJlbGVhc2UvUjEyNy0xNTkxMi4wLjAiLCAiZGV2aWNlX3R5cGUiOiAiYmV0dHkiLCAib3MiOiAiQ2hyb21lT1MiLCAidGVzdF9zdWl0ZSI6ICJtZWRpYV91bml0dGVzdHMgUkVMRUFTRV9MS0dNIn0sICJjb2VyY2VfbmVnYXRpdmVfZHVyYXRpb24iOiB0cnVlLCAiZXhvbmVyYXRlX3VuZXhwZWN0ZWRfcGFzcyI6IHRydWUsICJpbmNsdWRlIjogZmFsc2UsICJyZXN1bHRfZm9ybWF0IjogImd0ZXN0IiwgInRlc3RfaWRfcHJlZml4IjogIm5pbmphOi8vbWVkaWE6bWVkaWFfdW5pdHRlc3RzLyJ9",
+						},
+					},
+				},
+			},
+		}
+		wantRDBConfig := &rdb_client.RdbStreamConfig{
+			BaseTags: map[string]string{},
+			BaseVariant: map[string]string{
+				"builder":     "chromeos-betty-chrome",
+				"cros_img":    "betty-release/R127-15912.0.0",
+				"device_type": "betty",
+				"os":          "ChromeOS",
+				"test_suite":  "media_unittests RELEASE_LKGM",
+			},
+			ResultFile:              "test/results/dir/chromium/results/output.json",
+			ResultFormat:            "gtest",
+			TesthausBaseURL:         "testhaus_url",
+			TestIdPrefix:            "ninja://media:media_unittests/",
+			CoerceNegativeDuration:  true,
+			ExonerateUnexpectedPass: true,
+			Include:                 false,
+		}
+
+		// Call chromiumTestRDBConfig.
+		gotRDBconfig, err := chromiumTestRDBConfig(testResult, map[string]string{}, map[string]string{}, "testhaus_url")
+
+		// Verify that the function returns the correct rdb config.
+		So(err, ShouldBeNil)
+		So(gotRDBconfig, ShouldResemble, wantRDBConfig)
+	})
+
+	Convey("Chromium Test RDB Config with invalid resultdb_settings flag", t, func() {
+		// Create a test result proto with invalid resultdb_settings flag in test args.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{
+						TestCaseResult: &api.TestCaseResult{
+							ResultDirPath: &_go.StoragePath{
+								Path: "test/results/dir",
+							},
+						},
+					},
+					ExecutionMetadata: &artifact.ExecutionMetadata{
+						TestArgs: map[string]string{
+							"resultdb_settings": "invalid_base64_string",
+						},
+					},
+				},
+			},
+		}
+
+		// Call chromiumTestRDBConfig.
+		config, err := chromiumTestRDBConfig(testResult, map[string]string{}, map[string]string{}, "testhaus_url")
+
+		// Verify that the function returns an error.
+		So(err, ShouldNotBeNil)
+		So(config, ShouldBeNil)
+	})
+}
 
 func TestIngestPostProcessResponses(t *testing.T) {
 	t.Parallel()

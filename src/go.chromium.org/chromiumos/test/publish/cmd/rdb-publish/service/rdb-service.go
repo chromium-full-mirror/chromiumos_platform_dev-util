@@ -6,6 +6,8 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -46,6 +48,9 @@ const (
 
 	// File name for code sources under test
 	CodeSourcesJsonFileName = "sources.jsonpb"
+
+	// File path for the chromium test results
+	ChromiumResultJSONFilePath = "chromium/results/output.json"
 
 	// Result format for rdb
 	ResultAdapterResultFormat = "cros-test-result"
@@ -112,18 +117,19 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 	}
 
 	// Populate additional info in test results.
-	ingestPostProcessResponses(rps.TestResultProto, rps.PostProcessResponses)
+	testResult := rps.TestResultProto
+	ingestPostProcessResponses(testResult, rps.PostProcessResponses)
 
 	// Write test result to file
 	testResultFilePath := path.Join(rps.TempDirPath, TestResultJsonFileName)
-	err := common_utils.WriteProtoJsonFile(ctx, testResultFilePath, rps.TestResultProto)
+	err := common_utils.WriteProtoJsonFile(ctx, testResultFilePath, testResult)
 	if err != nil {
 		return fmt.Errorf("error during writing test result proto to file: %w", err)
 	}
 	log.Printf("test result file created in path: %q", testResultFilePath)
 
 	// Write test invocation proto to invocation-level properties file
-	testInv := rps.TestResultProto.GetTestInvocation()
+	testInv := testResult.GetTestInvocation()
 	invPropertiesFilePath := path.Join(rps.TempDirPath, InvPropertiesFile)
 	err = common_utils.WriteProtoJsonFile(ctx, invPropertiesFilePath, testInv)
 	if err != nil {
@@ -149,15 +155,29 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 		}
 	}
 
-	// Upload test results
+	// Build the resultdb upload config for test results.
+	config := &rdb_client.RdbStreamConfig{}
 	baseTags := map[string]string{}
-	config := &rdb_client.RdbStreamConfig{
-		BaseTags:        baseTags,
-		BaseVariant:     rps.BaseVariant,
-		ResultFile:      testResultFilePath,
-		ResultFormat:    ResultAdapterResultFormat,
-		TesthausBaseURL: rps.TesthausURL,
+	baseVariant := rps.BaseVariant
+	testhausBaseURL := rps.TesthausURL
+
+	if isChromiumTest(testResult) {
+		// For Chromium test results
+		config, err = chromiumTestRDBConfig(testResult, baseTags, baseVariant, testhausBaseURL)
+		if err != nil {
+			return fmt.Errorf("error during creating the resultdb config for chromium tests: %w", err)
+		}
+	} else {
+		// For ChromeOS test results
+		config = &rdb_client.RdbStreamConfig{
+			BaseTags:        baseTags,
+			BaseVariant:     baseVariant,
+			ResultFile:      testResultFilePath,
+			ResultFormat:    ResultAdapterResultFormat,
+			TesthausBaseURL: testhausBaseURL,
+		}
 	}
+
 	if hasSources {
 		config.SourcesFile = sourcesFilePath
 	}
@@ -175,6 +195,7 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 		config.ArtifactDir = ResultsArtifactDir
 	}
 
+	// Upload test results.
 	err = rdbLib.UploadTestResults(ctx, config, rps.TestResultProto)
 	if err != nil {
 		return fmt.Errorf("error during rdb test results upload: %w", err)
@@ -250,6 +271,73 @@ func downloadSources(ctx context.Context, destPath string, sources *metadata.Pub
 // validateInvProperties returns false if properties is invalid.
 func validateInvProperties(properties *artifact.TestInvocation) bool {
 	return proto.Size(properties) <= MaxSizeInvocationProperties
+}
+
+// isChromiumTest returns true if the current test run is for chromium test.
+func isChromiumTest(testResult *artifact.TestResult) bool {
+	if len(testResult.TestRuns) == 0 {
+		return false
+	}
+
+	// Chromium tests in Skylab set the resultdb_settings flag in the test args.
+	// This validation logic is aligned with the both non-CFT and CFT flows in
+	// TRv1.
+	testArgs := testResult.TestRuns[0].GetExecutionMetadata().GetTestArgs()
+	_, ok := testArgs["resultdb_settings"]
+	return ok
+}
+
+// extractBaseChromiumRDBConfig extracts base resultdb config from test_args for
+// chromium test results.
+func extractBaseChromiumRDBConfig(testArgs map[string]string) (map[string]interface{}, error) {
+	rdbSettingsBytes, err := base64.StdEncoding.DecodeString(testArgs["resultdb_settings"])
+	if err != nil {
+		return nil, fmt.Errorf("error decoding the resultdb config base64 string for chromium results: %v", err)
+	}
+
+	// Unmarshal the JSON bytes into a map
+	rdbSettings := map[string]interface{}{}
+	err = json.Unmarshal(rdbSettingsBytes, &rdbSettings)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling JSON for chromium resultdb config: %v", err)
+	}
+
+	return rdbSettings, nil
+}
+
+// chromiumTestRDBConfig creates the resultdb config for chromium tests.
+func chromiumTestRDBConfig(testResult *artifact.TestResult, baseTags map[string]string, baseVariant map[string]string, testhausBaseURL string) (*rdb_client.RdbStreamConfig, error) {
+	if len(testResult.TestRuns) == 0 {
+		return nil, fmt.Errorf("chromium test result is empty")
+	}
+
+	testArgs := testResult.TestRuns[0].GetExecutionMetadata().GetTestArgs()
+	chromiumConfig, err := extractBaseChromiumRDBConfig(testArgs)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range chromiumConfig["base_variant"].(map[string]interface{}) {
+		baseVariant[k] = v.(string)
+	}
+
+	resultFileDir := testResult.TestRuns[0].GetTestCaseInfo().GetTestCaseResult().GetResultDirPath().GetPath()
+	resultFilePath := path.Join(resultFileDir, ChromiumResultJSONFilePath)
+
+	config := &rdb_client.RdbStreamConfig{
+		BaseTags:                baseTags,
+		BaseVariant:             baseVariant,
+		ResultFile:              resultFilePath,
+		ResultFormat:            chromiumConfig["result_format"].(string),
+		TesthausBaseURL:         testhausBaseURL,
+		TestIdPrefix:            chromiumConfig["test_id_prefix"].(string),
+		CoerceNegativeDuration:  chromiumConfig["coerce_negative_duration"].(bool),
+		ExonerateUnexpectedPass: chromiumConfig["exonerate_unexpected_pass"].(bool),
+		Include:                 chromiumConfig["include"].(bool),
+	}
+
+	log.Printf("successfully created the resultdb config for chromium tests: %v", config)
+	return config, nil
 }
 
 // ingestPostProcessResponses ingests the responses of the post process service
