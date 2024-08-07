@@ -34,7 +34,7 @@ CopyBot is a single Python script: `copybot.py`.
 another.  Its general usage is:
 
 ```
-./copybot.py [options...] <upstream_repo>:<upstream_branch> <downstream_repo>:<downstream_branch>
+./copybot.py [options...] <upstream_repo>:<upstream_branch>:<upstream_subtree> <downstream_repo>:<downstream_branch>:<downstream_subtree>
 ```
 
 Run `./copybot.py --help` for a complete list of options supported.
@@ -46,12 +46,14 @@ Run `./copybot.py --help` for a complete list of options supported.
    or has the exact same hash as as an upstream commit.
 
 2. Identify the commits that need cherry-picked from that commit up to
-   the current branch head (keeping in mind file filtering pattens may
+   the upstream limit (keeping in mind file filtering pattens may
    cause certain commits to be skipped).
 
 3. Cherry-pick those commits onto the downstream repo.
 
 4. Push the changes to Gerrit.
+
+Use `--dry-run` to test changes without pushing to the downstream repository.
 
 ## Using CopyBot
 
@@ -72,26 +74,168 @@ Your job as a downstreamer is to:
 - Move commits with external dependency (e.g., a Cq-Depend, or an API
   change that requires rework of other code) out of the CL stack and
   handle merging these manually, as required.  See
-  [Skipping Commits](#skipping-commits) below.
+  [Managing Conflicted Commits](#managing-conflicted-commits) below.
 
-### Skipping Commits
+### Conflicts
 
-On a rare occasion, it may be necessary to skip certain commits so
-they can be merged later.
+#### CopyBot Conflict Behavior
 
-To do this, apply the Gerrit hashtag `copybot-skip` to either a commit
-that you've uploaded manually, or one of CopyBot's commits.  From the
-Gerrit UI, you may need to click the "More" button on the left panel
-to see and add the hashtags.  The only requirement is that you include
-the full upstream commit hash somewhere in the commit message.
+CopyBot supports the following conflict behaviors specified on the command
+line with the `--merge-conflict-behavior` option
+
+- `FAIL`: Fail the copybot run immediately; do not upload any changes.
+- `SKIP`: Skip the conflicted CL, continue cherry-picking, and upload the
+  resulting CL stack.
+- `STOP`: Stop at the first conflicted CL, and upload the CLs which were
+  cherry-picked before encountering the conflict.  Copybot will exit with
+  failure status.
+- `ALLOW_CONFLICT`: After fialing to cherry-pick a CL, commit the CL with
+  unresolved conflicts.  Copybot will exit with failure status.
+
+#### Managing Conflicted Commits
+
+On a rare occasion, it may be necessary to skip or modify certain
+commits to manage conflicts or so they can be merged later.
+[Skipping](#skipping-commits) and [preserving](#preserving-commits)
+can be accomplished by applying the corresponding Gerrit hashtag to
+a pending change.  You may need to click the "More" button on the
+left panel to see and add the hashtags.  The only requirement is that you
+include the full upstream commit hash somewhere in the commit message.
+
+If you change your mind in the future about the conflicted behavior,
+just remove the corresponding hashtag.
+
+#### Skipping Commits
+
+To skip a commit, apply the Gerrit hashtag `copybot-skip` to a pending
+change in the Gerrit UI.
 
 On CopyBot's next run, it will respect your wishes, and no longer
-upload any commits which came from this upstream revision.  If you
-change your mind in the future, just remove the hashtag.
+upload any commits which came from this upstream revision.
+
+#### Preserving Commits
+
+To preserve a commit, apply the Gerrit hashtag `copybot-preserve` to
+a pending change in the Gerrit UI.
+
+On CopyBot's next run, it will cherry-pick the pending change from the
+GoB instance associated with your downstream repo instead of overwriting
+it with a change from the upstream repo.
+
+#### Ignore Listing Commits
+
+It is sometimes necessary to ignore a change for the lifetime of a repository.
+In an effort to minimize the number of pending changes left in the downstream
+repository, an ignore list CL can be used to list all of the hashes which
+should be ignored within a repository.  To accomplish this:
+- upload a CL to the corresponding downstream repo(if subtrees are used, it
+must also be within the desired subtree) with the list of commit hashes to be
+skipped in the CL.
+- Add the downstream topic and `Copybot-Skip` hashtag as you normally would from
+  the instructions in [skipping commits](#skipping-commits).
+
+On GoB, it is highly encouraged to add `Commit: false` to the commit message
+to prevent the CL from merging.
+
+See [Ignore List Example].
 
 ### Triggering CopyBot Manually
 
 You can trigger CopyBot jobs from the [LUCI Scheduler UI].
+
+### Adding a CopyBot Configuration
+
+CopyBot jobs run and managed by LUCI.  To add or modify a job configuration,
+modify the corresponding configuration object in
+[`infra/config/misc_builders/copybot.star`](https://chrome-internal.googlesource.com/chromeos/infra/config/+/main/misc_builders/copybot.star).
+
+### CopyBot support for repositories
+
+CopyBot supports local and external Git repositories.
+
+#### Subtree paths
+
+Copybot supports the selective filtering of files by explicit inclusion,
+exclusion, and subtree paths.  Any of these options can be applied to the
+up or downstream branches and can be used to keep files or paths in sync
+in repositories that are otherwise unrelated.
+
+#### Processing limits
+
+CopyBot supports limiting both the up and down stream histories when
+evaluating which changes to cherry-pick.  This can be especially useful
+when configuring repositories which have been previously manually synced.
+Setting the upstream limit ignores CLs in the upstream repo beyond the
+limit.
+
+CopyBot will automatically increase the upstream limit to find the
+historical relationship between two repositories.
+
+CopyBot also supports a maximum limit of CLs to downstream in a single
+stack.  This can be useful when using a CLI/UI to trigger review/commit
+and downstream CI limits the number of changes which can be processed
+simultaneously.
+
+#### Preserving fields in the commit message
+
+CopyBot by default will prepend `Original-` to all pseudoheaders
+of the format `Key: Value` found in the original commit message.
+To prevent the addition of the `Original-` string to the key, use
+the --keep-pseudoheader command line argument to tell CopyBot which
+pseudoheaders should be preserved.  Some examples of pseudoheaders
+which are often preserved are:
+
+- `Cq-Depend`
+- `Change-Id`
+
+`Change-Id` is preserved by default when both the upstream and downstream are
+detected to be a GoB server.
+
+#### Skipping CLs cherry-picked by another CopyBot job
+
+CopyBot supports adding pseudoheadres through the `--add-pseudoheader`
+command line option.  By default, a `Copybot-Job-Name` pseudoheader
+is added to CLs cherry-picked by the LUCI copybot jobs.  If for example
+a CopyBot job is configured in which the upstream is also a downstream
+of another copybot job, the CLs cherry-picked by copybot to the upstream
+repository can be skipped using the `--skip-job-name` pseudoheader
+identifying the value in the `Copybot-Job-Name` pseudoheader of the other
+CopyBot job.
+
+#### Additional CL Behaviors
+
+Some additional features have been requested by groups using CopyBot and
+may be of use:
+
+- `--add-signed-off-by`: Sign-off the commit message.  This entirely defeats
+  the purpose of `Signed-off-by` as robots cannot legally sign anything, but
+  you do you.
+- `--prepend-subject`: Prepend a string to the the commit message subject.
+- `--push-option`: Can be passed multiple times, updates push refspec.
+- Maintaining the `Change-Id` to show CL relationships.
+  - This is the default for GoB and is reflected in the Gerrit UI.
+- Adding Hashtags.
+- Adding labels.
+- Skipping, rebasing, and preserving pending changes.
+- Adding reviewers.
+- Adding CC.
+
+### Establishing historical relationships with CopyBot
+
+As alluded to in [Copybot's Design](#copybot_s-design), a downstream
+CL must reference the commit hash of an upstream CL.  This can be
+accomplished by adding the hash to the commit message(preferably
+using the `GitOrigin-RevId` pseudoheader) and running CopyBot subsequently.
+CopyBot considers downstream pending changes as part of the repository history
+and will overwrite the commit and commit message with the change as it would
+cherry-pick it.  See [Preserving Commits](#preserving-commits) if this is not
+the desired behavior.
+
+## CopyBot Status
+
+To see the status of an individual CopyBot job, go to the corresponding LUCI
+builder in the [LUCI Scheduler UI].  For a more composite view, visit the
+[CopyBot Status Dashboard].
 
 ## Contributing to CopyBot
 
@@ -120,3 +264,5 @@ How to run it manually video: [copybot - manual run demo][copybot_video]
 
 [LUCI Scheduler UI]: https://luci-scheduler.appspot.com/jobs/chromeos
 [copybot_video]: https://drive.google.com/file/d/10aG8cMnR6TOpY5veLWSXX4MGeHA0RGel/view?resourcekey=0-zeid4OuuFAsysx0dJomQWg
+[Ignore List Example]: https://chromium-review.googlesource.com/c/chromiumos/third_party/zephyr/nanopb/+/5349888
+[CopyBot Status Dashboard]: https://dashboards.corp.google.com/_e1e96010_77ed_4e80_8437_f8fb0bb0f77b
