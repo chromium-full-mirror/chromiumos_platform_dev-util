@@ -314,7 +314,9 @@ class GitRepo:
         self, path: Union[pathlib.Path, "os.PathLike[str]"]
     ) -> pathlib.Path:
         """Get the lowest working directory path for subtree."""
-        patch_dir = pathlib.Path(self.git_dir) / path
+        patch_dir = pathlib.Path(self.git_dir)
+        if path:
+            patch_dir = patch_dir / path
         subtree = path
         if not patch_dir.is_dir():
             subtree = pathlib.Path(path).parents[0]
@@ -1003,6 +1005,8 @@ def run_copybot(args, git_dir, patch_dir):
         ) from e
 
     # Verify that the two repositories share a history
+    num_cls_to_downstream = 0
+    last_related_rev = ""
     try:
         last_related_rev, num_cls_to_downstream = find_last_merged_rev(
             repo,
@@ -1017,6 +1021,7 @@ def run_copybot(args, git_dir, patch_dir):
             raise e
         else:
             logger.info("Last related revision from pending changes!")
+            num_cls_to_downstream += len(pending_changes)
     else:
         logger.info("Last related revision: %s", last_related_rev)
 
@@ -1070,6 +1075,9 @@ def run_copybot(args, git_dir, patch_dir):
                 pending_change = True
         try:
             if pending_change:
+                logger.info(
+                    "Preserving pending change due to copybot-preserve hashtag."
+                )
                 repo.fetch(downstream_url, pending_changes[rev].current_ref)
                 repo.cherry_pick("FETCH_HEAD")
             else:
