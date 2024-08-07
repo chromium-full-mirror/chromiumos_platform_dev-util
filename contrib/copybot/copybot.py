@@ -1021,11 +1021,26 @@ def run_copybot(args, git_dir, patch_dir):
             raise e
         else:
             logger.info("Last related revision from pending changes!")
-            num_cls_to_downstream += len(pending_changes)
     else:
         logger.info("Last related revision: %s", last_related_rev)
 
-    logger.info("Found: %s changes to downstream", num_cls_to_downstream)
+    logger.info("Found: %s new changes to downstream", num_cls_to_downstream)
+
+    pending_modifications = False
+    for _, pending_cl in pending_changes.items():
+        if (
+            "copybot-reword" in pending_cl.hashtags
+            or "copybot-preserve" not in pending_cl.hashtags
+        ):
+            pending_modifications = True
+            break
+
+    if not num_cls_to_downstream and not pending_modifications:
+        # No CLs to downstream, and no modifications to pending CLs
+        logger.info("Nothing to do!")
+        return
+
+    num_cls_to_downstream += len(pending_changes)
 
     if num_cls_to_downstream > args.upstream_history_limit:
         logger.warning(
