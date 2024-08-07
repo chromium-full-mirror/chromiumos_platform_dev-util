@@ -1070,14 +1070,20 @@ def run_copybot(args, git_dir, patch_dir):
     for i, rev in enumerate(reversed(commits_to_copy)):
         logger.info("(%s/%s) Cherry-pick %s", i + 1, len(commits_to_copy), rev)
         pending_change = False
+        reword_pending_change = False
         if rev in pending_changes:
             if "copybot-preserve" in pending_changes[rev].hashtags:
-                pending_change = True
-        try:
-            if pending_change:
                 logger.info(
                     "Preserving pending change due to copybot-preserve hashtag."
                 )
+                pending_change = True
+            if "copybot-reword" in pending_changes[rev].hashtags:
+                reword_pending_change = True
+                logger.info(
+                    "Rewording commit message due to copybot-reword hashtag."
+                )
+        try:
+            if pending_change:
                 repo.fetch(downstream_url, pending_changes[rev].current_ref)
                 repo.cherry_pick("FETCH_HEAD")
             else:
@@ -1104,7 +1110,7 @@ def run_copybot(args, git_dir, patch_dir):
                 skipped_revs.extend(list(reversed(commits_to_copy))[i:])
                 break
             raise MergeConflictsError(commits=[rev]) from e
-        if not pending_change:
+        if not pending_change or reword_pending_change:
             change_id = None
             pending_overwrite = pending_changes.get(rev)
             if pending_overwrite is not None:
