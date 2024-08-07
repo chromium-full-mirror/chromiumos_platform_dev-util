@@ -68,11 +68,17 @@ class MergeConflictBehavior(enum.Enum):
     SKIP: Skip the commit that failed to merge. Summarize the failed
         commits at the end of the execution, and exit failure status.
     STOP: Stop immediately. Upload staged changes prior to conflict.
+    ALLOW_CONFLICT: Commit the conflicted CL with conflicts.  Summarize
+        the conflicted CLs at the end of execution, and exit failure
+        status.  Conflicted CLs WILL be uploaded to the downstream.
+        "Commit: false" will be added to the commit message to prevent
+        GoB from committing conflicted changes before they are edited.
     """
 
     FAIL = enum.auto()
     SKIP = enum.auto()
     STOP = enum.auto()
+    ALLOW_CONFLICT = enum.auto()
 
 
 class MergeConflictError(Exception):
@@ -330,6 +336,7 @@ class GitRepo:
         downstream_subtree=None,
         include_paths=None,
         exclude_paths=None,
+        allow_conflict=False,
     ):
         """Do a `git cherry-pick`.
 
@@ -355,10 +362,19 @@ class GitRepo:
                     if "is a merge but no -m option was given" in e.stderr:
                         logger.warning("Merge commit detected")
                     raise MergeConflictError() from err
-                self._run_git("cherry-pick", "--abort")
-                if "The previous cherry-pick is now empty" in e.stderr:
-                    raise EmptyCommitError() from e
-                raise MergeConflictError() from e
+                if allow_conflict:
+                    self.add(downstream_subtree, stage=True, force=True)
+                    self.commit(
+                        self.get_commit_message(rev),
+                        amend=False,
+                        sign_off=False,
+                        stage=True,
+                    )
+                else:
+                    self._run_git("cherry-pick", "--abort")
+                    if "The previous cherry-pick is now empty" in e.stderr:
+                        raise EmptyCommitError() from e
+                    raise MergeConflictError() from e
 
         cherry_pick_flag_list = ([], ["-Xpatience"], ["-m", "2"])
         if downstream_subtree or upstream_subtree or include_paths:
@@ -384,7 +400,8 @@ class GitRepo:
                 exclude_paths=exclude_paths,
             )
         except subprocess.CalledProcessError as e:
-            raise MergeConflictError() from e
+            if not allow_conflict:
+                raise MergeConflictError() from e
         self.add(downstream_subtree, stage=True, force=True)
         self.commit(
             self.get_commit_message(rev),
@@ -1164,8 +1181,10 @@ def run_copybot(args, git_dir, patch_dir):
     if not commits_to_copy:
         logger.info("Nothing to do!")
         return
-    skipped_revs = []
+
+    conflicted_revs = []
     empty_revs = []
+    skipped_revs = []
 
     if args.limit > 0 and len(commits_to_copy) > args.limit:
         logger.warning(
@@ -1218,6 +1237,42 @@ def run_copybot(args, git_dir, patch_dir):
                 logger.warning("Stopping at revision %s", rev)
                 skipped_revs.extend(list(reversed(commits_to_copy))[i:])
                 break
+            elif (
+                merge_conflict_behavior is MergeConflictBehavior.ALLOW_CONFLICT
+            ):
+                logger.warning("Committing %s with conflicts", rev)
+                if pending_change:
+                    repo.fetch(downstream_url, pending_changes[rev].current_ref)
+                    repo.cherry_pick(rev="FETCH_HEAD", allow_conflict=True)
+                else:
+                    repo.cherry_pick(
+                        rev,
+                        patch_dir=patch_dir,
+                        upstream_subtree=upstream_subtree,
+                        downstream_subtree=downstream_subtree,
+                        include_paths=args.include_downstream,
+                        exclude_paths=args.exclude_file_patterns,
+                        allow_conflict=True,
+                    )
+                if not pending_change or reword_pending_change:
+                    change_id = None
+                    pending_overwrite = pending_changes.get(rev)
+                    if pending_overwrite is not None:
+                        change_id = pending_changes.get(rev).change_id
+                    rewrite_commit_message(
+                        repo,
+                        upstream_rev=rev,
+                        change_id=change_id or generate_change_id(),
+                        prepend_subject=args.prepend_subject,
+                        sign_off=args.add_signed_off_by,
+                        keep_pseudoheaders=keep_pseudoheaders,
+                        additional_pseudoheaders=[
+                            *args.add_pseudoheaders,
+                            "Commit: false",
+                        ],
+                    )
+                conflicted_revs.append(rev)
+                continue
             raise MergeConflictsError(commits=[rev]) from e
         if not pending_change or reword_pending_change:
             change_id = None
@@ -1231,7 +1286,7 @@ def run_copybot(args, git_dir, patch_dir):
                 prepend_subject=args.prepend_subject,
                 sign_off=args.add_signed_off_by,
                 keep_pseudoheaders=keep_pseudoheaders,
-                additional_pseudoheaders=args.add_pseudoheader,
+                additional_pseudoheaders=args.add_pseudoheaders,
             )
 
     if repo.rev_parse() == downstream_rev:
@@ -1268,6 +1323,16 @@ def run_copybot(args, git_dir, patch_dir):
         for rev in revlist:
             logger.error("- %s", rev)
         raise MergeConflictsError(commits=skipped_revs)
+
+    conflictedlist = [
+        repo.log(rev, fmt="%H %s", num=1).stdout.strip()
+        for rev in conflicted_revs
+    ]
+    if conflictedlist:
+        logger.error("The following commits were uploaded with conflicts:")
+        for rev in conflictedlist:
+            logger.error("- %s", rev)
+        raise MergeConflictsError(commits=conflicted_revs)
 
 
 def write_json_error(path: pathlib.Path, err: Exception):
@@ -1403,6 +1468,7 @@ def main(argv=None):
         "--add-pseudoheader",
         action="append",
         default=[],
+        dest="add_pseudoheaders",
         help="Pseudoheaders to be added to the commit message",
     )
     parser.add_argument(
