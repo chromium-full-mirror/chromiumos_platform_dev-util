@@ -625,6 +625,16 @@ def get_origin_rev_id(commit_message):
     return origin_revid
 
 
+def get_change_id(commit_message):
+    """Get the Change-Id from a commit message.
+
+    Returns:
+        The Change-Id if one was found, or None otherwise.
+    """
+    pseudoheaders, _ = Pseudoheaders.from_commit_message(commit_message)
+    return pseudoheaders.get("Change-Id")
+
+
 def find_last_merged_rev(
     repo,
     upstream_rev,
@@ -632,6 +642,7 @@ def find_last_merged_rev(
     upstream_subtree=None,
     downstream_subtree=None,
     exclude_file_patterns=(),
+    include_change_id=False,
 ):
     """Find the last merged revision in a Git repo.
 
@@ -642,6 +653,8 @@ def find_last_merged_rev(
         upstream_subtree: The subtree of interest of the upstream repo.
         downstream_subtree: The subtree of interest of the downstream repo.
         exclude_file_patterns: List of paths to be excluded.
+        include_change_id: Bool specifying whether or not to
+            consider Change-Ids
 
     Returns:
         Two values,
@@ -663,11 +676,26 @@ def find_last_merged_rev(
         exclude_file_patterns=exclude_file_patterns,
     )
 
+    upstream_change_ids = {}
+    if include_change_id:
+        for rev in upstream_hashes:
+            change_id = get_change_id(repo.get_commit_message(rev))
+            if change_id:
+                upstream_change_ids[change_id] = rev
+
     for rev in downstream_hashes:
         commit_message = repo.get_commit_message(rev)
         origin_revid = get_origin_rev_id(commit_message)
-        if rev in upstream_hashes or origin_revid:
+        change_id = get_change_id(commit_message)
+        if (
+            rev in upstream_hashes
+            or origin_revid
+            or (change_id and include_change_id)
+        ):
             if origin_revid in upstream_hashes:
+                counter = upstream_hashes.index(origin_revid or rev)
+            elif include_change_id and change_id in upstream_change_ids:
+                origin_revid = upstream_change_ids[change_id]
                 counter = upstream_hashes.index(origin_revid or rev)
             else:
                 continue
@@ -685,6 +713,7 @@ def get_downstreamed_list(
     downstream_subtree=None,
     exclude_file_patterns=(),
     limit=0,
+    upstream_change_ids=(),
 ):
     """Find the last merged revision in a Git repo.
 
@@ -694,6 +723,8 @@ def get_downstreamed_list(
         downstream_subtree: The subtree of interest of the downstream repo.
         exclude_file_patterns: List of paths to be excluded.
         limit: The maxinum number of CLs in the history to check.
+        upstream_change_ids: Dictionary of upstream Change-Id's and their
+            associated upstream commit hash.
 
     Returns:
         The set of upstream commit hashes that have already been downstreamed.
@@ -711,9 +742,12 @@ def get_downstreamed_list(
 
         commit_message = repo.get_commit_message(rev)
         origin_revid = get_origin_rev_id(commit_message)
+        change_id = get_change_id(commit_message)
 
         if origin_revid:
             downstreamed_revs.append(origin_revid)
+        if change_id and change_id in upstream_change_ids:
+            downstreamed_revs.append(upstream_change_ids[change_id])
     return downstreamed_revs
 
 
@@ -729,6 +763,7 @@ def find_commits_to_copy(
     exclude_file_patterns=(),
     pending_changes=(),
     skip_copybot_job_names=(),
+    include_change_id=False,
 ):
     """Find the commits to copy to downstream.
 
@@ -747,6 +782,8 @@ def find_commits_to_copy(
         exclude_file_patterns: File paths that should not be copied.
         pending_changes: Changes pending in downstream repo.
         skip_copybot_job_names: Names of copybot jobs to not copy CLs from
+        include_change_id: Bool specifying whether or not to
+            consider Change-Ids
 
     Returns:
         A list of the commit hashes to copy.
@@ -756,21 +793,29 @@ def find_commits_to_copy(
            exist in upstream commit history.
     """
     commits_to_copy = []
+    upstream_change_ids = {}
+    upstream_hashes = repo.log_hashes(
+        revision_range=upstream_rev,
+        subtree=upstream_subtree,
+        exclude_file_patterns=exclude_file_patterns,
+    )
+    if include_change_id:
+        for counter, rev in enumerate(upstream_hashes):
+            if counter > upstream_limit and upstream_limit != 0:
+                break
+            change_id = get_change_id(repo.get_commit_message(rev))
+            if change_id:
+                upstream_change_ids[change_id] = rev
     downstreamed_revs = get_downstreamed_list(
-        repo,
-        downstream_rev,
-        downstream_subtree,
+        repo=repo,
+        downstream_rev=downstream_rev,
+        downstream_subtree=downstream_subtree,
         exclude_file_patterns=exclude_file_patterns,
         limit=downstream_limit,
+        upstream_change_ids=upstream_change_ids,
     )
 
-    for counter, rev in enumerate(
-        repo.log_hashes(
-            revision_range=upstream_rev,
-            subtree=upstream_subtree,
-            exclude_file_patterns=exclude_file_patterns,
-        )
-    ):
+    for counter, rev in enumerate(upstream_hashes):
         # Early exit if limit reached to avoid inadvertent continuation
         if counter > upstream_limit and upstream_limit != 0:
             break
@@ -963,9 +1008,11 @@ def run_copybot(args, git_dir, patch_dir):
         git_dir = downstream_url
 
     keep_pseudoheaders = list(args.keep_pseudoheaders)
+    related_repo = False
     if upstream_url == downstream_url or (
         is_server_gob(str(downstream_url)) and is_server_gob(str(upstream_url))
     ):
+        related_repo = True
         if "Change-Id" not in keep_pseudoheaders:
             keep_pseudoheaders.append("Change-Id")
     merge_conflict_behavior = MergeConflictBehavior[
@@ -1015,6 +1062,7 @@ def run_copybot(args, git_dir, patch_dir):
             upstream_subtree,
             downstream_subtree,
             args.exclude_file_patterns,
+            related_repo,
         )
     except ValueError as e:
         if not pending_changes:
