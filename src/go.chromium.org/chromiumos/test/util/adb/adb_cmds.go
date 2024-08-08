@@ -20,8 +20,8 @@ func KillServer(logger *log.Logger) {
 	logger.Println(outStr)
 }
 
-func TeardownAdb(logger *log.Logger) error {
-	if out, err := AdbCmd([]string{"disconnect"}, logger); err != nil {
+func TeardownAdb(logger *log.Logger, addr string) error {
+	if out, err := AdbCmd([]string{"-s", FmtAddr(addr), "disconnect"}, logger); err != nil {
 		return fmt.Errorf("ADB disconnect failed. %s: %s", err, string(out))
 	}
 	return nil
@@ -34,7 +34,7 @@ func AdbConnect(logger *log.Logger, addr string) (err error) {
 		return fmt.Errorf("ADB Start failed. %s: %s", err, outStr)
 	}
 
-	if !strings.Contains(outStr, "connected to") {
+	if !strings.Contains(outStr, fmt.Sprintf("connected to %s", FmtAddr(addr))) {
 		return fmt.Errorf("ADB Start failed.")
 	}
 
@@ -65,7 +65,7 @@ func SetupAdb(logger *log.Logger, addr string) (err error) {
 	if err != nil {
 		logger.Println("setupAdb failed. Trying again: ", err)
 		// ADB can be in akward state requiring a retry often.
-		KillServer(logger)
+		// KillServer(logger)
 		err = AdbConnect(logger, addr)
 		if err != nil {
 			logger.Println("setupAdb failed Attempt 2. Exiting: ", err)
@@ -74,12 +74,21 @@ func SetupAdb(logger *log.Logger, addr string) (err error) {
 
 		}
 	}
-	outStr, err := AdbCmd([]string{"devices"}, logger)
-	if !strings.Contains(outStr, addr) {
-		return fmt.Errorf("ADB Start failed: %s, %s", err, outStr)
+	found, err := adbDeviceFound(addr, logger)
+	if !found {
+		return fmt.Errorf("ADB Start failed: %s", err)
 	}
 
 	return nil
+}
+
+func adbDeviceFound(addr string, logger *log.Logger) (bool, error) {
+	outStr, err := AdbCmd([]string{"devices"}, logger)
+	if !strings.Contains(outStr, addr) {
+
+		return false, fmt.Errorf("ADB Devices CMd failed: %s, %s", err, outStr)
+	}
+	return true, nil
 }
 
 func FmtAddr(addr string) string {
@@ -87,8 +96,8 @@ func FmtAddr(addr string) string {
 	return fmt.Sprintf("%s:%s", addr, port)
 }
 
-func AdbShellCmd(cmdStr []string, log *log.Logger) (string, error) {
-	args := []string{"shell"}
+func AdbShellCmd(cmdStr []string, addr string, log *log.Logger) (string, error) {
+	args := []string{"-s", FmtAddr(addr), "shell"}
 	args = append(args, cmdStr...)
 	return AdbCmd(args, log)
 }

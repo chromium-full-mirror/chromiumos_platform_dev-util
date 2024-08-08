@@ -53,7 +53,7 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 	}
 
 	defer func() {
-		err = c.TeardownAdb(logger)
+		err = c.TeardownAdb(logger, primary.Ip)
 	}()
 
 	baseArgs := buildTradefedCommand(logger, tests, primary.Ip)
@@ -80,8 +80,16 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 	results := buildTradefedResult(td.logger)
 	if results.GetTestCaseResults() != nil {
 		allRspn.TestCaseResults = append(allRspn.TestCaseResults, results.TestCaseResults...)
+	} else {
+
+		td.logger.Println("nill resulsts?")
 	}
+
+	td.logger.Println("Got results, moving resultsidr")
 	td.moveResults(resultsDir)
+	td.logger.Println("final results: ", allRspn)
+	td.logger.Println("final results: ", results)
+
 	return allRspn, nil
 }
 
@@ -92,6 +100,7 @@ func (td *TradefedDriver) moveResults(resultsDir string) error {
 	if err != nil {
 		td.logger.Printf("Error moving results: %s: %s", err, string(out))
 	}
+	td.logger.Println("moved results")
 	return nil
 }
 

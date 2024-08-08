@@ -59,14 +59,14 @@ type Summary struct {
 	ModulesTotal string `xml:"modules_total,attr"`
 }
 
-func readResults() []byte {
+func readResults(logger *log.Logger) []byte {
 	resultsPath := path.Join(ctsPath, "results/latest/test_result.xml")
 	xmlFile, err := os.Open(resultsPath)
 	if err != nil {
-		fmt.Println(err)
+		logger.Println(err)
 	}
 
-	fmt.Println("Successfully Opened users.xml")
+	logger.Println("Successfully Opened users.xml")
 	defer xmlFile.Close()
 
 	byteValue, _ := ioutil.ReadAll(xmlFile)
@@ -75,21 +75,27 @@ func readResults() []byte {
 
 // If err is populated, and ERROR status will be returned.
 func buildTradefedResult(logger *log.Logger) *api.CrosTestResponse {
+	logger.Println("building results")
 	f := &api.CrosTestResponse{}
 	Res := Result{}
 	allTestCases := []*api.TestCaseResult{}
 
 	// Read the xmlapi.
-	resultsByte := readResults()
+	resultsByte := readResults(logger)
 	xml.Unmarshal(resultsByte, &Res)
 
 	startTime, _ := strconv.ParseInt(Res.Start, 10, 64)
+	logger.Println("Found n module results:", len(Res.Modules))
 
 	for _, module := range Res.Modules {
 		nTests, _ := strconv.Atoi(module.Total_Tests)
 		runTime, _ := strconv.Atoi(module.Runtime)
-		duration := runTime / nTests
+		duration := runTime
+		if nTests != 0 {
+			duration = runTime / nTests
+		}
 
+		logger.Println("Parsing Module: ", module.Name)
 		// Make a duration of atleast 1 second so the proto isnt empty.
 		testDur := int64(duration / 1000)
 		if testDur == 0 {
@@ -104,6 +110,8 @@ func buildTradefedResult(logger *log.Logger) *api.CrosTestResponse {
 		}
 	}
 	f.TestCaseResults = allTestCases
+	logger.Println("Found n case results:", len(f.TestCaseResults))
+
 	return f
 }
 
