@@ -29,7 +29,7 @@ func NewGetVersionSetup(ctx context.Context, cs *service.FoilService) *GetVersio
 }
 
 func (c *GetVersion) Execute(log *log.Logger) error {
-	out, err := adb.AdbShellCmd([]string{"getprop", "ro.system.build.version.incremental"}, log)
+	out, err := adb.AdbShellCmd([]string{"getprop", "ro.system.build.version.incremental"}, c.cs.DutIp, log)
 	if err != nil {
 		return err
 	}

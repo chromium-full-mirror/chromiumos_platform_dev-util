@@ -33,6 +33,8 @@ func NewFoilPostState(service *service.FoilService) common_utils.ServiceState {
 func (s FoilPostState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Printf("State: Execute FoilPostState")
 	comms := []common_utils.CommandInterface{
+		commands.NewGetVersionSetup(ctx, s.service),
+
 		commands.NewVerifyInstallCommand(ctx, s.service),
 	}
 

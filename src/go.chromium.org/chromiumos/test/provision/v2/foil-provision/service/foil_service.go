@@ -32,7 +32,7 @@ func NewFoilService(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.I
 
 	return &FoilService{
 		DutIp:       dut.GetChromeos().GetSsh().GetAddress(),
-		TargetBuild: "P78162110",
+		TargetBuild: "P78687640",
 	}, nil
 }
 

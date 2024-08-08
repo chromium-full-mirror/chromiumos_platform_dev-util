@@ -1,4 +1,4 @@
-// Copyright 2023 The ChromiumOS Authors
+// Copyright 2024 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,9 +55,11 @@ func (s FoilPreInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 
 // Next provides the interface if the install flag is set.
 func (s FoilPreInitState) Next() common_utils.ServiceState {
-	if s.service.SkipUpdate == true {
-		return nil
-	}
+	// NOTE: currently a device can be in the right build; but in a broken state (even though it can be reached through the shell)
+	// Thus for now: we must always re-provision.
+	// if s.service.SkipUpdate == true {
+	// 	return nil
+	// }
 	return FoilInstallState{
 		service: s.service,
 	}

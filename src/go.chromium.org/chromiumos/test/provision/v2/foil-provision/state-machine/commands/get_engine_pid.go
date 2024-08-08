@@ -31,19 +31,14 @@ func NewGetEnginePidSetup(ctx context.Context, cs *service.FoilService) *GetEngi
 
 func (c *GetEnginePid) Execute(log *log.Logger) error {
 	log.Printf("Start GetEnginePid Execute, with reboot")
-	lcpid := lcPid(log)
-	c.cs.UpdateEnginePid = lcpid
-
-	return nil
-}
-
-func lcPid(log *log.Logger) string {
-	pidOut, _ := adb.AdbCmd([]string{"shell", "pgrep", "update_engine"}, log)
+	pidOut, _ := adb.AdbShellCmd([]string{"pgrep", "update_engine"}, c.cs.DutIp, log)
 
 	pf := strings.ReplaceAll(strings.ReplaceAll(pidOut, " ", ""), "\n", "")
 	log.Println("PID FOUND: ", pf)
-	return pf
 
+	c.cs.UpdateEnginePid = pf
+
+	return nil
 }
 
 func (c *GetEnginePid) Revert() error {

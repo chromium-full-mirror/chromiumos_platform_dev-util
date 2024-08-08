@@ -37,7 +37,7 @@ func NewInstall(ctx context.Context, cs *service.FoilService) *Install {
 func (c *Install) Execute(log *log.Logger) error {
 	log.Printf("Start Install Execute, with reboot")
 
-	installErr := install(log, c.cs.UpdateEnginePid)
+	installErr := install(log, c.cs.UpdateEnginePid, c.cs.DutIp)
 
 	if installErr != nil {
 		return fmt.Errorf("Unable to install over 1 atempts.")
@@ -82,8 +82,8 @@ func TestScanner(stream io.Reader, logger *log.Logger, harness string) bool {
 	return completion
 }
 
-func logcat(log *log.Logger, pid string) {
-	outStr, _ := adb.AdbCmd([]string{"logcat", "-d", "--pid", pid}, log)
+func logcat(log *log.Logger, pid string, addr string) {
+	outStr, _ := adb.AdbCmd([]string{"-s", addr, "logcat", "-d", "--pid", pid}, log)
 
 	log.Println("Finished co")
 	log.Println("logcat out", outStr)
@@ -100,11 +100,11 @@ func readOutput(r io.Reader, ch chan string) {
 	close(ch)
 }
 
-func install(log *log.Logger, lcpid string) error {
+func install(log *log.Logger, lcpid string, addr string) error {
 	log.Printf("Install start")
 	// logcmd, logchan, err := logcat()
 
-	cmd := exec.Command("python3", []string{"/usr/local/update_device.py", "/package.zip"}...)
+	cmd := exec.Command("python3", []string{"/usr/local/update_device.py", "/otapackage.zip", "-s", adb.FmtAddr(addr)}...)
 
 	log.Println("Running ADB OTA: ", cmd.String())
 
@@ -141,7 +141,7 @@ func install(log *log.Logger, lcpid string) error {
 	}
 	log.Printf("DONE. Checking completion status")
 
-	logcat(log, lcpid)
+	logcat(log, lcpid, addr)
 	log.Println("LOGCAT CLOSED!")
 
 	if found1 == true || found2 == true {

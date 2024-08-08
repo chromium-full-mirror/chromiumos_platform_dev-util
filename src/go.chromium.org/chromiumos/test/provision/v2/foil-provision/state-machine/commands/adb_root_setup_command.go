@@ -34,7 +34,7 @@ func (c *AdbRoot) Execute(log *log.Logger) error {
 	addr := c.cs.DutIp
 	adb.SetupAdb(log, addr)
 
-	_, err := adb.AdbCmd([]string{"root"}, log)
+	_, err := adb.AdbCmd([]string{"-s", adb.FmtAddr(addr), "root"}, log)
 	if err != nil {
 		return err
 	}
