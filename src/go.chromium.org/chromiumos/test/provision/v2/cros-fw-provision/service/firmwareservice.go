@@ -750,8 +750,11 @@ func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
 				}
 				fws.CorebootName = thisAPName
 			}
-			thisECName := config.Firmware.BuildTargets.ZephyrEC
-			if thisECName == "" {
+			var thisECName string
+			// Bizarrely, zephyr builders use the coreboot name for the ec.bin file.
+			if config.Firmware.BuildTargets.ZephyrEC != "" {
+				thisECName = thisAPName
+			} else {
 				thisECName = config.Firmware.BuildTargets.EC
 			}
 			if thisECName != "" {

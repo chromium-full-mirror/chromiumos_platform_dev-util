@@ -235,7 +235,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 					"name": "test_model"
 				}]
 			}
-		}`, "image-fromcoreboot.bin", "fromzephyr/ec.bin", "fromzephyr/npcx_monitor.bin" /*out*/, true, true /*err*/, false, fullVersion},
+		}`, "image-fromcoreboot.bin", "fromcoreboot/ec.bin", "fromcoreboot/npcx_monitor.bin" /*out*/, true, true /*err*/, false, fullVersion},
 	}
 
 	log, _ := cli.SetUpLog(cli.DefaultLogDirectory)
