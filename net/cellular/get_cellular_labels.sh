@@ -226,7 +226,7 @@ do
       carrier="${slot}_att"
       ;;
     "Callbox Operator Nam"|"USIM")
-      net="NETWORK_TEST"
+      net="NETWORK_AMARISOFT"
       carrier="${slot}_amarisoft"
       pin=1234
       puk=88888888
