@@ -163,7 +163,7 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 
 	if isChromiumTest(testResult) {
 		// For Chromium test results
-		config, err = chromiumTestRDBConfig(testResult, baseTags, baseVariant, testhausBaseURL)
+		config, err = chromiumTestRDBConfig(testResult, baseTags, baseVariant, testhausBaseURL, testResultFilePath)
 		if err != nil {
 			return fmt.Errorf("error during creating the resultdb config for chromium tests: %w", err)
 		}
@@ -306,7 +306,7 @@ func extractBaseChromiumRDBConfig(testArgs map[string]string) (map[string]interf
 }
 
 // chromiumTestRDBConfig creates the resultdb config for chromium tests.
-func chromiumTestRDBConfig(testResult *artifact.TestResult, baseTags map[string]string, baseVariant map[string]string, testhausBaseURL string) (*rdb_client.RdbStreamConfig, error) {
+func chromiumTestRDBConfig(testResult *artifact.TestResult, baseTags map[string]string, baseVariant map[string]string, testhausBaseURL string, crosTestResultFile string) (*rdb_client.RdbStreamConfig, error) {
 	if len(testResult.TestRuns) == 0 {
 		return nil, fmt.Errorf("chromium test result is empty")
 	}
@@ -321,14 +321,23 @@ func chromiumTestRDBConfig(testResult *artifact.TestResult, baseTags map[string]
 		baseVariant[k] = v.(string)
 	}
 
-	resultFileDir := testResult.TestRuns[0].GetTestCaseInfo().GetTestCaseResult().GetResultDirPath().GetPath()
-	resultFilePath := path.Join(resultFileDir, ChromiumResultJSONFilePath)
+	resultFormat := chromiumConfig["result_format"].(string)
+	resultFilePath := ""
+	if resultFormat == "tast" {
+		// For tast, use the default ChromeOS result format and result file.
+		resultFormat = ResultAdapterResultFormat
+		resultFilePath = crosTestResultFile
+	} else {
+		// For gtest, use the chromium result format and its result file.
+		resultFileDir := testResult.TestRuns[0].GetTestCaseInfo().GetTestCaseResult().GetResultDirPath().GetPath()
+		resultFilePath = path.Join(resultFileDir, ChromiumResultJSONFilePath)
+	}
 
 	config := &rdb_client.RdbStreamConfig{
 		BaseTags:                baseTags,
 		BaseVariant:             baseVariant,
 		ResultFile:              resultFilePath,
-		ResultFormat:            chromiumConfig["result_format"].(string),
+		ResultFormat:            resultFormat,
 		TesthausBaseURL:         testhausBaseURL,
 		TestIdPrefix:            chromiumConfig["test_id_prefix"].(string),
 		CoerceNegativeDuration:  chromiumConfig["coerce_negative_duration"].(bool),

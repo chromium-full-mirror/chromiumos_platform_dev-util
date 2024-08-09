@@ -124,7 +124,7 @@ func TestExtractBaseChromiumRDBConfig(t *testing.T) {
 func TestChromiumTestRDBConfig(t *testing.T) {
 	t.Parallel()
 
-	Convey("Chromium Test RDB Config", t, func() {
+	Convey("Chromium Test RDB Config for gtest result format", t, func() {
 		// Create a test result proto with resultdb_settings flag in test args.
 		testResult := &artifact.TestResult{
 			TestRuns: []*artifact.TestRun{
@@ -163,7 +163,54 @@ func TestChromiumTestRDBConfig(t *testing.T) {
 		}
 
 		// Call chromiumTestRDBConfig.
-		gotRDBconfig, err := chromiumTestRDBConfig(testResult, map[string]string{}, map[string]string{}, "testhaus_url")
+		gotRDBconfig, err := chromiumTestRDBConfig(testResult, map[string]string{}, map[string]string{}, "testhaus_url", "")
+
+		// Verify that the function returns the correct rdb config.
+		So(err, ShouldBeNil)
+		So(gotRDBconfig, ShouldResemble, wantRDBConfig)
+	})
+
+	Convey("Chromium Test RDB Config for tast result format", t, func() {
+		// Create a test result proto with resultdb_settings flag in test args.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{
+						TestCaseResult: &api.TestCaseResult{
+							ResultDirPath: &_go.StoragePath{
+								Path: "test/results/dir",
+							},
+						},
+					},
+					ExecutionMetadata: &artifact.ExecutionMetadata{
+						TestArgs: map[string]string{
+							"resultdb_settings": "eyJiYXNlX3ZhcmlhbnQiOiB7ImJ1aWxkZXIiOiAiY2hyb21lb3MtYmV0dHktY2hyb21lIiwgImNyb3NfaW1nIjogImJldHR5LXJlbGVhc2UvUjEyNy0xNTkxMi4wLjAiLCAiZGV2aWNlX3R5cGUiOiAiYmV0dHkiLCAib3MiOiAiQ2hyb21lT1MiLCAidGVzdF9zdWl0ZSI6ICJtZWRpYV91bml0dGVzdHMgUkVMRUFTRV9MS0dNIn0sICJjb2VyY2VfbmVnYXRpdmVfZHVyYXRpb24iOiB0cnVlLCAiZXhvbmVyYXRlX3VuZXhwZWN0ZWRfcGFzcyI6IHRydWUsICJpbmNsdWRlIjogZmFsc2UsICJyZXN1bHRfZm9ybWF0IjogInRhc3QiLCAidGVzdF9pZF9wcmVmaXgiOiAibmluamE6Ly9tZWRpYTptZWRpYV91bml0dGVzdHMvIn0=",
+						},
+					},
+				},
+			},
+		}
+		wantResultFile := "cros-test-777c42c3/cros-test/results/tauto/results-1-tast.chrome-from-gcs/tast/results/streamed_results.jsonl"
+		wantRDBConfig := &rdb_client.RdbStreamConfig{
+			BaseTags: map[string]string{},
+			BaseVariant: map[string]string{
+				"builder":     "chromeos-betty-chrome",
+				"cros_img":    "betty-release/R127-15912.0.0",
+				"device_type": "betty",
+				"os":          "ChromeOS",
+				"test_suite":  "media_unittests RELEASE_LKGM",
+			},
+			ResultFile:              wantResultFile,
+			ResultFormat:            ResultAdapterResultFormat,
+			TesthausBaseURL:         "testhaus_url",
+			TestIdPrefix:            "ninja://media:media_unittests/",
+			CoerceNegativeDuration:  true,
+			ExonerateUnexpectedPass: true,
+			Include:                 false,
+		}
+
+		// Call chromiumTestRDBConfig.
+		gotRDBconfig, err := chromiumTestRDBConfig(testResult, map[string]string{}, map[string]string{}, "testhaus_url", wantResultFile)
 
 		// Verify that the function returns the correct rdb config.
 		So(err, ShouldBeNil)
@@ -192,7 +239,7 @@ func TestChromiumTestRDBConfig(t *testing.T) {
 		}
 
 		// Call chromiumTestRDBConfig.
-		config, err := chromiumTestRDBConfig(testResult, map[string]string{}, map[string]string{}, "testhaus_url")
+		config, err := chromiumTestRDBConfig(testResult, map[string]string{}, map[string]string{}, "testhaus_url", "")
 
 		// Verify that the function returns an error.
 		So(err, ShouldNotBeNil)
