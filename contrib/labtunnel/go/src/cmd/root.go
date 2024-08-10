@@ -60,7 +60,7 @@ func init() {
 			"ControlMaster=auto",
 			"ControlPersist=3600",
 			"ControlPath=/tmp/ssh-labtunnel-%C",
-			"ConnectTimeout=5",
+			"ConnectTimeout=60",
 			"ServerAliveCountMax=3",
 			"ServerAliveInterval=5",
 			"VerifyHostKeyDNS=no",
