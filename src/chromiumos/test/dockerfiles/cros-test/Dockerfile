@@ -101,7 +101,7 @@ COPY --chown=chromeos-test:chromeos-test cros-test /usr/bin/
 # Copy Tast packages before Autotest as they are the same across all boards
 COPY --chown=chromeos-test:chromeos-test tast/tast /usr/bin/tast
 COPY --chown=chromeos-test:chromeos-test tast/remote_test_runner /usr/bin/remote_test_runner
-COPY --chown=chromeos-test:chromeos-test tast/bundles/ /usr/libexec/tast/bundles
+COPY --chown=chromeos-test:chromeos-test tast/bundles/remote/cros /usr/libexec/tast/bundles/remote/cros
 COPY --chown=chromeos-test:chromeos-test tast/data/ /usr/share/tast/data
 COPY --chown=chromeos-test:chromeos-test tast/vars/ /etc/tast/vars
 
