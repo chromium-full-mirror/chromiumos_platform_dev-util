@@ -1090,7 +1090,10 @@ def run_copybot(args, git_dir, patch_dir):
 
     num_cls_to_downstream += len(pending_changes)
 
-    if num_cls_to_downstream > args.upstream_history_limit:
+    if (
+        num_cls_to_downstream > args.upstream_history_limit
+        and args.upstream_history_limit != 0
+    ):
         logger.warning(
             "There are %s CLs between HEAD and %s but the history limit is"
             " set to %s. Raising the history limit to accommodate this.",
