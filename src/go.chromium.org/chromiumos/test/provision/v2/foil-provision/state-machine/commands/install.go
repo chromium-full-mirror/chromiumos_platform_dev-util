@@ -10,10 +10,14 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
+	conf "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/test/provision/v2/foil-provision/service"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -35,15 +39,55 @@ func NewInstall(ctx context.Context, cs *service.FoilService) *Install {
 }
 
 func (c *Install) Execute(log *log.Logger) error {
-	log.Printf("Start Install Execute, with reboot")
 
+	log.Printf("Start Install Execute, with reboot")
+	if c.cs.ImagePath == nil || c.cs.ImagePath.HostType != conf.StoragePath_GS {
+		return fmt.Errorf("only support installing from GCS")
+	}
+	// Remove gs:// from the image path before pulling from cache server.
+	localImagePath, err := c.pullFromCache(log, c.cs.ImagePath.GetPath()[5:])
+	if err != nil {
+		return fmt.Errorf("Unable to pull image from cache %v", err)
+	}
+	defer os.Remove(localImagePath)
+	log.Println("Image pulled from cache and stored at %v", localImagePath)
+	//TODO: Consume localImagePath inside the install function below.
 	installErr := install(log, c.cs.UpdateEnginePid, c.cs.DutIp)
 
 	if installErr != nil {
 		return fmt.Errorf("Unable to install over 1 atempts.")
 	}
 	return nil
+}
 
+// pullFromCache downloads the image from cache server on cft container and
+// returns the local path.
+func (c *Install) pullFromCache(log *log.Logger, path string) (string, error) {
+
+	var client http.Client
+	cacheUrl := c.cs.CacheServerUrl
+	cacheUrl.Path = filepath.Join("download", path)
+	log.Println("pulling from cache url : %v", cacheUrl.String())
+	resp, err := client.Get(cacheUrl.String())
+	if err != nil {
+		return "", fmt.Errorf("failed to pull from cache server %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("error %s to download %q", resp.Status, cacheUrl.String())
+	}
+	out, err := os.CreateTemp(os.TempDir(), "image-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create a temp file %v", err)
+	}
+	log.Printf("created tmp file %v to store the pulled file", out.Name())
+
+	defer out.Close()
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to copy request data to temp file %v", err)
+	}
+	return out.Name(), nil
 }
 
 func (c *Install) Revert() error {
