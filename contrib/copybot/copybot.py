@@ -815,7 +815,8 @@ def find_commits_to_copy(
         upstream_change_ids=upstream_change_ids,
     )
 
-    for counter, rev in enumerate(upstream_hashes):
+    counter = 0
+    for rev in upstream_hashes:
         # Early exit if limit reached to avoid inadvertent continuation
         if counter > upstream_limit and upstream_limit != 0:
             break
@@ -833,6 +834,10 @@ def find_commits_to_copy(
                 job_name,
             )
             continue
+
+        # Increment counter after filtering Copybot-Job-Name CLs to treat
+        # them as if they don't belong to the target repo.
+        counter += 1
 
         if rev in pending_changes:
             if "copybot-skip" in pending_changes[rev].hashtags:
