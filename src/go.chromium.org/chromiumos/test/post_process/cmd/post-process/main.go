@@ -18,6 +18,7 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/chromiumos/config/go/test/artifact"
 	"google.golang.org/grpc"
 
 	"go.chromium.org/chromiumos/test/post_process/cmd/post-process/commands"
@@ -48,7 +49,7 @@ type args struct {
 	dutendpoint string
 }
 
-func parseAndRunCmds(req *api.Request, log *log.Logger, dutClient api.DutServiceClient) (*api.RunActivityResponse, error) {
+func parseAndRunCmds(req *api.Request, log *log.Logger, dutClient api.DutServiceClient, testResult *artifact.TestResult) (*api.RunActivityResponse, error) {
 	log.Printf("Start to run post process activity: %q", req)
 
 	switch op := req.Request.(type) {
@@ -98,15 +99,12 @@ func parseAndRunCmds(req *api.Request, log *log.Logger, dutClient api.DutService
 		}, err
 	case *api.Request_GetGscInfoRequest:
 		log.Println("GetGscInfo Task")
-		cmdResp, err := commands.GscInfo(log, op.GetGscInfoRequest)
-		if err != nil {
-			return nil, err
-		}
+		cmdResp := commands.GscInfo(log, testResult)
 		return &api.RunActivityResponse{
 			Response: &api.RunActivityResponse_GetGscInfoResponse{
 				GetGscInfoResponse: cmdResp,
 			},
-		}, err
+		}, nil
 	default:
 		log.Println("None")
 		return nil, fmt.Errorf("can only be one of registered types")
@@ -267,8 +265,14 @@ func parseCommandsAndRun(req *api.RunActivitiesRequest, log *log.Logger, dutClie
 	resp := &api.RunActivitiesResponse{
 		Responses: make([]*api.RunActivityResponse, 0, len(req.Requests)),
 	}
+
+	testResult := &artifact.TestResult{}
+	if err := req.TestResult.UnmarshalTo(testResult); err != nil {
+		return nil, fmt.Errorf("failed to convert test result proto, %s", err)
+	}
+
 	for _, subReq := range req.Requests {
-		r, err := parseAndRunCmds(subReq, log, dutClient)
+		r, err := parseAndRunCmds(subReq, log, dutClient, testResult)
 		if err != nil {
 			log.Printf("Failed to run post process activity: %s due to: %s", subReq, err.Error())
 			continue

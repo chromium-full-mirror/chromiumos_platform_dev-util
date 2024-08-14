@@ -14,6 +14,12 @@ import (
 	"go.chromium.org/chromiumos/test/execution/errors"
 )
 
+const (
+	TastTestPrefix  = "tast."
+	TautoTestPrefix = "tauto."
+	TastTestsDir    = "tast/results/tests"
+)
+
 // CreateLogFile creates a file and its parent directory for logging purpose.
 func CreateLogFile(fullPath string) (*os.File, error) {
 	if err := os.MkdirAll(fullPath, 0755); err != nil {

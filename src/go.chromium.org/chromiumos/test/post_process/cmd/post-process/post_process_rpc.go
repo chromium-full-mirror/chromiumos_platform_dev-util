@@ -89,7 +89,7 @@ func (s *PostTestServiceServer) RunActivity(ctx context.Context, req *api.RunAct
 	}
 
 	s.logger.Printf("Start to run post process activity: %s", req)
-	resp, err := parseAndRunCmds(req.Request, s.logger, s.dutClient)
+	resp, err := parseAndRunCmds(req.Request, s.logger, s.dutClient, nil)
 	if err != nil {
 		return nil, errors.Annotate(err, "PostService: failed to run RunActivity RPC Command").Err()
 	}
