@@ -405,6 +405,15 @@ class GitRepo:
         args.append(refspec)
         self._run_git("push", *args)
 
+    def get_cl_count(self, original_rev: str, current_rev: str) -> int:
+        """Get the number of CLs between the specified revisions."""
+        if not original_rev or not current_rev:
+            return 0
+        args = ["--count"]
+        args.append(f"{original_rev}..{current_rev}")
+        result = self._run_git("rev-list", *args)
+        return int(result.stdout.rstrip())
+
 
 class Pseudoheaders:
     """Dictionary-like object for the pseudoheaders from a commit message.
@@ -643,6 +652,8 @@ def find_last_merged_rev(
     downstream_subtree=None,
     exclude_file_patterns=(),
     include_change_id=False,
+    upstream_history_length: int = 0,
+    downstream_history_length: int = 0,
 ):
     """Find the last merged revision in a Git repo.
 
@@ -655,6 +666,10 @@ def find_last_merged_rev(
         exclude_file_patterns: List of paths to be excluded.
         include_change_id: Bool specifying whether or not to
             consider Change-Ids
+        upstream_history_length: Number of CLs to consider as a part of the
+            upstream history.
+        downstream_history_length: Number of CLs to consider as a part of the
+            downstream history.
 
     Returns:
         Two values,
@@ -669,11 +684,13 @@ def find_last_merged_rev(
         revision_range=upstream_rev,
         subtree=upstream_subtree,
         exclude_file_patterns=exclude_file_patterns,
+        num=upstream_history_length,
     )
     downstream_hashes = repo.log_hashes(
         revision_range=downstream_rev,
         subtree=downstream_subtree,
         exclude_file_patterns=exclude_file_patterns,
+        num=downstream_history_length,
     )
 
     upstream_change_ids = {}
@@ -714,6 +731,7 @@ def get_downstreamed_list(
     exclude_file_patterns=(),
     limit=0,
     upstream_change_ids=(),
+    downstream_history_length=0,
 ):
     """Find the last merged revision in a Git repo.
 
@@ -725,6 +743,8 @@ def get_downstreamed_list(
         limit: The maxinum number of CLs in the history to check.
         upstream_change_ids: Dictionary of upstream Change-Id's and their
             associated upstream commit hash.
+        downstream_history_length: Number of CLs to consider as a part of the
+            downstream history.
 
     Returns:
         The set of upstream commit hashes that have already been downstreamed.
@@ -733,6 +753,7 @@ def get_downstreamed_list(
         revision_range=downstream_rev,
         subtree=downstream_subtree,
         exclude_file_patterns=exclude_file_patterns,
+        num=downstream_history_length,
     )
     downstreamed_revs = downstream_hashes[:]
 
@@ -764,6 +785,8 @@ def find_commits_to_copy(
     pending_changes=(),
     skip_copybot_job_names=(),
     include_change_id=False,
+    upstream_history_length: int = 0,
+    downstream_history_length: int = 0,
 ):
     """Find the commits to copy to downstream.
 
@@ -784,6 +807,10 @@ def find_commits_to_copy(
         skip_copybot_job_names: Names of copybot jobs to not copy CLs from
         include_change_id: Bool specifying whether or not to
             consider Change-Ids
+        upstream_history_length: Number of CLs to consider as a part of the
+            upstream history.
+        downstream_history_length: Number of CLs to consider as a part of the
+            downstream history.
 
     Returns:
         A list of the commit hashes to copy.
@@ -798,6 +825,7 @@ def find_commits_to_copy(
         revision_range=upstream_rev,
         subtree=upstream_subtree,
         exclude_file_patterns=exclude_file_patterns,
+        num=upstream_history_length,
     )
     if include_change_id:
         for counter, rev in enumerate(upstream_hashes):
@@ -813,6 +841,7 @@ def find_commits_to_copy(
         exclude_file_patterns=exclude_file_patterns,
         limit=downstream_limit,
         upstream_change_ids=upstream_change_ids,
+        downstream_history_length=downstream_history_length,
     )
 
     counter = 0
@@ -1040,7 +1069,6 @@ def run_copybot(args, git_dir, patch_dir):
         logger.info(
             "Found %s pending changes already on Gerrit", len(pending_changes)
         )
-
     repo = GitRepo.init(git_dir)
     try:
         upstream_rev = repo.fetch(upstream_url, upstream_branch)
@@ -1056,6 +1084,13 @@ def run_copybot(args, git_dir, patch_dir):
             f"Failed to fetch branch {downstream_branch} from {downstream_url}"
         ) from e
 
+    upstream_history_length = repo.get_cl_count(
+        args.upstream_history_starts_with, upstream_rev
+    )
+    downstream_history_length = repo.get_cl_count(
+        args.downstream_history_starts_with, downstream_rev
+    )
+
     # Verify that the two repositories share a history
     num_cls_to_downstream = 0
     last_related_rev = ""
@@ -1068,6 +1103,8 @@ def run_copybot(args, git_dir, patch_dir):
             downstream_subtree,
             args.exclude_file_patterns,
             related_repo,
+            upstream_history_length=upstream_history_length,
+            downstream_history_length=downstream_history_length,
         )
     except ValueError as e:
         if not pending_changes:
@@ -1120,12 +1157,13 @@ def run_copybot(args, git_dir, patch_dir):
         exclude_file_patterns=args.exclude_file_patterns,
         pending_changes=pending_changes,
         skip_copybot_job_names=args.skip_job_name,
+        upstream_history_length=upstream_history_length,
+        downstream_history_length=downstream_history_length,
     )
 
     if not commits_to_copy:
         logger.info("Nothing to do!")
         return
-
     skipped_revs = []
     empty_revs = []
 
@@ -1372,6 +1410,16 @@ def main(argv=None):
         action="append",
         default=[],
         help="Skip CLs in upstream copied from the specified job name",
+    )
+    parser.add_argument(
+        "--upstream-history-starts-with",
+        help="Commit hash to start comparing history from",
+        default="",
+    )
+    parser.add_argument(
+        "--downstream-history-starts-with",
+        help="Commit hash to start comparing history from",
+        default="",
     )
     parser.add_argument(
         "upstream",
