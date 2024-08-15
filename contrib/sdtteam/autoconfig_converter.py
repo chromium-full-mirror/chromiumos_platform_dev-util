@@ -602,6 +602,16 @@ def convert_to_devicebrands_starlark(star_path):
         "",  # Add another empty line
     ]
 
+    # Preload starlarks
+    load_starlarks = [
+        "load(\"//config/util/partner.star\", \"partner\")",
+        "load(\"//config/util/design.star\", \"design\")",
+        "load(\"//config/util/device_brand.star\", \"device_brand\")",
+        "load(\"//config/util/brand_config.star\", \"brand_config\")",
+        "",  # Add another empty line
+        "",  # Add another empty line
+    ]
+
     # Footer with device_brand_config structure
     footer_lines = [
         "",  # Add an empty line before the footer
@@ -618,6 +628,8 @@ def convert_to_devicebrands_starlark(star_path):
     design_id_mappings = get_designID_info(input_data)
     return (
         "\n".join(starlark_header)
+        + "\n".join(load_starlarks)
+        + "\n"
         + convert_to_designID_starlark(design_id_mappings)
         + "\n\n"
         + create_brand_configs_starlark(input_data)
