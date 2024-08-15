@@ -772,7 +772,7 @@ def get_downstreamed_list(
         exclude_file_patterns=exclude_file_patterns,
         num=downstream_history_length,
     )
-    downstreamed_revs = downstream_hashes[:]
+    downstreamed_revs = list(downstream_hashes)
 
     for counter, rev in enumerate(downstream_hashes):
         if counter > limit and limit != 0:
