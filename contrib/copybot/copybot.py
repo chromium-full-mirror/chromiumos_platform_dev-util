@@ -49,7 +49,7 @@ import shlex
 import subprocess
 import tempfile
 import time
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 import urllib
 
 import requests  # pylint: disable=import-error
@@ -94,7 +94,9 @@ class CopybotFatalError(Exception):
 
     enum_name = "FAILURE_UNKNOWN"
 
-    def __init__(self, *args, commits=(), **kwargs):
+    def __init__(
+        self, *args: str, commits: Optional[Sequence[str]] = None, **kwargs: str
+    ):
         self.commits = commits
         super().__init__(*args, **kwargs)
 
@@ -143,10 +145,12 @@ class GerritClInfo:
 class GitRepo:
     """Class wrapping common Git repository actions."""
 
-    def __init__(self, git_dir):
+    def __init__(self, git_dir: Union[str, "os.PathLike[str]"]) -> None:
         self.git_dir = git_dir
 
-    def _run_git(self, *args, **kwargs):
+    def _run_git(
+        self, *args: Any, **kwargs: Any
+    ) -> "subprocess.CompletedProcess[str]":
         """Wrapper to run git with the provided arguments."""
         argv = ["git", "-C", self.git_dir, "--no-pager", *args]
         logger.info("Run `%s`", " ".join(shlex.quote(str(arg)) for arg in argv))
@@ -171,7 +175,7 @@ class GitRepo:
             raise
 
     @classmethod
-    def init(cls, git_dir: Union[str, "os.PathLike[str]"]):
+    def init(cls, git_dir: Union[str, "os.PathLike[str]"]) -> GitRepo:
         """Do a `git init` to create a new repository."""
         git_dir = pathlib.Path(git_dir)
         repo = cls(git_dir)
@@ -179,12 +183,12 @@ class GitRepo:
             repo._run_git("init")  # pylint: disable=protected-access
         return repo
 
-    def rev_parse(self, rev="HEAD"):
+    def rev_parse(self, rev: str = "HEAD") -> str:
         """Do a `git rev-parse`."""
         result = self._run_git("rev-parse", rev)
         return result.stdout.rstrip()
 
-    def fetch(self, remote, ref=None):
+    def fetch(self, remote: str, ref: str = "") -> str:
         """Do a `git fetch`.
 
         Returns:
@@ -196,18 +200,18 @@ class GitRepo:
         self._run_git("fetch", remote, *extra_args)
         return self.rev_parse("FETCH_HEAD")
 
-    def checkout(self, ref):
+    def checkout(self, ref: str) -> "subprocess.CompletedProcess[str]":
         """Do a `git checkout`."""
         return self._run_git("checkout", ref)
 
     def log(
         self,
-        revision_range="HEAD",
-        fmt=None,
-        num=0,
-        subtree=None,
-        exclude_file_patterns=(),
-    ):
+        revision_range: str = "HEAD",
+        fmt: str = "",
+        num: int = 0,
+        subtree: str = "",
+        exclude_file_patterns: Iterable[str] = (),
+    ) -> "subprocess.CompletedProcess[str]":
         """Do a `git log`."""
         extra_args = []
         if fmt:
@@ -224,11 +228,11 @@ class GitRepo:
 
     def log_hashes(
         self,
-        revision_range="HEAD",
-        num=0,
-        subtree=None,
-        exclude_file_patterns=(),
-    ):
+        revision_range: str = "HEAD",
+        num: int = 0,
+        subtree: str = "",
+        exclude_file_patterns: Iterable[str] = (),
+    ) -> List[str]:
         """Get the commit log as a list of commit hashes."""
         result = self.log(
             revision_range=revision_range,
@@ -239,22 +243,32 @@ class GitRepo:
         )
         return result.stdout.splitlines()
 
-    def get_commit_message(self, rev="HEAD"):
+    def get_commit_message(self, rev: str = "HEAD") -> str:
         """Get a commit message of a commit."""
         result = self.log(revision_range=rev, num=1, fmt="%B")
         return result.stdout
 
-    def commit_file_list(self, rev="HEAD"):
+    def commit_file_list(self, rev: str = "HEAD") -> List[str]:
         """Get the files modified by a commit."""
         result = self._run_git("show", "--pretty=", "--name-only", rev)
         return result.stdout.splitlines()
 
-    def show(self, rev="HEAD", files=()):
+    def show(self, rev: str = "HEAD", files: Iterable[str] = ()) -> str:
         """Do a `git show`."""
-        result = self._run_git("show", rev, "--", *files)
+        extra_args = []
+        if files:
+            extra_args.append("--")
+            extra_args.append(*files)
+        result = self._run_git("show", rev, extra_args)
         return result.stdout
 
-    def apply(self, patch, path=None, include_paths=None, exclude_paths=None):
+    def apply(
+        self,
+        patch: Union[str, "os.PathLike[str]"],
+        path: Union[str, "os.PathLike[str]"] = "",
+        include_paths: Optional[List[Union[str, "os.PathLike[str]"]]] = None,
+        exclude_paths: Optional[List[Union[str, "os.PathLike[str]"]]] = None,
+    ) -> "subprocess.CompletedProcess[str]":
         """Apply a patch to the staging area."""
         extra_args = []
         if path:
@@ -264,10 +278,16 @@ class GitRepo:
         if exclude_paths:
             extra_args.extend(f"--exclude={path}" for path in exclude_paths)
 
-        extra_args.append(patch)
+        extra_args.append(str(patch))
         return self._run_git("apply", *extra_args)
 
-    def commit(self, message, amend=False, sign_off=False, stage=False):
+    def commit(
+        self,
+        message: str,
+        amend: bool = False,
+        sign_off: bool = False,
+        stage: bool = False,
+    ) -> str:
         """Create a commit.
 
         Returns:
@@ -283,7 +303,7 @@ class GitRepo:
         self._run_git("commit", *extra_args, "-m", message)
         return self.rev_parse()
 
-    def reword(self, new_message, sign_off=False):
+    def reword(self, new_message: str, sign_off: bool = False) -> str:
         """Reword the commit at HEAD.
 
         Returns:
@@ -291,7 +311,13 @@ class GitRepo:
         """
         return self.commit(new_message, amend=True, sign_off=sign_off)
 
-    def format_patch(self, rev, output_path, num=1, relative_path=None):
+    def format_patch(
+        self,
+        rev: str,
+        output_path: Union[str, "os.PathLike[str]"],
+        num: int = 1,
+        relative_path: Union[str, "os.PathLike[str]"] = "",
+    ) -> pathlib.Path:
         """Generate patch from revision with an optional relative path.
 
         Returns:
@@ -303,9 +329,14 @@ class GitRepo:
         extra_args.extend([f"-{num}", rev, f"--output-directory={output_path}"])
 
         result = self._run_git("format-patch", *extra_args)
-        return result.stdout.rstrip()
+        return pathlib.Path(result.stdout.rstrip())
 
-    def add(self, path, stage=False, force=False):
+    def add(
+        self,
+        path: Union[str, "os.PathLike[str]"],
+        stage: bool = False,
+        force: bool = False,
+    ) -> "subprocess.CompletedProcess[str]":
         """Add unstaged files."""
         extra_args = []
         if stage:
@@ -313,11 +344,11 @@ class GitRepo:
         if force:
             extra_args.append("--force")
         if path:
-            extra_args.append(path)
+            extra_args.append(str(path))
         return self._run_git("add", *extra_args)
 
     def get_subtree_lowest_working_dir(
-        self, path: Union[pathlib.Path, "os.PathLike[str]"]
+        self, path: Union[str, "os.PathLike[str]"]
     ) -> pathlib.Path:
         """Get the lowest working directory path for subtree."""
         patch_dir = pathlib.Path(self.git_dir)
@@ -326,18 +357,18 @@ class GitRepo:
         subtree = path
         if not patch_dir.is_dir():
             subtree = pathlib.Path(path).parents[0]
-        return subtree
+        return pathlib.Path(subtree)
 
     def cherry_pick(
         self,
-        rev,
-        patch_dir=None,
-        upstream_subtree=None,
-        downstream_subtree=None,
-        include_paths=None,
-        exclude_paths=None,
-        allow_conflict=False,
-    ):
+        rev: str,
+        patch_dir: Union[str, "os.PathLike[str]"] = "",
+        upstream_subtree: Union[str, "os.PathLike[str]"] = "",
+        downstream_subtree: Union[str, "os.PathLike[str]"] = "",
+        include_paths: Optional[List[Union[str, "os.PathLike[str]"]]] = None,
+        exclude_paths: Optional[List[Union[str, "os.PathLike[str]"]]] = None,
+        allow_conflict: bool = False,
+    ) -> None:
         """Do a `git cherry-pick`.
 
         This will first try without any merge options, and if that fails,
@@ -351,7 +382,7 @@ class GitRepo:
                 be resolved automatically with -Xpatience.
         """
 
-        def _try_cherry_pick(extra_flags):
+        def _try_cherry_pick(extra_flags: List[str]) -> None:
             try:
                 self._run_git("cherry-pick", "-x", rev, *extra_flags)
             except subprocess.CalledProcessError as e:
@@ -376,7 +407,11 @@ class GitRepo:
                         raise EmptyCommitError() from e
                     raise MergeConflictError() from e
 
-        cherry_pick_flag_list = ([], ["-Xpatience"], ["-m", "2"])
+        cherry_pick_flag_list: Tuple[List[str], ...] = (
+            [],
+            ["-Xpatience"],
+            ["-m", "2"],
+        )
         if downstream_subtree or upstream_subtree or include_paths:
             cherry_pick_flag_list = ()
         for flags in cherry_pick_flag_list:
@@ -411,12 +446,13 @@ class GitRepo:
         )
         return
 
-    def push(self, url, refspec, options=()):
+    def push(self, url: str, refspec: str, options: Iterable[str] = ()) -> None:
         """Do a `git push`."""
         args = []
 
-        for option in options:
-            args.extend(["-o", option])
+        if options:
+            for option in options:
+                args.extend(["-o", option])
 
         args.append(url)
         args.append(refspec)
@@ -446,11 +482,16 @@ class Pseudoheaders:
     # lines in a commit message).
     _PSEUDOHEADER_PATTERN = re.compile(r"^(?:[A-Za-z0-9]+-)*[A-Za-z0-9]+:\s+")
 
-    def __init__(self, header_list=()):
-        self._header_list = list(header_list)
+    def __init__(self, header_list: Iterable[Tuple[str, str]] = ()) -> None:
+        if header_list:
+            self._header_list = list(header_list)
+        else:
+            self._header_list = []
 
     @classmethod
-    def from_commit_message(cls, commit_message, offset=1):
+    def from_commit_message(
+        cls, commit_message: str, offset: int = 1
+    ) -> Tuple[Pseudoheaders, str]:
         """Parse pseudoheaders from a commit message.
 
         Args:
@@ -477,7 +518,9 @@ class Pseudoheaders:
             f"{line}\n" for line in rewritten_message
         )
 
-    def prefix(self, prefix="Original-", keep=()):
+    def prefix(
+        self, prefix: str = "Original-", keep: Iterable[str] = ()
+    ) -> Pseudoheaders:
         """Prefix all header keys with a string.
 
         Args:
@@ -491,7 +534,9 @@ class Pseudoheaders:
 
         # Constructing a new pseudoheaders dictionary ensures we
         # consider the keep list to be case insensitive.
-        keep_dict = self.__class__([(key, True) for key in keep])
+        keep_dict: Pseudoheaders = Pseudoheaders()
+        if keep:
+            keep_dict = self.__class__([(key, "Keeping") for key in keep])
 
         for key, value in self._header_list:
             if keep_dict.get(key):
@@ -500,14 +545,14 @@ class Pseudoheaders:
                 new_header_list.append((f"{prefix}{key}", value))
         return self.__class__(new_header_list)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> str:
         """Get a header value by name."""
         for key, value in self._header_list:
             if key.lower() == item.lower():
                 return value
         raise KeyError(item)
 
-    def get(self, item, default=None):
+    def get(self, item: str, default: str = "") -> str:
         """Get a header value by name, or return a default value."""
         try:
             return self[item]
@@ -518,11 +563,11 @@ class Pseudoheaders:
         """Get the dict of stored values."""
         return dict(self._header_list)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: str) -> None:
         """Add a header."""
         self._header_list.append((key, value))
 
-    def add_to_commit_message(self, commit_message):
+    def add_to_commit_message(self, commit_message: str) -> str:
         """Add our pseudoheaders to a commit message.
 
         Returns:
@@ -543,7 +588,7 @@ class Pseudoheaders:
             message_lines.append(f"{key}: {value}")
         return "".join(f"{line}\n" for line in message_lines)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "\n".join(f"{key}:{value}" for key, value in self._header_list)
 
     def update(self, other: Union[dict, Pseudoheaders]) -> None:
@@ -560,10 +605,10 @@ class Pseudoheaders:
 class Gerrit:
     """Wrapper for actions on a Gerrit host."""
 
-    def __init__(self, hostname):
+    def __init__(self, hostname: str) -> None:
         self.hostname = hostname
 
-    def search(self, query):
+    def search(self, query: str) -> List[Dict[str, Any]]:
         """Do a query on Gerrit."""
         url = f"https://{self.hostname}/changes/"
         params = [
@@ -590,8 +635,13 @@ class Gerrit:
         return result
 
     def find_pending_changes(
-        self, project, branch, hashtags=(), subtree=None, exclude_paths=()
-    ):
+        self,
+        project: str,
+        branch: str,
+        hashtags: Iterable[str] = (),
+        subtree: str = "",
+        exclude_paths: Iterable[str] = (),
+    ) -> Dict[str, GerritClInfo]:
         """Find pending changes previously opened by CopyBot on Gerrit.
 
         Returns:
@@ -603,11 +653,13 @@ class Gerrit:
             f"project:{project}",
             f"branch:{branch}",
         ]
-        query.extend(f"hashtag:{hashtag}" for hashtag in hashtags)
+        if hashtags:
+            query.extend(f"hashtag:{hashtag}" for hashtag in hashtags)
         if subtree:
             query.append(f"directory:{subtree}")
-        for path in exclude_paths:
-            query.append(f"-directory:{path}")
+        if exclude_paths:
+            for path in exclude_paths:
+                query.append(f"-directory:{path}")
         query_result = self.search(" ".join(query))
         change_ids = {}
         for cl in query_result:
@@ -633,12 +685,12 @@ class Gerrit:
         return change_ids
 
 
-def generate_change_id():
+def generate_change_id() -> str:
     """Generate a Unique Change-Id."""
     return f"I{os.urandom(20).hex()}"
 
 
-def get_origin_rev_id(commit_message):
+def get_origin_rev_id(commit_message: str) -> str:
     """Get the origin revision hash from a commit message.
 
     Returns:
@@ -651,7 +703,7 @@ def get_origin_rev_id(commit_message):
     return origin_revid
 
 
-def get_change_id(commit_message):
+def get_change_id(commit_message: str) -> str:
     """Get the Change-Id from a commit message.
 
     Returns:
@@ -662,16 +714,16 @@ def get_change_id(commit_message):
 
 
 def find_last_merged_rev(
-    repo,
-    upstream_rev,
-    downstream_rev,
-    upstream_subtree=None,
-    downstream_subtree=None,
-    exclude_file_patterns=(),
-    include_change_id=False,
+    repo: GitRepo,
+    upstream_rev: str,
+    downstream_rev: str,
+    upstream_subtree: str = "",
+    downstream_subtree: str = "",
+    exclude_file_patterns: Iterable[str] = (),
+    include_change_id: bool = False,
     upstream_history_length: int = 0,
     downstream_history_length: int = 0,
-):
+) -> Tuple[str, int]:
     """Find the last merged revision in a Git repo.
 
     Args:
@@ -742,14 +794,14 @@ def find_last_merged_rev(
 
 
 def get_downstreamed_list(
-    repo,
-    downstream_rev,
-    downstream_subtree=None,
-    exclude_file_patterns=(),
-    limit=0,
-    upstream_change_ids=(),
-    downstream_history_length=0,
-):
+    repo: GitRepo,
+    downstream_rev: str,
+    downstream_subtree: str = "",
+    exclude_file_patterns: Iterable[str] = (),
+    limit: int = 0,
+    upstream_change_ids: Optional[Dict[str, str]] = None,
+    downstream_history_length: int = 0,
+) -> List[str]:
     """Find the last merged revision in a Git repo.
 
     Args:
@@ -784,27 +836,31 @@ def get_downstreamed_list(
 
         if origin_revid:
             downstreamed_revs.append(origin_revid)
-        if change_id and change_id in upstream_change_ids:
+        if (
+            change_id
+            and upstream_change_ids
+            and change_id in upstream_change_ids
+        ):
             downstreamed_revs.append(upstream_change_ids[change_id])
     return downstreamed_revs
 
 
 def find_commits_to_copy(
-    repo,
-    upstream_rev,
-    upstream_subtree,
-    downstream_rev,
-    downstream_subtree,
-    include_paths,
-    upstream_limit=0,
-    downstream_limit=0,
-    exclude_file_patterns=(),
-    pending_changes=(),
-    skip_copybot_job_names=(),
-    include_change_id=False,
+    repo: GitRepo,
+    upstream_rev: str,
+    upstream_subtree: str,
+    downstream_rev: str,
+    downstream_subtree: str,
+    include_paths: List[Union[str, "os.PathLike[str]"]],
+    upstream_limit: int = 0,
+    downstream_limit: int = 0,
+    exclude_file_patterns: Iterable[str] = (),
+    pending_changes: Optional[Dict[str, GerritClInfo]] = None,
+    skip_copybot_job_names: Iterable[str] = (),
+    include_change_id: bool = False,
     upstream_history_length: int = 0,
     downstream_history_length: int = 0,
-):
+) -> List[str]:
     """Find the commits to copy to downstream.
 
     Args:
@@ -873,7 +929,7 @@ def find_commits_to_copy(
             commit_message
         )
         job_name = pseudoheaders.get("Copybot-Job-Name")
-        if job_name in skip_copybot_job_names:
+        if skip_copybot_job_names and job_name in skip_copybot_job_names:
             logger.info(
                 "Skip %s due to Copybot-Job-Name: %s",
                 rev,
@@ -885,14 +941,14 @@ def find_commits_to_copy(
         # them as if they don't belong to the target repo.
         counter += 1
 
-        if rev in pending_changes:
+        if pending_changes and rev in pending_changes:
             if "copybot-skip" in pending_changes[rev].hashtags:
                 logger.info("Skip %s due to copybot-skip hashtag", rev)
                 continue
 
         # If change is in pending list, allow relands
         if rev in downstreamed_revs:
-            if rev in pending_changes:
+            if pending_changes and rev in pending_changes:
                 logger.info(
                     "Found pending change that has already merged: %s", rev
                 )
@@ -903,7 +959,7 @@ def find_commits_to_copy(
             commit_files = repo.commit_file_list(rev)
             filtered_commit_files = []
             for path in commit_files:
-                filtered_path = path.relative_to(upstream_subtree)
+                filtered_path = pathlib.Path(path).relative_to(upstream_subtree)
                 if filtered_path in include_paths:
                     filtered_commit_files.append(path)
                     break
@@ -922,14 +978,14 @@ def find_commits_to_copy(
 
 
 def rewrite_commit_message(
-    repo,
-    upstream_rev,
-    change_id,
-    prepend_subject="",
-    sign_off=False,
-    keep_pseudoheaders=(),
-    additional_pseudoheaders=(),
-):
+    repo: GitRepo,
+    upstream_rev: str,
+    change_id: str,
+    prepend_subject: str = "",
+    sign_off: bool = False,
+    keep_pseudoheaders: Iterable[str] = (),
+    additional_pseudoheaders: Iterable[str] = (),
+) -> None:
     """Reword the commit at HEAD with appropriate metadata.
 
     Args:
@@ -951,19 +1007,20 @@ def rewrite_commit_message(
     pseudoheaders = pseudoheaders.prefix(keep=keep_pseudoheaders)
 
     pseudoheaders["GitOrigin-RevId"] = upstream_rev
-    for additional_header in additional_pseudoheaders:
-        parsed, _ = Pseudoheaders.from_commit_message(
-            additional_header, offset=0
-        )
-        pseudoheaders.update(parsed)
-    if "Change-Id" not in keep_pseudoheaders:
+    if additional_pseudoheaders:
+        for additional_header in additional_pseudoheaders:
+            parsed, _ = Pseudoheaders.from_commit_message(
+                additional_header, offset=0
+            )
+            pseudoheaders.update(parsed)
+    if keep_pseudoheaders and "Change-Id" not in keep_pseudoheaders:
         pseudoheaders["Change-Id"] = change_id
 
     commit_message = pseudoheaders.add_to_commit_message(commit_message)
     repo.reword(commit_message, sign_off=sign_off)
 
 
-def get_push_refspec(args, downstream_branch):
+def get_push_refspec(args: argparse.Namespace, downstream_branch: str) -> str:
     """Generate a push refspec for Gerrit.
 
     Args:
@@ -994,7 +1051,7 @@ def get_push_refspec(args, downstream_branch):
     return f"HEAD:refs/for/{downstream_branch}%{','.join(push_options)}"
 
 
-def is_server_gob(url):
+def is_server_gob(url: str) -> re.Match[str] | None:
     return re.fullmatch(
         r"https://(chromium|chrome-internal)"
         r"(?:-review)?\.googlesource\.com/(.*)",
@@ -1002,10 +1059,10 @@ def is_server_gob(url):
     )
 
 
-def parse_repo_info(repo_string):
+def parse_repo_info(repo_string: str) -> Tuple[bool, str, str, str]:
     is_local = True
     max_fields = 3
-    repo_info = []
+    repo_info: List[Any] = []
 
     base_string = repo_string
     url_result = urllib.parse.urlparse(repo_string)
@@ -1034,7 +1091,11 @@ def parse_repo_info(repo_string):
     return is_local, repo_url, repo_branch, repo_subtree
 
 
-def run_copybot(args, git_dir, patch_dir):
+def run_copybot(
+    args: argparse.Namespace,
+    git_dir: Union[str, "os.PathLike[str]"],
+    patch_dir: Union[str, "os.PathLike[str]"],
+) -> None:
     """Run copybot.
 
     Args:
@@ -1255,10 +1316,9 @@ def run_copybot(args, git_dir, patch_dir):
                         allow_conflict=True,
                     )
                 if not pending_change or reword_pending_change:
-                    change_id = None
-                    pending_overwrite = pending_changes.get(rev)
-                    if pending_overwrite is not None:
-                        change_id = pending_changes.get(rev).change_id
+                    change_id = (
+                        pending_changes.get(rev) or GerritClInfo("", "", "")
+                    ).change_id
                     rewrite_commit_message(
                         repo,
                         upstream_rev=rev,
@@ -1275,10 +1335,9 @@ def run_copybot(args, git_dir, patch_dir):
                 continue
             raise MergeConflictsError(commits=[rev]) from e
         if not pending_change or reword_pending_change:
-            change_id = None
-            pending_overwrite = pending_changes.get(rev)
-            if pending_overwrite is not None:
-                change_id = pending_changes.get(rev).change_id
+            change_id = (
+                pending_changes.get(rev) or GerritClInfo("", "", "")
+            ).change_id
             rewrite_commit_message(
                 repo,
                 upstream_rev=rev,
@@ -1335,14 +1394,14 @@ def run_copybot(args, git_dir, patch_dir):
         raise MergeConflictsError(commits=conflicted_revs)
 
 
-def write_json_error(path: pathlib.Path, err: Exception):
+def write_json_error(path: pathlib.Path, err: Exception | None) -> None:
     """Write out the JSON-serialized protobuf from an exception.
 
     Args:
         path: The Path to write to.
         err: The exception to serialize.
     """
-    err_json = {}
+    err_json: Dict[str, Any] = {}
     if err:
         if isinstance(err, CopybotFatalError):
             err_json["failure_reason"] = err.enum_name
@@ -1354,7 +1413,7 @@ def write_json_error(path: pathlib.Path, err: Exception):
     path.write_text(json.dumps(err_json))
 
 
-def main(argv=None):
+def main(argv: Optional[List[str]] = None) -> None:
     """The entry point to the program."""
     parser = argparse.ArgumentParser(description="CopyBot")
     parser.add_argument(
