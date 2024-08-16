@@ -383,10 +383,14 @@ func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly 
 	if err != nil {
 		return errors.Wrap(err, "failed to exec futility")
 	}
+
+	// b/360198909: Sometimes the output contains control characters.
+	out = strings.ReplaceAll(out, "\x01", "")
+
 	versions := versionJSON{}
 	err = yaml.Unmarshal([]byte(out), &versions)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse futility manifest")
+		return errors.Wrapf(err, "failed to parse futility manifest: %q", out)
 	}
 
 	if !rwOnly && versions.Default.AP.Versions.RO != "" {
@@ -402,7 +406,7 @@ func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly 
 		fws.ExpectedVersions.EC.Versions.RW = versions.Default.EC.Versions.RW
 	}
 
-	if apImagePath != "" {
+	if apImagePath != "" && fws.board != "drallion" && fws.board != "sarien" {
 		// Get the EC RW hash from the AP image, since the version in the manifest may be wrong.
 		ecImagePath := fmt.Sprintf("%s-ecrw.hash", apImagePath)
 		_, err = connection.RunCmd(ctx, "cbfstool", []string{fmt.Sprintf("'%s'", apImagePath), "extract", "-r", "FW_MAIN_A", "-n", "ecrw.hash", "-f", fmt.Sprintf("'%s'", ecImagePath)})
@@ -445,10 +449,10 @@ func (fws *FirmwareService) ActiveFirmwareVersions(ctx context.Context) (*Firmwa
 	versions.AP.Versions.RW = apVers[1]
 
 	// Run ectool version to get EC versions
-	out, err = fws.connection.RunCmd(ctx, "ectool", []string{"version"})
+	out, stderr, err := RunDUTCommand(ctx, fws.DUTServer, time.Minute, "ectool", []string{"version"}, nil)
 	if err != nil {
 		// Wilco, etc.
-		if strings.Contains(out, "Very likely this board doesn't have a Chromium EC") {
+		if strings.Contains(stderr, "Very likely this board doesn't have a Chromium EC") {
 			return &versions, nil
 		}
 		return nil, errors.Wrap(err, "ectool failed")
@@ -473,10 +477,10 @@ func (fws *FirmwareService) ActiveFirmwareVersions(ctx context.Context) (*Firmwa
 	}
 
 	// Run ectool echash to get EC RW hash
-	out, err = fws.connection.RunCmd(ctx, "ectool", []string{"echash"})
+	out, stderr, err = RunDUTCommand(ctx, fws.DUTServer, time.Minute, "ectool", []string{"echash"}, nil)
 	if err != nil {
 		// Wilco, etc.
-		if strings.Contains(out, "Very likely this board doesn't have a Chromium EC") {
+		if strings.Contains(stderr, "Very likely this board doesn't have a Chromium EC") {
 			return &versions, nil
 		}
 		return nil, errors.Wrap(err, "ectool failed")
@@ -736,10 +740,13 @@ func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
 	}
 	model := fws.GetModel()
 	for _, config := range configYaml.ChromeOS.Configs {
-		if config.Name == model {
+		// Wilco devices have _signed suffixes on the model name.
+		if config.Name == model || config.Name == model+"_signed" {
 			if sku >= 0 && config.Identity.SKUID >= 0 && config.Identity.SKUID != sku {
+				log.Printf("config.Name (%s) config.Identity.SKUID (%d) != sku (%d)", config.Name, config.Identity.SKUID, sku)
 				continue
 			}
+			log.Printf("config entry: %+v", config)
 			thisAPName := config.Firmware.BuildTargets.Coreboot
 			if thisAPName == "" {
 				thisAPName = config.Firmware.ImageName
@@ -763,6 +770,8 @@ func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
 				}
 				fws.ECName = thisECName
 			}
+		} else {
+			log.Printf("config.Name (%s) != model (%s)", config.Name, model)
 		}
 	}
 	log.Printf("config.yaml image names AP: %s EC: %s", fws.CorebootName, fws.ECName)

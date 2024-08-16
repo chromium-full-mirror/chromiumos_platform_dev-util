@@ -39,8 +39,11 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 		futilityImageArgs = append(futilityImageArgs, []string{fmt.Sprint("--image=", mainRoPath)}...)
 	}
 
+	board := s.service.GetBoard()
 	ecRoMetadata, ok := s.service.GetImageMetadata(s.service.GetEcRoPath())
-	if ok {
+	// Skip EC provisioning on Wilco duts that don't have Chrome ECs. Since there are only 2,
+	// hard code them here.
+	if ok && board != "drallion" && board != "sarien" {
 		log.Printf("[FW Provisioning: Update RO] extracting EC image to flash\n")
 		ecRoPath, err = firmwareservice.PickAndExtractECImage(ctx, s.service.DUTServer, ecRoMetadata, s.service.GetEcRoPath(), s.service)
 		if err != nil {
