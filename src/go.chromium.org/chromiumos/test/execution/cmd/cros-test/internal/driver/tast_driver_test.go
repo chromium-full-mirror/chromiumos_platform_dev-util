@@ -42,7 +42,6 @@ func TestNewTastArgs(t *testing.T) {
 			{sshRetriesFlag, "2"},
 			{buildFlag, "false"},
 			{downloadPrivateBundlesFlag, "true"},
-			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
 			{varsFileFlag, varsFileValue},
@@ -50,6 +49,7 @@ func TestNewTastArgs(t *testing.T) {
 			{dutLabConfigFlag, dutLabConfigFile},
 			{buildArtifactsURLFlag, buildArtifactsURLValue},
 			{varFlag, fmt.Sprintf("%s=%s", varName, varValue)},
+			{testRetriesFlag, "1"},
 		},
 	}
 
@@ -70,6 +70,51 @@ func TestNewTastArgs(t *testing.T) {
 		cmpopts.IgnoreUnexported(api.Arg{}),
 		cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("Got unexpected argument from newTastArgs (-got +want):\n%s\n%v\n--\n%v\n", diff, args, expectedArgs)
+	}
+}
+
+// TestNewTastArgsRepeatsAndRetries makes sure newTestArgs omit retries flag when
+// the repeats flag is specified by the user.
+func TestNewTastArgsRepeatsAndRetries(t *testing.T) {
+	primary := &device.DutInfo{Addr: dut1, Role: ""}
+	reportsServerValue := ":127.0.0.1:3333"
+	varsFileValue := "/tmp/test.yaml"
+	dutLabConfigFile := "dutlabconfig.jsonpb"
+	repeatsCount := "2"
+
+	expectedArgs := runArgs{
+		primary:  primary,
+		patterns: []string{test1, test2, test3, test4, test5},
+		tastFlags: map[string]string{
+			verboseFlag: "true",
+			logTimeFlag: "false",
+		},
+		runFlags: []flagValue{
+			{sshRetriesFlag, "2"},
+			{buildFlag, "false"},
+			{downloadPrivateBundlesFlag, "true"},
+			{resultsDirFlag, workDir1},
+			{reportsServerFlag, reportsServerValue},
+			{varsFileFlag, varsFileValue},
+			{systemServicesTimeoutFlag, defaultSysServicesTimeout},
+			{dutLabConfigFlag, dutLabConfigFile},
+			{testRepeatsFlag, repeatsCount},
+		},
+	}
+
+	args := newTastArgs(
+		primary, nil, nil, expectedArgs.patterns,
+		workDir1, reportsServerValue,
+		varsFileValue,
+		[]*api.Arg{
+			{Flag: testRepeatsFlag, Value: repeatsCount},
+		},
+		[]*api.Arg{},
+		dutLabConfigFile,
+	)
+
+	if diff := cmp.Diff(args, &expectedArgs, cmp.AllowUnexported(runArgs{}, flagValue{}), cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("Got unexpected argument from newTastArgs (-got +want):\n%s", diff)
 	}
 }
 
@@ -107,12 +152,12 @@ func TestNewTastArgsCompanions(t *testing.T) {
 			{sshRetriesFlag, "2"},
 			{buildFlag, "false"},
 			{downloadPrivateBundlesFlag, "true"},
-			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
 			{varsFileFlag, varsFileValue},
 			{systemServicesTimeoutFlag, defaultSysServicesTimeout},
 			{buildArtifactsURLFlag, buildArtifactsURLValue},
+			{testRetriesFlag, "1"},
 		},
 		companions: companions,
 		androids:   androids,
@@ -171,12 +216,12 @@ func TestGenArgList(t *testing.T) {
 			{sshRetriesFlag, "2"},
 			{buildFlag, "false"},
 			{downloadPrivateBundlesFlag, "true"},
-			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
 			{varsFileFlag, varsFileValue},
 			{systemServicesTimeoutFlag, defaultSysServicesTimeout},
 			{buildArtifactsURLFlag, buildArtifactsURLValue},
+			{testRetriesFlag, "1"},
 		},
 		companions: companions,
 		androids:   androids,
@@ -261,10 +306,10 @@ func TestGenArgListWithServers(t *testing.T) {
 			{sshRetriesFlag, "2"},
 			{buildFlag, "false"},
 			{downloadPrivateBundlesFlag, "true"},
-			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
 			{systemServicesTimeoutFlag, defaultSysServicesTimeout},
+			{testRetriesFlag, "1"},
 		},
 		companions: companions,
 	}
@@ -352,10 +397,10 @@ func TestGenArgListWithDevboard(t *testing.T) {
 			{sshRetriesFlag, "2"},
 			{buildFlag, "false"},
 			{downloadPrivateBundlesFlag, "true"},
-			{testRetriesFlag, "1"},
 			{resultsDirFlag, workDir1},
 			{reportsServerFlag, reportsServerValue},
 			{systemServicesTimeoutFlag, defaultSysServicesTimeout},
+			{testRetriesFlag, "1"},
 		},
 		companions: companions,
 	}

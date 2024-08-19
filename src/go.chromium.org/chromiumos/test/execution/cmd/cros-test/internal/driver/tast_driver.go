@@ -221,6 +221,7 @@ const (
 	reportsServerFlag          = "-reports_server"
 	resultsDirFlag             = "-resultsdir"
 	testRetriesFlag            = "-retries"
+	testRepeatsFlag            = "-repeats"
 	shardIndexFlag             = "-shardindex"
 	shardMethodFlag            = "-shardmethod"
 	sshRetriesFlag             = "-sshretries"
@@ -279,6 +280,7 @@ var tastFlags = map[string]struct{}{
 	reportsServerFlag:          {},
 	resultsDirFlag:             {},
 	testRetriesFlag:            {},
+	testRepeatsFlag:            {},
 	shardIndexFlag:             {},
 	shardMethodFlag:            {},
 	sshRetriesFlag:             {},
@@ -301,6 +303,7 @@ var allowedTastFlag = map[string]struct{}{
 	downloadDataFlag:         {},
 	excludeSkippedFlag:       {},
 	extraAllowedBucketsFlag:  {},
+	testRepeatsFlag:          {},
 	extraUseFlagsFlag:        {},
 	failForTestsFlag:         {},
 	maxSysMsgLogSizeFlag:     {},
@@ -379,7 +382,6 @@ func newTastArgs(primary *device.DutInfo,
 		{sshRetriesFlag, "2"},
 		{buildFlag, "false"},
 		{downloadPrivateBundlesFlag, "true"},
-		{testRetriesFlag, "1"}, // TODO b/270193958 remove this hardcode for a var.
 		{resultsDirFlag, resultsDir},
 		{reportsServerFlag, rsAddress},
 		{varsFileFlag, varsFilePath},
@@ -392,9 +394,14 @@ func newTastArgs(primary *device.DutInfo,
 		runFlags = append(runFlags, flagValue{dutLabConfigFlag, labConfigFile})
 	}
 
+	setDefaultRetries := true
 	for _, a := range customTastArgs {
 		if a.GetFlag() == "" {
 			continue
+		}
+		if a.GetFlag() == testRepeatsFlag || a.GetFlag() == testRetriesFlag {
+			// Do not set default retries flag if overridden or repeat flag is set.
+			setDefaultRetries = false
 		}
 		runFlags = append(runFlags, flagValue{a.GetFlag(), a.GetValue()})
 	}
@@ -405,6 +412,12 @@ func newTastArgs(primary *device.DutInfo,
 		}
 		runFlags = append(runFlags, flagValue{varFlag, fmt.Sprintf("%s=%s", a.GetFlag(), a.GetValue())})
 	}
+
+	if setDefaultRetries {
+		// TODO b/270193958 remove this hardcode for a var.
+		runFlags = append(runFlags, flagValue{testRetriesFlag, "1"})
+	}
+
 	return &runArgs{
 		primary: primary,
 		tastFlags: map[string]string{
