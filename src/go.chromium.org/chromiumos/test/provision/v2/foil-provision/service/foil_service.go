@@ -8,6 +8,7 @@ package service
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 
 	api1 "go.chromium.org/chromiumos/config/go/test/lab/api"
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
@@ -20,8 +21,10 @@ import (
 
 // FoilService inherits ServiceInterface
 type FoilService struct {
-	Connection       common_utils.ServiceAdapterInterface
-	MachineMetadata  metadata.MachineMetadata
+	Connection      common_utils.ServiceAdapterInterface
+	MachineMetadata metadata.MachineMetadata
+	// ImagePath is the android build explorer path.
+	// example: android-build/build_explorer/build_details/P78687640/brya-trunk_staging-userdebug/android-desktop-ota-packages.zip
 	ImagePath        *conf.StoragePath
 	OverwritePayload *conf.StoragePath
 	SkipUpdate       bool
@@ -42,18 +45,31 @@ func NewFoilService(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.I
 	var cacheUrl url.URL
 	cacheUrl.Scheme = "http"
 	cacheUrl.Host = cacheServerAddr
+	imagePath := req.GetImagePath().GetPath()
+	build, err := targetBuild(imagePath)
+	if err != nil {
+		return nil, err
+	}
 
 	return &FoilService{
 		DutIp: dut.GetChromeos().GetSsh().GetAddress(),
 		// TODO: extract targetBuild from the input imagePath.
-		TargetBuild:    "P78687640",
+		TargetBuild:    build,
 		CacheServerUrl: cacheUrl,
-		// TODO: remove hardcoding and replace with req.GetImagePath()
 		ImagePath: &conf.StoragePath{
-			HostType: conf.StoragePath_GS,
-			Path:     "gs://android-build/builds/12210352/brya-trunk_staging-userdebug/attempts/latest/artifacts/api_fingerprint.txt",
+			Path: imagePath,
 		},
 	}, nil
+}
+
+func targetBuild(imagePath string) (string, error) {
+	pattern := `build_details/(P[0-9]+)/`
+	re := regexp.MustCompile(pattern)
+	matches := re.FindStringSubmatch(imagePath)
+	if len(matches) != 2 {
+		return "", fmt.Errorf("could not extract buildId from %s", imagePath)
+	}
+	return matches[1], nil
 }
 
 // CleanupOnFailure is called if one of service's states fails to Execute() and

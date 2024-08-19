@@ -14,10 +14,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
-	conf "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/test/provision/v2/foil-provision/service"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -40,19 +40,21 @@ func NewInstall(ctx context.Context, cs *service.FoilService) *Install {
 
 func (c *Install) Execute(log *log.Logger) error {
 
-	log.Printf("Start Install Execute, with reboot")
-	if c.cs.ImagePath == nil || c.cs.ImagePath.HostType != conf.StoragePath_GS {
-		return fmt.Errorf("only support installing from GCS")
-	}
+	log.Printf("Start Install Execute, with reboot changed")
 	// Remove gs:// from the image path before pulling from cache server.
-	localImagePath, err := c.pullFromCache(log, c.cs.ImagePath.GetPath()[5:])
+	localImagePath, err := c.pullFromCache(log, c.cs.ImagePath.GetPath())
 	if err != nil {
 		return fmt.Errorf("Unable to pull image from cache %v", err)
 	}
 	defer os.Remove(localImagePath)
 	log.Println("Image pulled from cache and stored at %v", localImagePath)
 	//TODO: Consume localImagePath inside the install function below.
-	installErr := install(log, c.cs.UpdateEnginePid, c.cs.DutIp)
+	imagePathOnDut := filepath.Join("/data", filepath.Base(localImagePath))
+	_, err = adb.AdbCmd([]string{"-s", c.cs.DutIp, "push", localImagePath, imagePathOnDut}, log)
+	if err != nil {
+		return err
+	}
+	installErr := install(log, c.cs.UpdateEnginePid, c.cs.DutIp, imagePathOnDut)
 
 	if installErr != nil {
 		return fmt.Errorf("Unable to install over 1 atempts.")
@@ -60,13 +62,30 @@ func (c *Install) Execute(log *log.Logger) error {
 	return nil
 }
 
-// pullFromCache downloads the image from cache server on cft container and
+// function to extract the launch from the android build path.
+// Example it will return brya-trunk_staging-userdebug from
+// android-build/build_explorer/build_details/P78687640/brya-trunk_staging-userdebug/android-desktop-ota-packages.zip
+func extractTargetLaunch(path string) (string, error) {
+	pattern := `build_details/P[0-9]+/([a-z_\-]+)`
+	re := regexp.MustCompile(pattern)
+	matches := re.FindStringSubmatch(path)
+	if len(matches) != 2 {
+		return "", fmt.Errorf("could not extract launch from %s", path)
+	}
+	return matches[1], nil
+
+}
+
+// pullFromCache downloads the imge from cache server on cft container and
 // returns the local path.
 func (c *Install) pullFromCache(log *log.Logger, path string) (string, error) {
-
+	targetLaunch, err := extractTargetLaunch(path)
+	if err != nil {
+		return "", err
+	}
 	var client http.Client
 	cacheUrl := c.cs.CacheServerUrl
-	cacheUrl.Path = filepath.Join("download", path)
+	cacheUrl.Path = filepath.Join("download", "android-build", "builds", c.cs.TargetBuild, targetLaunch, "attempts", "latest", "artifacts", filepath.Base(path))
 	log.Println("pulling from cache url : %v", cacheUrl.String())
 	resp, err := client.Get(cacheUrl.String())
 	if err != nil {
@@ -144,11 +163,11 @@ func readOutput(r io.Reader, ch chan string) {
 	close(ch)
 }
 
-func install(log *log.Logger, lcpid string, addr string) error {
+func install(log *log.Logger, lcpid string, addr, imagePathOnDut string) error {
 	log.Printf("Install start")
 	// logcmd, logchan, err := logcat()
 
-	cmd := exec.Command("python3", []string{"/usr/local/update_device.py", "/otapackage.zip", "-s", adb.FmtAddr(addr)}...)
+	cmd := exec.Command("python3", []string{"/usr/local/update_device.py", imagePathOnDut, "-s", adb.FmtAddr(addr)}...)
 
 	log.Println("Running ADB OTA: ", cmd.String())
 
