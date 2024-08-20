@@ -43,29 +43,13 @@ func (c *RebootCommand) Execute(log *log.Logger) error {
 	if err != nil {
 		return fmt.Errorf("ADB Start failed. %s: %s", err, outStr)
 	}
-	err = waitForDeviceOnline(log, addr, 3*time.Minute)
+	err = adb.RetrySetupAdb(log, addr, 3*time.Minute)
 	if err != nil {
 		return err
 	}
 
 	log.Printf("RebootCommand Success")
 	return nil
-}
-
-func waitForDeviceOnline(log *log.Logger, addr string, timeout time.Duration) error {
-	st := time.Now()
-	for time.Since(st) < timeout {
-		err := adb.SetupAdb(log, addr)
-		if err == nil {
-			log.Println("Device online?")
-
-			return nil
-		}
-	}
-	log.Println("Device offline?")
-
-	return fmt.Errorf("device not online within timeout")
-
 }
 
 func (c *RebootCommand) Revert() error {

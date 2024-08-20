@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -60,6 +61,22 @@ func AdbCmd(args []string, log *log.Logger) (string, error) {
 	return outStr, err
 }
 
+func RetrySetupAdb(log *log.Logger, addr string, timeout time.Duration) error {
+	st := time.Now()
+	for time.Since(st) < timeout {
+		err := SetupAdb(log, addr)
+		if err == nil {
+			log.Println("Device online")
+
+			return nil
+		}
+	}
+	log.Println("Device offline")
+
+	return fmt.Errorf("device not online within timeout")
+
+}
+
 func SetupAdb(logger *log.Logger, addr string) (err error) {
 	err = AdbConnect(logger, addr)
 	if err != nil {
@@ -84,7 +101,8 @@ func SetupAdb(logger *log.Logger, addr string) (err error) {
 
 func adbDeviceFound(addr string, logger *log.Logger) (bool, error) {
 	outStr, err := AdbCmd([]string{"devices"}, logger)
-	if !strings.Contains(outStr, addr) {
+	deviceRegex := regexp.MustCompile(fmt.Sprintf(`%s\sdevice`, FmtAddr(addr)))
+	if !deviceRegex.MatchString(outStr) {
 
 		return false, fmt.Errorf("ADB Devices CMd failed: %s, %s", err, outStr)
 	}
