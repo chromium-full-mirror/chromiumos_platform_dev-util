@@ -973,7 +973,7 @@ def get_push_refspec(args, downstream_branch):
     Returns:
         A push refspec as a string.
     """
-    push_options = []
+    push_options = ["ready"]
 
     def _add_push_option(key, value):
         for option in value.split(","):
