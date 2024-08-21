@@ -47,14 +47,8 @@ func (c *Install) Execute(log *log.Logger) error {
 		return fmt.Errorf("Unable to pull image from cache %v", err)
 	}
 	defer os.Remove(localImagePath)
-	log.Println("Image pulled from cache and stored at %v", localImagePath)
-	//TODO: Consume localImagePath inside the install function below.
-	imagePathOnDut := filepath.Join("/data", filepath.Base(localImagePath))
-	_, err = adb.AdbCmd([]string{"-s", c.cs.DutIp, "push", localImagePath, imagePathOnDut}, log)
-	if err != nil {
-		return err
-	}
-	installErr := install(log, c.cs.UpdateEnginePid, c.cs.DutIp, imagePathOnDut)
+	log.Println("Image pulled from cache and stored at ", localImagePath)
+	installErr := install(log, c.cs.UpdateEnginePid, c.cs.DutIp, localImagePath)
 
 	if installErr != nil {
 		return fmt.Errorf("Unable to install over 1 atempts.")
@@ -86,7 +80,7 @@ func (c *Install) pullFromCache(log *log.Logger, path string) (string, error) {
 	var client http.Client
 	cacheUrl := c.cs.CacheServerUrl
 	cacheUrl.Path = filepath.Join("download", "android-build", "builds", c.cs.TargetBuild, targetLaunch, "attempts", "latest", "artifacts", filepath.Base(path))
-	log.Println("pulling from cache url : %v", cacheUrl.String())
+	log.Println("pulling from cache url : ", cacheUrl.String())
 	resp, err := client.Get(cacheUrl.String())
 	if err != nil {
 		return "", fmt.Errorf("failed to pull from cache server %v", err)
@@ -163,11 +157,11 @@ func readOutput(r io.Reader, ch chan string) {
 	close(ch)
 }
 
-func install(log *log.Logger, lcpid string, addr, imagePathOnDut string) error {
+func install(log *log.Logger, lcpid string, addr, localImagePath string) error {
 	log.Printf("Install start")
 	// logcmd, logchan, err := logcat()
 
-	cmd := exec.Command("python3", []string{"/usr/local/update_device.py", imagePathOnDut, "-s", adb.FmtAddr(addr)}...)
+	cmd := exec.Command("python3", []string{"/usr/local/update_device.py", localImagePath, "-s", adb.FmtAddr(addr)}...)
 
 	log.Println("Running ADB OTA: ", cmd.String())
 
