@@ -63,7 +63,7 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 			fmt.Errorf("cannot get address from primary device: %v", err))
 	}
 
-	companions, andriodCompanions, err := common.Companions(req.Companions)
+	companions, androidCompanions, err := common.Companions(req.Companions)
 	if err != nil {
 		return nil, errors.NewStatusError(errors.InvalidArgument,
 			fmt.Errorf("cannot get companion devices information: %v", err))
@@ -74,7 +74,7 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 		return nil, fmt.Errorf("failed to generate info yaml: %w", err)
 	}
 
-	labConfigPath, err := genLabConfigJsonpb(resultsDir, primary, companions, andriodCompanions)
+	labConfigPath, err := genLabConfigJsonpb(resultsDir, primary, companions, androidCompanions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT lab config file: %w", err)
 	}
@@ -97,7 +97,7 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 
 	// Be nice and clean up.
 	defer os.Remove(yamlPath)
-	args := newTastArgs(primary, companions, andriodCompanions, testNames,
+	args := newTastArgs(primary, companions, androidCompanions, testNames,
 		resultsDir, reportServer.Address(), yamlPath, userTastArgs, runTimeVars, labConfigPath)
 
 	err = common.WriteHostInfoToFile(resultsDir, primary.Addr, primary, td.logger)
@@ -375,7 +375,7 @@ type runArgs struct {
 
 // newTastArgs created an argument structure for invoking tast
 func newTastArgs(primary *device.DutInfo,
-	companionDuts []*device.DutInfo, andriods []*device.AndroidInfo,
+	companionDuts []*device.DutInfo, androids []*device.AndroidInfo,
 	tests []string, resultsDir, rsAddress string, varsFilePath string,
 	customTastArgs, runtimeVars []*api.Arg, labConfigFile string) *runArgs {
 	runFlags := []flagValue{
@@ -427,7 +427,7 @@ func newTastArgs(primary *device.DutInfo,
 		runFlags:   runFlags,
 		patterns:   tests, // TO-DO Support Tags
 		companions: companionDuts,
-		androids:   andriods,
+		androids:   androids,
 	}
 }
 
@@ -620,8 +620,8 @@ func genHostInfoYAML(dut *device.DutInfo) (string, error) {
 	return file.Name(), nil
 }
 
-func genLabConfigJsonpb(dir string, primary *device.DutInfo, companions []*device.DutInfo, andriodCompanion []*device.AndroidInfo) (string, error) {
-	dutLabInfo, err := device.GenLabConfig(primary, companions, andriodCompanion)
+func genLabConfigJsonpb(dir string, primary *device.DutInfo, companions []*device.DutInfo, androidCompanion []*device.AndroidInfo) (string, error) {
+	dutLabInfo, err := device.GenLabConfig(primary, companions, androidCompanion)
 	if err != nil {
 		return "", fmt.Errorf("failed generate lab information for DUTs: %v", err)
 	}

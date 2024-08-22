@@ -105,11 +105,13 @@ func unpackUnifiedMetadata(req *api.CrosTestRequest) (args []*api.Arg, resultRoo
 
 // Companions separates devices to ChromeOS devices and Android devices.
 func Companions(devices []*api.CrosTestRequest_Device) (chromeOSCompanions []*device.DutInfo,
-	AndriodCompanions []*device.AndroidInfo, err error) {
+	androidCompanions []*device.AndroidInfo, err error) {
 
-	for i, c := range devices {
+	companionCount := 0
+	for _, c := range devices {
 		if c.Dut.GetChromeos() != nil {
-			info, err := device.FillDUTInfo(c, fmt.Sprintf("cd%d", i+1))
+			companionCount++
+			info, err := device.FillDUTInfo(c, fmt.Sprintf("cd%d", companionCount))
 			if err != nil {
 				return nil, nil, errors.NewStatusError(errors.InvalidArgument,
 					fmt.Errorf("cannot get address from companion device: %v", c))
@@ -119,8 +121,8 @@ func Companions(devices []*api.CrosTestRequest_Device) (chromeOSCompanions []*de
 		}
 		if c.Dut.GetAndroid() != nil {
 			androidInfo := device.FillAndroidInfo(c)
-			AndriodCompanions = append(AndriodCompanions, androidInfo)
+			androidCompanions = append(androidCompanions, androidInfo)
 		}
 	}
-	return chromeOSCompanions, AndriodCompanions, nil
+	return chromeOSCompanions, androidCompanions, nil
 }
