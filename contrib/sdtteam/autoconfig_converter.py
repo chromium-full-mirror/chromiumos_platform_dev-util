@@ -279,15 +279,16 @@ load("//config/util/component.star", "comp")
 
 COMPONENT_VENDORS = []
 COMPONENTS = []
+"""
+    starlark_code = starlark_header
 
-# Component(s)"""
+    if touch_config_str or disp_config_str:
+        starlark_code += "\n# Component(s)\n"  # Add the comment only if there's content
 
-    starlark_code = f"""{starlark_header}\n"""
     starlark_code += touch_config_str
     starlark_code += disp_config_str
 
     return starlark_code
-
 
 ##########################################################################################
 #  Project starlark - FW Versions Configruation
@@ -705,9 +706,34 @@ def verify_test_starlark(star_path):
 
     return test_pass
 
+def remove_empty_lines_and_duplicates(file_path, encoding='utf-8'):
+    """
+    Removes empty lines between 'load' statements and also removes duplicate 'load' statements.
+
+    Args:
+        file_path (str): The path to the file to be processed.
+        encoding (str, optional): The file encoding (default is 'utf-8').
+    """
+
+    with open(file_path, 'r', encoding=encoding) as file:
+        content = file.read()
+
+    # Regular expression to match empty lines between 'load' statements
+    pattern_empty_lines = r'(?m)^(?:\s*\n)+?(?=load)'
+
+    # Replace matched empty lines with an empty string
+    modified_content = re.sub(pattern_empty_lines, '', content)
+
+    # Regular expression to match duplicate 'load' statements
+    pattern_duplicates = r'(^load.*\n)(\1)+'
+
+    # Replace duplicate 'load' statements with a single occurrence
+    modified_content = re.sub(pattern_duplicates, r'\1', modified_content +"\n", flags=re.MULTILINE)
+    with open(file_path, 'w', newline='\n') as file:
+        file.write( modified_content)
 
 def add_load_statements_to_config(config_file_path):
-    """Adds specific load statements to the end of existing ones in the Starlark config file.
+    """Adds specific load statements to the end of existing ones in the Starlark config file, then alphabetically sorts and deduplicates all load statements.
 
     Args:
         config_file_path (str): The path to the config.star file to modify.
@@ -716,23 +742,35 @@ def add_load_statements_to_config(config_file_path):
     new_load_statements = [
         'load("//components_config.star", "COMPONENTS", "COMPONENT_VENDORS")',
         'load("//device_brand_config.star", "device_brand_config")',
-        'load("//fw_version_config.star", "SC_FW_CONFIG_GREENBAYUPOC")',
-        "\n",
+        'load("//fw_version_config.star", "SC_FW_CONFIG_")',
     ]
 
     with open(config_file_path, "r+") as file:
         content = file.read()
 
-        # Find the position after the last load statement (or the beginning if none)
-        last_load_regex = r"load\(.+\)\s*(, [a-zA-Z_]+ = [a-zA-Z_]+)*"
-        last_load_match = re.search(last_load_regex, content)
-        insert_position = last_load_match.end() if last_load_match else 0
+        # Find all load statements
+        load_statements_regex = r"(load\(.+\)\s*(, [a-zA-Z_]+ = [a-zA-Z_]+)*\n)"
+        load_statements_matches = re.findall(load_statements_regex, content)
 
-        # Create the new content with added load statements and an extra newline
+        # Extract and sort load statements, including new ones
+        load_statements = [match[0] for match in load_statements_matches]
+        load_statements.extend(new_load_statements)
+        load_statements.sort()
+
+        # Deduplicate after sorting
+        load_statements = list(dict.fromkeys(load_statements))
+        # Replace existing load statements with sorted and deduplicated ones
+        new_content = re.sub(load_statements_regex, "", content)  # Remove existing
+
+        # Find the line containing "Generates a ConfigBundle"
+        insert_position = new_content.find("Generates a ConfigBundle")
+        if insert_position != -1:
+            # Find the end of that line
+            insert_position = new_content.find("\n", insert_position) + 1
         new_content = (
-            content[:insert_position]
-            + "\n".join(new_load_statements)
-            + content[insert_position:]
+            new_content[:insert_position]
+            + "\n".join(load_statements)
+            + new_content[insert_position:]
         )
 
         # Write the modified content back to the file
@@ -836,7 +874,7 @@ def main():
         output_file.write(starlark_output)
 
     add_load_statements_to_config(args.boxster_project + "/config.star")
-
+    remove_empty_lines_and_duplicates(args.boxster_project + "/config.star")
     # Run Verification Test after Starlark conversion
     test_pass = False
     test_verdict = "Verification failed."
