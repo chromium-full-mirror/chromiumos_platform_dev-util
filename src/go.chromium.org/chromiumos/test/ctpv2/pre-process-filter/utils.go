@@ -11,6 +11,7 @@ import (
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
+	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/interfaces"
 )
 
 // BoardTestInfo holds list of tests and milestone for a given board.
@@ -153,4 +154,50 @@ func createBoardTestMap(req *api.InternalTestplan, log *log.Logger) (map[string]
 		}
 	}
 	return boardTestMap, nil
+}
+
+func flakeFilteringLogAndResults(rspn *api.FilterFlakyResponse, board string, req *api.FilterFlakyRequest, filter *Filter, log *log.Logger) {
+	log.Printf("***********Flake filtering for board %s start***********\n", board)
+	if len(rspn.RemovedTests) > 0 {
+
+		log.Printf("The following tests are set to be removed from this scheduled attempt for all models under board: %s\n", board)
+		for _, test := range rspn.RemovedTests {
+			log.Printf(test + "\n")
+		}
+	} else {
+		log.Printf("No tests to be removed from this scheduled attempt for any models under board: %s\n", board)
+	}
+	log.Printf("***********Flake filtering for board %s end***********\n", board)
+
+	err := interfaces.WriteResults(rspn.RemovedTests, req, filter.data)
+	if err != nil {
+
+		log.Println("!!!")
+		log.Println(err)
+	}
+}
+
+func prettyLogInternalTestplanDetail(req *api.InternalTestplan, log *log.Logger) {
+	log.Printf("************Internal Test plan Detail Start************")
+	for _, testCase := range req.GetTestCases() {
+		// map for storing all models for all boards on which test is scheduled
+		boardModelMap := make(map[string][]string)
+		totalSchedulingUnits := 0
+		for _, suo := range testCase.GetSchedulingUnitOptions() {
+			for _, unit := range suo.GetSchedulingUnits() {
+				totalSchedulingUnits = totalSchedulingUnits + 1
+				dut := dutModelFromDut(unit.GetPrimaryTarget().GetSwarmingDef().GetDutInfo())
+				board := dut.GetBuildTarget()
+				model := dut.GetModelName()
+				boardModelMap[board] = append(boardModelMap[board], model)
+			}
+		}
+		log.Printf("Test %s scheduled on total %d scheduling units\n", testCase.GetName(), totalSchedulingUnits)
+		for board, modelList := range boardModelMap {
+			for _, model := range modelList {
+				log.Printf("Test %s scheduled on board %s for model %s\n", testCase.GetName(), board, model)
+			}
+		}
+	}
+	log.Printf("************Internal Test plan Detail End************")
 }

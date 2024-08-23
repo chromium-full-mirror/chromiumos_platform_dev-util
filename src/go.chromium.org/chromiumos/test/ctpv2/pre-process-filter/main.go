@@ -91,6 +91,7 @@ func filterSchedulingUnitOptionsBasedOnUseFlag(schedulingUnitOptions []*api.Sche
 // updateTestCases updates the schedulingUnitOptions for each test case in internal test plan request.
 func updateTestCases(req *api.InternalTestplan, removeBoardTestMap map[string][]string) error {
 
+	// this is to simplyfy removal logic as Test is at top level in internal test plan
 	removeTestToBoardsMap := inverseRemoveBoardTestMap(removeBoardTestMap)
 	for _, testCase := range req.GetTestCases() {
 
@@ -115,7 +116,7 @@ func updateTestCases(req *api.InternalTestplan, removeBoardTestMap map[string][]
 }
 
 // flakyTestPerBoard evaluates lists of flaky tests to be removed for a given board.
-func flakyTestPerBoard(req *api.FilterFlakyRequest, log *log.Logger) (*api.FilterFlakyResponse, error) {
+func flakyTestPerBoard(req *api.FilterFlakyRequest, board string, log *log.Logger) (*api.FilterFlakyResponse, error) {
 	filter := Filter{req: req}
 	var err error
 	var filteredSuites []*api.TestSuite
@@ -150,7 +151,8 @@ func flakyTestPerBoard(req *api.FilterFlakyRequest, log *log.Logger) (*api.Filte
 		RemovedTests: filter.removed,
 	}
 
-	log.Printf("The following tests are set to be removed from this scheduled attempt:\n %s\n", rspn.RemovedTests)
+	// log filtering results and write results
+	flakeFilteringLogAndResults(rspn, board, req, &filter, log)
 
 	err = interfaces.WriteResults(rspn.RemovedTests, req, filter.data)
 	if err != nil {
@@ -179,7 +181,7 @@ func generateFlakyTestMap(boardTestMap map[string]*BoardTestInfo, log *log.Logge
 			DefaultEnabled: true,
 			Milestone:      boardTestInfo.milestone,
 		}
-		resp, _ := flakyTestPerBoard(flakeReq, log)
+		resp, _ := flakyTestPerBoard(flakeReq, board, log)
 		removeBoardTestMap[board] = resp.RemovedTests
 	}
 	return removeBoardTestMap
@@ -188,13 +190,16 @@ func generateFlakyTestMap(boardTestMap map[string]*BoardTestInfo, log *log.Logge
 // innerMain evaluates flaky tests to be removed for all boards in the request and then updates the request by removing flaky tests.
 func innerMain(req *api.InternalTestplan, log *log.Logger) *api.InternalTestplan {
 
+	// log internal test plan before flaky filtering
+	prettyLogInternalTestplanDetail(req, log)
+
 	// create board-test map from the internal test plan
 	boardTestMap, err := createBoardTestMap(req, log)
 	if err != nil {
 		log.Printf("Error while creating board-test map %v\n", err)
 	}
 
-	// removeBoardTestMap will hold all tests to be removed for agiven board
+	// removeBoardTestMap will hold all tests to be removed for a given board
 	removeBoardTestMap := generateFlakyTestMap(boardTestMap, log)
 
 	//update/remove flaky tests from each board under internal test plan request
@@ -202,6 +207,8 @@ func innerMain(req *api.InternalTestplan, log *log.Logger) *api.InternalTestplan
 	if err != nil {
 		log.Printf("Error while updating internalTestPlan request %v\n", err)
 	}
+	// log internal test plan after flaky filtering
+	prettyLogInternalTestplanDetail(req, log)
 	return req
 }
 
