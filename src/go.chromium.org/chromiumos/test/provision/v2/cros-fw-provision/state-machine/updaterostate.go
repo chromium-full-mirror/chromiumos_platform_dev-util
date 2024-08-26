@@ -37,6 +37,13 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 		}
 		futilityImageArgs = append(futilityImageArgs, []string{fmt.Sprint("--image=", mainRoPath)}...)
+		hasCSME, err := s.service.CheckForCSMESections(ctx, mainRoPath)
+		if err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
+		}
+		if hasCSME {
+			futilityImageArgs = append(futilityImageArgs, "--quirks", "unlock_csme")
+		}
 	}
 
 	board := s.service.GetBoard()

@@ -5,6 +5,7 @@
 package firmwareservice
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
@@ -641,6 +642,39 @@ with open("`)
 		}
 	}
 	return nil
+}
+
+// CheckForCSMESections looks at the image at imagePath, and returns true if csme_unlock is supported.
+func (fws *FirmwareService) CheckForCSMESections(ctx context.Context, imagePath string) (bool, error) {
+	// futility needs CONFIG_IFD_CHIPSET to be set in the config file in cbfs or the board to be nissa.
+	// Also the idftool must exist.
+
+	out, err := fws.connection.RunCmd(ctx, "which", []string{"ifdtool"})
+	if err != nil {
+		log.Printf("idftool not found:%s", string(out))
+		return false, nil
+	}
+	// Extract the config file
+	configFile := imagePath + "-config"
+	out, err = fws.connection.RunCmd(ctx, "cbfstool", []string{escape(imagePath), "extract", "-n", "config", "-f", configFile})
+	if err != nil {
+		return false, errors.Wrapf(err, "command output: %s", string(out))
+	}
+	reader, err := fws.connection.FetchFile(ctx, configFile)
+	if err != nil {
+		return false, errors.Wrap(err, "downloading file")
+	}
+	// Look for CONFIG_IFD_CHIPSET or the same special case for nissa that futility uses.
+	sc := bufio.NewScanner(reader)
+	for sc.Scan() {
+		cfg, value, _ := strings.Cut(sc.Text(), "=")
+		if cfg == "CONFIG_IFD_CHIPSET" || (cfg == "CONFIG_IFD_BIN_PATH" && strings.Contains(value, "/nissa/")) {
+			log.Printf("Image %s has %s\n", imagePath, cfg)
+			return true, nil
+		}
+	}
+	log.Printf("Image %s has no CONFIG_IFD_CHIPSET\n", imagePath)
+	return false, nil
 }
 
 // GetConnectionToFlashingDevice returns connection to the device that stores the

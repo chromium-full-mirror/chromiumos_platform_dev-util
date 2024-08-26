@@ -328,6 +328,10 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}, Stdout: []byte("/var/tmp/some TempDir\n")}), nil)
 
 		if testCase.main_ro {
+			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+				Command: "which",
+				Args:    []string{"ifdtool"},
+			}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}}), nil)
 			stagingCall := dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
 				Command: "curl",
 				Args:    []string{"-f", "-S", stagingURL},
