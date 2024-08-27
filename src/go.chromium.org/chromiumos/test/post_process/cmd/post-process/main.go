@@ -267,8 +267,10 @@ func parseCommandsAndRun(req *api.RunActivitiesRequest, log *log.Logger, dutClie
 	}
 
 	testResult := &artifact.TestResult{}
-	if err := req.TestResult.UnmarshalTo(testResult); err != nil {
-		return nil, fmt.Errorf("failed to convert test result proto, %s", err)
+	if req.TestResult != nil {
+		if err := req.TestResult.UnmarshalTo(testResult); err != nil {
+			return nil, fmt.Errorf("failed to convert test result proto, %s", err)
+		}
 	}
 
 	for _, subReq := range req.Requests {
