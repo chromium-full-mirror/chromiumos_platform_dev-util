@@ -10,13 +10,17 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"go.chromium.org/chromiumos/config/go/test/artifact"
 	"go.chromium.org/chromiumos/test/execution/errors"
 )
 
 const (
 	TastTestPrefix  = "tast."
 	TautoTestPrefix = "tauto."
+	TautoSubDir     = "tauto/"
+	TastSubDir      = "tast/"
 	TastTestsDir    = "tast/results/tests"
 )
 
@@ -42,4 +46,45 @@ func CreateLogFile(fullPath string) (*os.File, error) {
 func NewLogger(logFile *os.File) *log.Logger {
 	mw := io.MultiWriter(logFile, os.Stderr)
 	return log.New(mw, "", log.LstdFlags|log.LUTC)
+}
+
+// TestLevelFiles gets the specified file for each test result and returns a
+// map from test name to the specified file path.
+func TestLevelFiles(logger *log.Logger, testResult *artifact.TestResult, fileName string) map[string]string {
+	logger.Printf("Started to fetch: %q file for each test", fileName)
+	files := map[string]string{}
+	for _, testRun := range testResult.GetTestRuns() {
+		testCaseResult := testRun.GetTestCaseInfo().GetTestCaseResult()
+		if testCaseResult == nil {
+			continue
+		}
+
+		testName := testCaseResult.GetTestCaseId().GetValue()
+		if testName == "" {
+			continue
+		}
+
+		// Constructs the file path.
+		resultDirPath := testCaseResult.GetResultDirPath().GetPath()
+		file := ""
+		if strings.Contains(resultDirPath, TastSubDir) {
+			// For Tast first class test
+			file = resultDirPath + "/" + fileName
+		} else if strings.Contains(resultDirPath, TautoSubDir) {
+			if strings.HasPrefix(testName, TastTestPrefix) {
+				// For Tast second class test wrapped by Tauto test suite
+				baseTestName, _ := strings.CutPrefix(testName, TastTestPrefix)
+				file = resultDirPath + "/" + TastTestsDir + "/" + baseTestName + "/" + fileName
+			} else {
+				// For Tauto test
+				baseTestName, _ := strings.CutPrefix(testName, TautoTestPrefix)
+				file = resultDirPath + "/" + baseTestName + "/" + fileName
+			}
+		}
+
+		files[testName] = file
+	}
+
+	logger.Printf("Successfully fetched: %q file for each test: %q", fileName, files)
+	return files
 }

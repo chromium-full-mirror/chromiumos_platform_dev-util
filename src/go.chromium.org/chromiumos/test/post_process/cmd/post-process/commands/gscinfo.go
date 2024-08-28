@@ -7,7 +7,6 @@ package commands
 import (
 	"context"
 	"log"
-	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/config/go/test/artifact"
@@ -27,44 +26,9 @@ func GscInfo(logger *log.Logger, testResult *artifact.TestResult) *api.GetGscInf
 	}
 
 	ctx := context.Background()
-	gscFiles := gscFiles(logger, testResult)
+	gscFiles := common.TestLevelFiles(logger, testResult, gscInfoFileName)
 	gscInfos := gscInfos(ctx, logger, gscFiles)
 	return &api.GetGscInfoResponse{GscInfos: gscInfos}
-}
-
-// gscFiles gets the GSC devboard info JSON file for each test result and
-// returns a map from test name to GSC devboard info JSON file path.
-func gscFiles(logger *log.Logger, testResult *artifact.TestResult) map[string]string {
-	gscFiles := map[string]string{}
-	for _, testRun := range testResult.GetTestRuns() {
-		testCaseResult := testRun.GetTestCaseInfo().GetTestCaseResult()
-		if testCaseResult == nil {
-			continue
-		}
-
-		testName := testCaseResult.GetTestCaseId().GetValue()
-		if testName == "" {
-			continue
-		}
-
-		// Constructs the GSC devboard info JSON file path.
-		resultDirPath := testCaseResult.GetResultDirPath().GetPath()
-		gscFile := ""
-		if strings.HasPrefix(testName, common.TastTestPrefix) {
-			// For Tast test
-			baseTestName, _ := strings.CutPrefix(testName, common.TastTestPrefix)
-			gscFile = resultDirPath + "/" + common.TastTestsDir + "/" + baseTestName + "/" + gscInfoFileName
-		} else if strings.HasPrefix(testName, common.TautoTestPrefix) {
-			// For Tauto test
-			baseTestName, _ := strings.CutPrefix(testName, common.TautoTestPrefix)
-			gscFile = resultDirPath + "/" + baseTestName + "/" + gscInfoFileName
-		}
-
-		gscFiles[testName] = gscFile
-	}
-
-	logger.Printf("Successfully fetched GSC devboard info JSON files: %q", gscFiles)
-	return gscFiles
 }
 
 // gscInfos ingests the GSC devboard info from JSON file.

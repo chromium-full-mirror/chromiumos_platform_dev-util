@@ -7,7 +7,6 @@ package commands
 import (
 	"context"
 	"log"
-	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/config/go/test/artifact"
@@ -26,44 +25,9 @@ func GetAvlInfo(logger *log.Logger, testResult *artifact.TestResult) (*api.GetAv
 	}
 
 	ctx := context.Background()
-	avlFiles := avlFiles(logger, testResult)
+	avlFiles := common.TestLevelFiles(logger, testResult, avlInfoFileName)
 	avlInfos := avlInfos(ctx, logger, avlFiles)
 	return &api.GetAvlInfoResponse{AvlInfos: avlInfos}, nil
-}
-
-// avlFiles gets the AVL info JSON file for each test result and returns a
-// map from test name to AVL info JSON file path.
-func avlFiles(logger *log.Logger, testResult *artifact.TestResult) map[string]string {
-	avlFiles := map[string]string{}
-	for _, testRun := range testResult.GetTestRuns() {
-		testCaseResult := testRun.GetTestCaseInfo().GetTestCaseResult()
-		if testCaseResult == nil {
-			continue
-		}
-
-		// Constructs the AVL info JSON file path.
-		testName := testCaseResult.GetTestCaseId().GetValue()
-		if testName == "" {
-			continue
-		}
-
-		resultDirPath := testCaseResult.GetResultDirPath().GetPath()
-		avlFile := ""
-		if strings.HasPrefix(testName, common.TastTestPrefix) {
-			// For Tast test
-			baseTestName, _ := strings.CutPrefix(testName, common.TastTestPrefix)
-			avlFile = resultDirPath + "/" + common.TastTestsDir + "/" + baseTestName + "/" + avlInfoFileName
-		} else if strings.HasPrefix(testName, common.TautoTestPrefix) {
-			// For Tauto test
-			baseTestName, _ := strings.CutPrefix(testName, common.TautoTestPrefix)
-			avlFile = resultDirPath + "/" + baseTestName + "/" + avlInfoFileName
-		}
-
-		avlFiles[testName] = avlFile
-	}
-
-	logger.Printf("Successfully fetched AVL info JSON files: %v", avlFiles)
-	return avlFiles
 }
 
 // avlInfos ingests the AVL info from JSON file.
