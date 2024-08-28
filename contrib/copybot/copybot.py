@@ -349,7 +349,7 @@ class GitRepo:
 
     def get_subtree_lowest_working_dir(
         self, path: Union[str, "os.PathLike[str]"]
-    ) -> pathlib.Path:
+    ) -> Union[str, "os.PathLike[str]"]:
         """Get the lowest working directory path for subtree."""
         patch_dir = pathlib.Path(self.git_dir)
         if path:
@@ -357,7 +357,7 @@ class GitRepo:
         subtree = path
         if not patch_dir.is_dir():
             subtree = pathlib.Path(path).parents[0]
-        return pathlib.Path(subtree)
+        return subtree
 
     def cherry_pick(
         self,
