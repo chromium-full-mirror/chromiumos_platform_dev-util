@@ -1161,14 +1161,20 @@ def run_copybot(
         raise DownstreamFetchError(
             f"Failed to fetch branch {downstream_branch} from {downstream_url}"
         ) from e
-
-    upstream_history_length = (
-        repo.get_cl_count(args.upstream_history_starts_with, upstream_rev) + 1
-    )
-    downstream_history_length = (
-        repo.get_cl_count(args.downstream_history_starts_with, downstream_rev)
-        + 1
-    )
+    upstream_history_length = 0
+    downstream_history_length = 0
+    if args.upstream_history_starts_with:
+        upstream_history_length = (
+            repo.get_cl_count(args.upstream_history_starts_with, upstream_rev)
+            + 1
+        )
+    if args.downstream_history_starts_with:
+        downstream_history_length = (
+            repo.get_cl_count(
+                args.downstream_history_starts_with, downstream_rev
+            )
+            + 1
+        )
 
     # Verify that the two repositories share a history
     num_cls_to_downstream = 0
