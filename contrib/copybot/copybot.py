@@ -248,6 +248,11 @@ class GitRepo:
         result = self.log(revision_range=rev, num=1, fmt="%B")
         return result.stdout
 
+    def get_author_email(self, rev: str = "HEAD") -> str:
+        """Get the authors email of a commit."""
+        result = self.log(revision_range=rev, num=1, fmt="%cE")
+        return result.stdout.strip()
+
     def commit_file_list(self, rev: str = "HEAD") -> List[str]:
         """Get the files modified by a commit."""
         result = self._run_git("show", "--pretty=", "--name-only", rev)
@@ -857,6 +862,7 @@ def find_commits_to_copy(
     exclude_file_patterns: Iterable[str] = (),
     pending_changes: Optional[Dict[str, GerritClInfo]] = None,
     skip_copybot_job_names: Iterable[str] = (),
+    skip_author_emails: Iterable[str] = (),
     include_change_id: bool = False,
     upstream_history_length: int = 0,
     downstream_history_length: int = 0,
@@ -878,6 +884,7 @@ def find_commits_to_copy(
         exclude_file_patterns: File paths that should not be copied.
         pending_changes: Changes pending in downstream repo.
         skip_copybot_job_names: Names of copybot jobs to not copy CLs from
+        skip_author_emails: Emails of authors to not copy CLs from
         include_change_id: Bool specifying whether or not to
             consider Change-Ids
         upstream_history_length: Number of CLs to consider as a part of the
@@ -936,6 +943,16 @@ def find_commits_to_copy(
                 job_name,
             )
             continue
+
+        if not job_name and skip_author_emails:
+            author_email = repo.get_author_email(rev=rev)
+            if author_email in skip_author_emails:
+                logger.info(
+                    "Skip %s due to author %s",
+                    rev,
+                    author_email,
+                )
+                continue
 
         # Increment counter after filtering Copybot-Job-Name CLs to treat
         # them as if they don't belong to the target repo.
@@ -1242,6 +1259,7 @@ def run_copybot(
         exclude_file_patterns=args.exclude_file_patterns,
         pending_changes=pending_changes,
         skip_copybot_job_names=args.skip_job_name,
+        skip_author_emails=args.skip_author_email,
         upstream_history_length=upstream_history_length,
         downstream_history_length=downstream_history_length,
     )
@@ -1542,6 +1560,12 @@ def main(argv: Optional[List[str]] = None) -> None:
         action="append",
         default=[],
         help="Skip CLs in upstream copied from the specified job name",
+    )
+    parser.add_argument(
+        "--skip-author-email",
+        action="append",
+        default=[],
+        help="Skip CLs in upstream authored by specified email",
     )
     parser.add_argument(
         "--upstream-history-starts-with",
