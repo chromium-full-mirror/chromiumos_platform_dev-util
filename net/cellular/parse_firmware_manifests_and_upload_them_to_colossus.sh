@@ -55,6 +55,8 @@ for fm_path in "${src_path}"/private-overlays/chromeos-partner-overlay/chromeos-
     | sed -e 's/usb:2cb7:0007/L850GL/g' \
       -e 's/pci:14c3:4d75 (External)/FM350/g' -e 's/usb:2cb7:01a0/NL668AM/g' \
       -e 's/usb:2cb7:01a2/FM101/g' -e 's/usb:2c7c:0128/EM060/g' \
+      -e 's/usb:33f8:0115/RW135/g' -e 's/usb:33f8:01a2/RW101/g' \
+      -e 's/usb:3731:0100/LCUK54/g' \
     | while read -r line; do echo "${line},${board}"; done >> "${tmpfile}";
 done
 
