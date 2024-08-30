@@ -21,6 +21,7 @@ import (
 )
 
 const ctsPath = "/usr/local/tradefed/android-cts"
+const tradefedTestResultFile = "results/latest/test_result.xml"
 
 type TradefedDriver struct {
 	logger *log.Logger
@@ -77,7 +78,8 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 	// In general I'd say just spit out the results.
 	// One difference between Tast/Autotest and this is that the test case given will likely result in many
 	// testcases; where T/AT were normally 1:1
-	results := buildTradefedResult(td.logger)
+	resultsPath := path.Join(ctsPath, tradefedTestResultFile)
+	results := buildTradefedResult(td.logger, resultsPath)
 	if results.GetTestCaseResults() != nil {
 		allRspn.TestCaseResults = append(allRspn.TestCaseResults, results.TestCaseResults...)
 	} else {

@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"strconv"
 	"time"
 
@@ -21,9 +20,14 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+type TradeFedTestFailure struct {
+	Message string `xml:"message,attr"`
+}
+
 type TradeFedTest struct {
-	Result string `xml:"result,attr"`
-	Name   string `xml:"name,attr"`
+	Result  string              `xml:"result,attr"`
+	Name    string              `xml:"name,attr"`
+	Failure TradeFedTestFailure `xml:"Failure"`
 }
 
 type TradefedTestCase struct {
@@ -42,6 +46,7 @@ type Module struct {
 }
 
 type Result struct {
+	// Start time and end time in milliseconds.
 	Start    string   `xml:"start,attr"`
 	End      string   `xml:"end,attr"`
 	BuildNum string   `xml:"suite_build_number,attr"`
@@ -59,8 +64,7 @@ type Summary struct {
 	ModulesTotal string `xml:"modules_total,attr"`
 }
 
-func readResults(logger *log.Logger) []byte {
-	resultsPath := path.Join(ctsPath, "results/latest/test_result.xml")
+func readResults(logger *log.Logger, resultsPath string) []byte {
 	xmlFile, err := os.Open(resultsPath)
 	if err != nil {
 		logger.Println(err)
@@ -74,14 +78,14 @@ func readResults(logger *log.Logger) []byte {
 }
 
 // If err is populated, and ERROR status will be returned.
-func buildTradefedResult(logger *log.Logger) *api.CrosTestResponse {
+func buildTradefedResult(logger *log.Logger, resultsPath string) *api.CrosTestResponse {
 	logger.Println("building results")
 	f := &api.CrosTestResponse{}
 	Res := Result{}
 	allTestCases := []*api.TestCaseResult{}
 
 	// Read the xmlapi.
-	resultsByte := readResults(logger)
+	resultsByte := readResults(logger, resultsPath)
 	xml.Unmarshal(resultsByte, &Res)
 
 	startTime, _ := strconv.ParseInt(Res.Start, 10, 64)
@@ -121,14 +125,29 @@ func buildTcResult(test TradeFedTest, startTime int64, duration int64, testName 
 	tcResult.TestHarness = &api.TestHarness{TestHarnessType: &api.TestHarness_Tradefed_{Tradefed: &api.TestHarness_Tradefed{}}}
 	tcResult.TestCaseId = &api.TestCase_Id{Value: testName}
 
-	// TODO swap it over to the provided int64
-	tcResult.StartTime = timestamppb.New(time.Now())
+	tcResult.StartTime = timestamppb.New(time.Unix(startTime/1000, startTime%1000*1000000))
 	tcResult.Duration = &durationpb.Duration{Seconds: duration}
 
-	if test.Result == "pass" {
+	error := &api.TestCaseResult_Error{}
+	if test.Failure.Message != "" {
+		error.Message = test.Failure.Message
+	}
+
+	switch test.Result {
+	case "pass":
 		tcResult.Verdict = &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}}
-	} else {
-		// TODO, fill these out. I haven't looked up their strings yet.
+	case "ASSUMPTION_FAILURE":
+		tcResult.Verdict = &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}}
+		tcResult.Errors = []*api.TestCaseResult_Error{error}
+	case "fail":
+		tcResult.Verdict = &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}}
+		tcResult.Errors = []*api.TestCaseResult_Error{error}
+	case "INCOMPLETE":
+		tcResult.Verdict = &api.TestCaseResult_Crash_{Crash: &api.TestCaseResult_Crash{}}
+		tcResult.Errors = []*api.TestCaseResult_Error{error}
+	case "IGNORED":
+		tcResult.Verdict = &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}}
+	default:
 		tcResult.Verdict = &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}}
 	}
 
