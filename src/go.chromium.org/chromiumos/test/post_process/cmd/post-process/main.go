@@ -203,7 +203,7 @@ func runCLI(ctx context.Context, d []string) int {
 	fs.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
 	fs.StringVar(&a.inputPath, "input", defaultRequestFile, "specify the test finder request json input file")
 	fs.StringVar(&a.output, "output", defaultResultFile, "specify the test finder request json input file")
-	fs.StringVar(&a.dutendpoint, "dutendpoint", "", fmt.Sprintf("Specify the endpoint for the running dut-service in the form of ip:port"))
+	fs.StringVar(&a.dutendpoint, "dutendpoint", "", "Specify the endpoint for the running dut-service in the form of ip:port")
 	fs.BoolVar(&a.version, "version", false, "print version and exit")
 	fs.Parse(d)
 
@@ -237,13 +237,13 @@ func runCLI(ctx context.Context, d []string) int {
 	dutAddr := a.dutendpoint
 
 	dutConn, err := grpc.Dial(dutAddr, grpc.WithInsecure())
-	defer dutConn.Close()
-	dutClient := api.NewDutServiceClient(dutConn)
-
 	if err != nil {
 		log.Printf("DutConn Failed!")
 		return 2
 	}
+
+	defer dutConn.Close()
+	dutClient := api.NewDutServiceClient(dutConn)
 	log.Printf("Dut Conn Established")
 
 	rspn, err := parseCommandsAndRun(req, logger, dutClient)
