@@ -94,6 +94,7 @@ func ValidateRDBRequestMetadata(metadata *metadata.PublishRdbMetadata) error {
 	} else if metadata.GetTestResult() == nil || metadata.GetTestResult().GetTestRuns() == nil || len(metadata.GetTestResult().GetTestRuns()) == 0 {
 		return fmt.Errorf("TestResult is required in metadata for rdb publish")
 	} else if metadata.TesthausUrl != "" && !strings.HasPrefix(metadata.TesthausUrl, "https://cros-test-analytics.appspot.com/") && !strings.HasPrefix(metadata.TesthausUrl, "https://tests.chromeos.goog/") {
+		//lint:ignore ST1005 Testhaus is an entity name and must be capitalized
 		return fmt.Errorf("Testhaus url must start with either `https://cros-test-analytics.appspot.com/` or `https://tests.chromeos.goog/`. Found %q instead", metadata.TesthausUrl)
 	}
 	if metadata.GetSources() != nil {

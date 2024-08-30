@@ -71,6 +71,6 @@ func (s *PublishService) saveCliOutput(outputPath string, out *api.CrosPublishRe
 		return errors.Annotate(err, "Save output for CLI: failed to marshal output").Err()
 	}
 
-	s.logger.Println(fmt.Sprintf("Successfully wrote response to the output file: %s", outputPath))
+	s.logger.Printf("Successfully wrote response to the output file: %s\n", outputPath)
 	return nil
 }
