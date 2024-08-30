@@ -37,7 +37,7 @@ func AdbConnect(logger *log.Logger, addr string) (err error) {
 	}
 
 	if !strings.Contains(outStr, fmt.Sprintf("connected to %s", FmtAddr(addr))) {
-		return fmt.Errorf("ADB Start failed.")
+		return fmt.Errorf("ADB Start failed")
 	}
 
 	logger.Println("adb connected!:", outStr)

@@ -98,7 +98,7 @@ func (p *PortDiscovery) GetPortFromAddress(address string) (string, error) {
 	match := r.FindStringSubmatch(address)
 	if match == nil {
 		p.getLogger().Printf("error: cannot apply pattern to address: %s", address)
-		return "", errors.New(fmt.Sprintf("unable to get port from %s", address))
+		return "", fmt.Errorf("unable to get port from %s", address)
 	}
 	return match[1], nil
 }

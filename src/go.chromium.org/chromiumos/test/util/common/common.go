@@ -147,13 +147,13 @@ func (f *FetchFile) getFile() (string, error) {
 	if err != nil {
 		log.Printf("Unable to make temp file: %s", err)
 
-		return "", fmt.Errorf("Unable to make temp file: %s", err)
+		return "", fmt.Errorf("unable to make temp file: %s", err)
 	}
 
 	err = f.readStream(stream)
 	if err != nil {
 		log.Printf("Reading stream err: %s", err)
-		return "", fmt.Errorf("Read Stream err: %s", err)
+		return "", fmt.Errorf("read Stream err: %s", err)
 	}
 
 	tarFilePath, err := Zip{}.Untar(f.ctx, f.tarFileName, f.destDir, f.fileName)
@@ -169,7 +169,7 @@ func (f *FetchFile) makeOutputTmpFile() error {
 	f.tmpdir = tmpDir
 	tarName := fmt.Sprintf("%s.tar.bz", f.fileName)
 	f.tarFileName = filepath.Join(tmpDir, tarName)
-	tarFile, err := os.Create(f.tarFileName)
+	tarFile, _ := os.Create(f.tarFileName)
 	f.outputF = tarFile
 	return nil
 }
