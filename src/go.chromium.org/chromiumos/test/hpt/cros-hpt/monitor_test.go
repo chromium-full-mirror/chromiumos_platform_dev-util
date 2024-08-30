@@ -78,7 +78,7 @@ func TestStartPerf(t *testing.T) {
 			time.Sleep(1500 * time.Millisecond)
 			m.stopMonitoring <- true
 		}
-		_ = <-m.terminated
+		<-m.terminated
 		if mPerf.startPerfCount != tc.wantStartPerfCount {
 			t.Errorf("want startPerfCount %d got %d", tc.wantStartPerfCount, mPerf.startPerfCount)
 		}

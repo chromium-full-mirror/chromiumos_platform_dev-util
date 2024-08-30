@@ -64,7 +64,7 @@ func (m *monitor) checkStatus(ctx context.Context, pid string) error {
 		log.Println("Warning received status 42 while during health check.")
 		return nil
 	} else {
-		return fmt.Errorf("Error:ps command failed with unexpected error: %v, command result %v", psResult, err)
+		return fmt.Errorf("error: ps command failed with unexpected error: %v, command result %v", psResult, err)
 	}
 }
 

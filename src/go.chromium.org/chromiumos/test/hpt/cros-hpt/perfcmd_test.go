@@ -14,11 +14,6 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
-const (
-	failingMkdir = "failing mkdir"
-	failingPerf  = "failing perf"
-)
-
 type mockExecUtil struct {
 	fail   map[string]string
 	output map[string]string
