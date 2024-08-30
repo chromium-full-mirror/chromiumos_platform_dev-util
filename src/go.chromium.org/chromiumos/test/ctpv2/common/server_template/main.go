@@ -31,13 +31,9 @@ var defaultPort = 0
 type args struct {
 	// Common input params.
 	logPath   string
-	inputPath string
-	output    string
-	version   bool
 
 	// Server mode params
 	port        int
-	dutendpoint string
 }
 
 // startServer is the entry point for running post-process (TestFinderService) in server mode.

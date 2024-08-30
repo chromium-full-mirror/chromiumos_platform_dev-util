@@ -12,7 +12,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
 
 	"go.chromium.org/chromiumos/test/test_finder"
@@ -79,7 +78,7 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 		log.Println("Error with TestFinder: ", err)
 		return req, err
 	}
-	log.Println("Called TestFinder successfully:", fmt.Sprintf("%s", testFinderResponse))
+	log.Println("Called TestFinder successfully:", testFinderResponse)
 
 	err = fillTestCases(ctx, req, testFinderResponse, log)
 	if err != nil {
@@ -92,7 +91,7 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 func startAndRunTestFinder(testPlan *api.InternalTestplan, log *log.Logger) (*api.CrosTestFinderResponse, error) {
 	req, err := toTestFinderRequest(testPlan)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to Translate Request: %s", err)
+		return nil, fmt.Errorf("failed to Translate Request: %s", err)
 	}
 	log.Printf("made req: %s", req)
 
@@ -109,19 +108,6 @@ func startAndRunTestFinder(testPlan *api.InternalTestplan, log *log.Logger) (*ap
 
 	return response, nil
 
-}
-
-// writeTestFinderInput writes a CrosTestFinderRequest json.
-func writeTestFinderInput(file string, req *api.CrosTestFinderRequest) error {
-	f, err := os.Create(file)
-	if err != nil {
-		return fmt.Errorf("fail to create file: %s", err)
-	}
-	m := jsonpb.Marshaler{}
-	if err := m.Marshal(f, req); err != nil {
-		return fmt.Errorf("fail to marshal request file: %s", err)
-	}
-	return nil
 }
 
 func main() {
