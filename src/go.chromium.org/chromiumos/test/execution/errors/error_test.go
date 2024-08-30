@@ -10,11 +10,6 @@ import (
 	"testing"
 )
 
-type errorSt struct {
-	err     error
-	message string
-}
-
 var errStatuses = []*StatusError{
 	{err: nil, status: Success},
 	{err: errors.New("failed to create file"), status: IOCreateError},

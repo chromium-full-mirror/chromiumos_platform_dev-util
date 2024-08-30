@@ -25,7 +25,7 @@ type HostInfo struct {
 func ConvertDutTopologyToHostInfo(dut *device.DutInfo) (map[string]string, []string, error) {
 	attrMap, labels, err := device.AppendChromeOsLabels(dut)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Topology failed: %v", err)
+		return nil, nil, fmt.Errorf("topology failed: %v", err)
 	}
 	return attrMap, labels, nil
 }

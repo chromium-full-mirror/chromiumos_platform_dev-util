@@ -21,7 +21,7 @@ func toSessionResponse(jsonText string) (*sessionDetailResponse, error) {
 	var response *sessionDetailResponse
 	err := json.Unmarshal([]byte(jsonText), &response)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to deserialize (%v): %v \n", jsonText, err)
+		return nil, fmt.Errorf("failed to deserialize (%v): %v", jsonText, err)
 	}
 	return response, nil
 }
@@ -98,9 +98,7 @@ func buildTestCaseResultFromSessionResponse(test *api.TestCaseMetadata,
 			if response.SessionDetail != nil {
 				for _, jd := range response.SessionDetail.JobDetail {
 					if jd.JobSummary != nil {
-						for _, errMsg := range jd.JobSummary.Error {
-							reasons = append(reasons, errMsg)
-						}
+						reasons = append(reasons, jd.JobSummary.Error...)
 					}
 				}
 			}

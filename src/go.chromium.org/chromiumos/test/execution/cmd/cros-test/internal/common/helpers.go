@@ -37,9 +37,7 @@ func TestScanner(stream io.Reader, logger *log.Logger, harness string) {
 // ExtraArgs upacks the extra arguements from test reqeusts.
 func ExtraArgs(req *api.CrosTestRequest) (args []*api.Arg) {
 	for _, t := range req.GetTestSuites() {
-		for _, a := range t.GetExecutionMetadata().GetArgs() {
-			args = append(args, a)
-		}
+		args = append(args, t.GetExecutionMetadata().GetArgs()...)
 	}
 	return args
 }

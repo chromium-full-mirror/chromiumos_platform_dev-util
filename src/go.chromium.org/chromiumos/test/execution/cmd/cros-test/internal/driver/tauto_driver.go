@@ -14,8 +14,6 @@ import (
 	"strings"
 	"sync"
 
-	"go.chromium.org/chromiumos/lro"
-
 	"go.chromium.org/chromiumos/config/go/test/api"
 
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/common"
@@ -27,12 +25,6 @@ import (
 type TautoDriver struct {
 	// logger provides logging service.
 	logger *log.Logger
-
-	// Long running operation manager
-	manager *lro.Manager
-
-	// operation name
-	op string
 }
 
 // NewTautoDriver creates a new driver to run tests.
@@ -53,24 +45,24 @@ func (td *TautoDriver) RunTests(ctx context.Context, resultsDir string, req *api
 	testNamesToMetadata := getTestNamesToMetadata(tests)
 	testNames := getTestNames(tests)
 
-	primary, err := device.FillDUTInfo(req.Primary, "")
-	chromeOSCompanions, androidCompanions, err := common.Companions(req.Companions)
+	primary, _ := device.FillDUTInfo(req.Primary, "")
+	chromeOSCompanions, androidCompanions, _ := common.Companions(req.Companions)
 
 	// Fill in DUT server var flags.
 	var dutServers []string
 	if primary.DutServer != "" {
-		dutServers = append(dutServers, fmt.Sprintf("%s", primary.DutServer))
+		dutServers = append(dutServers, primary.DutServer)
 	}
 	for _, c := range chromeOSCompanions {
 		if c.DutServer != "" {
-			dutServers = append(dutServers, fmt.Sprintf("%s", c.DutServer))
+			dutServers = append(dutServers, c.DutServer)
 		}
 	}
 
 	// Fill in DUT server var flags.
 	var libsServer string
 	if primary.LibsServer != "" {
-		libsServer = fmt.Sprintf("%s", primary.LibsServer)
+		libsServer = primary.LibsServer
 	}
 
 	// Get autotest execution args.
@@ -104,8 +96,6 @@ func (td *TautoDriver) RunTests(ctx context.Context, resultsDir string, req *api
 	}
 	var wg sync.WaitGroup
 	wg.Add(2)
-
-	const maxCapacity = 4096 * 1024
 
 	go func() {
 		defer wg.Done()

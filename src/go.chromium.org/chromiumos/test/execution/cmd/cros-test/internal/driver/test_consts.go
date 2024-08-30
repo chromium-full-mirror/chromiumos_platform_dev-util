@@ -5,11 +5,6 @@
 // Package driver implements drivers to execute tests.
 package driver
 
-import (
-	"go.chromium.org/chromiumos/config/go/test/api"
-	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
-)
-
 // Common test data for multiple tests.
 const (
 	reqName1   = "PassedTest1"
@@ -34,51 +29,3 @@ const (
 	dutPort1   = 2225
 	dut1       = "dut1:2225"
 )
-
-var req = api.CrosTestRequest{
-	TestSuites: []*api.TestSuite{
-		{
-			Name: suite1,
-			Spec: &api.TestSuite_TestCaseIds{
-				TestCaseIds: &api.TestCaseIdList{
-					TestCaseIds: []*api.TestCase_Id{
-						{
-							Value: test1,
-						},
-						{
-							Value: test2,
-						},
-						{
-							Value: test3,
-						},
-					},
-				},
-			},
-		},
-		{
-			Name: suite2,
-			Spec: &api.TestSuite_TestCaseIds{
-				TestCaseIds: &api.TestCaseIdList{
-					TestCaseIds: []*api.TestCase_Id{
-						{
-							Value: test4,
-						},
-						{
-							Value: test5,
-						},
-					},
-				},
-			},
-		},
-	},
-	Primary: &api.CrosTestRequest_Device{
-		Dut: &labapi.Dut{
-			Id: &labapi.Dut_Id{Value: "Dut1"},
-			DutType: &labapi.Dut_Chromeos{
-				Chromeos: &labapi.Dut_ChromeOS{
-					Ssh: &labapi.IpEndpoint{Address: dutName1, Port: dutPort1},
-				},
-			},
-		},
-	},
-}

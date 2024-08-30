@@ -138,7 +138,7 @@ func TestTestsReports(t *testing.T) {
 	fmt.Print(len(content))
 	for i, line := range content {
 		if line != expectedContent[i] {
-			t.Fatal(fmt.Sprintf("\n%s\n!= (Line %d) expected:\n%s\n", line, i+1, expectedContent[i]))
+			t.Fatalf("\n%s\n!= (Line %d) expected:\n%s\n", line, i+1, expectedContent[i])
 		}
 	}
 

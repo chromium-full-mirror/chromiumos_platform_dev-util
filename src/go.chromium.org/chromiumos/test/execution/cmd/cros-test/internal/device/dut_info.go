@@ -257,8 +257,7 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 
 	sku := chromeOS.GetSku()
 
-	var phase string
-	phase = strings.ToUpper(chromeOS.GetPhase().String())
+	phase := strings.ToUpper(chromeOS.GetPhase().String())
 
 	hwid := chromeOS.GetHwid()
 
@@ -365,21 +364,21 @@ func AppendChromeOsLabels(dut *DutInfo) (map[string]string, []string, error) {
 		attrMap["HWID"] = dut.HWID
 	}
 
-	if dut.ChamelonPresent == true {
+	if dut.ChamelonPresent {
 		labels = append(labels, "chameleon")
 	}
-	if dut.ChameleonAudio == true {
+	if dut.ChameleonAudio {
 		labels = append(labels, "audio_board")
 	}
 	if len(dut.ChamelonPeriphsList) > 0 {
 		labels = append(labels, dut.ChamelonPeriphsList...)
 	}
 
-	if dut.AtrusAudio == true {
+	if dut.AtrusAudio {
 		labels = append(labels, "atrus")
 	}
 
-	if dut.TouchMimo == true {
+	if dut.TouchMimo {
 		labels = append(labels, "mimo")
 	}
 

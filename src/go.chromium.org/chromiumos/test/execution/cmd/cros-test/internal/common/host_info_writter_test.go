@@ -33,7 +33,7 @@ func TestGenHostInfoStore(t *testing.T) {
 		fmt.Sprintf("sku:%v", primary.Sku),
 		fmt.Sprintf("phase:%v", primary.Phase)}
 	ExpectedhostInfo := &HostInfo{Attributes: expected, Labels: expectedLabels}
-	b, err := json.MarshalIndent(ExpectedhostInfo, "", "    ")
+	b, _ := json.MarshalIndent(ExpectedhostInfo, "", "    ")
 
 	c, err := genHostInfoFileContent(primary)
 	if err != nil {

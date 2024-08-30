@@ -127,8 +127,6 @@ func (td *TastDriver) RunTests(ctx context.Context, resultsDir string, req *api.
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	const maxCapacity = 4096 * 1024
-
 	go func() {
 		defer wg.Done()
 		common.TestScanner(stderr, td.logger, "tast")
@@ -324,6 +322,7 @@ func splitExtraArg(args []*api.Arg) (tastArgs, runtimeVars []*api.Arg, err error
 			return nil, nil, fmt.Errorf("invalid Tast flag: %s", a.GetFlag())
 		}
 		if _, ok := allowedTastFlag[a.GetFlag()]; !ok {
+			//lint:ignore ST1005 "Tast" is a proper noun and can be capitalized
 			return nil, nil, fmt.Errorf("Tast flag %s is not allowed to be overridden", a.GetFlag())
 		}
 		tastArgs = append(tastArgs, a)
@@ -341,6 +340,7 @@ func mergeTastArgs(userArgs, customArgs []*api.Arg) (args []*api.Arg, err error)
 			flag = "-" + flag
 		}
 		if _, ok := allowedTastFlag[flag]; !ok {
+			//lint:ignore ST1005 "Tast" is a proper noun and can be capitalized
 			return nil, fmt.Errorf("Tast flag %s is not allowed to be overridden", flag)
 		}
 		lookup[flag] = i
@@ -579,7 +579,7 @@ type Labels struct {
 func getLabelsString(dut *device.DutInfo) (string, error) {
 	_, labels, err := device.AppendChromeOsLabels(dut)
 	if err != nil {
-		return "", fmt.Errorf("Topology failed: %v", err)
+		return "", fmt.Errorf("topology failed: %v", err)
 	}
 	var attrStr string
 	var attrList []string

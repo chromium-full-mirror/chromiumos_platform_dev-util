@@ -73,6 +73,9 @@ func TestTestsReports(t *testing.T) {
 	fn := filepath.Join(td, "results.json")
 
 	f, err := os.Create(fn)
+	if err != nil {
+		t.Fatal("Failed to create results file: ", err)
+	}
 	defer f.Close()
 
 	f.WriteString(testJSON)
@@ -419,6 +422,9 @@ func TestAbortedResults(t *testing.T) {
 	fn := filepath.Join(td, "results.json")
 
 	f, err := os.Create(fn)
+	if err != nil {
+		t.Fatal("Failed to create results file: ", err)
+	}
 	defer f.Close()
 
 	f.WriteString(testJSON)
@@ -533,6 +539,9 @@ func TestMalformedResults(t *testing.T) {
 	fn := filepath.Join(td, "results.json")
 
 	f, err := os.Create(fn)
+	if err != nil {
+		t.Fatal("Failed to create results file: ", err)
+	}
 	defer f.Close()
 
 	f.WriteString(testJSON)
