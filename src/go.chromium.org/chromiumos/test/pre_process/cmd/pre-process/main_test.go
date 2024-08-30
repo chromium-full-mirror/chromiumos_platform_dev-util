@@ -92,11 +92,6 @@ func testMDRequest() []*api.TestSuite {
 
 }
 
-func testMdNoFail() []*api.TestSuite {
-	return generateTestCaseResponse([]string{"example.Pass"})
-
-}
-
 func basicReq(useMD bool) *api.FilterFlakyRequest {
 	var TFI []*api.TestSuite
 	if useMD {

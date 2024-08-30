@@ -74,7 +74,6 @@ func writeOutput(output string, resp *api.FilterFlakyResponse) error {
 
 // Version is the version info of this command. It is filled in during emerge.
 var Version = "<unknown>"
-var defaultPort = 8010
 
 type args struct {
 	// Common input params.
@@ -82,9 +81,6 @@ type args struct {
 	inputPath string
 	output    string
 	version   bool
-
-	// Server mode params
-	port int
 }
 
 // filterCases based on the preset f.data. NOTE: f.data must be populated before calling.
@@ -140,7 +136,7 @@ func (f *Filter) testEligible(value string) bool {
 
 	// If the test is found in the stabilityData, check for its signal and use that
 	if ok {
-		isAllowed = f.data[value].Signal == true
+		isAllowed = f.data[value].Signal
 		if isAllowed {
 			return true
 		}

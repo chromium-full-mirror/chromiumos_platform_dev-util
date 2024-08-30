@@ -5,7 +5,6 @@
 package policies
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"math"
@@ -22,7 +21,6 @@ import (
 
 // PassRatePolicy is a helper struct for GetFile.
 type PassRatePolicy struct {
-	ctx                    context.Context
 	req                    *api.FilterFlakyRequest_PassRatePolicy
 	variant                string
 	milestone              string
