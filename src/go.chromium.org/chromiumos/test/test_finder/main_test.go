@@ -330,24 +330,6 @@ func TestMetadataToTestSuiteWithMetaData(t *testing.T) {
 			},
 		},
 	}
-	testInfos := []*api.TestCase{}
-	testNames := []string{"tast/test001", "tauto/test002", "tauto/test003"}
-	testDeps := [][]string{{"dep1", "dep2"}, {}, {}}
-	for i := range testNames {
-		deps := []*api.TestCase_Dependency{}
-		for _, dep := range testDeps[i] {
-
-			deps = append(deps, &api.TestCase_Dependency{Value: dep})
-		}
-		if len(deps) == 0 {
-			deps = nil
-		}
-		testInfos = append(testInfos, &api.TestCase{
-			Id:           &api.TestCase_Id{Value: testNames[i]},
-			Dependencies: deps,
-		})
-
-	}
 	expected := api.TestSuite{
 		Name: "test_suite",
 		Spec: &api.TestSuite_TestCasesMetadata{

@@ -101,8 +101,6 @@ var suiteComparer = cmp.Comparer(func(a, b suite) bool {
 var suiteSetComparer = cmp.Comparer(func(a, b suiteSet) bool {
 	return cmp.Equal(a.centralizedSuites, b.centralizedSuites, strSetComparer)
 })
-var suitesComparer = mapComparer[string, suite](suiteComparer)
-var suiteSetsComparer = mapComparer[string, suiteSet](suiteSetComparer)
 var centralizedSuiteComparer = cmp.Comparer(func(a, b centralizedSuite) bool {
 	switch valA := a.(type) {
 	case suiteSet:

@@ -109,7 +109,7 @@ func combineTestSuiteNames(suites []*api.TestSuite) string {
 // metadataToTestSuite convert a list of test metadata to a test suite.
 func metadataToTestSuite(name string, mdList []*api.TestCaseMetadata, metadataRequired bool) *api.TestSuite {
 
-	if metadataRequired == true {
+	if metadataRequired {
 		return &api.TestSuite{
 			Name: name,
 			Spec: &api.TestSuite_TestCasesMetadata{
