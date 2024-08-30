@@ -40,7 +40,6 @@ import (
 const cacheDownloadURI = "/download/%s"
 const cacheUntarAndDownloadURI = "/extract/%s?file=%s"
 const cacheExtraAndDownloadURI = "/decompress/%s"
-const streamchunksize = 1024
 
 // DutServiceServer implementation of dut_service.proto
 type DutServiceServer struct {
@@ -151,21 +150,6 @@ func (s *DutServiceServer) FetchFile(req *api.FetchFileRequest, stream api.DutSe
 
 }
 
-func byteChunks(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	if atEOF && len(data) == 0 {
-		return 0, nil, nil
-	}
-	if len(data) >= streamchunksize {
-		return streamchunksize, data[0:streamchunksize], nil
-	}
-	// If we're at EOF, we have a final, non-terminated line. Return it.
-	if atEOF {
-		return len(data), data, nil
-	}
-	// Request more data.
-	return 0, nil, nil
-}
-
 // FetchCrashes remotely fetches crashes from the DUT.
 func (s *DutServiceServer) FetchCrashes(req *api.FetchCrashesRequest, stream api.DutService_FetchCrashesServer) error {
 	s.logger.Println("Received api.FetchCrashesRequest: ", req)
@@ -257,7 +241,7 @@ func (s *DutServiceServer) Restart(ctx context.Context, req *api.RestartRequest)
 
 	if preBootID == postBootID || postBootID == "" {
 		s.logger.Printf("boot ID pre reboot: %s matches post reboot: %s", preBootID, postBootID)
-		s.manager.SetError(op.Name, status.New(codes.Aborted, fmt.Sprint("boot ID did not change after reboot")))
+		s.manager.SetError(op.Name, status.New(codes.Aborted, "boot ID did not change after reboot"))
 		return op, fmt.Errorf("boot ID did not change after reboot")
 	}
 	return op, err
@@ -268,7 +252,7 @@ func (s *DutServiceServer) getBootID(ctx context.Context) (string, error) {
 	stdout, stderr, err := s.runCmdOutput("cat /proc/sys/kernel/random/boot_id")
 	if err != nil {
 		s.logger.Printf("Failed to get bootID:  %s\n, %s", err, stderr)
-		return stdout, fmt.Errorf("Failed to get bootID %s", err)
+		return stdout, fmt.Errorf("failed to get bootID %s", err)
 	}
 
 	s.logger.Printf("Found BootID %s", stdout)
