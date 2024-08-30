@@ -47,7 +47,7 @@ func BuildServiceListener(service *ServiceBase, skipDial bool, cmd *exec.Cmd) fu
 
 		go func() {
 			if !skipDial {
-				for st := time.Now(); time.Now().Sub(st) < time.Second*10; time.Sleep(time.Millisecond * 250) {
+				for st := time.Now(); time.Since(st) < time.Second*10; time.Sleep(time.Millisecond * 250) {
 					conn, innerErr := net.Dial("tcp", fmt.Sprintf("localhost:%d", service.Port))
 					err = innerErr
 					if err == nil {
@@ -58,7 +58,7 @@ func BuildServiceListener(service *ServiceBase, skipDial bool, cmd *exec.Cmd) fu
 			}
 
 			if err != nil {
-				service.ReadyChan <- fmt.Errorf("Failed to start %s, %s", service.Name, err)
+				service.ReadyChan <- fmt.Errorf("failed to start %s, %s", service.Name, err)
 			}
 
 			service.ReadyChan <- nil
@@ -70,7 +70,7 @@ func BuildServiceListener(service *ServiceBase, skipDial bool, cmd *exec.Cmd) fu
 		}()
 
 		if err = cmd.Start(); err != nil {
-			service.ReadyChan <- fmt.Errorf("Failed to listen to %s, %s", service.Name, err)
+			service.ReadyChan <- fmt.Errorf("failed to listen to %s, %s", service.Name, err)
 		}
 
 		go func() {
@@ -90,7 +90,7 @@ func BuildServiceListener(service *ServiceBase, skipDial bool, cmd *exec.Cmd) fu
 func BuildConnection(service *ServiceBase) error {
 	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", service.Port), grpc.WithInsecure())
 	if err != nil {
-		return fmt.Errorf("Failed to establish connection to %s, %s", service.Name, err)
+		return fmt.Errorf("failed to establish connection to %s, %s", service.Name, err)
 	}
 	service.conn = conn
 

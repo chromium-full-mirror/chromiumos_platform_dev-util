@@ -42,12 +42,12 @@ func UpdateContainerService(logger *log.Logger, chroot, imageBase, service strin
 func updateBinary(logger *log.Logger, service string) error {
 	workon := exec.Command("cros_sdk", "cros-workon", "--host", "start", service)
 	if out, err := workon.CombinedOutput(); err != nil {
-		return fmt.Errorf("Workon failed, %s: %s", err, string(out))
+		return fmt.Errorf("workon failed, %s: %s", err, string(out))
 	}
 
 	emerge := exec.Command("cros_sdk", "sudo", "emerge", service)
 	if out, err := emerge.CombinedOutput(); err != nil {
-		return fmt.Errorf("Emerge failed. %s: %s", err, string(out))
+		return fmt.Errorf("emerge failed. %s: %s", err, string(out))
 	}
 	return nil
 }
@@ -63,7 +63,7 @@ func createCleanedImage(logger *log.Logger, image, tempName string, targets []*c
 		args = append(args, target.DelDst)
 	}
 	// docker run -d --name <name> <image> sudo rm -r [delDst]
-	logger.Print(fmt.Sprintf("Running: docker %s", args))
+	logger.Printf("Running: docker %s", args)
 	create := exec.Command("docker", args...)
 	if err := create.Run(); err != nil {
 		return fmt.Errorf("docker run failed for %s, %s", image, err)
@@ -85,7 +85,7 @@ func updateImage(logger *log.Logger, image string, targets []*containerTarget, s
 				return err
 			}
 			if err := copyIntoDocker(logger, target, timeName); err != nil {
-				return fmt.Errorf("Failed to copy twice, %s", err)
+				return fmt.Errorf("failed to copy twice, %s", err)
 			}
 		}
 	}
@@ -94,7 +94,7 @@ func updateImage(logger *log.Logger, image string, targets []*containerTarget, s
 	args := []string{"commit", timeName, image + "_localchange"}
 	commit := exec.Command("docker", args...)
 	if err := commit.Run(); err != nil {
-		return fmt.Errorf("Failed to commit, %s", err)
+		return fmt.Errorf("failed to commit, %s", err)
 	}
 
 	return nil
@@ -121,13 +121,13 @@ func respinImage(target *containerTarget, tempName string) (string, error) {
 	commit := exec.Command("docker", args...)
 	sha, err := commit.Output()
 	if err != nil {
-		return "", fmt.Errorf("Respin failed, docker commit failed, %s", err)
+		return "", fmt.Errorf("respin failed, docker commit failed, %s", err)
 	}
 	timeName := fmt.Sprint(time.Now().UnixNano())
 	newArgs := []string{"run", "-d", "--name", timeName, string(sha), "sudo", "rm", "-r", target.DelDst}
 	respin := exec.Command("docker", newArgs...)
 	if err := respin.Run(); err != nil {
-		return "", fmt.Errorf("Failed to respin, %s", err)
+		return "", fmt.Errorf("failed to respin, %s", err)
 	}
 
 	return timeName, nil

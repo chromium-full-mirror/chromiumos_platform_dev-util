@@ -224,18 +224,18 @@ func (c *localCftCmd) compileServicesToRun(manager *services.LocalCFTManager) []
 
 func (c *localCftCmd) validateArgs() error {
 	if c.board == "" {
-		return fmt.Errorf("-board must be provided.")
+		return fmt.Errorf("argument -board must be provided")
 	}
 	if c.build == "" {
-		return fmt.Errorf("-build must be provided.")
+		return fmt.Errorf("argument -build must be provided")
 	}
 	if (c.fullRun || c.test || c.provision) && c.dutHost == "" {
-		return fmt.Errorf("-host must be provided.")
+		return fmt.Errorf("argument -host must be provided")
 	}
 
 	parsedLocalServices := strings.Split(c.localServices, ",")
 	if c.localServices != "" && len(parsedLocalServices) > 0 && c.chroot == "" {
-		return fmt.Errorf("Local services requires having the -chroot flag")
+		return fmt.Errorf("local services requires having the -chroot flag")
 	}
 
 	return nil
@@ -255,14 +255,14 @@ func (c *localCftCmd) checkPreReqs() error {
 func (c *localCftCmd) Validate() error {
 	if err := c.flagSet.Parse(os.Args[1:]); err != nil {
 		c.printUsage()
-		return fmt.Errorf("Failed to parse args, %s", err)
+		return fmt.Errorf("failed to parse args, %s", err)
 	}
 	if err := c.validateArgs(); err != nil {
 		c.printUsage()
-		return fmt.Errorf("Failed to validate args, %s", err)
+		return fmt.Errorf("failed to validate args, %s", err)
 	}
 	if err := c.checkPreReqs(); err != nil {
-		return fmt.Errorf("Failed to pass prereq checks, %s", err)
+		return fmt.Errorf("failed to pass prereq checks, %s", err)
 	}
 
 	return nil

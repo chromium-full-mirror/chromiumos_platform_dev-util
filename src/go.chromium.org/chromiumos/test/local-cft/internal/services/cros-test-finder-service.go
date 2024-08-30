@@ -51,7 +51,7 @@ func (c *CrosTestFinderService) Execute(commandName ServiceCommand_, args ...int
 			ctf: c,
 		}
 	default:
-		return fmt.Errorf("Command %s not found", commandName)
+		return fmt.Errorf("command %s not found", commandName)
 	}
 	return c.executor.Execute(cmd)
 }
@@ -72,7 +72,7 @@ type SetupCrosTestFinder struct {
 
 func (starter *SetupCrosTestFinder) Setup() error {
 	if err := utils.EnsureContainerAvailable(starter.ctf.Name); err != nil {
-		err := fmt.Errorf("Failed to ensure container %s was available, %s", starter.ctf.Name, err)
+		err := fmt.Errorf("failed to ensure container %s was available, %s", starter.ctf.Name, err)
 		starter.ctf.LocalLogger.Println(err)
 		return err
 	}
@@ -207,7 +207,7 @@ func (cmd *FindTestsCommand) Execute() error {
 
 	findTestResult, err := cmd.ctf.client.FindTests(cmd.ctf.manager.ctx, findTestsRequest)
 	if err != nil {
-		return fmt.Errorf("Failed to find tests, %s", err)
+		return fmt.Errorf("failed to find tests, %s", err)
 	}
 	cmd.ctf.manager.testSuites = []*api.TestSuite{}
 	for _, testSuite := range findTestResult.TestSuites {

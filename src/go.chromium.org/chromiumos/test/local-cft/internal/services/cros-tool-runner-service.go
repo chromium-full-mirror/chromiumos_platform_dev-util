@@ -127,7 +127,7 @@ func (c *CTRService) Execute(commandName ServiceCommand_, args ...interface{}) e
 			request: startContainerRequest,
 		}
 	default:
-		return fmt.Errorf("Command %s not found", commandName)
+		return fmt.Errorf("command %s not found", commandName)
 	}
 	return c.executor.Execute(cmd)
 }
@@ -182,17 +182,17 @@ func (starter *SetupCTR) fetchCrosToolRunner() (string, error) {
 	dir := fmt.Sprintf("%s/bin/", starter.ctr.BaseDir)
 
 	if err := os.RemoveAll(dir); err != nil {
-		return "", fmt.Errorf("Failed to remove previous binaries, %s", err)
+		return "", fmt.Errorf("failed to remove previous binaries, %s", err)
 	}
 
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		starter.ctr.LocalLogger.Printf("Failed to create local-cft binaries directory, %s\n", err)
 	}
 	if _, err := exec.Command("cipd", "init", dir).Output(); err != nil {
-		return "", fmt.Errorf("Could not run 'cipd init', %s", err)
+		return "", fmt.Errorf("could not run 'cipd init', %s", err)
 	}
 	if _, err := exec.Command("cipd", "install", CROS_TOOL_RUNNER_PATH, "prod", "-root", dir).Output(); err != nil {
-		return "", fmt.Errorf("Failed to install cros-tool-runner, %s", err)
+		return "", fmt.Errorf("failed to install cros-tool-runner, %s", err)
 	}
 
 	return dir, nil
@@ -239,7 +239,7 @@ func (starter *SetupCTR) fetchImageData() error {
 	containerImages := regContainerEx.FindAllStringSubmatch(string(imageDataRaw), -1)
 
 	if len(containerImages) == 0 {
-		return fmt.Errorf("Could not find any container images with given build number %s", starter.ctr.manager.Build)
+		return fmt.Errorf("could not find any container images with given build number %s", starter.ctr.manager.Build)
 	}
 	archivePath := containerImages[len(containerImages)-1][0]
 	starter.ctr.manager.imagePath = strings.Split(archivePath, "metadata")[0] // Add to Manager

@@ -20,14 +20,14 @@ func EnsureContainerAvailable(containerName string) error {
 
 	stopOutput, err := stop.CombinedOutput()
 	output := string(stopOutput)
-	if err != nil && output != fmt.Sprintf("Error response from daemon: No such container: %s\n", containerName) {
+	if err != nil && output != fmt.Sprintf("error response from daemon: No such container: %s\n", containerName) {
 		return fmt.Errorf(output)
 	}
 
 	if strings.Contains(output, containerName) {
 		return nil
 	} else {
-		return fmt.Errorf("Unexpected output while trying to stop container %s, %s", containerName, output)
+		return fmt.Errorf("unexpected output while trying to stop container %s, %s", containerName, output)
 	}
 }
 
@@ -35,10 +35,10 @@ func EnsureContainerAvailable(containerName string) error {
 // to prevent collisions between services
 func GetFreePort() uint16 {
 	l, err := net.Listen("tcp", ":0")
-	defer l.Close()
 	if err != nil {
-		log.Fatalf("Failed to get port, %s", err)
+		log.Fatalf("failed to get port, %s", err)
 	}
+	defer l.Close()
 
 	return uint16(l.Addr().(*net.TCPAddr).Port)
 }
@@ -59,9 +59,9 @@ func CheckDockerInstalled() error {
 	testDockerOut, err := testDocker.CombinedOutput()
 	if err != nil || testDocker.ProcessState.ExitCode() == 1 {
 		if strings.Contains(string(testDockerOut), "invalid_grant: Bad Request") {
-			return fmt.Errorf("Docker not authd. Please run: \n\tgcloud auth configure-docker us-docker.pkg.dev\nThen try again.")
+			return fmt.Errorf("docker not authd. Please run: \n\tgcloud auth configure-docker us-docker.pkg.dev\nThen try again")
 		}
-		return fmt.Errorf("Unexpected output during docker's authentication, %s, %s", string(testDockerOut), err)
+		return fmt.Errorf("unexpected output during docker's authentication, %s, %s", string(testDockerOut), err)
 	}
 
 	return nil
@@ -77,7 +77,7 @@ func checkAppInstalled(appName string) error {
 	}
 
 	if string(appOut) == "" {
-		return fmt.Errorf("%s not found. Install the application then try again.", appName)
+		return fmt.Errorf("%s not found. Install the application then try again", appName)
 	}
 
 	return nil

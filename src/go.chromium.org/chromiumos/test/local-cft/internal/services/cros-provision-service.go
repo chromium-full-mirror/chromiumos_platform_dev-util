@@ -61,7 +61,7 @@ func (c *CrosProvisionService) Execute(commandName ServiceCommand_, args ...inte
 			cp: c,
 		}
 	default:
-		return fmt.Errorf("Command %s not found", commandName)
+		return fmt.Errorf("command %s not found", commandName)
 	}
 	return c.executor.Execute(cmd)
 }
@@ -82,7 +82,7 @@ type SetupCrosProvision struct {
 
 func (starter *SetupCrosProvision) Setup() error {
 	if err := utils.EnsureContainerAvailable(starter.cp.Name); err != nil {
-		err = fmt.Errorf("Failed to ensure container %s was available, %s", starter.cp.Name, err)
+		err = fmt.Errorf("failed to ensure container %s was available, %s", starter.cp.Name, err)
 		starter.cp.LocalLogger.Println(err)
 		return err
 	}
@@ -190,16 +190,16 @@ func (starter *SetupCrosProvision) createProvisionMetadata() error {
 
 	metaDataJson, err := marshaler.MarshalToString(metadata)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal provision request, %s", err)
+		return fmt.Errorf("failed to marshal provision request, %s", err)
 	}
 
 	if err := os.MkdirAll(fmt.Sprintf("%s/cros-provision/", starter.cp.BaseDir), 0755); err != nil {
-		return fmt.Errorf("Error creating cros-provision folder, %s", err)
+		return fmt.Errorf("error creating cros-provision folder, %s", err)
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/cros-provision/in.json", starter.cp.BaseDir), []byte(metaDataJson), 0644)
 	if err != nil {
-		return fmt.Errorf("Error writing provision request to file, %s", err)
+		return fmt.Errorf("error writing provision request to file, %s", err)
 	}
 
 	return nil
@@ -237,7 +237,7 @@ type InstallCommand struct {
 func (cmd *InstallCommand) Execute() error {
 	provisionInstallMetadata, err := anypb.New(&api.CrOSProvisionMetadata{})
 	if err != nil {
-		return fmt.Errorf("Provision input metadata failed marshal, %s", err)
+		return fmt.Errorf("provision input metadata failed marshal, %s", err)
 	}
 	installRequest := &api.InstallRequest{
 		ImagePath: &_go.StoragePath{

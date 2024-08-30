@@ -41,7 +41,7 @@ func (c *SSHTunnelService) Start() error {
 func (c *SSHTunnelService) Execute(commandName ServiceCommand_, args ...interface{}) error {
 	switch commandName {
 	default:
-		return fmt.Errorf("Command %s not found", commandName)
+		return fmt.Errorf("command %s not found", commandName)
 	}
 }
 

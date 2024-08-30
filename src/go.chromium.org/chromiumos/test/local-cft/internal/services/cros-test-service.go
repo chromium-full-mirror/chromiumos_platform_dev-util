@@ -52,7 +52,7 @@ func (c *CrosTestService) Execute(commandName ServiceCommand_, args ...interface
 			ct: c,
 		}
 	default:
-		return fmt.Errorf("Command %s not found", commandName)
+		return fmt.Errorf("command %s not found", commandName)
 	}
 	return c.executor.Execute(cmd)
 }
@@ -73,7 +73,7 @@ type SetupCrosTest struct {
 
 func (starter *SetupCrosTest) Setup() error {
 	if err := utils.EnsureContainerAvailable(starter.ct.Name); err != nil {
-		err = fmt.Errorf("Failed to ensure container %s was available, %s", starter.ct.Name, err)
+		err = fmt.Errorf("failed to ensure container %s was available, %s", starter.ct.Name, err)
 		starter.ct.LocalLogger.Println(err)
 		return err
 	}
@@ -202,11 +202,11 @@ func (cmd *RunTestsCommand) Execute() error {
 
 	runTestResponse, err := cmd.ct.client.RunTests(cmd.ct.manager.ctx, runTestsRequest)
 	if err != nil {
-		return fmt.Errorf("Failed to run tests, %s", err)
+		return fmt.Errorf("failed to run tests, %s", err)
 	}
 
 	if !runTestResponse.GetResponse().MessageIs((*api.CrosTestResponse)(nil)) {
-		return fmt.Errorf("Response from RunTest was not of type CrosTestResponse")
+		return fmt.Errorf("response from RunTest was not of type CrosTestResponse")
 	}
 
 	testResponse := &api.CrosTestResponse{}

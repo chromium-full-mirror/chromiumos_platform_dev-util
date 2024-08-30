@@ -41,7 +41,7 @@ func (c *CacheServerService) Start() error {
 func (c *CacheServerService) Execute(commandName ServiceCommand_, args ...interface{}) error {
 	switch commandName {
 	default:
-		return fmt.Errorf("Command %s not found", commandName)
+		return fmt.Errorf("command %s not found", commandName)
 	}
 }
 
@@ -61,7 +61,7 @@ type SetupCacheServer struct {
 
 func (starter *SetupCacheServer) Setup() error {
 	if err := utils.EnsureContainerAvailable(starter.cs.Name); err != nil {
-		err = fmt.Errorf("Failed to ensure container %s was available, %s", starter.cs.Name, err)
+		err = fmt.Errorf("failed to ensure container %s was available, %s", starter.cs.Name, err)
 		starter.cs.LocalLogger.Println(err)
 		return err
 	}
