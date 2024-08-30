@@ -14,7 +14,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/golang/protobuf/jsonpb"
@@ -73,28 +72,6 @@ func readInput(fileName string) (*api.CrosTestReadyConfig, error) {
 
 // Version is the version info of this command. It is filled in during emerge.
 var Version = "<unknown>"
-
-type src2DestDir struct {
-	src     string
-	destDir string
-}
-
-type fileMappings struct {
-	mapping []src2DestDir
-}
-
-func (fm *fileMappings) String() string {
-	return fmt.Sprintf("%v", fm.mapping)
-}
-
-func (fm *fileMappings) Set(value string) error {
-	mapping := strings.Split(value, ":")
-	if len(mapping) != 2 {
-		return fmt.Errorf("invalid string for file mapping: %q", mapping)
-	}
-	fm.mapping = append(fm.mapping, src2DestDir{src: mapping[0], destDir: mapping[1]})
-	return nil
-}
 
 // checkCmd implements subcommands.Command to check
 // if a DUT is test ready to be used for testing.
