@@ -1030,7 +1030,11 @@ def rewrite_commit_message(
                 additional_header, offset=0
             )
             pseudoheaders.update(parsed)
-    if keep_pseudoheaders and "Change-Id" not in keep_pseudoheaders:
+    if (
+        not pseudoheaders.get("Change-Id")
+        or not keep_pseudoheaders
+        or "Change-Id" not in keep_pseudoheaders
+    ):
         pseudoheaders["Change-Id"] = change_id
 
     commit_message = pseudoheaders.add_to_commit_message(commit_message)
