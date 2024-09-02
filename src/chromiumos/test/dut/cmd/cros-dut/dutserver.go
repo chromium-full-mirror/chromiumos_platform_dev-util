@@ -573,7 +573,7 @@ func GetConnectionWithRetry(ctx context.Context, dutIdentifier string, wiringAdd
 	retryCount := 5
 	retryInterval := time.Duration(10 * time.Second)
 	isCloudbot := false
-	if id, found := os.LookupEnv("SWARMING_BOT_ID"); found && strings.HasPrefix(id, "cloudbot-") {
+	if id, found := os.LookupEnv("SWARMING_BOT_ID"); found && strings.HasPrefix(id, "cloudbots-") {
 		isCloudbot = true
 	}
 	var err error
