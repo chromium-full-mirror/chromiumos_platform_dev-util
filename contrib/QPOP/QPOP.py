@@ -275,7 +275,6 @@ class QPOP:
                 name="wwcb.BootDUTWithDockConnected.clamshell_mode",
                 externalDisplayCount=1,
                 externalUsbDeviceCount=1,
-                externalEthernetCount=1,
                 category=["docking"],
             )
         )
@@ -284,7 +283,6 @@ class QPOP:
                 name="wwcb.BootDUTWithDockConnected.tablet_mode",
                 externalDisplayCount=1,
                 externalUsbDeviceCount=1,
-                externalEthernetCount=1,
                 category=["docking"],
             )
         )
@@ -364,7 +362,6 @@ class QPOP:
                 name="wwcb.PlugUnplugFlipDock.clamshell_mode",
                 externalDisplayCount=1,
                 externalUsbDeviceCount=1,
-                externalEthernetCount=1,
                 category=["docking"],
             )
         )
@@ -373,7 +370,6 @@ class QPOP:
                 name="wwcb.PlugUnplugFlipDock.tablet_mode",
                 externalDisplayCount=1,
                 externalUsbDeviceCount=1,
-                externalEthernetCount=1,
                 category=["docking"],
             )
         )
@@ -389,7 +385,6 @@ class QPOP:
                 name="wwcb.RebootDUTSwitchDockPower.clamshell_mode",
                 externalDisplayCount=1,
                 externalUsbDeviceCount=1,
-                externalEthernetCount=1,
                 category=["docking"],
             )
         )
@@ -398,7 +393,6 @@ class QPOP:
                 name="wwcb.RebootDUTSwitchDockPower.tablet_mode",
                 externalDisplayCount=1,
                 externalUsbDeviceCount=1,
-                externalEthernetCount=1,
                 category=["docking"],
             )
         )
@@ -421,7 +415,6 @@ class QPOP:
                 name="wwcb.SuspendResumeDockPlugUnplug.clamshell_mode",
                 externalDisplayCount=1,
                 externalUsbDeviceCount=1,
-                externalEthernetCount=1,
                 category=["docking"],
             )
         )
@@ -430,7 +423,6 @@ class QPOP:
                 name="wwcb.SuspendResumeDockPlugUnplug.tablet_mode",
                 externalDisplayCount=1,
                 externalUsbDeviceCount=1,
-                externalEthernetCount=1,
                 category=["docking"],
             )
         )
