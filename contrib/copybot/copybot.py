@@ -1376,6 +1376,8 @@ def run_copybot(
                 keep_pseudoheaders=keep_pseudoheaders,
                 additional_pseudoheaders=args.add_pseudoheaders,
             )
+        current_change = repo.log(num=1, fmt="%H").stdout.strip()
+        logger.info("Revision %s cherry-picked as %s", rev, current_change)
 
     if repo.rev_parse() == downstream_rev:
         logger.info("Nothing to push!")
