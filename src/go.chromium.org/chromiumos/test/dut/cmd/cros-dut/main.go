@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
+	"go.chromium.org/chromiumos/test/util/adb"
 	"go.chromium.org/chromiumos/test/util/portdiscovery"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -126,8 +127,19 @@ func main() {
 
 		conn, err := GetConnectionWithRetry(ctx, *dutName, *wiringAddress, &initialConReq, logger)
 		if err != nil {
-			logger.Println("Failed to connect to dut: ", err)
-			return 2
+			logger.Println("Failed to connect to DUT via SSH ", err)
+			logger.Println("Will try to connect to DUT via ADB.")
+			// It is possible that the DUT has android image. DUT with android image cannot be
+			// sshed. Check with setup adb. If that succeeds don't fail cros-dut.
+			if err = adb.SetupAdb(logger, *dutAddress); err != nil {
+				logger.Println("Failed to connect to DUT via ADB ", err)
+				return 2
+			} else {
+				if err = adb.TeardownAdb(logger, *dutAddress); err != nil {
+					logger.Println("Warning: TeardownAdb failed: ", err)
+				}
+			}
+			logger.Println("Warning: cros-dut wont work because DUT has android OS. After installing cros call ForceReconnect.")
 		}
 		// Log the port _after_ the conn is established server.
 		logger.Println("Started server on address ", l.Addr().String())
