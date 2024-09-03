@@ -15,6 +15,13 @@ rebase_target = "latest"
 # Otherwise pick desired file name.
 rebasedb_name = None
 
+# Name of the file with Google's spreadsheet ID. If the file does not exist,
+# a new spreadsheet is created and its ID is written down and then reused.
+# Set to None to create a new spreadsheet each time.
+#
+# rebase_spreadsheet_filename = "rebase-spreadsheet.id"
+rebase_spreadsheet_filename = None
+
 # Set datadir to None to use default.
 # Otherwise provide absolute path name.
 datadir = None

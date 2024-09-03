@@ -28,10 +28,9 @@ from common import upstreamdb
 import genlib
 
 from config import rebase_baseline_branch
+from config import rebase_spreadsheet_filename
 from config import spreadsheet_share_with
 
-
-rebase_filename = "rebase-spreadsheet.id"
 
 other_topic_id = 0  # Sheet Id to be used for "other" topic
 
@@ -482,7 +481,7 @@ def main():
     """Main function"""
 
     sheet = genlib.init_spreadsheet(
-        rebase_filename,
+        rebase_spreadsheet_filename,
         "Rebase %s -> %s" % (rebase_baseline_branch, rebase_target_tag()),
     )
     get_other_topic_id()
