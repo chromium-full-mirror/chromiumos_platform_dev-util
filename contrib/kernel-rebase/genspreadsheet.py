@@ -2,6 +2,7 @@
 # Copyright 2021 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+# pylint: disable=C0209,R9170
 
 """Use information in rebase database to create rebase spreadsheet
 
@@ -27,6 +28,7 @@ from common import upstreamdb
 import genlib
 
 from config import rebase_baseline_branch
+from config import spreadsheet_share_with
 
 
 rebase_filename = "rebase-spreadsheet.id"
@@ -39,24 +41,6 @@ orange = {"red": 1, "green": 0.6, "blue": 0}
 green = {"red": 0, "green": 0.9, "blue": 0}
 blue = {"red": 0.3, "green": 0.6, "blue": 1}
 white = {"red": 1, "green": 1, "blue": 1}
-
-# Describe users/groups to share a spreadsheet with
-#
-# Email address of an user/group to share a spreadsheet with
-# Type can be any of: writer, commenter, reader
-# Role can be any of: user,  group
-#
-#     Email address         Type      Role
-share_with = {
-    "jsbarnes@google.com": ["user", "writer"],
-    "groeck@google.com": ["user", "writer"],
-    "levinale@google.com": ["user", "writer"],
-    "tzungbi@google.com": ["user", "writer"],
-    "lmajczak@google.com": ["user", "writer"],
-    "bbujak@google.com": ["user", "writer"],
-    "ukaszb@google.com": ["user", "writer"],
-    "chromeos-krk@google.com": ["group", "commenter"],
-}
 
 share_msg = f"Rebase of {rebase_baseline_branch} branch to {rebase_target_tag()} kernel upstream"
 
@@ -515,7 +499,7 @@ def main():
     # Add description after resizing
     add_description(requests)
     genlib.doit(sheet, requests)
-    genlib.share_sheet(sheet[1], share_with, share_msg)
+    genlib.share_sheet(sheet[1], spreadsheet_share_with, share_msg)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-"
 # Copyright 2021 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -479,3 +478,14 @@ topiclist_short = [
     ["arch", ["arch/x86", "arch/arm64", "arch/arm"]],
     ["fs", ["fs/pstore", "fs/ecryptfs", "fs/other"]],
 ]
+
+# Describe users/groups to share a spreadsheet with
+#
+# Email address of an user/group to share a spreadsheet with
+# Type can be any of: writer, commenter, reader
+# Role can be any of: user,  group
+#
+#     Email address         Type      Role
+spreadsheet_share_with = {
+#    "example@google.com": ["user", "reader"],
+}
