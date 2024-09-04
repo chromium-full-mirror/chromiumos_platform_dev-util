@@ -22,6 +22,8 @@ import (
 
 const ctsPath = "/usr/local/tradefed/android-cts"
 const tradefedTestResultFile = "results/latest/test_result.xml"
+const ctsResultsDir = "results/"
+const ctsLogsDir = "logs/"
 
 type TradefedDriver struct {
 	logger *log.Logger
@@ -91,23 +93,25 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 		td.logger.Println("nill resulsts?")
 	}
 
-	td.logger.Println("Got results, moving resultsidr")
-	td.moveResults(resultsDir)
+	td.moveArtifacts(resultsDir, ctsResultsDir)
+	td.moveArtifacts(resultsDir, ctsLogsDir)
 	td.logger.Println("final results: ", allRspn)
 	td.logger.Println("final results: ", results)
 
 	return allRspn, nil
 }
 
-func (td *TradefedDriver) moveResults(resultsDir string) error {
+// Generate unit tests for the function "moveArtifacts" below
+func (td *TradefedDriver) moveArtifacts(resultsDir string, artifactsDir string) {
+	mvCmd := exec.Command("mv", path.Join(ctsPath, artifactsDir), resultsDir)
+	td.logger.Printf("started to move artifacts from: %q to: %q", mvCmd.Path, resultsDir)
 
-	mvCmd := exec.Command("mv", path.Join(ctsPath, "results/"), resultsDir)
 	out, err := mvCmd.CombinedOutput()
 	if err != nil {
-		td.logger.Printf("Error moving results: %s: %s", err, string(out))
+		td.logger.Printf("Error moving artifacts from: %q: %s: %s", mvCmd.Path, err, string(out))
+		return
 	}
-	td.logger.Println("moved results")
-	return nil
+	td.logger.Printf("successfully moved artifacts from: %q to: %q", mvCmd.Path, resultsDir)
 }
 
 func launchAndRead(cmd *exec.Cmd, logger *log.Logger) error {
