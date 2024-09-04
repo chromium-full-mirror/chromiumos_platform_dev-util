@@ -7,6 +7,7 @@ package adb
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os/exec"
 	"regexp"
@@ -91,7 +92,7 @@ func SetupAdb(logger *log.Logger, addr string) (err error) {
 
 		}
 	}
-	found, err := adbDeviceFound(addr, logger)
+	found, err := AdbDeviceFound(addr, logger)
 	if !found {
 		return fmt.Errorf("ADB Start failed: %s", err)
 	}
@@ -99,7 +100,34 @@ func SetupAdb(logger *log.Logger, addr string) (err error) {
 	return nil
 }
 
-func adbDeviceFound(addr string, logger *log.Logger) (bool, error) {
+// KeepAdbAlive spawns a go routine that will continuously check the
+// adb connection to ensure the device is found. If not found, try
+// to setup the adb connection again. Useful for reboot cycles.
+func KeepAdbAlive(logger *log.Logger, addr string, exit chan struct{}) {
+	go func(logger *log.Logger, addr string, exit chan struct{}) {
+		// Constantly checking the adb connection can be quite loud in the logs.
+		// Suppress logging through io.Discard.
+		disabledLogger := log.New(io.Discard, "", 0)
+		logger.Println("Starting adb connection check loop")
+		for {
+			select {
+			case <-exit:
+				logger.Println("Exiting adb connection check loop")
+				return
+			default:
+				found, _ := AdbDeviceFound(addr, disabledLogger)
+				if !found {
+					SetupAdb(disabledLogger, addr)
+				}
+			}
+
+			// Sleep to make checks more periodic rather than constant.
+			time.Sleep(10 * time.Second)
+		}
+	}(logger, addr, exit)
+}
+
+func AdbDeviceFound(addr string, logger *log.Logger) (bool, error) {
 	outStr, err := AdbCmd([]string{"devices"}, logger)
 	deviceRegex := regexp.MustCompile(fmt.Sprintf(`%s\sdevice`, FmtAddr(addr)))
 	if !deviceRegex.MatchString(outStr) {

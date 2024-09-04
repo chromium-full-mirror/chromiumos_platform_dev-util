@@ -53,7 +53,9 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 		return fmt.Errorf("setupAdb failed")
 	}
 
+	exit := make(chan struct{})
 	defer func() {
+		exit <- struct{}{}
 		err = c.TeardownAdb(logger, primary.Ip)
 	}()
 
@@ -61,6 +63,8 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 	terminalPath := path.Join(ctsPath, "tools/cts-tradefed")
 	cmd := exec.Command(terminalPath, baseArgs...)
 	logger.Println("Running TF: ", cmd.String())
+
+	c.KeepAdbAlive(logger, primary.Ip, exit)
 	return launchAndRead(cmd, logger)
 }
 
