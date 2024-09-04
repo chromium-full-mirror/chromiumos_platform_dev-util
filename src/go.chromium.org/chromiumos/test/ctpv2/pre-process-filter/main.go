@@ -189,6 +189,10 @@ func generateFlakyTestMap(boardTestMap map[string]*BoardTestInfo, log *log.Logge
 
 // innerMain evaluates flaky tests to be removed for all boards in the request and then updates the request by removing flaky tests.
 func innerMain(req *api.InternalTestplan, log *log.Logger) *api.InternalTestplan {
+	// If flow is other than CQ, then skip and return the original req
+	if !isCqFlow(req, log) {
+		return req
+	}
 
 	// log internal test plan before flaky filtering
 	prettyLogInternalTestplanDetail(req, log)

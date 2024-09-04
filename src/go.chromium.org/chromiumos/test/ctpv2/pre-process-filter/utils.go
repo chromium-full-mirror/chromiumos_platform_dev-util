@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log"
 	"regexp"
+	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
@@ -200,4 +201,22 @@ func prettyLogInternalTestplanDetail(req *api.InternalTestplan, log *log.Logger)
 		}
 	}
 	log.Printf("************Internal Test plan Detail End************")
+}
+
+func isCqFlow(req *api.InternalTestplan, log *log.Logger) bool {
+	for _, tc := range req.GetTestCases() {
+		for _, schedulingUnitOptions := range tc.GetSchedulingUnitOptions() {
+			for _, schedulingUnit := range schedulingUnitOptions.GetSchedulingUnits() {
+				installPath, exists := schedulingUnit.GetDynamicUpdateLookupTable()["installPath"]
+				if !exists {
+					log.Printf("Scheduling unit doesn't have install path")
+					return false
+				}
+				if strings.Contains(installPath, "-cq/") {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
