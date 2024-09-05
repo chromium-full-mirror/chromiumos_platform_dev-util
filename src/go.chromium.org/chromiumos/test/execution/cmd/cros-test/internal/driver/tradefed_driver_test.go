@@ -5,6 +5,7 @@
 package driver
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -76,7 +77,7 @@ func TestMoveArtifacts(t *testing.T) {
 				td := &TradefedDriver{
 					logger: log.New(io.Discard, "", 0),
 				}
-				resultsPath := path.Join(ctsPath, tradefedTestResultFile)
+				resultsPath := path.Join(fmt.Sprintf(testPath, testType), tradefedTestResultFile)
 				td.moveArtifacts(resultsPath, tmpDir)
 
 				for _, file := range tc.wantFileExist {

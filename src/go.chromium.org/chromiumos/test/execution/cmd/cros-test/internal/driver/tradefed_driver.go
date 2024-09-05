@@ -11,6 +11,7 @@ import (
 	"log"
 	"os/exec"
 	"path"
+	"strings"
 	"sync"
 
 	c "go.chromium.org/chromiumos/test/util/adb"
@@ -20,10 +21,12 @@ import (
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
 )
 
-const ctsPath = "/usr/local/tradefed/android-cts"
+const testPath = "/usr/local/tradefed/android-%s"
 const tradefedTestResultFile = "results/latest/test_result.xml"
 const ctsResultsDir = "results/"
 const ctsLogsDir = "logs/"
+
+var testType = "cts"
 
 type TradefedDriver struct {
 	logger *log.Logger
@@ -39,7 +42,7 @@ func (d *TradefedDriver) Name() string {
 }
 
 func buildTradefedCommand(logger *log.Logger, tests []*api.TestCaseMetadata, primaryIp string) []string {
-	baseArgs := []string{"run", "commandAndExit", "cts"}
+	baseArgs := []string{"run", "commandAndExit", testType}
 	for _, t := range tests {
 		logger.Println("Running provided test: ", t.TestCase.Name)
 		baseArgs = append(baseArgs, "--include-filter", t.TestCase.Name)
@@ -62,7 +65,7 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 	}()
 
 	baseArgs := buildTradefedCommand(logger, tests, primary.Ip)
-	terminalPath := path.Join(ctsPath, "tools/cts-tradefed")
+	terminalPath := path.Join(fmt.Sprintf(testPath, testType), fmt.Sprintf("tools/%s-tradefed", testType))
 	cmd := exec.Command(terminalPath, baseArgs...)
 	logger.Println("Running TF: ", cmd.String())
 
@@ -79,12 +82,19 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 		return nil, err
 	}
 
+	for _, test := range tests {
+		if strings.HasPrefix(test.GetTestCase().GetName(), "Dts") {
+			testType = "dts"
+			break
+		}
+	}
+
 	_ = runTradefedTest(ctx, td.logger, tests, primary, resultsDir)
 	// TODO determine what we want to do with an error _and_ possibly having results
 	// In general I'd say just spit out the results.
 	// One difference between Tast/Autotest and this is that the test case given will likely result in many
 	// testcases; where T/AT were normally 1:1
-	resultsPath := path.Join(ctsPath, tradefedTestResultFile)
+	resultsPath := path.Join(fmt.Sprintf(testPath, testType), tradefedTestResultFile)
 	results := buildTradefedResult(td.logger, resultsPath)
 	if results.GetTestCaseResults() != nil {
 		allRspn.TestCaseResults = append(allRspn.TestCaseResults, results.TestCaseResults...)
@@ -103,7 +113,7 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 
 // Generate unit tests for the function "moveArtifacts" below
 func (td *TradefedDriver) moveArtifacts(resultsDir string, artifactsDir string) {
-	mvCmd := exec.Command("mv", path.Join(ctsPath, artifactsDir), resultsDir)
+	mvCmd := exec.Command("mv", path.Join(fmt.Sprintf(testPath, testType), artifactsDir), resultsDir)
 	td.logger.Printf("started to move artifacts from: %q to: %q", mvCmd.Path, resultsDir)
 
 	out, err := mvCmd.CombinedOutput()
