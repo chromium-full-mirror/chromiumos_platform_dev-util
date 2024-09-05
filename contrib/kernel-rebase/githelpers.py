@@ -358,13 +358,18 @@ def format_patch(repo, sha):
     return str(diff)
 
 
-def head_sha(repo):
-    """Gets the sha of HEAD"""
+def revision_sha(repo_path, branch):
+    """Gets the sha of a given revision (e.g. branch, tag, HEAD)"""
 
-    with sh.pushd(repo):
-        sha = sh.git("--no-pager", "rev-parse", "--short", "HEAD")
+    with sh.pushd(repo_path):
+        sha = sh.git("--no-pager", "rev-parse", "--short", branch)
 
     return str(sha).strip("\n")
+
+
+def head_sha(repo_path):
+    """Gets the sha of HEAD"""
+    return revision_sha(repo_path, "HEAD")
 
 
 def sha_in_head(repo, sha):

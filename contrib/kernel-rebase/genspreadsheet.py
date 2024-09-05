@@ -21,11 +21,14 @@ from __future__ import print_function
 
 import sqlite3
 
+from common import chromeos_path
 from common import rebase_target_tag
 from common import rebase_target_version
 from common import rebasedb
+from common import upstream_path
 from common import upstreamdb
 import genlib
+from githelpers import revision_sha
 
 from config import rebase_baseline_branch
 from config import rebase_spreadsheet_filename
@@ -256,6 +259,75 @@ def add_description(requests):
                             {
                                 "userEnteredValue": {
                                     "stringValue": "severe problems"
+                                },
+                            },
+                        ]
+                    },
+                    {},
+                    {
+                        "values": [
+                            {},
+                            {
+                                "userEnteredValue": {
+                                    "stringValue": "Source",
+                                },
+                                "userEnteredFormat": {
+                                    "textFormat": {"bold": True},
+                                },
+                            },
+                            {
+                                "userEnteredValue": {"stringValue": "Target"},
+                                "userEnteredFormat": {
+                                    "textFormat": {"bold": True},
+                                },
+                            },
+                        ]
+                    },
+                    {
+                        "values": [
+                            {
+                                "userEnteredValue": {
+                                    "stringValue": "Revision",
+                                },
+                                "userEnteredFormat": {
+                                    "textFormat": {"bold": True},
+                                },
+                            },
+                            {
+                                "userEnteredValue": {
+                                    "stringValue": rebase_baseline_branch,
+                                },
+                            },
+                            {
+                                "userEnteredValue": {
+                                    "stringValue": rebase_target_tag(),
+                                },
+                            },
+                        ]
+                    },
+                    {
+                        "values": [
+                            {
+                                "userEnteredValue": {
+                                    "stringValue": "Sha",
+                                },
+                                "userEnteredFormat": {
+                                    "textFormat": {"bold": True},
+                                },
+                            },
+                            {
+                                "userEnteredValue": {
+                                    "stringValue": revision_sha(
+                                        chromeos_path,
+                                        rebase_baseline_branch,
+                                    ),
+                                },
+                            },
+                            {
+                                "userEnteredValue": {
+                                    "stringValue": revision_sha(
+                                        upstream_path, rebase_target_tag()
+                                    ),
                                 },
                             },
                         ]
