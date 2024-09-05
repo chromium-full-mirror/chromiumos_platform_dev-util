@@ -309,7 +309,7 @@ def add_description(requests):
                         "values": [
                             {
                                 "userEnteredValue": {
-                                    "stringValue": "Sha",
+                                    "stringValue": "SHA",
                                 },
                                 "userEnteredFormat": {
                                     "textFormat": {"bold": True},

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-"
 # Copyright 2021 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -15,6 +14,13 @@ rebase_target = "v6.7-rc5"
 # Set rebasedb_name to None to use default.
 # Otherwise pick desired file name.
 rebasedb_name = f"rebase-{rebase_target}.db"
+
+# Name of the file with Google's spreadsheet ID. If the file does not exist,
+# a new spreadsheet is created and its ID is written down and then reused.
+# Set to None to create a new spreadsheet each time.
+#
+# rebase_spreadsheet_filename = "rebase-spreadsheet.id"
+rebase_spreadsheet_filename = None
 
 # Set datadir to None to use default.
 # Otherwise provide absolute path name.
@@ -311,3 +317,14 @@ for topic in topiclist:
     topic_name = topic[0]
     topiclist_consolidated.append([topic_name, [topic_name]])
     topiclist_short.append([topic_name, [topic_name]])
+
+# Describe users/groups to share a spreadsheet with
+#
+# Email address of an user/group to share a spreadsheet with
+# Type can be any of: writer, commenter, reader
+# Role can be any of: user,  group
+#
+#     Email address         Type      Role
+spreadsheet_share_with = {
+    #    "example@google.com": ["user", "reader"],
+}
