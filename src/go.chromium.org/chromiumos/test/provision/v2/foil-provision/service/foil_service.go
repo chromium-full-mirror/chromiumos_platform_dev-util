@@ -19,12 +19,17 @@ import (
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
 )
 
+var buildIdPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`build_details/(P[0-9]+)/`),
+	regexp.MustCompile(`artifacts_list/([0-9]+)/`)}
+
 // FoilService inherits ServiceInterface
 type FoilService struct {
 	Connection      common_utils.ServiceAdapterInterface
 	MachineMetadata metadata.MachineMetadata
 	// ImagePath is the android build explorer path.
-	// example: android-build/build_explorer/build_details/P78687640/brya-trunk_staging-userdebug/android-desktop-ota-packages.zip
+	// example1: android-build/build_explorer/build_details/P78687640/brya-trunk_staging-userdebug/android-desktop-ota-packages.zip
+	// example2: android-build/build_explorer/artifacts_list/12330924/brya-trunk_staging-userdebug/brya-ota-12330924.zip
 	ImagePath        *conf.StoragePath
 	OverwritePayload *conf.StoragePath
 	SkipUpdate       bool
@@ -37,7 +42,6 @@ type FoilService struct {
 }
 
 func NewFoilService(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (*FoilService, error) {
-
 	cacheServerAddr, err := ipEndpointToHostPort(dut.GetCacheServer().GetAddress())
 	if err != nil {
 		return nil, fmt.Errorf("invalid cache server address %v", err)
@@ -45,15 +49,14 @@ func NewFoilService(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.I
 	var cacheUrl url.URL
 	cacheUrl.Scheme = "http"
 	cacheUrl.Host = cacheServerAddr
+	// TODO: Verify that the req.ImagePath.HostType is Android_build.
 	imagePath := req.GetImagePath().GetPath()
 	build, err := targetBuild(imagePath)
 	if err != nil {
 		return nil, err
 	}
-
 	return &FoilService{
-		DutIp: dut.GetChromeos().GetSsh().GetAddress(),
-		// TODO: extract targetBuild from the input imagePath.
+		DutIp:          dut.GetChromeos().GetSsh().GetAddress(),
 		TargetBuild:    build,
 		CacheServerUrl: cacheUrl,
 		ImagePath: &conf.StoragePath{
@@ -63,13 +66,13 @@ func NewFoilService(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.I
 }
 
 func targetBuild(imagePath string) (string, error) {
-	pattern := `build_details/(P[0-9]+)/`
-	re := regexp.MustCompile(pattern)
-	matches := re.FindStringSubmatch(imagePath)
-	if len(matches) != 2 {
-		return "", fmt.Errorf("could not extract buildId from %s", imagePath)
+	for _, re := range buildIdPatterns {
+		matches := re.FindStringSubmatch(imagePath)
+		if len(matches) == 2 {
+			return matches[1], nil
+		}
 	}
-	return matches[1], nil
+	return "", fmt.Errorf("could not extract buildId from %s", imagePath)
 }
 
 // CleanupOnFailure is called if one of service's states fails to Execute() and

@@ -25,6 +25,10 @@ import (
 	"go.chromium.org/chromiumos/test/util/adb"
 )
 
+var launchTargetPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`build_details/P[0-9]+/([a-z_\-]+)`),
+	regexp.MustCompile(`artifacts_list/[0-9]+/([a-z_\-]+)`)}
+
 type Install struct {
 	ctx            context.Context
 	cs             *service.FoilService
@@ -41,7 +45,6 @@ func NewInstall(ctx context.Context, cs *service.FoilService) *Install {
 func (c *Install) Execute(log *log.Logger) error {
 
 	log.Printf("Start Install Execute, with reboot changed")
-	// Remove gs:// from the image path before pulling from cache server.
 	localImagePath, err := c.pullFromCache(log, c.cs.ImagePath.GetPath())
 	if err != nil {
 		return fmt.Errorf("Unable to pull image from cache %v", err)
@@ -59,15 +62,15 @@ func (c *Install) Execute(log *log.Logger) error {
 // function to extract the launch from the android build path.
 // Example it will return brya-trunk_staging-userdebug from
 // android-build/build_explorer/build_details/P78687640/brya-trunk_staging-userdebug/android-desktop-ota-packages.zip
+// android-build/build_explorer/artifacts_list/12330924/brya-trunk_staging-userdebug/brya-ota-12330924.zip
 func extractTargetLaunch(path string) (string, error) {
-	pattern := `build_details/P[0-9]+/([a-z_\-]+)`
-	re := regexp.MustCompile(pattern)
-	matches := re.FindStringSubmatch(path)
-	if len(matches) != 2 {
-		return "", fmt.Errorf("could not extract launch from %s", path)
+	for _, re := range launchTargetPatterns {
+		matches := re.FindStringSubmatch(path)
+		if len(matches) == 2 {
+			return matches[1], nil
+		}
 	}
-	return matches[1], nil
-
+	return "", fmt.Errorf("could not extract launch from %s", path)
 }
 
 // pullFromCache downloads the imge from cache server on cft container and
