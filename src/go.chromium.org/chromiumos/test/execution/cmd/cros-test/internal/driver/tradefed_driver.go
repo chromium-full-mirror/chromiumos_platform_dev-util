@@ -41,35 +41,42 @@ func (d *TradefedDriver) Name() string {
 	return "tradefed"
 }
 
-func buildTradefedCommand(logger *log.Logger, tests []*api.TestCaseMetadata, primaryIp string) []string {
+func buildTradefedCommand(logger *log.Logger, tests []*api.TestCaseMetadata, serials []string) []string {
 	baseArgs := []string{"run", "commandAndExit", testType}
 	for _, t := range tests {
 		logger.Println("Running provided test: ", t.TestCase.Name)
 		baseArgs = append(baseArgs, "--include-filter", t.TestCase.Name)
 	}
 	baseArgs = append(baseArgs, "--logcat-on-failure")
-	baseArgs = append(baseArgs, "-s", c.FmtAddr(primaryIp))
+
+	//
+	baseArgs = append(baseArgs, "-s", strings.Join(serials, ","))
 	return baseArgs
 }
 
-func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestCaseMetadata, primary *device.DutInfo, resultsPath string) error {
-	err := c.SetupAdb(logger, primary.Ip)
-	if err != nil {
-		return fmt.Errorf("setupAdb failed")
+func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestCaseMetadata, serials []string, resultsPath string) error {
+	for _, s := range serials {
+		if err := c.SetupAdb(logger, s); err != nil {
+			return fmt.Errorf("setupAdb failed for %s", s)
+		}
 	}
 
 	exit := make(chan struct{})
 	defer func() {
 		exit <- struct{}{}
-		err = c.TeardownAdb(logger, primary.Ip)
+		for _, s := range serials {
+			if err := c.TeardownAdb(logger, s); err != nil {
+				logger.Printf("Failed to tear down adb connection to %s: %s", s, err)
+			}
+		}
 	}()
 
-	baseArgs := buildTradefedCommand(logger, tests, primary.Ip)
+	baseArgs := buildTradefedCommand(logger, tests, serials)
 	terminalPath := path.Join(fmt.Sprintf(testPath, testType), fmt.Sprintf("tools/%s-tradefed", testType))
 	cmd := exec.Command(terminalPath, baseArgs...)
 	logger.Println("Running TF: ", cmd.String())
 
-	c.KeepAdbAlive(logger, primary.Ip, exit)
+	c.KeepAdbAlive(logger, serials, exit)
 	return launchAndRead(cmd, logger)
 }
 
@@ -77,9 +84,9 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *api.CrosTestRequest, tlwAddr string, tests []*api.TestCaseMetadata) (*api.CrosTestResponse, error) {
 	allRspn := &api.CrosTestResponse{}
 
-	primary, err := device.FillDUTInfo(req.Primary, "")
+	serials, err := device.DerviceSerials(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to call DerviceSerials: %s", err)
 	}
 
 	for _, test := range tests {
@@ -89,7 +96,7 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 		}
 	}
 
-	_ = runTradefedTest(ctx, td.logger, tests, primary, resultsDir)
+	_ = runTradefedTest(ctx, td.logger, tests, serials, resultsDir)
 	// TODO determine what we want to do with an error _and_ possibly having results
 	// In general I'd say just spit out the results.
 	// One difference between Tast/Autotest and this is that the test case given will likely result in many

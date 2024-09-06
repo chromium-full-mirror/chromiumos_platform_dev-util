@@ -103,8 +103,8 @@ func SetupAdb(logger *log.Logger, addr string) (err error) {
 // KeepAdbAlive spawns a go routine that will continuously check the
 // adb connection to ensure the device is found. If not found, try
 // to setup the adb connection again. Useful for reboot cycles.
-func KeepAdbAlive(logger *log.Logger, addr string, exit chan struct{}) {
-	go func(logger *log.Logger, addr string, exit chan struct{}) {
+func KeepAdbAlive(logger *log.Logger, addrs []string, exit chan struct{}) {
+	go func(logger *log.Logger, addrs []string, exit chan struct{}) {
 		// Constantly checking the adb connection can be quite loud in the logs.
 		// Suppress logging through io.Discard.
 		disabledLogger := log.New(io.Discard, "", 0)
@@ -115,16 +115,18 @@ func KeepAdbAlive(logger *log.Logger, addr string, exit chan struct{}) {
 				logger.Println("Exiting adb connection check loop")
 				return
 			default:
-				found, _ := AdbDeviceFound(addr, disabledLogger)
-				if !found {
-					SetupAdb(disabledLogger, addr)
+				for _, addr := range addrs {
+					found, _ := AdbDeviceFound(addr, disabledLogger)
+					if !found {
+						SetupAdb(disabledLogger, addr)
+					}
 				}
 			}
 
 			// Sleep to make checks more periodic rather than constant.
 			time.Sleep(10 * time.Second)
 		}
-	}(logger, addr, exit)
+	}(logger, addrs, exit)
 }
 
 func AdbDeviceFound(addr string, logger *log.Logger) (bool, error) {
@@ -138,8 +140,11 @@ func AdbDeviceFound(addr string, logger *log.Logger) (bool, error) {
 }
 
 func FmtAddr(addr string) string {
-	port := "5555"
-	return fmt.Sprintf("%s:%s", addr, port)
+	if strings.Contains(addr, ":") {
+		// The adb port specified. No formatting is needed
+		return addr
+	}
+	return fmt.Sprintf("%s:5555", addr)
 }
 
 func AdbShellCmd(cmdStr []string, addr string, log *log.Logger) (string, error) {

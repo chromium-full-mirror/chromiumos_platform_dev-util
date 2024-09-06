@@ -466,3 +466,42 @@ func TestFillAndroidInfo(t *testing.T) {
 		}
 	}
 }
+
+func TestDeviceSerials(t *testing.T) {
+
+	req := &api.CrosTestRequest{
+		Primary: &api.CrosTestRequest_Device{
+			Dut: &labapi.Dut{
+				Id: &labapi.Dut_Id{Value: "Dut1"},
+				DutType: &labapi.Dut_Chromeos{
+					Chromeos: &labapi.Dut_ChromeOS{
+						Ssh: &labapi.IpEndpoint{Address: "host1", Port: 22},
+					},
+				},
+			},
+		},
+		Companions: []*api.CrosTestRequest_Device{
+			{
+				Dut: &labapi.Dut{
+					Id: &labapi.Dut_Id{Value: "CompanionDut"},
+					DutType: &labapi.Dut_Android_{
+						Android: &labapi.Dut_Android{
+							AssociatedHostname: &labapi.IpEndpoint{Address: "a1", Port: 22},
+							DutModel:           &labapi.DutModel{BuildTarget: "XYZ", ModelName: "pixel6"},
+							SerialNumber:       "ABC123",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	wanted := []string{"host1:5555", "ABC123"}
+	got, err := DerviceSerials(req)
+	if err != nil {
+		t.Error("failed to call DerviceSerials mismatch", err)
+	}
+	if diff := cmp.Diff(got, wanted); diff != "" {
+		t.Errorf("DerviceSerials mismatch (-got +want):\n%s", diff)
+	}
+}

@@ -115,6 +115,9 @@ func dutIp(dut *labapi.Dut) (string, error) {
 		// Ignore DUT address if the devboard server is set.
 		return "", nil
 	}
+	if dut.GetAndroid() != nil {
+		return dut.GetAndroid().GetSerialNumber(), nil
+	}
 	crosSsh := dut.GetChromeos().GetSsh()
 	if crosSsh == nil {
 		return "", fmt.Errorf("DUT does not have end point information: %v", dut)
@@ -522,4 +525,45 @@ func GenLabConfig(primary *DutInfo, companions []*DutInfo, androidCompanion []*A
 		DevboardDUTLabConfig: devboardDUTLabConfig,
 	}, nil
 
+}
+
+// DerviceSerials extracts serial information of all devices from a requests test.
+func DerviceSerials(req *api.CrosTestRequest) ([]string, error) {
+	var serials []string
+	primary := req.GetPrimary()
+	serial, err := deviceSerial(primary.GetDut())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get serial information from primary dut: %v", err)
+	}
+	if serial != "" {
+		serials = append(serials, serial)
+	}
+	for _, c := range req.GetCompanions() {
+		serial, err := dutIp(c.GetDut())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get serial information from companion dut: %v", err)
+		}
+		if serial != "" {
+			serials = append(serials, serial)
+		}
+	}
+	return serials, nil
+}
+
+// deviceSerial extract the serial informaiton of a dut.
+func deviceSerial(dut *labapi.Dut) (string, error) {
+	if dut.GetDevboard() != nil {
+		// Ignore DUT address if the devboard server is set.
+		return "", nil
+	}
+	if dut.GetAndroid() != nil {
+		return dut.GetAndroid().GetSerialNumber(), nil
+	}
+	crosSsh := dut.GetChromeos().GetSsh()
+	if crosSsh == nil {
+		return "", fmt.Errorf("DUT does not have end point information: %v", dut)
+	}
+	// TODO: need to figure out to handle none non-default port.
+	// Currently, we assume chromeos device serial is always <ip>:5555.
+	return fmt.Sprintf("%s:5555", crosSsh.Address), nil
 }
