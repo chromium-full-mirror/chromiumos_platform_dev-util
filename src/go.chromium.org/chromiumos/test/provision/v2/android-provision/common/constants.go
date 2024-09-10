@@ -62,4 +62,5 @@ var OSVersionToGMSCorePlatformMap = map[string]string{
 	"11": "prodrvc",
 	"12": "prodsc",
 	"13": "prodsc",
+	"14": "prodsc",
 }
