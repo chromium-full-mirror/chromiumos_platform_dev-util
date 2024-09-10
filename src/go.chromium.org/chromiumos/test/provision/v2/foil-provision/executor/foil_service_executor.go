@@ -8,7 +8,12 @@
 package executor
 
 import (
+	"fmt"
+	"log"
+
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
+	cross_over "go.chromium.org/chromiumos/test/provision/v2/common-utils/cross-over"
+	"google.golang.org/grpc"
 
 	"go.chromium.org/chromiumos/test/provision/v2/foil-provision/service"
 	state_machine "go.chromium.org/chromiumos/test/provision/v2/foil-provision/state-machine"
@@ -18,18 +23,45 @@ import (
 )
 
 type FoilProvisionExecutor struct {
+	Logger *log.Logger
+	// TODO: CrosServodAddress should not be a part of executor. Move it to ProvisionStartupRequest.
+	CrosServodAddress string
+}
+
+func NewFoilProvisionExecutor(logger *log.Logger, crosServodAddress string) (*FoilProvisionExecutor, error) {
+	return &FoilProvisionExecutor{
+		Logger:            logger,
+		CrosServodAddress: crosServodAddress,
+	}, nil
 }
 
 func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (common_utils.ServiceState, error) {
-	cs, err := service.NewFoilService(dut, dutClient, req)
+	cs, err := service.NewFoilService(dut, req)
 	if err != nil {
 		return nil, err
+	}
+	osType, err := cross_over.DetectOS(c.Logger, fmt.Sprintf("%v:%v", dut.GetChromeos().GetSsh().GetAddress(), dut.GetChromeos().GetSsh().GetPort()))
+	if err != nil {
+		return nil, err
+	}
+	if osType == cross_over.CROS {
+		params := &cross_over.CrossOverParameters{
+			Dut: dut,
+			//ServodDockerContainerName: "servod-process",
+			//ServodDockerImagePath:     "us-docker.pkg.dev/chromeos-partner-moblab/common-core/servod:release",
+			//TODO: Decide how ServodDockerContainerName and ServodDockerImagePath will be populated.
+		}
+		conn, err := grpc.Dial(c.CrosServodAddress, grpc.WithInsecure())
+		if err != nil {
+			return nil, err
+		}
+		crosServodClient := api.NewServodServiceClient(conn)
+		return cross_over.NewCrossOverInitState(crosServodClient, params), nil
 	}
 	return state_machine.NewFoilPreInitState(cs), nil
 }
 
 // Validate ensures the ProvisionStartupRequest meets specified requirements.
 func (c *FoilProvisionExecutor) Validate(req *api.ProvisionStartupRequest) error {
-
 	return nil
 }

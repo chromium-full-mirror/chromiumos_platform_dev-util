@@ -1,13 +1,18 @@
+// Copyright 2024 The ChromiumOS Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 package servodserver
 
 import (
 	"bytes"
-	"go.chromium.org/chromiumos/test/servod/cmd/mock_commandexecutor"
-	"go.chromium.org/chromiumos/test/servod/cmd/model"
 	"context"
 	"io"
 	"log"
 	"testing"
+
+	"go.chromium.org/chromiumos/test/servod/cmd/mock_commandexecutor"
+	"go.chromium.org/chromiumos/test/servod/cmd/model"
 
 	"github.com/golang/mock/gomock"
 )

@@ -6,11 +6,12 @@
 package server
 
 import (
+	"errors"
+
 	"go.chromium.org/chromiumos/lro"
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 	"go.chromium.org/chromiumos/test/provision/v2/common-utils/metadata"
 	"go.chromium.org/chromiumos/test/util/portdiscovery"
-	"errors"
 
 	"context"
 	"fmt"
@@ -89,7 +90,6 @@ func (ps *ProvisionServer) StartUp(ctx context.Context, req *api.ProvisionStartu
 	}
 	ps.options.Dut = req.Dut
 	ps.options.DutAddress = fmt.Sprintf("%s:%d", req.GetDutServer().GetAddress(), req.GetDutServer().GetPort())
-
 	dutConn, err := grpc.Dial(ps.options.DutAddress, grpc.WithInsecure())
 	if err != nil {
 		response.Status = api.ProvisionStartupResponse_STATUS_STARTUP_FAILED

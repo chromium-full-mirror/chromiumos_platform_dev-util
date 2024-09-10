@@ -6,8 +6,6 @@
 package servod
 
 import (
-	"go.chromium.org/chromiumos/test/servod/cmd/ssh"
-	"go.chromium.org/chromiumos/test/servod/cmd/xmlrpc"
 	"context"
 	"fmt"
 	"log"
@@ -15,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"go.chromium.org/chromiumos/test/servod/cmd/ssh"
+	"go.chromium.org/chromiumos/test/servod/cmd/xmlrpc"
 
 	xmlrpc_value "go.chromium.org/chromiumos/config/go/api/test/xmlrpc"
 	"go.chromium.org/luci/common/errors"

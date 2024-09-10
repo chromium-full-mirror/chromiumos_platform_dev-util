@@ -10,6 +10,7 @@ import (
 
 	"go.chromium.org/chromiumos/config/go/longrunning"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/chromiumos/test/util/portdiscovery"
 	"go.chromium.org/luci/common/errors"
 	"google.golang.org/grpc"
 
@@ -25,6 +26,11 @@ func (s *ServodService) StartServer(port int32) error {
 
 	s.manager = lro.New()
 	defer s.manager.Close()
+	// Write port number to ~/.cftmeta for go/cft-port-discovery
+	err = portdiscovery.WriteServiceMetadata("cros-servod", l.Addr().String(), s.logger)
+	if err != nil {
+		s.logger.Println("Warning: error when writing to metadata file: ", err)
+	}
 	server := grpc.NewServer()
 
 	api.RegisterServodServiceServer(server, s)

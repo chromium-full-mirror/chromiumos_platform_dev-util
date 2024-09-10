@@ -6,10 +6,11 @@ package servodserver
 
 import (
 	"bytes"
-	"go.chromium.org/chromiumos/test/servod/cmd/model"
 	"fmt"
 	"io"
 	"strings"
+
+	"go.chromium.org/chromiumos/test/servod/cmd/model"
 
 	"go.chromium.org/luci/common/errors"
 )
@@ -26,6 +27,9 @@ func (s *ServodService) RunCli(cs model.CliSubcommand, a model.CliArgs, stdin io
 	switch cs {
 	case model.CliStartServod:
 		command, err = s.getStartServodCommand(a)
+		if err != nil {
+			return bOut, bErr, err
+		}
 	case model.CliStopServod:
 		command = s.getStopServodCommand(a)
 	case model.CliExecCmd:
@@ -43,7 +47,7 @@ func (s *ServodService) RunCli(cs model.CliSubcommand, a model.CliArgs, stdin io
 		s.logger.Println("Finished running the servod service CLI successfully!")
 	}
 
-	return bOut, bErr, err
+	return bOut, bErr, nil
 }
 
 // getStartServodCommand returns either a "docker run" command when

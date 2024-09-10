@@ -83,7 +83,7 @@ func (s *ServodService) StartServod(ctx context.Context, req *api.StartServodReq
 	}
 
 	_, bErr, err := s.RunCli(model.CliStartServod, a, nil, false)
-	if err != nil {
+	if err != nil && !strings.Contains(bErr.String(), "Job is already running") {
 		s.logger.Println("Failed to run CLI: ", err)
 		s.manager.SetResult(op.Name, &api.StartServodResponse{
 			Result: &api.StartServodResponse_Failure_{
@@ -96,6 +96,7 @@ func (s *ServodService) StartServod(ctx context.Context, req *api.StartServodReq
 		s.manager.SetResult(op.Name, &api.StartServodResponse{
 			Result: &api.StartServodResponse_Success_{},
 		})
+		err = nil
 	}
 
 	return op, err

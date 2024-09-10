@@ -41,7 +41,7 @@ type FoilService struct {
 	CacheServerUrl   url.URL
 }
 
-func NewFoilService(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (*FoilService, error) {
+func NewFoilService(dut *lab_api.Dut, req *api.InstallRequest) (*FoilService, error) {
 	cacheServerAddr, err := ipEndpointToHostPort(dut.GetCacheServer().GetAddress())
 	if err != nil {
 		return nil, fmt.Errorf("invalid cache server address %v", err)

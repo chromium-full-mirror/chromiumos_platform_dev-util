@@ -6,11 +6,13 @@ package commandexecutor
 
 import (
 	"bytes"
-	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
+	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
+
+	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -57,20 +59,19 @@ func (s ServodCommandExecutor) Run(addr string, command string, stdin io.Reader,
 		err = cmd.Run()
 	} else {
 		config := dutssh.GetSSHConfig()
+
 		var client *ssh.Client
 		client, err = ssh.Dial("tcp", addr, config)
 		if err != nil {
 			s.logger.Fatal("Failed to dial: ", err)
 		}
 		defer client.Close()
-
 		var session *ssh.Session
 		session, err = client.NewSession()
 		if err != nil {
 			s.logger.Fatal("Failed to create session: ", err)
 		}
 		defer session.Close()
-
 		// Route the incoming Stdin to system Stdin
 		if stdin != nil {
 			session.Stdin = stdin
@@ -84,7 +85,7 @@ func (s ServodCommandExecutor) Run(addr string, command string, stdin io.Reader,
 			session.Stdout = &bOut
 			session.Stderr = &bErr
 		}
-
+		fmt.Println("Running the command: " + command)
 		// Run the command
 		err = session.Run(command)
 	}
