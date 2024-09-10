@@ -11,7 +11,6 @@ import (
 	"log"
 	"os/exec"
 	"path"
-	"strings"
 	"sync"
 
 	c "go.chromium.org/chromiumos/test/util/adb"
@@ -91,8 +90,12 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 		return nil, fmt.Errorf("failed to call DerviceSerials: %s", err)
 	}
 
+	dtsFound := false
 	for _, test := range tests {
-		if strings.HasPrefix(test.GetTestCase().GetName(), "Dts") {
+		for _, tag := range test.GetTestCase().GetTags() {
+			dtsFound = dtsFound || tag.GetValue() == "suite:dts"
+		}
+		if dtsFound {
 			testType = "dts"
 			break
 		}
