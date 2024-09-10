@@ -26,8 +26,8 @@ import (
 )
 
 var launchTargetPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`build_details/P[0-9]+/([a-z_\-]+)`),
-	regexp.MustCompile(`artifacts_list/[0-9]+/([a-z_\-]+)`)}
+	regexp.MustCompile(`build_details/P?[0-9]+/([a-z_\-]+)`),
+	regexp.MustCompile(`artifacts_list/P?[0-9]+/([a-z_\-]+)`)}
 
 type Install struct {
 	ctx            context.Context

@@ -20,8 +20,8 @@ import (
 )
 
 var buildIdPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`build_details/(P[0-9]+)/`),
-	regexp.MustCompile(`artifacts_list/([0-9]+)/`)}
+	regexp.MustCompile(`build_details/(P?[0-9]+)/`),
+	regexp.MustCompile(`artifacts_list/(P?[0-9]+)/`)}
 
 // FoilService inherits ServiceInterface
 type FoilService struct {
