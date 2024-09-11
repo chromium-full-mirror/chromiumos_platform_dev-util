@@ -15,6 +15,7 @@ import (
 	"strconv"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"go.chromium.org/chromiumos/test/publish/clients/rdb_client"
 	common_utils "go.chromium.org/chromiumos/test/publish/cmd/common-utils"
@@ -374,6 +375,8 @@ func ingestPostProcessResponses(testResult *artifact.TestResult, postProcessResp
 			populateGfxInfo(buildMetadata, resp.GetGetGfxInfoResponse())
 		case *api.RunActivityResponse_GetAvlInfoResponse:
 			populateAVLInfo(testResult, resp.GetGetAvlInfoResponse())
+		case *api.RunActivityResponse_GetGscInfoResponse:
+			populateGSCInfo(testResult, resp.GetGetGscInfoResponse())
 		default:
 			log.Printf("post process response type: %T is not supported", resp.GetResponse())
 		}
@@ -491,4 +494,38 @@ func populateAVLInfo(testResult *artifact.TestResult, avlInfoResp *api.GetAvlInf
 	}
 
 	log.Printf("successfully populated AVL qual info: %s", avlInfoResp)
+}
+
+// populateGSCInfo populates GSC devboard info.
+func populateGSCInfo(testResult *artifact.TestResult, gscInfoResp *api.GetGscInfoResponse) {
+	if gscInfoResp == nil {
+		log.Printf("GSC devboard info response is empty")
+		return
+	}
+
+	log.Printf("start to populate GSC devboard info: %s", gscInfoResp)
+
+	gscInfoMap := gscInfoResp.GetGscInfos()
+	for _, testRun := range testResult.GetTestRuns() {
+		testCaseInfo := testRun.GetTestCaseInfo()
+		testCaseResult := testCaseInfo.GetTestCaseResult()
+		if testCaseResult == nil {
+			continue
+		}
+
+		gscInfoAny := gscInfoMap[testCaseResult.GetTestCaseId().GetValue()]
+		if gscInfoAny == nil {
+			continue
+		}
+
+		gscInfo := &artifact.GscInfo{}
+		opts := proto.UnmarshalOptions{DiscardUnknown: true}
+		if err := anypb.UnmarshalTo(gscInfoAny, gscInfo, opts); err != nil {
+			log.Printf("failed to unmarshal GSC devboard info: %s", gscInfoAny)
+			continue
+		}
+		testCaseInfo.GscInfo = gscInfo
+	}
+
+	log.Printf("successfully populated GSC devboard info: %s", gscInfoResp)
 }

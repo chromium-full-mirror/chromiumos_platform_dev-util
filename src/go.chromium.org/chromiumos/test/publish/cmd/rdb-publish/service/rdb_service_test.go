@@ -9,6 +9,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 	. "go.chromium.org/luci/common/testing/assertions"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -651,5 +652,152 @@ func TestPopulateAVLInfo(t *testing.T) {
 		populateAVLInfo(testResult, nil)
 
 		So(testResult.TestRuns[0].TestCaseInfo.AvlInfo, ShouldBeNil)
+	})
+}
+
+func TestPopulateGSCInfo(t *testing.T) {
+	t.Parallel()
+
+	// Create a GSC devboard info response proto with GSC devboard info for the test case.
+	gscInfo := &artifact.GscInfo{
+		GscRoVersion:   "0.0.59",
+		GscRwVersion:   "0.26.112",
+		GscRwBranch:    "tot:v0.0",
+		GscRwRev:       "1479",
+		GscRwSha:       "-38cb7844",
+		GscBuildurl:    "gs://chromeos-image-dummy/firmware-ti50-postsubmit/R123-12345.0.0",
+		GscTestbedType: "gsc_dt_shield",
+		GscCcdSerial:   "1482101a-4c2ac261",
+	}
+	gscInfoAny, _ := anypb.New(gscInfo)
+	testName := "tast.gscdevboard.GSCSysinfo"
+	gscInfoResp := &api.GetGscInfoResponse{
+		// Generate the &artifact.GscInfo proto based on the follow data
+		GscInfos: map[string]*anypb.Any{
+			testName: gscInfoAny,
+		},
+	}
+
+	Convey("Populates GSC devboard info", t, func() {
+		// Create a test result proto with a test run and a test case.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{
+						TestCaseResult: &api.TestCaseResult{
+							TestCaseId: &api.TestCase_Id{
+								Value: testName,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Call populateGSCInfo.
+		populateGSCInfo(testResult, gscInfoResp)
+
+		So(testResult.TestRuns[0].TestCaseInfo.GscInfo, ShouldResembleProto, gscInfo)
+	})
+
+	Convey("Populates GSC devboard info with missing test case", t, func() {
+		// Create a test result proto with a test run without any test case.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{},
+				},
+			},
+		}
+
+		// Call populateGSCInfo.
+		populateGSCInfo(testResult, gscInfoResp)
+
+		// Verify that the GSC devboard info is not populated.
+		So(testResult.TestRuns[0].TestCaseInfo.GscInfo, ShouldBeNil)
+	})
+
+	Convey("Populates GSC devboard info with missing GSC devboard info", t, func() {
+		// Create a test result proto with a test run and a test case.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{
+						TestCaseResult: &api.TestCaseResult{
+							TestCaseId: &api.TestCase_Id{
+								Value: testName,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Create a GSC devboard info response proto without GSC devboard info for the test case.
+		gscInfoResp := &api.GetGscInfoResponse{
+			GscInfos: map[string]*anypb.Any{},
+		}
+
+		// Call populateGSCInfo.
+		populateGSCInfo(testResult, gscInfoResp)
+
+		// Verify that the GSC devboard info is not populated.
+		So(testResult.TestRuns[0].TestCaseInfo.GscInfo, ShouldBeNil)
+	})
+
+	Convey("Skip if the response is nil", t, func() {
+		// Create a test result proto with a test run and a test case.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{
+						TestCaseResult: &api.TestCaseResult{
+							TestCaseId: &api.TestCase_Id{
+								Value: testName,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Call populateGSCInfo.
+		populateGSCInfo(testResult, nil)
+
+		// Verify that the GSC devboard info is not populated.
+		So(testResult.TestRuns[0].TestCaseInfo.GscInfo, ShouldBeNil)
+	})
+
+	Convey("Handles invalid GSC devboard info", t, func() {
+		// Create a test result proto with a test run and a test case.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{
+						TestCaseResult: &api.TestCaseResult{
+							TestCaseId: &api.TestCase_Id{
+								Value: testName,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Create a GSC devboard info response proto with invalid GSC devboard info for the test case.
+		invalidGSCInfoResp := &api.GetGscInfoResponse{
+			GscInfos: map[string]*anypb.Any{
+				testName: {
+					TypeUrl: "type.googleapis.com/go.chromium.org/chromiumos/config/go/test/artifact.GscInfo",
+					Value:   []byte(`invalid json`),
+				},
+			},
+		}
+
+		// Call populateGSCInfo.
+		populateGSCInfo(testResult, invalidGSCInfoResp)
+
+		// Verify that the GSC devboard info is not populated.
+		So(testResult.TestRuns[0].TestCaseInfo.GscInfo, ShouldBeNil)
 	})
 }
