@@ -10,6 +10,7 @@ import (
 
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -42,6 +43,9 @@ func (c *WaitForStickyKernel) Execute(log *log.Logger) error {
 	stickyKernelCtx, cancel := context.WithTimeout(c.ctx, stickyTimeout)
 	defer cancel()
 	twoSeconds := 2 * time.Second
+	if _, err := c.cs.Connection.RunCmd(c.ctx, "cgpt", []string{"repair", c.cs.MachineMetadata.RootInfo.RootDisk}); err != nil {
+		return fmt.Errorf("failed to repair GPT headers and tables: %s", err)
+	}
 
 	// Note in CLI mode the context is not built with a timeout, thus we need to check on loop.
 	for {
