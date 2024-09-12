@@ -49,8 +49,10 @@ func buildTradefedCommand(logger *log.Logger, tests []*api.TestCaseMetadata, ser
 	}
 	baseArgs = append(baseArgs, "--logcat-on-failure")
 
-	//
-	baseArgs = append(baseArgs, "-s", strings.Join(serials, ","))
+	for _, s := range serials {
+		baseArgs = append(baseArgs, "-s", s)
+	}
+
 	return baseArgs
 }
 
