@@ -378,7 +378,7 @@ func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly 
 
 	connection := fws.GetConnectionToFlashingDevice()
 	for i, a := range futilityArgs {
-		futilityArgs[i] = escape(a)
+		futilityArgs[i] = Escape(a)
 	}
 	out, err := connection.RunCmd(ctx, "futility", futilityArgs)
 	if err != nil {
@@ -539,15 +539,6 @@ const (
 // command line without requiring escaping.
 var safeRE = regexp.MustCompile(fmt.Sprintf("^[%s][%s]*$", leadingSafeChars, trailingSafeChars))
 
-// escape escapes a string so it can be safely included as an argument in a shell command line.
-// The string is not modified if it can already be safely included.
-func escape(s string) string {
-	if safeRE.MatchString(s) {
-		return s
-	}
-	return "'" + strings.Replace(s, "'", `'"'"'`, -1) + "'"
-}
-
 func (fws *FirmwareService) runFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string, ecImagePath string) error {
 	if len(futilityImageArgs) == 0 {
 		return errors.New("unable to flash: no futility Image args provided")
@@ -604,7 +595,7 @@ with open("`)
 		}
 		defer connection.RunCmd(ctx, "rm", []string{"-f", fmt.Sprintf("'%s'", logFile)})
 
-		_, err = connection.RunCmd(ctx, "bash", []string{"-c", escape(fmt.Sprintf("nohup python3 '%s' </dev/null >&/dev/null & exit", pyScript))})
+		_, err = connection.RunCmd(ctx, "bash", []string{"-c", Escape(fmt.Sprintf("nohup python3 '%s' </dev/null >&/dev/null & exit", pyScript))})
 		if err != nil {
 			return errors.Wrap(err, "failed to run nohup")
 		}
@@ -634,7 +625,7 @@ with open("`)
 		return errors.New("Timeout waiting for futility")
 	} else {
 		for i, a := range futilityArgs {
-			futilityArgs[i] = escape(a)
+			futilityArgs[i] = Escape(a)
 		}
 
 		if _, err := connection.RunCmd(ctx, "futility", futilityArgs); err != nil {
@@ -656,7 +647,7 @@ func (fws *FirmwareService) CheckForCSMESections(ctx context.Context, imagePath 
 	}
 	// Extract the config file
 	configFile := imagePath + "-config"
-	out, err = fws.connection.RunCmd(ctx, "cbfstool", []string{escape(imagePath), "extract", "-n", "config", "-f", configFile})
+	out, err = fws.connection.RunCmd(ctx, "cbfstool", []string{Escape(imagePath), "extract", "-n", "config", "-f", configFile})
 	if err != nil {
 		return false, errors.Wrapf(err, "command output: %s", string(out))
 	}

@@ -62,6 +62,15 @@ func GetFlashECScript(ctx context.Context, s common_utils.ServiceAdapterInterfac
 
 var curlErrorRe *regexp.Regexp = regexp.MustCompile(`The requested URL returned error: (\d+)`)
 
+// Escape escapes a string so it can be safely included as an argument in a shell command line.
+// The string is not modified if it can already be safely included.
+func Escape(s string) string {
+	if safeRE.MatchString(s) {
+		return s
+	}
+	return "'" + strings.Replace(s, "'", `'"'"'`, -1) + "'"
+}
+
 // RunDUTCommand runs a command on the DUT and returns stdout, stderr, and an error if it failed.
 // CAUTION: The args are concatenated with no quoting, so beware of spaces and shell chars in filenames.
 func RunDUTCommand(ctx context.Context, dut api.DutServiceClient, timeout time.Duration, cmd string, args []string, stdin []byte) (string, string, error) {
@@ -78,7 +87,7 @@ func RunDUTCommand(ctx context.Context, dut api.DutServiceClient, timeout time.D
 	ctxTimeout, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	log.Printf("RunDUTCommand START: %s %s\n", cmd, args)
+	log.Printf("RunDUTCommand START: %s %s", cmd, args)
 
 	// Start the execCmd function.
 	go func() {
@@ -91,12 +100,13 @@ func RunDUTCommand(ctx context.Context, dut api.DutServiceClient, timeout time.D
 		}
 		stream, err := dut.ExecCommand(ctx, &req)
 		if err != nil {
-			log.Printf("RunDUTCommand FAILED: %s\n", err)
+			log.Printf("RunDUTCommand FAILED: %s", err)
 			ch <- execCmdResult{err: fmt.Errorf("execution fail: %w", err)}
 			return
 		}
 		// Expecting single stream result
 		execCmdResponse, err := stream.Recv()
+		log.Printf("RunDUTCommand RECV: %s %s\n", execCmdResponse, err)
 		if err != nil {
 			ch <- execCmdResult{err: fmt.Errorf("execution single stream result: %w", err)}
 			return
@@ -112,8 +122,10 @@ func RunDUTCommand(ctx context.Context, dut api.DutServiceClient, timeout time.D
 
 	select {
 	case <-ctxTimeout.Done():
+		log.Printf("RunDUTCommand TIMEOUT: %s", timeout)
 		return "", "", fmt.Errorf("timeout %s reached", timeout)
 	case result := <-ch:
+		log.Printf("RunDUTCommand DONE: %s %s %v", result.response, result.stderr, result.err)
 		return result.response, result.stderr, result.err
 	}
 }

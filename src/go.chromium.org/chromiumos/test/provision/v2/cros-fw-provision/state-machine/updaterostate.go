@@ -9,6 +9,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
+	"time"
 
 	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 
@@ -29,29 +31,37 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 	// Detailed Request
 	var mainRoPath, ecRoPath string
 	var err error
-	mainRoMetadata, ok := s.service.GetImageMetadata(s.service.GetMainRoPath())
-	if ok {
-		log.Printf("[FW Provisioning: Update RO] extracting AP image to flash\n")
-		mainRoPath, err = firmwareservice.PickAndExtractMainImage(ctx, s.service.DUTServer, mainRoMetadata, s.service.GetMainRoPath(), s.service)
-		if err != nil {
-			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
-		}
-		futilityImageArgs = append(futilityImageArgs, []string{fmt.Sprint("--image=", mainRoPath)}...)
-		hasCSME, err := s.service.CheckForCSMESections(ctx, mainRoPath)
-		if err != nil {
-			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
-		}
-		if hasCSME {
-			futilityImageArgs = append(futilityImageArgs, "--quirks", "unlock_csme")
-		}
-	}
-
 	board := s.service.GetBoard()
 	ecRoMetadata, ok := s.service.GetImageMetadata(s.service.GetEcRoPath())
 	// Skip EC provisioning on Wilco duts that don't have Chrome ECs. Since there are only 2,
 	// hard code them here.
 	if ok && board != "drallion" && board != "sarien" {
+		// Check for RO_AT_BOOT before downloading images, as /var/tmp may be cleared on reboot.
+		out, _, err := firmwareservice.RunDUTCommand(ctx, s.service.DUTServer, time.Minute, "ectool", []string{"flashprotect", "now", "disable"}, nil)
+		log.Printf("flashprotect: %s %s", out, err)
+		roAtBootRe := regexp.MustCompile("Flash protect flags:.*ro_at_boot")
+		if roAtBootRe.MatchString(out) {
+			log.Printf("RO_AT_BOOT is not clear: Rebooting EC")
+			// Ignore the err, because the ssh connection is expected to break
+			firmwareservice.RunDUTCommand(ctx, s.service.DUTServer, time.Minute, "ectool", []string{"reboot_ec"}, nil)
+			for i := 0; i < 20; i++ {
+				_, _, err := firmwareservice.RunDUTCommand(ctx, s.service.DUTServer, time.Minute, "true", nil, nil)
+				if err == nil {
+					break
+				}
+				log.Printf("%s", err)
+				time.Sleep(10 * time.Second)
+			}
+			out, _, err := firmwareservice.RunDUTCommand(ctx, s.service.DUTServer, time.Minute, "ectool", []string{"flashprotect", "now", "disable"}, nil)
+			log.Printf("flashprotect after reboot: %s %s", out, err)
+		}
 		log.Printf("[FW Provisioning: Update RO] extracting EC image to flash\n")
+
+		_, _, err = firmwareservice.RunDUTCommand(ctx, s.service.DUTServer, time.Minute, "mkdir", []string{"-p", firmwareservice.Escape(ecRoMetadata.ArchiveDir)}, nil)
+		if err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
+		}
+
 		ecRoPath, err = firmwareservice.PickAndExtractECImage(ctx, s.service.DUTServer, ecRoMetadata, s.service.GetEcRoPath(), s.service)
 		if err != nil {
 			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
@@ -72,6 +82,23 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 		} else {
 			// For SSH, we can simply run `futility ... --ec-image=$EC_IMAGE ...`
 			futilityImageArgs = append(futilityImageArgs, []string{fmt.Sprint("--ec_image=", ecRoPath)}...)
+		}
+	}
+
+	mainRoMetadata, ok := s.service.GetImageMetadata(s.service.GetMainRoPath())
+	if ok {
+		log.Printf("[FW Provisioning: Update RO] extracting AP image to flash\n")
+		mainRoPath, err = firmwareservice.PickAndExtractMainImage(ctx, s.service.DUTServer, mainRoMetadata, s.service.GetMainRoPath(), s.service)
+		if err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
+		}
+		futilityImageArgs = append(futilityImageArgs, []string{fmt.Sprint("--image=", mainRoPath)}...)
+		hasCSME, err := s.service.CheckForCSMESections(ctx, mainRoPath)
+		if err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
+		}
+		if hasCSME {
+			futilityImageArgs = append(futilityImageArgs, "--quirks", "unlock_csme")
 		}
 	}
 
