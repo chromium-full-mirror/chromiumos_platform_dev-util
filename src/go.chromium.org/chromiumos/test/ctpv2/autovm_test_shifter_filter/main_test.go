@@ -70,6 +70,31 @@ func GenerateSchedulingUnitOptions(boards []string) []*api.SchedulingUnitOptions
 			},
 		},
 	}
+	SchedulingUnitDedede := []*api.SchedulingUnit{
+		{
+			PrimaryTarget: &api.Target{
+				SwarmingDef: &api.SwarmingDefinition{
+					DutInfo: &testapi.Dut{
+						DutType: &testapi.Dut_Chromeos{
+							Chromeos: &testapi.Dut_ChromeOS{
+								DutModel: &testapi.DutModel{
+									BuildTarget: "dedede",
+								},
+							},
+						},
+					},
+					SwarmingLabels: []string{
+						"label-peripheral_wifi_state:WORKING",
+						"label-wificell:True",
+					},
+				},
+			},
+			DynamicUpdateLookupTable: map[string]string{
+				"board":       "betty",
+				"installPath": "gs://chromeos-image-archive/dedede-release/R128-15964.4.0",
+			},
+		},
+	}
 
 	var SchedulingUnitOptions []*api.SchedulingUnitOptions
 	for _, board := range boards {
@@ -78,7 +103,10 @@ func GenerateSchedulingUnitOptions(boards []string) []*api.SchedulingUnitOptions
 			SchedulingUnitOptions = append(SchedulingUnitOptions, &api.SchedulingUnitOptions{SchedulingUnits: SchedulingUnitSkyrim})
 		case "betty":
 			SchedulingUnitOptions = append(SchedulingUnitOptions, &api.SchedulingUnitOptions{SchedulingUnits: SchedulingUnitBetty})
+		case "dedede":
+			SchedulingUnitOptions = append(SchedulingUnitOptions, &api.SchedulingUnitOptions{SchedulingUnits: SchedulingUnitDedede})
 		}
+
 	}
 
 	return SchedulingUnitOptions
@@ -255,7 +283,7 @@ func Test_GetImageVersionFromInstallPath(t *testing.T) {
 			t.Errorf("Error expected to be nil, got %s", err)
 		}
 		if version != expectedVersion {
-			t.Errorf("Expected R128-15964.4.0, got %s", version)
+			t.Errorf("Expected %s, got %s", expectedVersion, version)
 		}
 	}
 }
@@ -344,7 +372,7 @@ func Test_UpdateSchedulingUnitOptions_NonVMCompatibleTest(t *testing.T) {
 
 }
 
-func Test_UpdateSchedulingUnitOptions_VMCompatibleTest(t *testing.T) {
+func Test_UpdateSchedulingUnitOptions_VMCompatibleTest_WithVMSchedulingUnit(t *testing.T) {
 	schedulingUnitOptions := GenerateSchedulingUnitOptions([]string{"skyrim", "betty"})
 	testCase := GenerateCTPTestCase("test1", true, schedulingUnitOptions)
 	internalTestPlan := &api.InternalTestplan{
@@ -355,13 +383,41 @@ func Test_UpdateSchedulingUnitOptions_VMCompatibleTest(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected nil, got %s", err)
 	}
+
+	if len(internalTestPlan.TestCases[0].GetSchedulingUnitOptions()) != 1 {
+		t.Errorf("Expected 2, got %d", len(internalTestPlan.TestCases[0].SchedulingUnitOptions))
+	}
+	expectedBoard := "betty"
+	updatedBoard := internalTestPlan.TestCases[0].GetSchedulingUnitOptions()[0].GetSchedulingUnits()[0].GetDynamicUpdateLookupTable()["board"]
+	if expectedBoard != updatedBoard {
+		t.Errorf("Expected %s, got %s", expectedBoard, updatedBoard)
+	}
+	if len(internalTestPlan.TestCases[0].GetSchedulingUnitOptions()[0].GetSchedulingUnits()) != 1 {
+		t.Errorf("Expected 1, got %d", len(internalTestPlan.TestCases[0].SchedulingUnitOptions))
+	}
+}
+
+func Test_UpdateSchedulingUnitOptions_VMCompatibleTest_WithNoVMSchedulingUnit(t *testing.T) {
+	schedulingUnitOptions := GenerateSchedulingUnitOptions([]string{"skyrim", "dedede"})
+	testCase := GenerateCTPTestCase("test1", true, schedulingUnitOptions)
+	internalTestPlan := &api.InternalTestplan{
+		TestCases: []*api.CTPTestCase{testCase},
+	}
+
+	err := updateSchedulingUnitOptions(internalTestPlan, "reven-vmtest", "R128-15964.4.0", log.New(os.Stdout, "DEBUG", log.LstdFlags))
+	if err != nil {
+		t.Errorf("Expected nil, got %s", err)
+	}
+
 	if len(internalTestPlan.TestCases[0].GetSchedulingUnitOptions()) != 1 {
 		t.Errorf("Expected 2, got %d", len(internalTestPlan.TestCases[0].SchedulingUnitOptions))
 	}
 	expectedBoard := "reven-vmtest"
 	updatedBoard := internalTestPlan.TestCases[0].GetSchedulingUnitOptions()[0].GetSchedulingUnits()[0].GetDynamicUpdateLookupTable()["board"]
 	if expectedBoard != updatedBoard {
-		t.Errorf("Expected reven-vmtest, got %d", len(internalTestPlan.TestCases[0].SchedulingUnitOptions))
+		t.Errorf("Expected %s, got %s", expectedBoard, updatedBoard)
 	}
-
+	if len(internalTestPlan.TestCases[0].GetSchedulingUnitOptions()[0].GetSchedulingUnits()) != 1 {
+		t.Errorf("Expected 1, got %d", len(internalTestPlan.TestCases[0].SchedulingUnitOptions))
+	}
 }

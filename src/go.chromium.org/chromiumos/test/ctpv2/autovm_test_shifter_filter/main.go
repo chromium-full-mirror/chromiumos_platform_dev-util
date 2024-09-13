@@ -4,13 +4,9 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"regexp"
 
 	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
 
@@ -28,7 +24,7 @@ const (
 	success         = "SUCCESS"
 )
 
-var vmBoards = []string{"betty", "betty-arc-t", "reven-vmtest", "amd64-generic", "betty-kernelnext", "betty-arc-r", "betty-arc-v"}
+var vmBoards = []string{"betty", "reven-vmtest", "amd64-generic"}
 
 // isTestVMCompatible returns true if the test can be safely executed on a VM.
 func isTestVMCompatible(testCase *api.CTPTestCase) bool {
@@ -55,8 +51,8 @@ func isHwAgnostic(testCase *api.CTPTestCase) bool {
 	return false
 }
 
-func generateVMSchedulingUnitOptions(board string, version string) []*api.SchedulingUnitOptions {
-	schedulingUnit := &api.SchedulingUnit{
+func generateVMSchedulingUnit(board string, version string) *api.SchedulingUnit {
+	return &api.SchedulingUnit{
 		PrimaryTarget: &api.Target{
 			SwarmingDef: &api.SwarmingDefinition{
 				DutInfo: &testapi.Dut{
@@ -72,16 +68,22 @@ func generateVMSchedulingUnitOptions(board string, version string) []*api.Schedu
 			"installPath": "gs://chromeos-image-archive/" + board + "-" + release + version,
 		},
 	}
-	var schedulingUnits []*api.SchedulingUnit
-	schedulingUnits = append(schedulingUnits, schedulingUnit)
-	schedulingUnitOption := &api.SchedulingUnitOptions{
-		SchedulingUnits: schedulingUnits,
+}
+
+// updateSchedulingUnitOption updates the list of Scheduling units. Returns nil if no VMlab Scheduling unit found.
+func updateSchedulingUnitOption(schedulingUnitOption *api.SchedulingUnitOptions, board string, version string) *api.SchedulingUnitOptions {
+	var filteredSchedulingUnits []*api.SchedulingUnit
+	for _, schedulingUnit := range schedulingUnitOption.GetSchedulingUnits() {
+		// if VM board in scheduling unit then do not remove. This will trigger VMlab flow
+		if checkBoardInVMBoardsList(getBoard(schedulingUnit)) {
+			filteredSchedulingUnits = append(filteredSchedulingUnits, schedulingUnit)
+		}
 	}
-
-	var schedulingUnitOptions []*api.SchedulingUnitOptions
-	schedulingUnitOptions = append(schedulingUnitOptions, schedulingUnitOption)
-
-	return schedulingUnitOptions
+	if len(filteredSchedulingUnits) == 0 {
+		return nil
+	}
+	schedulingUnitOption.SchedulingUnits = filteredSchedulingUnits
+	return schedulingUnitOption
 }
 
 // updateSchedulingUnitOptions updates the schedulingUnitOptions for each test case in internal test plan request.
@@ -89,133 +91,33 @@ func updateSchedulingUnitOptions(req *api.InternalTestplan, board string, versio
 
 	for _, testCase := range req.GetTestCases() {
 		if isTestVMCompatible(testCase) {
-			updatedSchedulingUnitOptions := generateVMSchedulingUnitOptions(board, version)
-			testCase.SchedulingUnitOptions = updatedSchedulingUnitOptions
+			var updatedSchedulingUnitOptions []*api.SchedulingUnitOptions
+			for _, schedulingUnitOption := range testCase.GetSchedulingUnitOptions() {
+				updatedSchedulingUnitOption := updateSchedulingUnitOption(schedulingUnitOption, board, version)
+				if updatedSchedulingUnitOption == nil {
+					continue
+				}
+				updatedSchedulingUnitOptions = append(updatedSchedulingUnitOptions, updatedSchedulingUnitOption)
+			}
+			// if no schedulign unit found from intended scheduling units, then create a VM schedulign unit with available board/version
+			if len(updatedSchedulingUnitOptions) == 0 {
+				testCase.SchedulingUnitOptions = []*api.SchedulingUnitOptions{
+					{
+						SchedulingUnits: []*api.SchedulingUnit{
+							generateVMSchedulingUnit(board, version),
+						},
+					},
+				}
+			} else {
+				testCase.SchedulingUnitOptions = updatedSchedulingUnitOptions
+			}
+
 		} else {
 			log.Printf("Skippping as test : %s, isn't VM compatible", testCase.GetName())
 		}
 	}
 
 	return nil
-}
-
-func getBuildReportJSON(gcsPath string) ([]byte, error) {
-	// Execute the gsutil ls command
-	log.Printf("Checking image %s status...", gcsPath)
-	cmd := exec.Command("gsutil", "cat", gcsPath+"/"+buildReportJSON)
-	log.Printf("Executing command: %s", cmd.String())
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("error executing gsutil command: %v, output: %s", err, string(output))
-	}
-	// Check if the stdout is empty. No build report found
-	if len(output) == 0 {
-		return nil, fmt.Errorf("No build report found")
-	}
-	return output, nil
-}
-
-// isVMImageAvailable reads build report in gs bucket and infers if the builder has successfully completed.
-func isVMImageAvailable(gcsPath string) (bool, error) {
-	buildReportJSON, err := getBuildReportJSON(gcsPath)
-	if err != nil {
-		log.Printf("Error while getting build report: %s", err)
-	}
-	// Unmarshal the JSON string into the map
-	var result map[string]interface{}
-	err = json.Unmarshal(buildReportJSON, &result)
-	if err != nil {
-		return false, fmt.Errorf("error parsing JSON: %v", err)
-	}
-
-	// safely parse the nested structure
-	status, ok := result["status"].(map[string]interface{})
-	if !ok {
-		return false, fmt.Errorf("status key not found or is not in expected format")
-	}
-
-	value, ok := status["value"].(string)
-	if !ok {
-		return false, fmt.Errorf("value key not found or is not in expected format")
-	}
-
-	// check the status value from build report
-	fmt.Printf("Status is %s\n", value)
-	if value == success {
-		log.Printf("Image %s is available", gcsPath)
-		return true, nil
-	}
-	log.Printf("Image %s is not available", gcsPath)
-	return false, nil
-}
-
-// getImageVersion returns the image version from a given image gs url(installPath) ex-`R128-15964.4.0`.
-func getImageVersionFromInstallPath(installPath string) (string, error) {
-	if installPath == "" {
-		return "", errors.New("Empty Installpath")
-	}
-	// Define a regex pattern to match "R" followed by digits and a hyphen
-	re := regexp.MustCompile(`/R(.+)$`)
-
-	match := re.FindStringSubmatch(installPath)
-	if len(match) < 2 {
-		return "", errors.New("milestone version not found in installPath")
-	}
-
-	milestone := match[1]
-	return "R" + milestone, nil
-}
-
-// getTargetedImageVersion fetches the chromeos image version of boards on which tests are to be executed.
-// Note: Is same for all boards for a single CTP request.
-func getTargetedImageVersion(req *api.InternalTestplan, log *log.Logger) string {
-	// find the image version from the first valid gcs installPath
-	for _, tc := range req.TestCases {
-		for _, units := range tc.GetSchedulingUnitOptions() {
-			for _, unit := range units.GetSchedulingUnits() {
-				gcsInstallPath := unit.GetDynamicUpdateLookupTable()[installPath]
-				imageVersion, err := getImageVersionFromInstallPath(gcsInstallPath)
-				if err != nil {
-					// log the error and try for other install paths.
-					log.Printf("Error while getting image version for gcsInstallPath %s: %s", gcsInstallPath, err)
-					continue
-				}
-				log.Printf("Found image version for the request: %s", imageVersion)
-				return imageVersion
-			}
-		}
-	}
-	return ""
-}
-
-// isAnyVMImageAvailable returns true if any corresponding VM image for same version is available. Availability
-// means that the builder has successfully completed building image and should be available to lease a VM with it.
-func isAnyVMImageAvailable(req *api.InternalTestplan, log *log.Logger) (bool, string, string) {
-	// fetch image version of intended boards. Same version of VM boards will be used, if available.
-	targetedVersion := getTargetedImageVersion(req, log)
-	if targetedVersion == "" {
-		log.Printf("Failed to find image version from the request. Skipping AutoVM test shifter filter execution.")
-		return false, "", ""
-	}
-
-	// check for all valid VM boards for image availability. Stop as soon as any is found available.
-	log.Printf("Checking availability for VM board images ...")
-	for _, board := range vmBoards {
-		// form the gcsImagePath for VM board to check image availability.
-		gcsImagePath := gsBucketPath + board + "-" + release + targetedVersion
-		log.Printf("GCS image path for board %s: %s", board, gcsImagePath)
-
-		exists, err := isVMImageAvailable(gcsImagePath)
-		if err != nil {
-			log.Printf("Error while checking image availability: %s", err)
-			continue
-		}
-		if exists {
-			return exists, board, targetedVersion
-		}
-	}
-	log.Printf("No images found available.")
-	return false, "", ""
 }
 
 func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
