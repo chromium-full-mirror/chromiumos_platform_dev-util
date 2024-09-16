@@ -20,10 +20,15 @@ import (
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
 )
 
-const testPath = "/usr/local/tradefed/android-%s"
-const tradefedTestResultFile = "results/latest/test_result.xml"
-const ctsResultsDir = "results/"
-const ctsLogsDir = "logs/"
+const (
+	testPath               = "/usr/local/tradefed/android-%s"
+	tradefedTestResultFile = "results/latest/test_result.xml"
+	ctsResultsDir          = "results/"
+	ctsLogsDir             = "logs/"
+
+	tradefedConsoleBinary = "/tradefed/tradefed_runner.sh"
+	ctsTFLogsPath         = "/tmp/test/logs" // path of global TF console logs.
+)
 
 var testType = "cts"
 
@@ -51,7 +56,6 @@ func buildTradefedCommand(logger *log.Logger, tests []*api.TestCaseMetadata, ser
 	for _, s := range serials {
 		baseArgs = append(baseArgs, "-s", s)
 	}
-
 	return baseArgs
 }
 
@@ -72,9 +76,20 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 		}
 	}()
 
-	baseArgs := buildTradefedCommand(logger, tests, serials)
-	terminalPath := path.Join(fmt.Sprintf(testPath, testType), fmt.Sprintf("tools/%s-tradefed", testType))
-	cmd := exec.Command(terminalPath, baseArgs...)
+	var cmd *exec.Cmd
+
+	if testType == "dts" {
+		// Using bundled TradeFed for DTS tests.
+		baseArgs := buildTradefedCommand(logger, tests, serials)
+		terminalPath := path.Join(fmt.Sprintf(testPath, testType), fmt.Sprintf("tools/%s-tradefed", testType))
+		cmd = exec.Command(terminalPath, baseArgs...)
+	} else if testType == "cts" {
+		// Using Google TradeFed console for CTS tests.
+		baseArgs := []string{"run", "commandAndExit"}
+		baseArgs = append(baseArgs, BuildCtsTestCommand(logger, tests, serials)...)
+		cmd = exec.Command(tradefedConsoleBinary, baseArgs...)
+	}
+
 	logger.Println("Running TF: ", cmd.String())
 
 	c.KeepAdbAlive(logger, serials, exit)
@@ -115,10 +130,12 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 		td.logger.Println("nill resulsts?")
 	}
 
-	td.moveArtifacts(resultsDir, ctsResultsDir)
-	td.moveArtifacts(resultsDir, ctsLogsDir)
-	td.logger.Println("final results: ", allRspn)
-	td.logger.Println("final results: ", results)
+	if testType == "dts" {
+		td.moveArtifacts(resultsDir, ctsResultsDir)
+		td.moveArtifacts(resultsDir, ctsLogsDir)
+		td.logger.Println("final results: ", allRspn)
+		td.logger.Println("final results: ", results)
+	}
 
 	return allRspn, nil
 }
