@@ -44,12 +44,19 @@ func isTestVMCompatible(testCase *api.CTPTestCase) bool {
 
 // isHwAgnostic checks if the test case has the hwAgnostic tag.
 func isHwAgnostic(testCase *api.CTPTestCase) bool {
-	for _, testCaseTag := range testCase.GetMetadata().GetTestCase().GetTags() {
-		if testCaseTag.GetValue() == hwAgnostic {
-			return true
-		}
+	if testCase == nil {
+		return false
 	}
-	return false
+	if testCase.GetMetadata() == nil {
+		return false
+	}
+	if testCase.GetMetadata().GetTestCaseInfo() == nil {
+		return false
+	}
+	if testCase.GetMetadata().GetTestCaseInfo().GetHwAgnostic() == nil {
+		return false
+	}
+	return testCase.GetMetadata().GetTestCaseInfo().GetHwAgnostic().GetValue()
 }
 
 func generateVMSchedulingUnit(board string, version string) *api.SchedulingUnit {
