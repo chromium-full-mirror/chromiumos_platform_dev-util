@@ -82,6 +82,12 @@ func runTests(ctx context.Context, logger *log.Logger, resultRootDir, tlwAddr st
 		return nil, err
 	}
 
+	if out, err := exec.Command("gcloud", "auth", "list", "--format", "value(account)").CombinedOutput(); err != nil {
+		logger.Println("Unable to run gcloud auth list: ", string(out))
+	} else {
+		logger.Println("The output of gcloud auth list: ", string(out))
+	}
+
 	driversToTests, err := driverToTestsMapping(logger, matchedMdList)
 	if err != nil {
 		return nil, err
