@@ -274,18 +274,25 @@ func arrayToSet(arr []string) map[string]bool {
 
 func Test_GetImageVersionFromInstallPath(t *testing.T) {
 
-	images := make(map[string]string)
-	images["gs://chromeos-image-archive/skyrim-release/R128-15964.4.0"] = "R128-15964.4.0"
-	images["betty-arc-t-cq/R130-16020.0.0-104081-8737801324706956561"] = "R130-16020.0.0-104081-8737801324706956561"
-	for image, expectedVersion := range images {
-		version, err := getImageVersionFromInstallPath(image)
-		if err != nil {
-			t.Errorf("Error expected to be nil, got %s", err)
-		}
-		if version != expectedVersion {
-			t.Errorf("Expected %s, got %s", expectedVersion, version)
-		}
+	releaseImage := "gs://chromeos-image-archive/skyrim-release/R128-15964.4.0"
+	expectedImageVersion := "R128-15964.4.0"
+	nonReleaseImage := "betty-arc-t-cq/R130-16020.0.0-104081-8737801324706956561"
+
+	version, err := getImageVersionFromInstallPath(releaseImage)
+	if err != nil {
+		t.Errorf("Error expected to be nil, got %s", err)
 	}
+	if version != expectedImageVersion {
+		t.Errorf("Expected %s, got %s", expectedImageVersion, version)
+	}
+	version, err = getImageVersionFromInstallPath(nonReleaseImage)
+	if err == nil {
+		t.Errorf("Error not expected to be nil, got %s", err)
+	}
+	if version != "" {
+		t.Errorf("Expected %s, got %s", "", version)
+	}
+
 }
 
 func Test_GetTargetedImageVersion(t *testing.T) {

@@ -5,15 +5,23 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"os/exec"
+	"os"
+	"path/filepath"
 	"regexp"
 
+	"github.com/google/uuid"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
+	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
+)
+
+const (
+	buildReportsDir = "/tmp/build_reports_"
 )
 
 // dutModelFromDut returns the dut model for a DUT.
@@ -47,33 +55,51 @@ func checkBoardInVMBoardsList(board string) bool {
 	return false
 }
 
-func getBuildReportJSON(gcsPath string) ([]byte, error) {
-	// Execute the gsutil ls command
-	log.Printf("Checking image %s status...", gcsPath)
-	cmd := exec.Command("gsutil", "cat", gcsPath+"/"+buildReportJSON)
-	log.Printf("Executing command: %s", cmd.String())
-	output, err := cmd.CombinedOutput()
+// createDirectory generates a unique directory for each request.
+func createDirectory(log *log.Logger) (string, error) {
+
+	dir := buildReportsDir + uuid.New().String()
+	log.Printf("Creating dir ...")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+	log.Printf("Dir created :%s", dir)
+	return dir, nil
+}
+
+func getBuildReportJSON(ctx context.Context, board string, version string, buildReportJSONDir string, log *log.Logger) ([]byte, error) {
+	gsClient, err := storage.NewGSClient(ctx, "")
 	if err != nil {
-		return nil, fmt.Errorf("error executing gsutil command: %v, output: %s", err, string(output))
+		return nil, err
 	}
-	// Check if the stdout is empty. No build report found
-	if len(output) == 0 {
-		return nil, fmt.Errorf("No build report found")
+	destFilePath := filepath.Join(buildReportJSONDir, board)
+
+	// form the gcsImagePath for VM board to check image availability.
+	gcsImagePath := gsBucketPath + board + "-" + release + version + "/" + buildReportJSON
+	log.Printf("Checking for board %s: %s", board, gcsImagePath)
+
+	if err := gsClient.DownloadFile(ctx, gcsImagePath, destFilePath); err != nil {
+		return nil, err
 	}
-	return output, nil
+	content, err := os.ReadFile(destFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return content, nil
 }
 
 // isVMImageAvailable reads build report in gs bucket and infers if the builder has successfully completed.
-func isVMImageAvailable(gcsPath string) (bool, error) {
-	buildReportJSON, err := getBuildReportJSON(gcsPath)
+func isVMImageAvailable(ctx context.Context, board string, version string, buildReportJSONDir string, log *log.Logger) (bool, error) {
+	buildReportJSON, err := getBuildReportJSON(ctx, board, version, buildReportJSONDir, log)
 	if err != nil {
-		log.Printf("Error while getting build report: %s", err)
+		return false, err
 	}
 	// Unmarshal the JSON string into the map
 	var result map[string]interface{}
 	err = json.Unmarshal(buildReportJSON, &result)
 	if err != nil {
-		return false, fmt.Errorf("error parsing JSON: %v", err)
+		return false, err
 	}
 
 	// safely parse the nested structure
@@ -88,12 +114,12 @@ func isVMImageAvailable(gcsPath string) (bool, error) {
 	}
 
 	// check the status value from build report
-	log.Printf("Status is %s\n", value)
+	log.Printf("Build report status: %s\n", value)
 	if value == success {
-		log.Printf("Image %s is available", gcsPath)
+		log.Printf("Image found available for AutoVM use")
 		return true, nil
 	}
-	log.Printf("Image %s is not available", gcsPath)
+	log.Printf("Image not available for AutoVM use")
 	return false, nil
 }
 
@@ -103,9 +129,12 @@ func getImageVersionFromInstallPath(installPath string) (string, error) {
 		return "", errors.New("Empty Installpath")
 	}
 	// Capturing group regex. match[0] contains everything including /R, match[1] contains everything captured as part of (.+)
-	re := regexp.MustCompile(`/R(.+)$`)
+	re := regexp.MustCompile(`release/R(.+)$`)
 
 	match := re.FindStringSubmatch(installPath)
+	if len(match) < 1 {
+		return "", errors.New("not a release image")
+	}
 	if len(match) < 2 {
 		return "", errors.New("milestone version not found in installPath")
 	}
@@ -124,12 +153,13 @@ func getTargetedImageVersion(req *api.InternalTestplan, log *log.Logger) string 
 				if unit.GetDynamicUpdateLookupTable() != nil {
 					gcsInstallPath, exists := unit.GetDynamicUpdateLookupTable()[installPath]
 					if exists {
+						log.Printf("Searching the release version in install path :%s", gcsInstallPath)
 						imageVersion, err := getImageVersionFromInstallPath(gcsInstallPath)
 						if err != nil {
-							log.Printf("Error while getting image version for gcsInstallPath %s: %s", gcsInstallPath, err)
+							log.Printf("Release image version not found : %s", err)
 							continue
 						}
-						log.Printf("Found image version for the request: %s", imageVersion)
+						log.Printf("Found release image version : %s", imageVersion)
 						return imageVersion
 					}
 				}
@@ -141,22 +171,25 @@ func getTargetedImageVersion(req *api.InternalTestplan, log *log.Logger) string 
 
 // isAnyVMImageAvailable returns true if any corresponding VM image for same version is available. Availability
 // means that the builder has successfully completed building image and should be available to lease a VM with it.
-func isAnyVMImageAvailable(req *api.InternalTestplan, log *log.Logger) (bool, string, string) {
+func isAnyVMImageAvailable(ctx context.Context, req *api.InternalTestplan, log *log.Logger) (bool, string, string) {
 	// fetch image version of intended boards. Same version of VM boards will be used, if available.
 	targetedVersion := getTargetedImageVersion(req, log)
 	if targetedVersion == "" {
-		log.Printf("Failed to find image version from the request. Skipping AutoVM test shifter filter execution.")
 		return false, "", ""
+	}
+	// unique temp dir for downloading build_report.json. This is to avoid any race condition as multiple requests are processed by CTP on one machine.
+	buildReportJSONdir, err := createDirectory(log)
+	if err != nil {
+		log.Printf("Error setting up parent directory for downloading files from gs: %s", err)
+		return false, "", ""
+
 	}
 
 	// check for all valid VM boards for image availability. Stop as soon as any is found available.
 	log.Printf("Checking availability for VM board images ...")
 	for _, board := range vmBoards {
-		// form the gcsImagePath for VM board to check image availability.
-		gcsImagePath := gsBucketPath + board + "-" + release + targetedVersion
-		log.Printf("GCS image path for board %s: %s", board, gcsImagePath)
 
-		exists, err := isVMImageAvailable(gcsImagePath)
+		exists, err := isVMImageAvailable(ctx, board, targetedVersion, buildReportJSONdir, log)
 		if err != nil {
 			log.Printf("Error while checking image availability: %s", err)
 			continue

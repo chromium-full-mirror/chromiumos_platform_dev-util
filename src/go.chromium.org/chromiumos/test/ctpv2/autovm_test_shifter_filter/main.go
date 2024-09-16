@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -122,7 +123,7 @@ func updateSchedulingUnitOptions(req *api.InternalTestplan, board string, versio
 
 func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
 
-	available, board, version := isAnyVMImageAvailable(req, log)
+	available, board, version := isAnyVMImageAvailable(context.Background(), req, log)
 
 	if available {
 		// iterates each test case and updates the scheduling units based on if test is hw agnostic.
@@ -130,7 +131,6 @@ func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan
 		if err != nil {
 			return nil, fmt.Errorf("Error during AutoVM test shifter filter execution: %s", err)
 		}
-		log.Printf("Image is available: %t", available)
 	} else {
 		log.Printf("Skipping AutoVM test shifter filter execution. VM Image is not available.")
 	}
