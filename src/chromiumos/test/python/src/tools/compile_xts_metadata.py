@@ -31,7 +31,7 @@ from google.protobuf import text_format
 
 
 def _test_case_factory(
-    case_data: dict, suite_name: str, branch: str, build_id: str
+    case_data: dict, suite_name: str, branch: str, targets: list, build_id: str
 ) -> tc_metadata_pb.TestCaseMetadata:
     """Factory method for build TestCase proto objects
 
@@ -52,6 +52,7 @@ def _test_case_factory(
             tc_pb.TestCase.Tag(value=f"build_id:{build_id}"),
         ]
     )
+    params.extend([tc_pb.TestCase.Tag(value=f"target:{t}") for t in targets])
     deps = [
         tc_pb.TestCase.Dependency(value=f"abi:{t}")
         for t in case_data.get("abis", [])
@@ -85,10 +86,11 @@ def _test_case_list_factory(input_data: dict) -> list:
     """Factory method for batch building TestCaseMetadata objects"""
     suite_name = input_data["suite"]
     branch = input_data["branch"]
+    targets = input_data["targets"]
     build_id = input_data["build_id"]
 
     test_case_metadata = [
-        _test_case_factory(tc, suite_name, branch, build_id)
+        _test_case_factory(tc, suite_name, branch, targets, build_id)
         for tc in input_data["modules"]
     ]
 
