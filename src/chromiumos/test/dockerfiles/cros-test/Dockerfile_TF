@@ -48,6 +48,7 @@ RUN chmod 755 /usr/bin/cros-test
 RUN chown -R shell:root /tmp/test/
 RUN chmod -R a+rwx /tradefed
 RUN chown -R shell:root /tradefed
+COPY --chown=shell:root tradefed_runner.sh /tradefed
 
 USER shell
 
