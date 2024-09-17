@@ -38,8 +38,8 @@ func (c *WaitForStickyKernel) Execute(log *log.Logger) error {
 		c.cs.MachineMetadata.RootInfo.RootPartNum)
 
 	kernalNum := pi.ActiveKernelNum
-	// Timeout is determined by 2x delay to mark new kernel successful + 10 seconds fuzz.
-	stickyTimeout := 100 * time.Second
+	// Timeout is determined by 4x delay to mark new kernel successful + 10 seconds fuzz.
+	stickyTimeout := (45 * 4 + 10) * time.Second
 	stickyKernelCtx, cancel := context.WithTimeout(c.ctx, stickyTimeout)
 	defer cancel()
 	twoSeconds := 2 * time.Second
