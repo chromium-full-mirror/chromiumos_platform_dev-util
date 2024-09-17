@@ -29,8 +29,13 @@ RUN rm -rf /usr/lib/google-cloud-sdk/bin/anthoscli \
 RUN sudo rm /usr/bin/python3*; exit 0
 RUN sudo ln -s /usr/local/bin/python3 /usr/bin/python3
 
+# Config the user
+# dialout added for b/273797484
+RUN useradd -m chromeos-test -G dialout
+RUN echo 'chromeos-test ALL=NOPASSWD:ALL' > /etc/sudoers.d/chromeos-test
+
 # Cros-test binary is static across boards.
-COPY --chown=shell:root cros-test /usr/bin/
+COPY --chown=chromeos-test:chromeos-test cros-test /usr/bin/
 
 # ###############################################################################
 # Everything above this point should not be changing often (ie not every build)
@@ -40,17 +45,17 @@ COPY --chown=shell:root cros-test /usr/bin/
 RUN mkdir -p /tmp/test/metadata
 RUN mkdir -p /tmp/test/logs
 # Bring in metadata to 1 location (Can be different per board.)
-COPY --chown=shell:root *.pb /tmp/test/metadata/
+COPY --chown=chromeos-test:chromeos-test *.pb /tmp/test/metadata/
 
 
 # Do a final chmod and chown
 RUN chmod 755 /usr/bin/cros-test
-RUN chown -R shell:root /tmp/test/
+RUN chown -R chromeos-test:chromeos-test /tmp/test/
 RUN chmod -R a+rwx /tradefed
-RUN chown -R shell:root /tradefed
-COPY --chown=shell:root tradefed_runner.sh /tradefed
+RUN chown -R chromeos-test:chromeos-test /tradefed
+COPY --chown=chromeos-test:chromeos-test tradefed_runner.sh /tradefed
 
-USER shell
+USER chromeos-test
 
 # Configure TradeFed environment.
 ENV JSON_KEY_PATH=/creds/service_accounts/skylab-drone.json
