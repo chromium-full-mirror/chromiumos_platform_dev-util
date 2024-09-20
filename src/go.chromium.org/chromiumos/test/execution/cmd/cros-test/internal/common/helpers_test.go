@@ -6,9 +6,10 @@ package common
 
 import (
 	"testing"
+	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
-
 	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -76,4 +77,140 @@ func TestCompanions(t *testing.T) {
 		t.Errorf("Got unexpected androids (-got +want):\n%s", diff)
 	}
 
+}
+
+var moblyResultYaml string = `
+---
+Requested Tests:
+- test_hello
+- test_multidevice
+Type: TestNameList
+...
+---
+Begin Time: 1726178525229
+Details: null
+End Time: 1726178525573
+Extra Errors: {}
+Extras: null
+Parent: null
+Result: PASS
+Retry Parent: null
+Signature: test_hello-1726178525229
+Stacktrace: null
+Termination Signal Type: null
+Test Class: MultiDeviceTest
+Test Name: test_hello
+Type: Record
+UID: null
+...
+---
+Begin Time: 1726178525574
+Details: null
+End Time: 1726178525575
+Extra Errors: {}
+Extras: null
+Parent: null
+Result: PASS
+Retry Parent: null
+Signature: test_multidevice-1726178525574
+Stacktrace: null
+Termination Signal Type: null
+Test Class: MultiDeviceTest
+Test Name: test_multidevice
+Type: Record
+UID: null
+...
+---
+Controller Info:
+-   build_info:
+        build_characteristics: desktop,device
+        build_fingerprint: google/cf_x86_64_al/vsoc_x86_64_only:VanillaIceCream/MAIN.46f9824a/12360107:userdebug/dev-keys
+        build_id: MAIN.46f9824a
+        build_product: vsoc_x86_64_only
+        build_type: userdebug
+        build_version_codename: VanillaIceCream
+        build_version_incremental: '12360107'
+        build_version_sdk: '35'
+        debuggable: '1'
+        hardware: cutf_cvm
+        product_name: cf_x86_64_al
+    model: cf_x86_64_al
+    serial: 127.0.0.1:38513
+    user_added_info: {}
+-   build_info:
+        build_characteristics: desktop,device
+        build_fingerprint: google/cf_x86_64_al/vsoc_x86_64_only:VanillaIceCream/MAIN.29688522/12359532:userdebug/dev-keys
+        build_id: MAIN.29688522
+        build_product: vsoc_x86_64_only
+        build_type: userdebug
+        build_version_codename: VanillaIceCream
+        build_version_incremental: '12359532'
+        build_version_sdk: '35'
+        debuggable: '1'
+        hardware: cutf_cvm
+        product_name: cf_x86_64_al
+    model: cf_x86_64_al
+    serial: 127.0.0.1:34511
+    user_added_info: {}
+Controller Name: AndroidDevice
+Test Class: MultiDeviceTest
+Timestamp: 1726178525.5891118
+Type: ControllerInfo
+...
+---
+Error: 0
+Executed: 2
+Failed: 0
+Passed: 2
+Requested: 2
+Skipped: 0
+Type: Summary
+...
+`
+
+func TestTranslateMoblyResults(t *testing.T) {
+	startTime1 := time.Unix(0, 1726178525229)
+	endTime1 := time.Unix(0, 1726178525573)
+	duration1 := endTime1.Sub(startTime1)
+	startTimeProto1, _ := ptypes.TimestampProto(startTime1)
+
+	startTime2 := time.Unix(0, 1726178525574)
+	endTime2 := time.Unix(0, 1726178525575)
+	startTimeProto2, _ := ptypes.TimestampProto(startTime2)
+	duration2 := endTime2.Sub(startTime2)
+
+	expected := []*api.TestCaseResult{
+		{
+			TestCaseId: &api.TestCase_Id{Value: "MultiDeviceTest.test_hello"},
+			Verdict:    &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
+			TestHarness: &api.TestHarness{
+				TestHarnessType: &api.TestHarness_Mobly_{
+					Mobly: &api.TestHarness_Mobly{},
+				},
+			},
+			StartTime: startTimeProto1,
+			Duration:  ptypes.DurationProto(duration1),
+		},
+		{
+			TestCaseId: &api.TestCase_Id{Value: "MultiDeviceTest.test_multidevice"},
+			Verdict:    &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
+			TestHarness: &api.TestHarness{
+				TestHarnessType: &api.TestHarness_Mobly_{
+					Mobly: &api.TestHarness_Mobly{},
+				},
+			},
+			StartTime: startTimeProto2,
+			Duration:  ptypes.DurationProto(duration2),
+		},
+	}
+
+	got, err := TranslateMoblyResults([]byte(moblyResultYaml))
+	if err != nil {
+		t.Errorf("Cannot translate mobly result: %s", err)
+	}
+
+	if diff := cmp.Diff(got, expected,
+		cmp.Comparer(proto.Equal)); diff != "" {
+		t.Errorf("Got unexpected mobly result (-got +want):\n%s", diff)
+	}
 }

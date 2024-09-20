@@ -8,14 +8,21 @@ package common
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
+	"strings"
+	"time"
+
+	"github.com/golang/protobuf/ptypes"
+	"gopkg.in/yaml.v3"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
-	"go.chromium.org/chromiumos/test/execution/errors"
+	testerrors "go.chromium.org/chromiumos/test/execution/errors"
 )
 
 // TestScanner makes a scanner to read from test streams.
@@ -111,7 +118,7 @@ func Companions(devices []*api.CrosTestRequest_Device) (chromeOSCompanions []*de
 			companionCount++
 			info, err := device.FillDUTInfo(c, fmt.Sprintf("cd%d", companionCount))
 			if err != nil {
-				return nil, nil, errors.NewStatusError(errors.InvalidArgument,
+				return nil, nil, testerrors.NewStatusError(testerrors.InvalidArgument,
 					fmt.Errorf("cannot get address from companion device: %v", c))
 			}
 			chromeOSCompanions = append(chromeOSCompanions, info)
@@ -123,4 +130,149 @@ func Companions(devices []*api.CrosTestRequest_Device) (chromeOSCompanions []*de
 		}
 	}
 	return chromeOSCompanions, androidCompanions, nil
+}
+
+// TranslateMoblyResults translate a mobly test result yaml output
+// to test results.
+func TranslateMoblyResults(moblyYaml []byte) ([]*api.TestCaseResult, error) {
+	reader := bytes.NewReader(moblyYaml)
+	decoder := yaml.NewDecoder(reader)
+	var results []*api.TestCaseResult
+	for {
+		var node yaml.Node
+		err := decoder.Decode(&node)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, errors.New("failed to parse yaml file")
+		}
+		result, err := parseResult(&node)
+		if err != nil {
+			// Current document does not contain results.
+			continue
+		}
+		results = append(results, result)
+	}
+	return results, nil
+}
+
+func parseResult(node *yaml.Node) (*api.TestCaseResult, error) {
+	if node.Kind != yaml.DocumentNode {
+		// Results are in document block.
+		// Return an error if it is not a document node.
+		return nil, errors.New("not an document node")
+	}
+	for _, c := range node.Content {
+		if c.Kind != yaml.MappingNode {
+			// Result is in map format.
+			continue
+		}
+		var result map[string]interface{}
+		if err := c.Decode(&result); err != nil {
+			// Ignore map that we cannot parse.
+			continue
+		}
+		return fillTestCaseResult(result)
+	}
+	return nil, errors.New("document does not contain results")
+
+}
+
+func fillTestCaseResult(raw map[string]interface{}) (*api.TestCaseResult, error) {
+	const (
+		testClassKey = "Test Class"
+		testNameKey  = "Test Name"
+		resultKey    = "Result"
+		detailKey    = "Details"
+		startTimeKey = "Begin Time"
+		endTimeKey   = "End Time"
+	)
+	var name string
+	var class string
+	var result string
+	var detail string
+	var startTime time.Time
+	var endTime time.Time
+
+	nameValue, ok := raw[testNameKey]
+	if !ok {
+		return nil, errors.New("map does not have name information")
+	}
+
+	name = nameValue.(string)
+	if classValue, ok := raw[testClassKey]; ok {
+		class = classValue.(string)
+	}
+
+	startTimeValue, ok := raw[startTimeKey]
+	if !ok {
+		// The map does not have start time information, use current time.
+		startTime = time.Now()
+	} else {
+		startTime = time.Unix(0, int64(startTimeValue.(int)))
+	}
+
+	endTimeValue, ok := raw[endTimeKey]
+	if !ok {
+		// The map does not have end time information.
+		// Use start time.
+		endTime = startTime
+	} else {
+		endTime = time.Unix(0, int64(endTimeValue.(int)))
+
+	}
+
+	if resultValue, ok := raw[resultKey]; ok && resultValue != nil {
+		result = resultValue.(string)
+	}
+
+	if detailValue, ok := raw[detailKey]; ok && detailValue != nil {
+		detail = detailValue.(string)
+	}
+	var testID string
+	if class != "" {
+		testID = fmt.Sprintf("%s.%s", class, name)
+	} else {
+		testID = name
+	}
+
+	duration := endTime.Sub(startTime)
+	protoStartTime, err := ptypes.TimestampProto(startTime)
+	if err != nil {
+		return nil, fmt.Errorf("fail to convert start time to protobuf: %v", err)
+	}
+	protoDuration := ptypes.DurationProto(duration)
+
+	r := &api.TestCaseResult{
+		TestCaseId: &api.TestCase_Id{Value: testID},
+		StartTime:  protoStartTime,
+		Duration:   protoDuration,
+		TestHarness: &api.TestHarness{
+			TestHarnessType: &api.TestHarness_Mobly_{
+				Mobly: &api.TestHarness_Mobly{},
+			},
+		},
+	}
+
+	moblyVerdict := strings.ToUpper(result)
+	switch moblyVerdict {
+	case "PASS":
+		r.Verdict = &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}}
+	case "FAIL", "ERROR":
+		r.Verdict = &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}}
+		if detail != "" {
+			r.Reason = detail
+		} else {
+			r.Reason = "Failure reason is not available"
+		}
+	case "SKIP":
+		r.Verdict = &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}}
+		if detail != "" {
+			r.Reason = detail
+		} else {
+			r.Reason = "Skip reason is not available"
+		}
+	}
+	return r, nil
 }
