@@ -5,16 +5,13 @@
 package driver
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
 func createTestFile(dir, filename string, content string) error {
@@ -32,56 +29,57 @@ func TestMoveArtifacts(t *testing.T) {
 
 		testCases := []struct {
 			name            string
-			test            *api.TestCaseResult
 			createArtifacts func(testDir string) error
+			artifactPattern string
 			wantFileExist   []string
 		}{
 			{
-				name: "Move artifacts for passed test",
-				test: &api.TestCaseResult{
-					TestCaseId: &api.TestCase_Id{
-						Value: "test.case.one",
-					},
-					Verdict: &api.TestCaseResult_Pass_{},
-				},
+				name: "Move single artifact by name",
 				createArtifacts: func(testDir string) error {
 					return createTestFile(testDir, "test.log", "test log")
 				},
-				wantFileExist: []string{
-					"test.case.one/test.log",
-				},
+				artifactPattern: filepath.Join(tmpDir, "test.log"),
+				wantFileExist:   []string{"test.log"},
 			},
 			{
-				name: "Move artifacts for failed test",
-				test: &api.TestCaseResult{
-					TestCaseId: &api.TestCase_Id{
-						Value: "test.case.two",
-					},
-					Verdict: &api.TestCaseResult_Fail_{},
-				},
+				name: "Move single artifact by glob pattern",
 				createArtifacts: func(testDir string) error {
-					return createTestFile(testDir, "test.png", "test image")
+					return createTestFile(testDir, "test.log", "test log")
 				},
-				wantFileExist: []string{
-					"test.case.two/test.png",
+				artifactPattern: filepath.Join(tmpDir, "*"),
+				wantFileExist:   []string{"test.log"},
+			},
+			{
+				name: "Move multiple artifacts by glob pattern",
+				createArtifacts: func(testDir string) error {
+					if err := createTestFile(testDir, "test1.log", "test log"); err != nil {
+						return err
+					}
+					if err := createTestFile(testDir, "test2.xml", "test log"); err != nil {
+						return err
+					}
+					return createTestFile(testDir, "test3.log", "test log")
 				},
+				artifactPattern: filepath.Join(tmpDir, "*"),
+				wantFileExist:   []string{"test1.log", "test2.xml", "test3.log"},
 			},
 		}
 
 		for _, tc := range testCases {
 			Convey(tc.name, func() {
-				testDir := filepath.Join(tmpDir, tc.test.GetTestCaseId().GetValue())
-				So(os.MkdirAll(testDir, 0755), ShouldBeNil)
-				So(tc.createArtifacts(testDir), ShouldBeNil)
+				resTmpDir, err := os.MkdirTemp("", "results")
+				So(err, ShouldBeNil)
+				defer os.RemoveAll(resTmpDir)
+
+				So(tc.createArtifacts(tmpDir), ShouldBeNil)
 
 				td := &TradefedDriver{
 					logger: log.New(io.Discard, "", 0),
 				}
-				resultsPath := path.Join(fmt.Sprintf(testPath, testType), tradefedTestResultFile)
-				td.moveArtifacts(resultsPath, tmpDir)
+				td.moveArtifacts(resTmpDir, tc.artifactPattern)
 
 				for _, file := range tc.wantFileExist {
-					filePath := filepath.Join(tmpDir, file)
+					filePath := filepath.Join(resTmpDir, file)
 					_, err := os.Stat(filePath)
 					So(err, ShouldBeNil)
 				}

@@ -6,28 +6,36 @@
 package driver
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
 const (
-	ctsTestRunner        = "google/cts/google-cts-launcher-for-aosp"
-	ctsVmConfigName      = "cts-virtual-device"
-	ctsDeviceConfigName  = "cts-automated"
-	ctsPackageName       = "android-cts.zip"
-	ctsInvocationTimeout = "10h"
-	ctsMaxRuntime        = "3h"
-	ctsTestTag           = "al-cts-test"
-	ctsRetryFailedRuns   = true
-	ctsResultsUpload     = true
+	tfTestRunner         = "google/cts/google-cts-launcher-for-aosp"
+	invocationTimeout    = "10h"
+	maxRuntime           = "3h"
+	retryFailedRuns      = true
+	resultsUpload        = true
+	defaultGlobalLogPath = "/tmp"
+
+	ctsVmConfigName     = "cts-virtual-device"
+	ctsDeviceConfigName = "cts-automated"
+	ctsPackageName      = "android-cts.zip"
+	ctsTestTag          = "cros-cts-test"
+
+	dtsDeviceConfigName = "dts"
+	dtsPackageName      = "android-dts.zip"
+	dtsTestTag          = "cros-dts-test"
 )
 
 var ctsParams = []string{
 	"--skip-device-info", "--no-use-device-build-info", "--property-check:no-throw-error",
 	"--log-level", "VERBOSE", "--max-log-size", "62914560", "--max-tmp-logcat-file", "62914560",
-	"--logcat-on-failure", "--screenshot-on-failure",
+	"--logcat-on-failure", "--screenshot-on-failure", "--include-test-log-tags",
 	"--result-reporter:disable-result-posting", "--use-log-saver",
 }
 
@@ -49,19 +57,51 @@ func extractBuildInfo(test *api.TestCase) (branch string, target string, build s
 	return
 }
 
-func BuildCtsTestCommand(logger *log.Logger, tests []*api.TestCaseMetadata, serials []string) []string {
-	cmd := []string{ctsTestRunner}
+func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestCaseMetadata,
+	serials []string, metadata *api.ExecutionMetadata) []string {
+
+	cmd := []string{tfTestRunner}
+
+	// Extract AnTS invocation id and WorkUnit ID from execution metadata.
+	var AnTsInvID string
+	var AnTsWorkUnitID string
+	if metadata != nil && len(metadata.Args) > 0 {
+		for _, arg := range metadata.Args {
+			if arg.Flag == "ants_invocation_id" {
+				AnTsInvID = arg.Value
+			} else if arg.Flag == "ants_work_unit_id" {
+				AnTsWorkUnitID = arg.Value
+			}
+		}
+		logger.Printf("Got invocation id: %s, work unit id: %s.", AnTsInvID, AnTsWorkUnitID)
+	}
 
 	// Only physical devices are currently supported. For VMs, ctsVmConfigName
 	// config should be used.
-	cmd = append(cmd, "--config-name", ctsDeviceConfigName)
+	if testType == "cts" {
+		cmd = append(cmd, "--config-name", ctsDeviceConfigName,
+			"--cts-package-name", ctsPackageName, "--test-tag", ctsTestTag)
+	} else if testType == "dts" {
+		cmd = append(cmd, "--config-name", dtsDeviceConfigName,
+			"--cts-package-name", dtsPackageName, "--test-tag", dtsTestTag,
+			"--rootdir-var", "DTS_ROOT")
+	}
 
-	cmd = append(cmd, "--cts-package-name", ctsPackageName, "--cts-use-partial-download",
-		"--cts-version", "2", "--gdevice-flash:disable", "--invocation-timeout", ctsInvocationTimeout,
-		"--log-level", "VERBOSE", "--max-run-time", ctsMaxRuntime, "--test-tag", ctsTestTag,
+	logPath := os.Getenv("GLOBAL_LOG_PATH")
+	if len(logPath) <= 0 {
+		logPath = defaultGlobalLogPath
+		os.Setenv("GLOBAL_LOG_PATH", logPath)
+	}
+
+	cmd = append(cmd, "--cts-use-partial-download",
+		"--cts-version", "2", "--gdevice-flash:disable", "--invocation-timeout", invocationTimeout,
+		"--log-level", "VERBOSE", "--max-run-time", maxRuntime, "--no-bugreport-on-invocation-ended",
 		"--invocation-data", "android-build-environment=prod", "--no-run-as-root",
-		"--reporter-template", "template/reporters/subprocess-reporter", "--no-use-event-streaming",
-		"--google-device-setup:set-global-setting", "verifier_verify_adb_installs=0")
+		"--reporter-template", "template/reporters/subprocess-reporter",
+		"--android-build-api-log-saver:no-remove-staged-files", "--no-use-event-streaming",
+		"--google-device-setup:set-global-setting", "verifier_verify_adb_installs=0",
+		"--template:map", "reporters=template/reporters/xml-reporter.xml",
+		"--metricsreporter:metrics-folder", logPath)
 
 	// Adding cts-params specific to the CTS test config.
 	for _, param := range ctsParams {
@@ -73,15 +113,25 @@ func BuildCtsTestCommand(logger *log.Logger, tests []*api.TestCaseMetadata, seri
 		cmd = append(cmd, "--skip-download", artifact)
 	}
 
-	if ctsRetryFailedRuns {
+	if retryFailedRuns {
 		cmd = append(cmd, "--max-testcase-run-count", "3", "--retry-isolation-grade", "FULLY_ISOLATED",
 			"--retry-strategy", "RETRY_ANY_FAILURE", "--module-preparation-retry")
 	} else {
 		cmd = append(cmd, "--max-testcase-run-count", "1", "--retry-strategy", "NO_RETRY")
 	}
 
-	if ctsResultsUpload {
-		cmd = append(cmd, "--cts-params", "--result-reporter:no-disable", "--ants-result-reporter:create-local-invocation")
+	if resultsUpload {
+		cmd = append(cmd, "--cts-params", "--result-reporter:no-disable",
+			"--ants-result-reporter:create-local-invocation",
+			"--ants-result-reporter:save-metric-file")
+
+		// Add invocation id and workunit id.
+		if len(AnTsInvID) > 0 {
+			cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation_id=%s", AnTsInvID))
+		}
+		if len(AnTsWorkUnitID) > 0 {
+			cmd = append(cmd, "--invocation-data", fmt.Sprintf("work_unit_id=%s", AnTsWorkUnitID))
+		}
 	} else {
 		cmd = append(cmd, "--cts-params", "--result-reporter:disable")
 	}
@@ -90,6 +140,7 @@ func BuildCtsTestCommand(logger *log.Logger, tests []*api.TestCaseMetadata, seri
 
 	for _, t := range tests {
 		testName := strings.TrimPrefix(t.TestCase.Name, "cts.")
+		testName = strings.TrimPrefix(testName, "dts.")
 		branch, target, build := extractBuildInfo(t.TestCase)
 		logger.Println("Running provided test: ", testName,
 			" for branch/target/build: ", branch, "/", target, "/", build)
@@ -109,10 +160,10 @@ func BuildCtsTestCommand(logger *log.Logger, tests []*api.TestCaseMetadata, seri
 		cmd = append(cmd, "--cts-params", "--compatibility:include-filter", "--cts-params", testName)
 	}
 
+	// Add devices
 	for _, s := range serials {
 		cmd = append(cmd, "-s", s)
 	}
 
-	logger.Println("Running TF command: ", cmd)
 	return cmd
 }

@@ -9,8 +9,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	c "go.chromium.org/chromiumos/test/util/adb"
@@ -21,13 +23,12 @@ import (
 )
 
 const (
-	testPath               = "/usr/local/tradefed/android-%s"
 	tradefedTestResultFile = "results/latest/test_result.xml"
 	ctsResultsDir          = "results/"
 	ctsLogsDir             = "logs/"
 
 	tradefedConsoleBinary = "/tradefed/tradefed_runner.sh"
-	ctsTFLogsPath         = "/tmp/test/logs" // path of global TF console logs.
+	tradefedGlobalLogs    = "tradefed_global_log_*.txt"
 )
 
 var testType = "cts"
@@ -45,21 +46,9 @@ func (d *TradefedDriver) Name() string {
 	return "tradefed"
 }
 
-func buildTradefedCommand(logger *log.Logger, tests []*api.TestCaseMetadata, serials []string) []string {
-	baseArgs := []string{"run", "commandAndExit", testType}
-	for _, t := range tests {
-		logger.Println("Running provided test: ", t.TestCase.Name)
-		baseArgs = append(baseArgs, "--include-filter", t.TestCase.Name)
-	}
-	baseArgs = append(baseArgs, "--logcat-on-failure")
+func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestCaseMetadata,
+	serials []string, resultsPath string, metadata *api.ExecutionMetadata) error {
 
-	for _, s := range serials {
-		baseArgs = append(baseArgs, "-s", s)
-	}
-	return baseArgs
-}
-
-func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestCaseMetadata, serials []string, resultsPath string) error {
 	for _, s := range serials {
 		if err := c.SetupAdb(logger, s); err != nil {
 			return fmt.Errorf("setupAdb failed for %s", s)
@@ -78,15 +67,10 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 
 	var cmd *exec.Cmd
 
-	if testType == "dts" {
-		// Using bundled TradeFed for DTS tests.
-		baseArgs := buildTradefedCommand(logger, tests, serials)
-		terminalPath := path.Join(fmt.Sprintf(testPath, testType), fmt.Sprintf("tools/%s-tradefed", testType))
-		cmd = exec.Command(terminalPath, baseArgs...)
-	} else if testType == "cts" {
-		// Using Google TradeFed console for CTS tests.
+	if testType == "cts" || testType == "dts" {
+		// Using Google TradeFed console for CTS and DTS tests.
 		baseArgs := []string{"run", "commandAndExit"}
-		baseArgs = append(baseArgs, BuildCtsTestCommand(logger, tests, serials)...)
+		baseArgs = append(baseArgs, BuildXtsTestCommand(logger, testType, tests, serials, metadata)...)
 		cmd = exec.Command(tradefedConsoleBinary, baseArgs...)
 	}
 
@@ -107,6 +91,9 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 
 	dtsFound := false
 	for _, test := range tests {
+		if strings.HasPrefix(test.GetTestCase().GetName(), "dts.") {
+			dtsFound = true
+		}
 		for _, tag := range test.GetTestCase().GetTags() {
 			dtsFound = dtsFound || tag.GetValue() == "suite:dts"
 		}
@@ -116,41 +103,61 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 		}
 	}
 
-	_ = runTradefedTest(ctx, td.logger, tests, serials, resultsDir)
+	executionMD := &api.ExecutionMetadata{}
+	if len(req.GetTestSuites()) > 0 {
+		executionMD = req.GetTestSuites()[0].GetExecutionMetadata()
+	}
+
+	_ = runTradefedTest(ctx, td.logger, tests, serials, resultsDir, executionMD)
 	// TODO determine what we want to do with an error _and_ possibly having results
 	// In general I'd say just spit out the results.
 	// One difference between Tast/Autotest and this is that the test case given will likely result in many
 	// testcases; where T/AT were normally 1:1
-	resultsPath := path.Join(fmt.Sprintf(testPath, testType), tradefedTestResultFile)
-	results := buildTradefedResult(td.logger, resultsPath)
+
+	results, artifacts := buildTradefedResult(td.logger, testType)
 	if results.GetTestCaseResults() != nil {
 		allRspn.TestCaseResults = append(allRspn.TestCaseResults, results.TestCaseResults...)
 	} else {
-
-		td.logger.Println("nill resulsts?")
+		td.logger.Println("No results to report: ", results)
 	}
 
-	if testType == "dts" {
-		td.moveArtifacts(resultsDir, ctsResultsDir)
-		td.moveArtifacts(resultsDir, ctsLogsDir)
-		td.logger.Println("final results: ", allRspn)
-		td.logger.Println("final results: ", results)
+	// Adding all global TradeFed logs to the list of artifacts.
+	artifacts = append(artifacts, filepath.Join(os.Getenv("GLOBAL_LOG_PATH"), tradefedGlobalLogs))
+
+	td.logger.Println("Collecting result artifacts to:", resultsDir)
+	for _, artifact := range artifacts {
+		if len(artifact) > 0 {
+			td.moveArtifacts(resultsDir, artifact)
+		}
 	}
 
 	return allRspn, nil
 }
 
-// Generate unit tests for the function "moveArtifacts" below
-func (td *TradefedDriver) moveArtifacts(resultsDir string, artifactsDir string) {
-	mvCmd := exec.Command("mv", path.Join(fmt.Sprintf(testPath, testType), artifactsDir), resultsDir)
-	td.logger.Printf("started to move artifacts from: %q to: %q", mvCmd.Path, resultsDir)
-
-	out, err := mvCmd.CombinedOutput()
+// Move artifact files to resultsDir, deleting the source files. Supports glob patterns.
+// Doesn't remove source directory, only files/dirs inside.
+func (td *TradefedDriver) moveArtifacts(resultsDir string, artifacts string) {
+	matches, err := filepath.Glob(artifacts)
 	if err != nil {
-		td.logger.Printf("Error moving artifacts from: %q: %s: %s", mvCmd.Path, err, string(out))
+		td.logger.Printf("Failed to match %q: %v", artifacts, err)
 		return
 	}
-	td.logger.Printf("successfully moved artifacts from: %q to: %q", mvCmd.Path, resultsDir)
+
+	for _, match := range matches {
+		td.logger.Printf("Moving result artifact: %q to: %q", match, resultsDir)
+		if err := moveSingleArtifact(resultsDir, match); err != nil {
+			td.logger.Printf("Failed to move %q to: %q, error: %v", match, resultsDir, err)
+		}
+	}
+}
+
+func moveSingleArtifact(resultsDir string, artifact string) error {
+	mvCmd := exec.Command("mv", artifact, resultsDir)
+	out, err := mvCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Error moving file: %s, output: %s", err, string(out))
+	}
+	return nil
 }
 
 func launchAndRead(cmd *exec.Cmd, logger *log.Logger) error {
