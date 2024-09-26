@@ -8,14 +8,24 @@ Example:
 
 
 # Some basic commands to troubleshoot issues on the callbox:
+Restart all services. Use this after changing configuration files.
+>service lte restart
+
 Open the callbox software monitors
 >screen -x lte
 
-Switch between enb/mme monitors
+# Callbox commands inside "screen"
+Switch between MME/ENB monitors
 >Ctrl+a 0, Ctrl+a 1
 
-Exist screen
+Exit screen
 >Ctrl+a d
 
-Restart all services
->service lte restart
+Set cell gain(ENB)
+Example: Set cell 1's gain to -200dB
+>cell_gain 1 -200
+
+Check cell gain(ENB)
+>cell
+
+
