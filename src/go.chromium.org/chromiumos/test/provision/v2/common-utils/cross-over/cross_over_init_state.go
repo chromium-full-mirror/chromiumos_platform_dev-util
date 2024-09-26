@@ -10,6 +10,7 @@ import (
 	"log"
 	"time"
 
+	storage_path "go.chromium.org/chromiumos/config/go"
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 
@@ -17,10 +18,13 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+const sshPort = ":22"
+
 type CrossOverParameters struct {
 	Dut                       *lab_api.Dut
 	ServodDockerContainerName string
 	ServodDockerImagePath     string
+	TargetImagePath           *storage_path.StoragePath
 }
 
 // CrossOverInitState starts the servod process.
@@ -42,7 +46,7 @@ func (s CrossOverInitState) Execute(ctx context.Context, log *log.Logger) (*anyp
 	req.Model = s.params.Dut.GetChromeos().GetDutModel().GetModelName()
 	req.SerialName = s.params.Dut.GetChromeos().GetServo().GetSerial()
 	req.ServodPort = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
-	req.ServoHostPath = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
+	req.ServoHostPath = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
 	req.ServodDockerContainerName = s.params.ServodDockerContainerName
 	req.ServodDockerImagePath = s.params.ServodDockerImagePath
 	log.Printf("\nCalling start servod with request %v.", req)
@@ -56,7 +60,9 @@ func (s CrossOverInitState) Execute(ctx context.Context, log *log.Logger) (*anyp
 	if err != nil {
 		return nil, api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
 	}
-	log.Printf("\nStarted servod process")
+	log.Printf("\nStarted servod process. Waiting for 30 seconds for servo process to get ready.")
+	// TODO: use servodtool instance wait-for-active instead of waiting 30 seconds.
+	time.Sleep(30 * time.Second)
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 

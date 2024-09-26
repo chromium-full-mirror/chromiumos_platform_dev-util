@@ -13,10 +13,9 @@ import (
 
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 	cross_over "go.chromium.org/chromiumos/test/provision/v2/common-utils/cross-over"
-	"google.golang.org/grpc"
-
 	"go.chromium.org/chromiumos/test/provision/v2/foil-provision/service"
 	state_machine "go.chromium.org/chromiumos/test/provision/v2/foil-provision/state-machine"
+	"google.golang.org/grpc"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
@@ -36,17 +35,15 @@ func NewFoilProvisionExecutor(logger *log.Logger, crosServodAddress string) (*Fo
 }
 
 func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (common_utils.ServiceState, error) {
-	cs, err := service.NewFoilService(dut, req)
-	if err != nil {
-		return nil, err
-	}
 	osType, err := cross_over.DetectOS(c.Logger, fmt.Sprintf("%v:%v", dut.GetChromeos().GetSsh().GetAddress(), dut.GetChromeos().GetSsh().GetPort()))
 	if err != nil {
 		return nil, err
 	}
 	if osType == cross_over.CROS {
+
 		params := &cross_over.CrossOverParameters{
-			Dut: dut,
+			Dut:             dut,
+			TargetImagePath: req.GetImagePath(),
 			//ServodDockerContainerName: "servod-process",
 			//ServodDockerImagePath:     "us-docker.pkg.dev/chromeos-partner-moblab/common-core/servod:release",
 			//TODO: Decide how ServodDockerContainerName and ServodDockerImagePath will be populated.
@@ -57,6 +54,10 @@ func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 		}
 		crosServodClient := api.NewServodServiceClient(conn)
 		return cross_over.NewCrossOverInitState(crosServodClient, params), nil
+	}
+	cs, err := service.NewFoilService(dut, req)
+	if err != nil {
+		return nil, err
 	}
 	return state_machine.NewFoilPreInitState(cs), nil
 }

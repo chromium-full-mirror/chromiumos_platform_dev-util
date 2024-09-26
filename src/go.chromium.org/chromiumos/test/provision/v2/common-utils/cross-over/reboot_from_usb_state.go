@@ -33,20 +33,24 @@ func NewRebootFromUSBState(servodClient api.ServodServiceClient, params *CrossOv
 
 func (s RebootFromUSBState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("Executing " + s.Name())
-	if err := callServod(ctx, log, s.servodClient, "power_state", "off", s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress(), s.params.ServodDockerContainerName, s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()); err != nil {
+	servoHostPath := s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
+	servoPort := s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
+	if err := callServod(ctx, log, s.servodClient, "power_state", "off", servoHostPath, s.params.ServodDockerContainerName, servoPort); err != nil {
 		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
 	log.Printf("\nWaiting for the power state to turn off.")
 	// TODO: Instead of fixed wait time, use a poll based status checker. Refer WaitForPowerStates and GetECSystemPowerState in firmware code.
 	time.Sleep(waitForPowerOff)
-	if err := callServod(ctx, log, s.servodClient, "power_state", "rec", s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress(), s.params.ServodDockerContainerName, s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()); err != nil {
+	if err := callServod(ctx, log, s.servodClient, "power_state", "rec", servoHostPath, s.params.ServodDockerContainerName, servoPort); err != nil {
 		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
+	log.Println("Waiting for power state rec.")
+	time.Sleep(waitForPowerOff)
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s RebootFromUSBState) Next() common_utils.ServiceState {
-	return NewFlashFirmwareState(s.servodClient, s.params)
+	return NewFullOSImageState(s.servodClient, s.params)
 }
 
 func (s RebootFromUSBState) Name() string {

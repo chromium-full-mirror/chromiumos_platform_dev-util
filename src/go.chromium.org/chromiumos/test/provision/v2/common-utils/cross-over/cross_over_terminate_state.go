@@ -33,7 +33,7 @@ func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (
 	log.Println("Executing " + s.Name())
 	req := &api.StopServodRequest{}
 	req.ServodPort = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
-	req.ServoHostPath = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
+	req.ServoHostPath = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
 	req.ServodDockerContainerName = s.params.ServodDockerContainerName
 	log.Printf("\nCalling stop servod with request %v.", req)
 	op, err := s.servodClient.StopServod(ctx, req)
