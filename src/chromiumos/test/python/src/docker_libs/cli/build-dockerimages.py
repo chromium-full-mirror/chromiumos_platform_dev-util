@@ -39,9 +39,6 @@ from src.docker_libs.build_libs.cros_fw_provision.cros_fw_provision_prep import 
 from src.docker_libs.build_libs.cros_publish.cros_publish_prep import (
     CrosPublishDockerPrepper,
 )
-from src.docker_libs.build_libs.cros_pvs.cros_pvs_prep import (
-    CrosPvsDockerPrepper,
-)
 from src.docker_libs.build_libs.cros_servod.cros_servod_prep import (
     CrosServodDockerPrepper,
 )
@@ -87,7 +84,6 @@ REGISTERED_BUILDS = {
     },
     "cros-servod": {"prepper": CrosServodDockerPrepper, "cloud": False},
     "cros-publish": {"prepper": CrosPublishDockerPrepper, "cloud": False},
-    "cros-pvs": {"prepper": CrosPvsDockerPrepper, "cloud": True},
     "pre-process": {"prepper": PreProcessDockerPrepper, "cloud": False},
     "vm-provision": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "cros-hpt": {"prepper": CommonServiceDockerPrepper, "cloud": False},
@@ -111,7 +107,6 @@ NON_CRITICAL = set(
     [
         "cros-servod",
         "android-provision",
-        "cros-pvs",
         "cros-ddd-filter",
         "cros-legacy-hw-filter",
         "cros-fw-provision",
