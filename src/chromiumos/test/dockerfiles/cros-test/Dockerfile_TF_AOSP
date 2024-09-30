@@ -1,0 +1,103 @@
+# Copyright 2024 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+FROM python:3.8-slim-buster AS build
+
+ARG TRADEFED_DIR
+ARG METADATA_DIR
+ARG ARTIFACT_DIR
+
+# attr, unzip are for CTS specifically.
+# squashfs-tools is for Uprev specifically.
+RUN apt-get update \
+    && apt-get install -y \
+      android-sdk \
+      attr \
+      ca-certificates \
+      cpio \
+      curl \
+      git \
+      iproute2 \
+      iputils-ping \
+      openssh-client \
+      python-pip \
+      ssh \
+      sudo \
+      unzip \
+      wget \
+      xxd
+
+# fetch recent Android command line tools and use sdkmanager to fetch
+# required android tools such as aapt and aapt2.
+RUN rm -rf /var/lib/apt/lists/* && \
+    wget -q https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
+    unzip commandlinetools-linux-7583922_latest.zip && \
+    mv cmdline-tools /usr/lib/android-sdk/ && \
+    yes | /usr/lib/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=/usr/lib/android-sdk --licenses > /dev/null && \
+    /usr/lib/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=/usr/lib/android-sdk "platforms;android-30" "build-tools;30.0.3" && \
+    ln -sf /usr/lib/android-sdk/build-tools/30.0.3/aapt /usr/bin/aapt && \
+    ln -sf /usr/lib/android-sdk/build-tools/30.0.3/aapt2 /usr/bin/aapt2 && \
+    ln -sf /usr/lib/android-sdk/platform-tools/adb /usr/bin/adb
+
+ENV ANDROID_HOME=/usr/lib/android-sdk
+
+# # grab gsutil
+# RUN echo \
+#     "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] \
+#     http://packages.cloud.google.com/apt cloud-sdk main" | \
+#     tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
+#     curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
+#     apt-key --keyring /usr/share/keyrings/cloud.google.gpg  \
+#     add - && apt-get update -y && apt-get install google-cloud-sdk=369.0.0-0 -y
+# RUN rm -rf /usr/lib/google-cloud-sdk/bin/anthoscli \
+#   /usr/lib/google-cloud-sdk/bin/kuberun
+
+# Point /usr/bin/python3 to usr/local/bin/python3. See b/191884161
+RUN sudo rm /usr/bin/python3*; exit 0
+RUN sudo ln -s /usr/local/bin/python3 /usr/bin/python3
+
+RUN useradd -m chromeos-test
+RUN echo 'chromeos-test ALL=NOPASSWD:ALL' > /etc/sudoers.d/chromeos-test
+
+# Installing JDK21 (used by default)
+RUN mkdir -p /jdk/jdk21 && \
+    cd /jdk/jdk21 && \
+    git init && \
+    git remote add origin https://android.googlesource.com/platform/prebuilts/jdk/jdk21.git && \
+    git config core.sparseCheckout true && \
+    echo "linux-x86/" >> .git/info/sparse-checkout && \
+    git fetch origin a312302ee53bf1c942180d3b63c29ffc23d9dfb4 --depth 1 && \
+    git checkout a312302ee53bf1c942180d3b63c29ffc23d9dfb4 && \
+    rm -rf .git/ && \
+    cd -
+
+ENV JAVA_HOME=/jdk/jdk21/linux-x86
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+# Copy Tradefed console, all tests and jars.
+RUN mkdir -p /tradefed
+RUN chown -R chromeos-test:chromeos-test /tradefed
+COPY --chown=chromeos-test:chromeos-test ${TRADEFED_DIR}/* /tradefed/
+COPY --chown=chromeos-test:chromeos-test ${ARTIFACT_DIR} /tradefed/
+
+# Cros-test binary is static across boards.
+COPY --chown=chromeos-test:chromeos-test cros-test /usr/bin/
+
+# Copy compiled metadata to a defined location.
+RUN mkdir -p /tmp/test
+COPY --chown=chromeos-test:chromeos-test ${METADATA_DIR}/*.pb /tmp/test/metadata/
+
+# Do a final chown on /tmp/test
+RUN chmod 755 /usr/bin/cros-test
+RUN chown -R chromeos-test:chromeos-test /tmp/test/
+
+USER chromeos-test
+
+ENV JSON_KEY_PATH=/creds/service_accounts/skylab-drone.json
+ENV GOOGLE_APPLICATION_CREDENTIALS=/creds/service_accounts/skylab-drone.json
+ENV TZ=Etc/UTC
+ENV USE_HOST_ADB=true
+ENV GLOBAL_LOG_PATH=/tmp/test/logs
+
+ENV PATH=/tradefed:$PATH

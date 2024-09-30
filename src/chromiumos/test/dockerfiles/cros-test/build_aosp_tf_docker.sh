@@ -1,0 +1,150 @@
+#!/bin/bash
+# Copyright 2024 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Script to build docker image for ChromeOS AOSP Tradefed.
+
+set -e
+
+# Switch to script directory.
+HERE="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
+cd "${HERE}" || exit
+
+KEEP_TMP_FILES=0
+
+TRADEFED_ZIP="tradefed.zip"
+
+DOCKERFILE="Dockerfile_TF_AOSP"
+DOCKER_TAG="us-docker.pkg.dev/cros-registry/test-services/cros-test:cros-test-aosp"
+
+METADATA_BUCKET="gs://cros-xts-metadata"
+METADATA_COMPILE_SCRIPT="../../python/src/tools/compile_xts_metadata.py"
+
+CROS_TEST_BUILD_PATH="../../../../go.chromium.org/chromiumos/test/execution/cmd/cros-test/."
+GOPATH_VALS=$(realpath -e "../../../../../../../../chroot/usr/lib/gopath/"):$(realpath -e "../../../../..")
+
+function download_artifact () {
+  local SUITE=$1
+  local BUILD=$2
+  local TARGET=$3
+
+  local ZIP_FILE="android-${SUITE}.zip"
+
+  echo "Downloading ${ZIP_FILE} for build ${BUILD} to ${TMPDIR_ARTIFACTS}..."
+  /google/data/ro/projects/android/fetch_artifact --bid "${BUILD}" \
+    --target "${TARGET}" "${ZIP_FILE}" "${TMPDIR_ARTIFACTS}"
+  if [[ ! -f "${TMPDIR_ARTIFACTS}/${ZIP_FILE}" ]]; then
+    echo "Error fetching artifact: ${TMPDIR_ARTIFACTS}/${ZIP_FILE}"
+    exit 2
+  fi
+
+  # Unpack the test archive (only the needed files).
+  echo "Unpacking test cases from ${TMPDIR_ARTIFACTS}/${ZIP_FILE}..."
+  BASE_DIR="$(basename "${ZIP_FILE}" .zip)"
+  unzip -q "${TMPDIR_ARTIFACTS}/${ZIP_FILE}" \
+    "${BASE_DIR}/testcases/*" \
+    "${BASE_DIR}/tools/${SUITE}-tradefed.jar" \
+    -d "${TMPDIR_ARTIFACTS}"
+  if [[ ! -d "${TMPDIR_ARTIFACTS}/${BASE_DIR}" ]]; then
+    echo "Error unpacking artifact: ${TMPDIR_ARTIFACTS}/${ZIP_FILE}"
+    exit 2
+  fi
+  mv "${TMPDIR_ARTIFACTS}/${BASE_DIR}/tools/${SUITE}-tradefed.jar" "${TMPDIR_ARTIFACTS}/"
+  rm "${TMPDIR_ARTIFACTS}/${ZIP_FILE}"
+  rm -fR "${TMPDIR_ARTIFACTS}/${BASE_DIR}/tools"
+}
+
+if [[ ! -f "./${DOCKERFILE}" ]]; then
+  echo "Docker file ${DOCKERFILE} must be pressent in the current folder."
+  exit 2
+fi
+
+METADATA=()
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -m|--metadata)
+      shift
+      METADATA+=("$1")
+      shift
+      ;;
+    -k|--keep-tmp-files)
+      KEEP_TMP_FILES=true
+      shift
+      ;;
+    *)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+  esac
+done
+
+TMPDIR_TF=$(mktemp -d -p . -t tf_dir_XXXXXXXXXX) || exit 1
+TMPDIR_METADATA=$(mktemp -d -p . -t tf_metadata_XXXXXXXXXX) || exit 1
+TMPDIR_ARTIFACTS=$(mktemp -d -p . -t tf_artifacts_XXXXXXXXXX) || exit 1
+
+if [[ "${#METADATA[@]}" -eq 0 ]]; then
+  echo "Metadata arguments (--metadata FILE1 --metadata FILE2...) not provided."
+  exit 2
+fi
+
+SUITES=()
+for i in "${METADATA[@]}"; do
+  # Fetch and compile metadata
+  PB_NAME="$(basename "${i}" .json).pb"
+  DIGEST_NAME="$(basename "${i}" .json)-digest.json"
+  echo "Fetching metadata ${i} to ${TMPDIR_METADATA}..."
+  gsutil -q cp "${METADATA_BUCKET}/${i}" "${TMPDIR_METADATA}"
+  jq '{suite, branch, build_id, target: .targets[] | select(index("x86")) }' \
+    "${TMPDIR_METADATA}/${i}" > "${TMPDIR_METADATA}/${DIGEST_NAME}"
+  echo "Compiling metadata ${i}..."
+  "${METADATA_COMPILE_SCRIPT}" --output_file "${TMPDIR_METADATA}/${PB_NAME}" "${TMPDIR_METADATA}/${i}"
+
+  # Fetch and unpack test suite artifact.
+  set +e
+  # shellcheck disable=SC2002
+  read -d "\n" -r SUITE BRANCH BUILD TARGET \
+    <<<"$(cat "${TMPDIR_METADATA}/${DIGEST_NAME}" | jq -r '.[]')"
+  set -e
+  echo "Metadata suite=${SUITE} branch=${BRANCH} bid=${BUILD} target=${TARGET}"
+  download_artifact "${SUITE}" "${BUILD}" "${TARGET}"
+  SUITES+=("${SUITE}")
+done
+
+echo "Test suites to be included in docker image: [${SUITES[*]}]..."
+
+# Fetch and unpack tradefed console.
+echo "Downloading Tradefed console for build ${BUILD} and target ${TARGET}..."
+set -x
+/google/data/ro/projects/android/fetch_artifact --bid "${BUILD}" \
+  --target "${TARGET}" "${TRADEFED_ZIP}" "${TMPDIR_TF}"
+set +x
+echo "Unpacking Tradefed console to ${TMPDIR_TF}..."
+unzip -q "${TMPDIR_TF}/${TRADEFED_ZIP}" -d "${TMPDIR_TF}"
+rm "${TMPDIR_TF}/${TRADEFED_ZIP}"
+
+# Build cros-test binary.
+echo "Building cros-test binary..."
+echo "Using GOPATH=${GOPATH_VALS}"
+GOPATH="${GOPATH_VALS}" CGO_ENABLED=0 GO111MODULE=off go build "${CROS_TEST_BUILD_PATH}"
+if [[ ! -f "./cros-test" ]]; then
+  echo "Test binary [cros-test] not found or could not be built."
+  exit 2
+fi
+
+# Build Docker image.
+echo "Building docker image: ${DOCKER_TAG}"
+set -x
+docker buildx build -f "${DOCKERFILE}" --no-cache=true -t "${DOCKER_TAG}" \
+  --build-arg TRADEFED_DIR="${TMPDIR_TF}" \
+  --build-arg METADATA_DIR="${TMPDIR_METADATA}" \
+  --build-arg ARTIFACT_DIR="${TMPDIR_ARTIFACTS}" .
+set +x
+
+# Remove temporary files.
+if [[ -n "${KEEP_TMP_FILES}" ]]; then
+  rm -fR "${TMPDIR_METADATA}"
+  rm -fR "${TMPDIR_ARTIFACTS}"
+  rm -fR "${TMPDIR_TF}"
+  rm ./cros-test
+fi
