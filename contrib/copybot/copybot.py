@@ -253,6 +253,11 @@ class GitRepo:
         result = self.log(revision_range=rev, num=1, fmt="%cE")
         return result.stdout.strip()
 
+    def get_subject(self, rev: str = "HEAD") -> str:
+        """Get the subject of a commit."""
+        result = self.log(revision_range=rev, num=1, fmt="%s")
+        return result.stdout.strip()
+
     def commit_file_list(self, rev: str = "HEAD") -> List[str]:
         """Get the files modified by a commit."""
         result = self._run_git("show", "--pretty=", "--name-only", rev)
@@ -953,6 +958,15 @@ def find_commits_to_copy(
                     author_email,
                 )
                 continue
+
+        commit_subject = repo.get_subject(rev=rev)
+        if "automatic uprev to" in commit_subject.lower():
+            logger.info(
+                "Skip %s due to automatic uprev in subject: %s",
+                rev,
+                commit_subject,
+            )
+            continue
 
         # Increment counter after filtering Copybot-Job-Name CLs to treat
         # them as if they don't belong to the target repo.
