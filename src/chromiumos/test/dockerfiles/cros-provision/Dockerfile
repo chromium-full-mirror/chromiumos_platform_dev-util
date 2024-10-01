@@ -2,5 +2,5 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-FROM us-docker.pkg.dev/cros-registry/base-images/ubuntu:ubuntuProd
+FROM us-docker.pkg.dev/cros-registry/base-images/ubuntu:ubuntuProd_baseADB
 COPY cros-provision /usr/bin/cros-provision
