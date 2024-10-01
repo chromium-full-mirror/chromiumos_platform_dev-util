@@ -37,7 +37,7 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 	// hard code them here.
 	if ok && board != "drallion" && board != "sarien" {
 		// Check for RO_AT_BOOT before downloading images, as /var/tmp may be cleared on reboot.
-		out, _, err := firmwareservice.RunDUTCommand(ctx, s.service.DUTServer, time.Minute, "ectool", []string{"flashprotect", "now", "disable"}, nil)
+		out, _, err := firmwareservice.RunDUTCommand(ctx, s.service.DUTServer, time.Minute, "ectool", []string{"flashprotect"}, nil)
 		log.Printf("flashprotect: %s %s", out, err)
 		roAtBootRe := regexp.MustCompile("Flash protect flags:.*ro_at_boot")
 		if roAtBootRe.MatchString(out) {

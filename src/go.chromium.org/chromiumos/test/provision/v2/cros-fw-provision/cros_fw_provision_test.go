@@ -330,8 +330,8 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		if testCase.ecRo {
 			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
 				Command: "ectool",
-				Args:    []string{"flashprotect", "now", "disable"},
-			}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stdout: []byte("Flash protect flags: 0x0\n")}), nil)
+				Args:    []string{"flashprotect"},
+			}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 0}, Stdout: []byte("Flash protect flags: 0x0\n")}), nil)
 			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
 				Command: "mkdir",
 				Args:    []string{"-p", "'/var/tmp/some TempDir'"},
