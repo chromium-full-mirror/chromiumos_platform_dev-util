@@ -461,6 +461,80 @@ func TestPopulateKernelInfo(t *testing.T) {
 	})
 }
 
+func TestPopulateGSCFirmwareInfo(t *testing.T) {
+	t.Parallel()
+
+	Convey("Populates GSC Firmware info", t, func() {
+		// Create a test result proto with a test run and a test case.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{
+						TestCaseResult: &api.TestCaseResult{},
+					},
+				},
+			},
+		}
+
+		// Create a firmware info response proto.
+		fwInfoResp := &api.GetFWInfoResponse{
+			GscRo: "Google_Voema.13672.224.0",
+			GscRw: "Google_Voema.13672.224.1",
+		}
+
+		// Call populateGSCFirmwareInfo.
+		populateGSCFirmwareInfo(testResult, fwInfoResp)
+
+		// Verify that the GSC firmware info is populated correctly.
+		wantGscFwInfo := &artifact.GscInfo{
+			GscRoVersion: "Google_Voema.13672.224.0",
+			GscRwVersion: "Google_Voema.13672.224.1",
+		}
+		So(testResult.TestRuns[0].TestCaseInfo.GscInfo, ShouldResembleProto, wantGscFwInfo)
+	})
+
+	Convey("Populates GSC Firmware info with empty values", t, func() {
+		// Create a test result proto with a test run and a test case.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{
+						TestCaseResult: &api.TestCaseResult{},
+					},
+				},
+			},
+		}
+
+		// Create a firmware info response proto with empty values.
+		fwInfoResp := &api.GetFWInfoResponse{}
+
+		// Call populateGSCFirmwareInfo.
+		populateGSCFirmwareInfo(testResult, fwInfoResp)
+
+		// Verify that the GSC firmware info is populated correctly.
+		So(testResult.TestRuns[0].TestCaseInfo.GscInfo, ShouldResembleProto, &artifact.GscInfo{})
+	})
+
+	Convey("Skip if the response is nil", t, func() {
+		// Create a test result proto with a test run and a test case.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{
+						TestCaseResult: &api.TestCaseResult{},
+					},
+				},
+			},
+		}
+
+		// Call populateGSCFirmwareInfo.
+		populateGSCFirmwareInfo(testResult, nil)
+
+		// Verify no value is populated.
+		So(testResult.TestRuns[0].TestCaseInfo.GscInfo, ShouldBeNil)
+	})
+}
+
 func TestPopulateGfxInfo(t *testing.T) {
 	t.Parallel()
 
@@ -736,6 +810,37 @@ func TestPopulateGSCInfo(t *testing.T) {
 		// Create a GSC devboard info response proto without GSC devboard info for the test case.
 		gscInfoResp := &api.GetGscInfoResponse{
 			GscInfos: map[string]*anypb.Any{},
+		}
+
+		// Call populateGSCInfo.
+		populateGSCInfo(testResult, gscInfoResp)
+
+		// Verify that the GSC devboard info is not populated.
+		So(testResult.TestRuns[0].TestCaseInfo.GscInfo, ShouldBeNil)
+	})
+
+	Convey("Populates GSC devboard info with empty GSC devboard info", t, func() {
+		// Create a test result proto with a test run and a test case.
+		testResult := &artifact.TestResult{
+			TestRuns: []*artifact.TestRun{
+				{
+					TestCaseInfo: &artifact.TestCaseInfo{
+						TestCaseResult: &api.TestCaseResult{
+							TestCaseId: &api.TestCase_Id{
+								Value: testName,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Create a GSC devboard info response proto an empty GSC devboard info for the test case.
+		emptyGSCInfoAny, _ := anypb.New(&artifact.GscInfo{})
+		gscInfoResp := &api.GetGscInfoResponse{
+			GscInfos: map[string]*anypb.Any{
+				testName: emptyGSCInfoAny,
+			},
 		}
 
 		// Call populateGSCInfo.

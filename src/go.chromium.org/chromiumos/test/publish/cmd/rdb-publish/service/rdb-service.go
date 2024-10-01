@@ -127,7 +127,7 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error during writing test result proto to file: %w", err)
 	}
-	log.Printf("test result file created in path: %q", testResultFilePath)
+	log.Printf("test result file created in path: %q for the test result: %s before uploading to rdb", testResultFilePath, testResult)
 
 	// Write test invocation proto to invocation-level properties file
 	testInv := testResult.GetTestInvocation()
@@ -371,6 +371,7 @@ func ingestPostProcessResponses(testResult *artifact.TestResult, postProcessResp
 		case *api.RunActivityResponse_GetFwInfoResponse:
 			populateFirmwareInfo(buildMetadata, resp.GetGetFwInfoResponse())
 			populateKernelInfo(buildMetadata, resp.GetGetFwInfoResponse())
+			populateGSCFirmwareInfo(testResult, resp.GetGetFwInfoResponse())
 		case *api.RunActivityResponse_GetGfxInfoResponse:
 			populateGfxInfo(buildMetadata, resp.GetGetGfxInfoResponse())
 		case *api.RunActivityResponse_GetAvlInfoResponse:
@@ -403,7 +404,6 @@ func populateFirmwareInfo(buildMetadata *artifact.BuildMetadata, fwInfoResp *api
 	}
 	buildMetadata.Firmware = firmware
 
-	// TODO(b/335363139): Populate GSC devboard tags
 	log.Printf("successfully populated firmware info: %s", fwInfoResp)
 }
 
@@ -422,8 +422,48 @@ func populateKernelInfo(buildMetadata *artifact.BuildMetadata, fwInfoResp *api.G
 	}
 	buildMetadata.Kernel = kernel
 
-	// TODO(b/335363139): Populate GSC devboard tags
 	log.Printf("successfully populated kernel info: %s", fwInfoResp)
+}
+
+// populateGSCFirmwareInfo populates GSC firmware info.
+func populateGSCFirmwareInfo(testResult *artifact.TestResult, fwInfoResp *api.GetFWInfoResponse) {
+	if fwInfoResp == nil {
+		log.Printf("firmware info response is empty")
+		return
+	}
+
+	log.Printf("start to populate GSC firmware info from: %s", fwInfoResp)
+
+	for _, testRun := range testResult.GetTestRuns() {
+		testCaseInfo := testRun.GetTestCaseInfo()
+		testCaseResult := testCaseInfo.GetTestCaseResult()
+		if testCaseResult == nil {
+			continue
+		}
+		testName := testCaseInfo.TestCaseResult.GetTestCaseId().GetValue()
+
+		// Note that for devboard tests the GSC firmware info here comes from a
+		// fake dut, and will be replaced by the values in gsc_info.json which
+		// is processed by the populateGSCInfo function below.
+		if testCaseInfo.GscInfo != nil {
+			log.Printf("Skipped populating GSC firmware info because of existing GSC devboard info: %s for test: %q", testCaseInfo.GscInfo, testName)
+			continue
+		}
+
+		gscInfo := &artifact.GscInfo{}
+		if fwInfoResp.GscRo != "" {
+			gscInfo.GscRoVersion = fwInfoResp.GscRo
+		}
+
+		if fwInfoResp.GscRw != "" {
+			gscInfo.GscRwVersion = fwInfoResp.GscRw
+		}
+		testCaseInfo.GscInfo = gscInfo
+
+		log.Printf("successfully populated GSC firmware info: %s for test: %q", testCaseInfo.GscInfo, testName)
+	}
+
+	log.Printf("successfully populated GSC firmware info from: %s", fwInfoResp)
 }
 
 // populateGfxInfo populates graphics info.
@@ -514,7 +554,7 @@ func populateGSCInfo(testResult *artifact.TestResult, gscInfoResp *api.GetGscInf
 		}
 
 		gscInfoAny := gscInfoMap[testCaseResult.GetTestCaseId().GetValue()]
-		if gscInfoAny == nil {
+		if gscInfoAny == nil || len(gscInfoAny.Value) == 0 {
 			continue
 		}
 
