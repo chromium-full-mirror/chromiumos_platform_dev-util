@@ -99,6 +99,7 @@ func updateSchedulingUnitOptions(req *api.InternalTestplan, board string, versio
 
 	for _, testCase := range req.GetTestCases() {
 		if isTestVMCompatible(testCase) {
+			log.Printf("Updating Scheduling units for test : %s", testCase.GetName())
 			var updatedSchedulingUnitOptions []*api.SchedulingUnitOptions
 			for _, schedulingUnitOption := range testCase.GetSchedulingUnitOptions() {
 				updatedSchedulingUnitOption := updateSchedulingUnitOption(schedulingUnitOption, board, version)
@@ -109,6 +110,7 @@ func updateSchedulingUnitOptions(req *api.InternalTestplan, board string, versio
 			}
 			// if no schedulign unit found from intended scheduling units, then create a VM schedulign unit with available board/version
 			if len(updatedSchedulingUnitOptions) == 0 {
+				log.Printf("Generating VM Scheduling unit for test : %s", testCase.GetName())
 				testCase.SchedulingUnitOptions = []*api.SchedulingUnitOptions{
 					{
 						SchedulingUnits: []*api.SchedulingUnit{
