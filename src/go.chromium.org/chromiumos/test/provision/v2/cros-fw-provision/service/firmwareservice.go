@@ -768,7 +768,6 @@ func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
 		// Wilco devices have _signed suffixes on the model name.
 		if config.Name == model || config.Name == model+"_signed" {
 			if sku >= 0 && config.Identity.SKUID >= 0 && config.Identity.SKUID != sku {
-				log.Printf("config.Name (%s) config.Identity.SKUID (%d) != sku (%d)", config.Name, config.Identity.SKUID, sku)
 				continue
 			}
 			log.Printf("config entry: %+v", config)
@@ -795,8 +794,6 @@ func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
 				}
 				fws.ECName = thisECName
 			}
-		} else {
-			log.Printf("config.Name (%s) != model (%s)", config.Name, model)
 		}
 	}
 	log.Printf("config.yaml image names AP: %s EC: %s", fws.CorebootName, fws.ECName)
