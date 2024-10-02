@@ -29,6 +29,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
 	"go.chromium.org/chromiumos/lro"
@@ -73,6 +74,10 @@ func newDutServiceServer(l net.Listener, logger *log.Logger, conn dutssh.ClientI
 	}
 	api.RegisterDutServiceServer(server, s)
 	longrunning.RegisterOperationsServer(server, s.manager)
+
+	// Register reflection service on gRPC server.
+	reflection.Register(server)
+
 	logger.Println("dutservice listen to request at ", l.Addr().String())
 	return server, destructor
 }

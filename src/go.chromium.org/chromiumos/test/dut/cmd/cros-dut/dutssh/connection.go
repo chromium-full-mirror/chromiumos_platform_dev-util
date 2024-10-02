@@ -5,6 +5,7 @@
 package dutssh
 
 import (
+	"errors"
 	"io"
 
 	"golang.org/x/crypto/ssh"
@@ -24,10 +25,16 @@ type SSHClient struct {
 }
 
 func (c *SSHClient) Close() error {
+	if c.Client == nil {
+		return nil
+	}
 	return c.Client.Close()
 }
 
 func (c *SSHClient) NewSession() (SessionInterface, error) {
+	if c.Client == nil {
+		return nil, errors.New("SSH not connected")
+	}
 	session, err := c.Client.NewSession()
 	if err != nil {
 		return nil, err
@@ -36,10 +43,16 @@ func (c *SSHClient) NewSession() (SessionInterface, error) {
 }
 
 func (c *SSHClient) Wait() error {
+	if c.Client == nil {
+		return errors.New("SSH not connected")
+	}
 	return c.Client.Wait()
 }
 
 func (c *SSHClient) IsAlive() bool {
+	if c.Client == nil {
+		return false
+	}
 	_, _, err := c.Client.SendRequest("keepalive@openssh.org", true, nil)
 	return err == nil
 }
