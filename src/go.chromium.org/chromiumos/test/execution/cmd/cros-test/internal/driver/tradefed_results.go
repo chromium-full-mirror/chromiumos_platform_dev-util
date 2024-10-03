@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,13 +25,17 @@ import (
 )
 
 const (
-	tfStageLogsPath = "/tmp/stage-android-build-api/stub"
-	// To match either 'host_log_<id>.txt' or 'end_host_log_<id>.txt'
-	tfHostLogPattern = "*host_log_*.txt"
-	tfMetricsPattern = "metrics-*.xml"
+	tfStageLogsPath      = "/tmp/stage-android-build-api/stub"
+	tfStageResultPattern = "subprocess-test_result.xml_*.xml.gz"
+	tfAospResultPattern  = "android-*/results/latest/test_result.xml"
+	tfMetricsPattern     = "metrics-*.xml"
 )
 
 var tfEventLogPatterns = []string{"event-logs_*.txt", "aggregated-events*.txt"}
+
+//--------------------------------------------------------------
+// Data structures for parsing metrics file XML data.
+//--------------------------------------------------------------
 
 type TestSuite struct {
 	XMLName   xml.Name   `xml:"testsuite"`
@@ -58,6 +63,43 @@ type EventLogTestInfo struct {
 	TestName   string
 	ModuleName string
 	Status     string
+}
+
+//--------------------------------------------------------------
+// Data structures for parsing compatibility reporter XML data.
+//--------------------------------------------------------------
+
+type TradeFedTestFailure struct {
+	Message string `xml:"message,attr"`
+}
+
+type TradeFedTest struct {
+	Result  string              `xml:"result,attr"`
+	Name    string              `xml:"name,attr"`
+	Failure TradeFedTestFailure `xml:"Failure"`
+}
+
+type TradefedTestCase struct {
+	Name  string         `xml:"name,attr"`
+	Tests []TradeFedTest `xml:"Test"`
+}
+
+type Module struct {
+	Name        string             `xml:"name,attr"`
+	Abi         string             `xml:"abi,attr"`
+	Runtime     string             `xml:"runtime,attr"`
+	Done        string             `xml:"done,attr"`
+	Pass        string             `xml:"pass,attr"`
+	Total_Tests string             `xml:"total_tests,attr"`
+	TestCases   []TradefedTestCase `xml:"TestCase"`
+}
+
+type Result struct {
+	// Start time and end time in milliseconds.
+	Start    string   `xml:"start,attr"`
+	End      string   `xml:"end,attr"`
+	BuildNum string   `xml:"suite_build_number,attr"`
+	Modules  []Module `xml:"Module"`
 }
 
 func selectMostRecentFile(files []string) string {
@@ -150,7 +192,7 @@ func loadEventLogReport(logger *log.Logger) (map[string]EventLogTestInfo, string
 	return make(map[string]EventLogTestInfo), ""
 }
 
-// Returns a full file path of the XML result file.
+// Returns a full file path of the XML metrics result file.
 func getResultFilePath() (string, error) {
 	resultsPattern := path.Join(os.Getenv("GLOBAL_LOG_PATH"), tfMetricsPattern)
 	resultPath, err := selectFileByPattern(resultsPattern)
@@ -160,20 +202,20 @@ func getResultFilePath() (string, error) {
 	return resultPath, nil
 }
 
-// Unmarshal XML result file into TestSuite struct.
-func parseResultFile(logger *log.Logger, resultPath string) (TestSuite, error) {
-	TS := TestSuite{}
+// Unmarshal XML result file into a given struct.
+func parseResultFile(logger *log.Logger, resultPath string, v any) error {
 	resultData, err := os.ReadFile(resultPath)
 	if err != nil {
 		logger.Println("Error reading Tradefed result file: ", err)
-		return TS, err
+		return err
 	}
-	err = xml.Unmarshal(resultData, &TS)
+	err = xml.Unmarshal(resultData, v)
+	// err = parseFunc(resultData)
 	if err != nil {
 		logger.Println("Error parsing Tradefed result file: ", err)
-		return TS, err
+		return err
 	}
-	return TS, nil
+	return nil
 }
 
 func normalizeTime(timeStr string) string {
@@ -187,11 +229,12 @@ func normalizeTime(timeStr string) string {
 func processResults(logger *log.Logger, TS TestSuite, testInfoMap map[string]EventLogTestInfo, testType string) []*api.TestCaseResult {
 	allTestCases := []*api.TestCaseResult{}
 
-	startTime, err := time.Parse(time.RFC3339, normalizeTime(TS.Timestamp))
+	endTime, err := time.Parse(time.RFC3339, normalizeTime(TS.Timestamp))
 	if err != nil {
 		logger.Println("Error parsing Tradefed test start time: ", TS.Timestamp)
-		startTime = time.Now()
+		endTime = time.Now()
 	}
+	startTime := endTime.Add(time.Duration(-TS.Time) * time.Millisecond)
 
 	for _, test := range TS.TestCases {
 		fullTestName := fmt.Sprintf("%s#%s", test.ClassName, test.Name)
@@ -201,12 +244,78 @@ func processResults(logger *log.Logger, TS TestSuite, testInfoMap map[string]Eve
 			status = testInfo.Status
 		}
 		// TODO; if no testInfo matched, calculate status.
+		errorText := ""
+		switch status {
+		case "ASSUMPTION_FAILURE":
+			errorText = test.AsssumptionFailure
+		case "FAILED":
+			errorText = test.Failure
+		case "INCOMPLETE":
+			errorText = test.Incomplete
+		case "SKIPPED":
+			errorText = test.Skipped
+		case "IGNORED":
+			errorText = test.Ignored
+		default:
+			errorText = "Unknown test status"
+		}
+
 		allTestCases = append(allTestCases,
-			buildTcResult(test, startTime, test.Time/1000,
-				fmt.Sprintf("tradefed.%s.%s#%s", testType, testInfo.ModuleName, fullTestName),
-				status))
+			buildTcResult(fmt.Sprintf("tradefed.%s.%s#%s", testType, testInfo.ModuleName, fullTestName),
+				status, startTime, test.Time/1000, errorText))
 	}
 	return allTestCases
+}
+
+func parseCompatibilityXmlResults(logger *log.Logger, testType string) ([]*api.TestCaseResult, []string, error) {
+	var logsDir []string
+	allTestCases := []*api.TestCaseResult{}
+
+	xmlResultFile, err := selectFileByPattern(filepath.Join(tradefedDir, tfAospResultPattern))
+	if err != nil {
+		// Fallback to stub location for XML result file.
+		xmlResultFile, err = selectFileByPattern(filepath.Join(tfStageLogsPath, tfStageResultPattern))
+		if err != nil {
+			return allTestCases, logsDir, fmt.Errorf("Failed to locate result file: %w", err)
+		}
+	}
+
+	logsDir = append(logsDir, filepath.Join(filepath.Dir(xmlResultFile), "*"))
+
+	logger.Println("Parsing results from: ", xmlResultFile)
+	R := Result{}
+	if err = parseResultFile(logger, xmlResultFile, &R); err != nil {
+		return allTestCases, logsDir, err
+	}
+
+	startTimeMs, _ := strconv.ParseInt(R.Start, 10, 64)
+	startTime := time.UnixMilli(startTimeMs)
+	logger.Println("Found n module results:", len(R.Modules))
+	for _, module := range R.Modules {
+		nTests, _ := strconv.Atoi(module.Total_Tests)
+		runTime, _ := strconv.Atoi(module.Runtime)
+		duration := runTime
+		if nTests != 0 {
+			duration = runTime / nTests
+		}
+
+		logger.Println("Parsing Module: ", module.Name)
+		// Make a duration of atleast 1 second so the proto isnt empty.
+		testDur := int64(duration / 1000)
+		if testDur == 0 {
+			testDur = 1
+		}
+
+		for _, testcase := range module.TestCases {
+			for _, test := range testcase.Tests {
+				testName := fmt.Sprintf("tradefed.%s.%s#%s#%s", testType, module.Name, testcase.Name, test.Name)
+				allTestCases = append(allTestCases,
+					buildTcResult(testName, test.Result, startTime, testDur, test.Failure.Message))
+			}
+		}
+	}
+
+	return allTestCases, logsDir, nil
 }
 
 func buildTradefedResult(logger *log.Logger, testType string) (*api.CrosTestResponse, []string) {
@@ -218,32 +327,38 @@ func buildTradefedResult(logger *log.Logger, testType string) (*api.CrosTestResp
 
 	resultPath, err := getResultFilePath()
 	if err != nil {
-		logger.Println("Error locating Tradefed result file: ", err)
+		logger.Println("Error locating Tradefed metric result file: ", err)
+		logger.Println("Trying to locate and parse compatibility result file...")
+		f.TestCaseResults, logsToSave, err = parseCompatibilityXmlResults(logger, testType)
+		if err != nil {
+			logger.Println("Error locating or parsing Tradefed compatibility result file: ", err)
+		}
 		return f, logsToSave
+	} else {
+		logsToSave = append(logsToSave, resultPath)
+
+		TS := TestSuite{}
+		if err = parseResultFile(logger, resultPath, &TS); err != nil {
+			return f, logsToSave
+		}
+
+		testInfoMap, eventLogs := loadEventLogReport(logger)
+		if len(eventLogs) > 0 {
+			logsToSave = append(logsToSave, eventLogs)
+		}
+
+		logger.Printf("Parsing test suite %s; tests: %d, failures: %d",
+			TS.Name, TS.Tests, TS.Failures)
+
+		f.TestCaseResults = processResults(logger, TS, testInfoMap, testType)
 	}
-	logsToSave = append(logsToSave, resultPath)
-
-	TS, err := parseResultFile(logger, resultPath)
-	if err != nil {
-		return f, logsToSave
-	}
-
-	testInfoMap, eventLogs := loadEventLogReport(logger)
-	if len(eventLogs) > 0 {
-		logsToSave = append(logsToSave, eventLogs)
-	}
-
-	logger.Printf("Parsing test suite %s; tests: %d, failures: %d",
-		TS.Name, TS.Tests, TS.Failures)
-
-	f.TestCaseResults = processResults(logger, TS, testInfoMap, testType)
 	logger.Println("Found n case results:", len(f.TestCaseResults))
 
 	return f, logsToSave
 }
 
-func buildTcResult(test TestCase, startTime time.Time, duration int64,
-	testName string, testStatus string) *api.TestCaseResult {
+func buildTcResult(testName string, testStatus string, startTime time.Time, duration int64,
+	errorMessage string) *api.TestCaseResult {
 
 	tcResult := new(api.TestCaseResult)
 
@@ -258,31 +373,29 @@ func buildTcResult(test TestCase, startTime time.Time, duration int64,
 	}
 	tcResult.Duration = &durationpb.Duration{Seconds: duration}
 
+	testError := &api.TestCaseResult_Error{Message: errorMessage}
+
 	switch testStatus {
-	case "PASSED":
+	case "PASSED", "pass":
 		tcResult.Verdict = &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}}
 	case "ASSUMPTION_FAILURE":
 		tcResult.Verdict = &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}}
-		tcResult.Errors = []*api.TestCaseResult_Error{&api.TestCaseResult_Error{Message: test.AsssumptionFailure}}
-	case "FAILED":
+		tcResult.Errors = []*api.TestCaseResult_Error{testError}
+	case "FAILED", "fail":
 		tcResult.Verdict = &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}}
-		tcResult.Errors = []*api.TestCaseResult_Error{&api.TestCaseResult_Error{Message: test.Failure}}
+		tcResult.Errors = []*api.TestCaseResult_Error{testError}
 	case "INCOMPLETE":
 		tcResult.Verdict = &api.TestCaseResult_Crash_{Crash: &api.TestCaseResult_Crash{}}
-		tcResult.Errors = []*api.TestCaseResult_Error{&api.TestCaseResult_Error{Message: test.Incomplete}}
+		tcResult.Errors = []*api.TestCaseResult_Error{testError}
 	case "SKIPPED":
 		tcResult.Verdict = &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}}
-		tcResult.Errors = []*api.TestCaseResult_Error{&api.TestCaseResult_Error{Message: test.Skipped}}
+		tcResult.Errors = []*api.TestCaseResult_Error{testError}
 	case "IGNORED":
 		tcResult.Verdict = &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}}
-		tcResult.Errors = []*api.TestCaseResult_Error{&api.TestCaseResult_Error{Message: test.Ignored}}
-	case "UNKNOWN":
-		tcResult.Verdict = &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}}
-		tcResult.Errors = []*api.TestCaseResult_Error{
-			&api.TestCaseResult_Error{Message: "Unknown test status"},
-		}
+		tcResult.Errors = []*api.TestCaseResult_Error{testError}
 	default:
 		tcResult.Verdict = &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}}
+		tcResult.Errors = []*api.TestCaseResult_Error{testError}
 	}
 
 	return tcResult

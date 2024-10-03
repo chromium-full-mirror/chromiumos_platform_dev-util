@@ -195,8 +195,8 @@ func TestParseResultFile(t *testing.T) {
 				Time:      144,
 			}}}
 
-		got, err := parseResultFile(logger, MetricLogFile)
-
+		got := TestSuite{}
+		err := parseResultFile(logger, MetricLogFile, &got)
 		So(err, ShouldBeNil)
 		So(got, ShouldResemble, want)
 	})
@@ -298,15 +298,15 @@ func TestBuildTcResult(t *testing.T) {
 		wantDuration := &durationpb.Duration{Seconds: int64(duration.Seconds())}
 
 		for _, tc := range []struct {
-			name   string
-			test   TestCase
-			status string
-			want   *api.TestCaseResult
+			name         string
+			errorMessage string
+			status       string
+			want         *api.TestCaseResult
 		}{
 			{
-				name:   "Pass test",
-				test:   TestCase{},
-				status: "PASSED",
+				name:         "Pass test",
+				errorMessage: "",
+				status:       "PASSED",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
 					TestHarness: testHarness,
@@ -316,9 +316,9 @@ func TestBuildTcResult(t *testing.T) {
 				},
 			},
 			{
-				name:   "Assumption failure test",
-				test:   TestCase{AsssumptionFailure: failureMessage},
-				status: "ASSUMPTION_FAILURE",
+				name:         "Assumption failure test",
+				errorMessage: failureMessage,
+				status:       "ASSUMPTION_FAILURE",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
 					TestHarness: testHarness,
@@ -329,9 +329,9 @@ func TestBuildTcResult(t *testing.T) {
 				},
 			},
 			{
-				name:   "Fail test",
-				test:   TestCase{Failure: failureMessage},
-				status: "FAILED",
+				name:         "Fail test",
+				errorMessage: failureMessage,
+				status:       "FAILED",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
 					TestHarness: testHarness,
@@ -342,9 +342,9 @@ func TestBuildTcResult(t *testing.T) {
 				},
 			},
 			{
-				name:   "Incomplete test",
-				test:   TestCase{Incomplete: failureMessage},
-				status: "INCOMPLETE",
+				name:         "Incomplete test",
+				errorMessage: failureMessage,
+				status:       "INCOMPLETE",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
 					TestHarness: testHarness,
@@ -355,9 +355,9 @@ func TestBuildTcResult(t *testing.T) {
 				},
 			},
 			{
-				name:   "Skipped test",
-				test:   TestCase{Skipped: failureMessage},
-				status: "SKIPPED",
+				name:         "Skipped test",
+				errorMessage: failureMessage,
+				status:       "SKIPPED",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
 					TestHarness: testHarness,
@@ -368,9 +368,9 @@ func TestBuildTcResult(t *testing.T) {
 				},
 			},
 			{
-				name:   "Ignore test",
-				test:   TestCase{Ignored: failureMessage},
-				status: "IGNORED",
+				name:         "Ignore test",
+				errorMessage: failureMessage,
+				status:       "IGNORED",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
 					TestHarness: testHarness,
@@ -382,7 +382,7 @@ func TestBuildTcResult(t *testing.T) {
 			},
 		} {
 			Convey(tc.name, func() {
-				got := buildTcResult(tc.test, startTime, int64(duration.Seconds()), testName, tc.status)
+				got := buildTcResult(testName, tc.status, startTime, int64(duration.Seconds()), tc.errorMessage)
 				So(got, ShouldResemble, tc.want)
 			})
 		}

@@ -15,29 +15,14 @@ import (
 )
 
 const (
-	tfTestRunner         = "google/cts/google-cts-launcher-for-aosp"
+	tfGoogleTestRunner   = "google/cts/google-cts-launcher-for-aosp"
+	tfAospTestRunner     = "common-compatibility-config"
 	invocationTimeout    = "10h"
 	maxRuntime           = "3h"
 	retryFailedRuns      = true
 	resultsUpload        = true
 	defaultGlobalLogPath = "/tmp"
-
-	ctsVmConfigName     = "cts-virtual-device"
-	ctsDeviceConfigName = "cts-automated"
-	ctsPackageName      = "android-cts.zip"
-	ctsTestTag          = "cros-cts-test"
-
-	dtsDeviceConfigName = "dts"
-	dtsPackageName      = "android-dts.zip"
-	dtsTestTag          = "cros-dts-test"
 )
-
-var ctsParams = []string{
-	"--skip-device-info", "--no-use-device-build-info", "--property-check:no-throw-error",
-	"--log-level", "VERBOSE", "--max-log-size", "62914560", "--max-tmp-logcat-file", "62914560",
-	"--logcat-on-failure", "--screenshot-on-failure", "--include-test-log-tags",
-	"--result-reporter:disable-result-posting", "--use-log-saver",
-}
 
 var ctsSkipDownloadArtifacts = []string{"TESTS_ZIP", "DEVICE_IMAGE", "BASEBAND"}
 
@@ -57,34 +42,30 @@ func extractBuildInfo(test *api.TestCase) (branch string, target string, build s
 	return
 }
 
+func getTestRunner() string {
+	if isAospTradefed() {
+		return tfAospTestRunner
+	} else {
+		return tfGoogleTestRunner
+	}
+}
+
 func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestCaseMetadata,
 	serials []string, metadata *api.ExecutionMetadata) []string {
 
-	cmd := []string{tfTestRunner}
+	cmd := []string{getTestRunner()}
 
-	// Extract AnTS invocation id and WorkUnit ID from execution metadata.
-	var AnTsInvID string
-	var AnTsWorkUnitID string
-	if metadata != nil && len(metadata.Args) > 0 {
-		for _, arg := range metadata.Args {
-			if arg.Flag == "ants_invocation_id" {
-				AnTsInvID = arg.Value
-			} else if arg.Flag == "ants_work_unit_id" {
-				AnTsWorkUnitID = arg.Value
-			}
-		}
-		logger.Printf("Got invocation id: %s, work unit id: %s.", AnTsInvID, AnTsWorkUnitID)
-	}
-
-	// Only physical devices are currently supported. For VMs, ctsVmConfigName
-	// config should be used.
-	if testType == "cts" {
-		cmd = append(cmd, "--config-name", ctsDeviceConfigName,
-			"--cts-package-name", ctsPackageName, "--test-tag", ctsTestTag)
-	} else if testType == "dts" {
-		cmd = append(cmd, "--config-name", dtsDeviceConfigName,
-			"--cts-package-name", dtsPackageName, "--test-tag", dtsTestTag,
-			"--rootdir-var", "DTS_ROOT")
+	// Add test type specific arguments.
+	if isAospTradefed() {
+		cmd = append(cmd, "--plan", testType, "--log-level-display", "VERBOSE",
+			"--test-tag", fmt.Sprintf("cros-%s-test", testType),
+			"--use-device-build-info", "--primary-abi-only", "--stage-remote-file",
+			"--load-configs-with-include-filters", "--no-skip-staging-artifacts")
+	} else {
+		cmd = append(cmd, "--config-name", testType,
+			"--test-tag", fmt.Sprintf("cros-%s-test", testType),
+			"--cts-package-name", fmt.Sprintf("android-%s.zip", testType),
+			"--rootdir-var", fmt.Sprintf("%s_ROOT", strings.ToUpper(testType)))
 	}
 
 	logPath := os.Getenv("GLOBAL_LOG_PATH")
@@ -93,24 +74,66 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 		os.Setenv("GLOBAL_LOG_PATH", logPath)
 	}
 
-	cmd = append(cmd, "--cts-use-partial-download",
-		"--cts-version", "2", "--gdevice-flash:disable", "--invocation-timeout", invocationTimeout,
-		"--log-level", "VERBOSE", "--max-run-time", maxRuntime, "--no-bugreport-on-invocation-ended",
-		"--invocation-data", "android-build-environment=prod", "--no-run-as-root",
-		"--reporter-template", "template/reporters/subprocess-reporter",
-		"--android-build-api-log-saver:no-remove-staged-files", "--no-use-event-streaming",
-		"--google-device-setup:set-global-setting", "verifier_verify_adb_installs=0",
-		"--template:map", "reporters=template/reporters/xml-reporter.xml",
-		"--metricsreporter:metrics-folder", logPath)
+	cmd = append(cmd, "--invocation-timeout", invocationTimeout, "--log-level", "VERBOSE")
 
-	// Adding cts-params specific to the CTS test config.
-	for _, param := range ctsParams {
-		cmd = append(cmd, "--cts-params", param)
-	}
+	if !isAospTradefed() {
 
-	// Adding a list of artifacts to skip downloading by the CTS runner.
-	for _, artifact := range ctsSkipDownloadArtifacts {
-		cmd = append(cmd, "--skip-download", artifact)
+		cmd = append(cmd, "--cts-use-partial-download", "--cts-version", "2", "--gdevice-flash:disable",
+			"--no-bugreport-on-invocation-ended", "--invocation-data", "android-build-environment=prod",
+			"--android-build-api-log-saver:no-remove-staged-files", "--no-use-event-streaming",
+			"--google-device-setup:set-global-setting", "verifier_verify_adb_installs=0",
+			"--reporter-template", "template/reporters/subprocess-reporter",
+			"--template:map", "reporters=template/reporters/xml-reporter.xml",
+			"--metricsreporter:metrics-folder", logPath, "--max-run-time", maxRuntime)
+
+		// Adding cts-params with prefix for each one.
+		ctsParams := []string{
+			"--skip-device-info", "--no-use-device-build-info", "--log-level", "VERBOSE",
+			"--max-log-size", "62914560", "--max-tmp-logcat-file", "62914560",
+			"--logcat-on-failure", "--screenshot-on-failure", "--include-test-log-tags",
+			"--result-reporter:disable-result-posting", "--use-log-saver",
+		}
+		if testType != "gts" {
+			ctsParams = append(ctsParams, "--property-check:no-throw-error")
+		}
+		for _, param := range ctsParams {
+			cmd = append(cmd, "--cts-params", param)
+		}
+
+		// Adding a list of artifacts to skip downloading by the CTS runner.
+		for _, artifact := range ctsSkipDownloadArtifacts {
+			cmd = append(cmd, "--skip-download", artifact)
+		}
+
+		if resultsUpload {
+			cmd = append(cmd, "--cts-params", "--result-reporter:no-disable",
+				"--ants-result-reporter:create-local-invocation",
+				"--ants-result-reporter:save-metric-file")
+
+			// Extract AnTS invocation id and WorkUnit ID from execution metadata.
+			var AnTsInvID string
+			var AnTsWorkUnitID string
+			if metadata != nil && len(metadata.Args) > 0 {
+				for _, arg := range metadata.Args {
+					if arg.Flag == "ants_invocation_id" {
+						AnTsInvID = arg.Value
+					} else if arg.Flag == "ants_work_unit_id" {
+						AnTsWorkUnitID = arg.Value
+					}
+				}
+				logger.Printf("Got invocation id: %s, work unit id: %s.", AnTsInvID, AnTsWorkUnitID)
+			}
+
+			// Add invocation id and workunit id.
+			if len(AnTsInvID) > 0 {
+				cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation_id=%s", AnTsInvID))
+			}
+			if len(AnTsWorkUnitID) > 0 {
+				cmd = append(cmd, "--invocation-data", fmt.Sprintf("work_unit_id=%s", AnTsWorkUnitID))
+			}
+		} else {
+			cmd = append(cmd, "--cts-params", "--result-reporter:disable")
+		}
 	}
 
 	if retryFailedRuns {
@@ -120,44 +143,29 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 		cmd = append(cmd, "--max-testcase-run-count", "1", "--retry-strategy", "NO_RETRY")
 	}
 
-	if resultsUpload {
-		cmd = append(cmd, "--cts-params", "--result-reporter:no-disable",
-			"--ants-result-reporter:create-local-invocation",
-			"--ants-result-reporter:save-metric-file")
-
-		// Add invocation id and workunit id.
-		if len(AnTsInvID) > 0 {
-			cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation_id=%s", AnTsInvID))
-		}
-		if len(AnTsWorkUnitID) > 0 {
-			cmd = append(cmd, "--invocation-data", fmt.Sprintf("work_unit_id=%s", AnTsWorkUnitID))
-		}
-	} else {
-		cmd = append(cmd, "--cts-params", "--result-reporter:disable")
-	}
-
 	var buildInfoReported = false
 
 	for _, t := range tests {
 		testName := strings.TrimPrefix(t.TestCase.Name, "cts.")
 		testName = strings.TrimPrefix(testName, "dts.")
 		branch, target, build := extractBuildInfo(t.TestCase)
-		logger.Println("Running provided test: ", testName,
-			" for branch/target/build: ", branch, "/", target, "/", build)
-		if !buildInfoReported {
-			if len(branch) > 0 {
-				cmd = append(cmd, "--cts-branch", branch, "--branch", branch)
-			}
-			if len(target) > 0 {
-				cmd = append(cmd, "--cts-build-flavor", target, "--build-flavor", target)
-			}
-			if len(build) > 0 {
-				cmd = append(cmd, "--cts-build-id", build, "--build-id", build)
+		if len(branch) > 0 && len(target) > 0 && len(build) > 0 && !buildInfoReported {
+			cmd = append(cmd, "--branch", branch, "--build-flavor", target,
+				"--build-id", build)
+			if !isAospTradefed() {
+				cmd = append(cmd, "--cts-branch", branch, "--cts-build-flavor", target,
+					"--cts-build-id", build)
 			}
 			buildInfoReported = true
 		}
+		logger.Println("Running provided test: ", testName,
+			" for branch/target/build: ", branch, "/", target, "/", build)
 
-		cmd = append(cmd, "--cts-params", "--compatibility:include-filter", "--cts-params", testName)
+		if isAospTradefed() {
+			cmd = append(cmd, "--include-filter", testName)
+		} else {
+			cmd = append(cmd, "--cts-params", "--compatibility:include-filter", "--cts-params", testName)
+		}
 	}
 
 	// Add devices

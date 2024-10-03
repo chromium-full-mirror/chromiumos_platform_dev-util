@@ -12,11 +12,22 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
 func createTestFile(dir, filename string, content string) error {
 	filePath := filepath.Join(dir, filename)
 	return os.WriteFile(filePath, []byte(content), 0644)
+}
+
+func createMetadataMessage(name string, tag string) *api.TestCaseMetadata {
+	return &api.TestCaseMetadata{
+		TestCase: &api.TestCase{
+			Id:   &api.TestCase_Id{Value: "tradefed." + name},
+			Name: name,
+			Tags: []*api.TestCase_Tag{{Value: tag}},
+		},
+	}
 }
 
 func TestMoveArtifacts(t *testing.T) {
@@ -83,6 +94,89 @@ func TestMoveArtifacts(t *testing.T) {
 					_, err := os.Stat(filePath)
 					So(err, ShouldBeNil)
 				}
+			})
+		}
+	})
+}
+
+func TestDetectTestType(t *testing.T) {
+	t.Parallel()
+
+	Convey("Test detectTestType", t, func() {
+		testCases := []struct {
+			name             string
+			testCaseMetadata []*api.TestCaseMetadata
+			expectedTestType string
+		}{
+			{
+				name: "CTS test type by name",
+				testCaseMetadata: []*api.TestCaseMetadata{
+					createMetadataMessage("cts.CtsTestCase", ""),
+				},
+				expectedTestType: "cts",
+			},
+			{
+				name: "CTS test type by tag",
+				testCaseMetadata: []*api.TestCaseMetadata{
+					createMetadataMessage("CtsTestCase", "suite:cts"),
+				},
+				expectedTestType: "cts",
+			},
+			{
+				name: "CTS test type by name and tag",
+				testCaseMetadata: []*api.TestCaseMetadata{
+					createMetadataMessage("cts.CtsTestCase", "suite:cts"),
+				},
+				expectedTestType: "cts",
+			},
+			{
+				name: "DTS test type by name",
+				testCaseMetadata: []*api.TestCaseMetadata{
+					createMetadataMessage("dts.CtsTestCase", ""),
+				},
+				expectedTestType: "dts",
+			},
+			{
+				name: "DTS test type by tag",
+				testCaseMetadata: []*api.TestCaseMetadata{
+					createMetadataMessage("SomeDtsTestCase", "suite:dts"),
+				},
+				expectedTestType: "dts",
+			},
+			{
+				name: "GTS test type by name",
+				testCaseMetadata: []*api.TestCaseMetadata{
+					createMetadataMessage("gts.CtsTestCase", ""),
+				},
+				expectedTestType: "gts",
+			},
+			{
+				name: "GTS test type by tag",
+				testCaseMetadata: []*api.TestCaseMetadata{
+					createMetadataMessage("SomeGtsTestCase", "suite:gts"),
+				},
+				expectedTestType: "gts",
+			},
+			{
+				name: "VTS test type by name",
+				testCaseMetadata: []*api.TestCaseMetadata{
+					createMetadataMessage("vts.CtsTestCase", ""),
+				},
+				expectedTestType: "vts",
+			},
+			{
+				name: "VTS test type by tag",
+				testCaseMetadata: []*api.TestCaseMetadata{
+					createMetadataMessage("SomeVtsTestCase", "suite:vts"),
+				},
+				expectedTestType: "vts",
+			},
+		}
+
+		for _, tc := range testCases {
+			Convey(tc.name, func() {
+				detectedTestType := detectTestType(tc.testCaseMetadata)
+				So(detectedTestType, ShouldEqual, tc.expectedTestType)
 			})
 		}
 	})

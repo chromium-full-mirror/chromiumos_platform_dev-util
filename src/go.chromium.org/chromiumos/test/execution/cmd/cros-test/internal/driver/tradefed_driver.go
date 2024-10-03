@@ -27,11 +27,18 @@ const (
 	ctsResultsDir          = "results/"
 	ctsLogsDir             = "logs/"
 
-	tradefedConsoleBinary = "/tradefed/tradefed_runner.sh"
-	tradefedGlobalLogs    = "tradefed_global_log_*.txt"
+	tradefedDir          = "/tradefed"
+	tradefedAospBinary   = "tradefed.sh"
+	tradefedGoogleBinary = "tradefed_runner.sh"
+	tradefedGlobalLogs   = "tradefed_global_log_*.txt"
 )
 
+// List of xTS test suites supported by this driver.
+// Not all suites are supported for each Tradefed type.
+var knownSuites = []string{"cts", "dts", "gts", "vts"}
+
 var testType = "cts"
+var tradefedType = "aosp"
 
 type TradefedDriver struct {
 	logger *log.Logger
@@ -44,6 +51,55 @@ func NewTradefedDriver(logger *log.Logger) *TradefedDriver {
 }
 func (d *TradefedDriver) Name() string {
 	return "tradefed"
+}
+
+func detectTradefedType() {
+	if _, err := os.Stat(filepath.Join(tradefedDir, "google-tradefed.jar")); err == nil {
+		tradefedType = "google"
+	} else {
+		tradefedType = "aosp"
+	}
+}
+
+func isAospTradefed() bool {
+	return tradefedType == "aosp"
+}
+
+func getTradefedBinary() string {
+	if isAospTradefed() {
+		return tradefedAospBinary
+	} else {
+		return tradefedGoogleBinary
+	}
+}
+
+func isTestTypeSupported(test string) bool {
+	for _, prefix := range knownSuites {
+		if strings.HasPrefix(test, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func detectTestType(tests []*api.TestCaseMetadata) string {
+	for _, test := range tests {
+		testName := test.GetTestCase().GetName()
+		// Check for test name prefix, i.e. "xts.TestModule"
+		if len(testName) > 4 && string(testName[3]) == "." && isTestTypeSupported(testName) {
+			return testName[:3]
+		}
+		// Check for suite tags, i.e. "suite:xts"
+		for _, tag := range test.GetTestCase().GetTags() {
+			tagVal := tag.GetValue()
+			if strings.HasPrefix(tagVal, "suite:") && isTestTypeSupported(tagVal[6:9]) {
+				return tagVal[6:9]
+			}
+		}
+	}
+
+	// Return default test suite if no other suite detected.
+	return "cts"
 }
 
 func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestCaseMetadata,
@@ -67,12 +123,10 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 
 	var cmd *exec.Cmd
 
-	if testType == "cts" || testType == "dts" {
-		// Using Google TradeFed console for CTS and DTS tests.
-		baseArgs := []string{"run", "commandAndExit"}
-		baseArgs = append(baseArgs, BuildXtsTestCommand(logger, testType, tests, serials, metadata)...)
-		cmd = exec.Command(tradefedConsoleBinary, baseArgs...)
-	}
+	// Using Google TradeFed console for CTS and DTS tests.
+	baseArgs := []string{"run", "commandAndExit"}
+	baseArgs = append(baseArgs, BuildXtsTestCommand(logger, testType, tests, serials, metadata)...)
+	cmd = exec.Command(getTradefedBinary(), baseArgs...)
 
 	logger.Println("Running TF: ", cmd.String())
 
@@ -89,19 +143,11 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 		return nil, fmt.Errorf("failed to call DerviceSerials: %s", err)
 	}
 
-	dtsFound := false
-	for _, test := range tests {
-		if strings.HasPrefix(test.GetTestCase().GetName(), "dts.") {
-			dtsFound = true
-		}
-		for _, tag := range test.GetTestCase().GetTags() {
-			dtsFound = dtsFound || tag.GetValue() == "suite:dts"
-		}
-		if dtsFound {
-			testType = "dts"
-			break
-		}
-	}
+	detectTradefedType()
+	td.logger.Println("Detected Tradefed type: ", tradefedType)
+
+	testType = detectTestType(tests)
+	td.logger.Println("Detected test type: ", testType)
 
 	executionMD := &api.ExecutionMetadata{}
 	if len(req.GetTestSuites()) > 0 {
