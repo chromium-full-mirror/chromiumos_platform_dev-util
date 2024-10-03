@@ -32,7 +32,7 @@ CHROMEOS_URLS = [
     'https://chromium.googlesource.com/chromiumos/third_party/kernel'
 ]
 
-BRANCHES = ('6.6', '6.1', '5.15', '5.10', '5.4', '4.19')
+BRANCHES = ('6.6', '6.1', '5.15', '5.10-cip', '5.10', '5.4', '4.19')
 
 MIN_RELEASE = 120
 
