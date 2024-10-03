@@ -53,7 +53,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	cacheServerAdd := s.params.Dut.GetCacheServer().GetAddress().GetAddress()
 	installCommand := ""
 	if strings.Contains(s.params.TargetImagePath.GetPath(), "android-build") {
-		installCommand = "al-install chromeos-throw-away-bucket/kimjae/al.bin.img " + cacheServerAdd
+		installCommand = "al-install chromeos-throw-away-bucket/kimjae/al-12445875.bin.img " + cacheServerAdd
 	} else {
 		installCommand = "cros-install chromeos-image-archive/brya-release/R130-16033.4.0 " + cacheServerAdd
 	}

@@ -42,6 +42,7 @@ func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 	if osType == cross_over.CROS {
 
 		params := &cross_over.CrossOverParameters{
+			DutClient:       dutClient,
 			Dut:             dut,
 			TargetImagePath: req.GetImagePath(),
 			//ServodDockerContainerName: "servod-process",

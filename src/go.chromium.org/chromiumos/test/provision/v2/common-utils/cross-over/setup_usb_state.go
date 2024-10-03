@@ -21,7 +21,7 @@ import (
 // TODO: Set provisionOSImagePath when its ready. Currently using a cros test image as a placeholder.
 // TODO: Post 9/23 deadline, remove provisionOSImagePath hardcoding here and input from provision request.
 const (
-	provisionOSImagePath = "gs://chromeos-throw-away-bucket/kimjae/brya-provision-cros-yes-al-yes.bin"
+	provisionOSImagePath = "gs://chromeos-throw-away-bucket/kimjae/brya-provision-v1.bin"
 	dutSeesUsbkeyWait    = time.Second * 5
 )
 

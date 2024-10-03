@@ -49,13 +49,13 @@ func (s RebootFromDiskState) Execute(ctx context.Context, log *log.Logger) (*any
 	if err := callServod(ctx, log, s.servodClient, "power_state", "on", servoHostPath, s.params.ServodDockerContainerName, servoPort); err != nil {
 		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
-	log.Println("Waiting for power on.")
-	time.Sleep(waitForPowerOff)
+	log.Println("Waiting for power on. waiting for 2 minutes")
+	time.Sleep(2 * time.Minute)
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s RebootFromDiskState) Next() common_utils.ServiceState {
-	return NewCrossOverTerminateState(s.servodClient, s.params)
+	return NewValidateState(s.servodClient, s.params)
 }
 
 func (s RebootFromDiskState) Name() string {

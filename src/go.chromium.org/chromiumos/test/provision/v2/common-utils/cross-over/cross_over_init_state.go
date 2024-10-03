@@ -25,6 +25,7 @@ type CrossOverParameters struct {
 	ServodDockerContainerName string
 	ServodDockerImagePath     string
 	TargetImagePath           *storage_path.StoragePath
+	DutClient                 api.DutServiceClient
 }
 
 // CrossOverInitState starts the servod process.

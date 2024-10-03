@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"go.chromium.org/chromiumos/config/go/api/test/xmlrpc"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -24,7 +25,7 @@ const (
 
 func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
 	// TODO: If its already an android DUT, then we can optimize and avoid calling SetupAdb two times, here and in FoilPreInitState.
-	if err := adb.SetupAdb(logger, dutAddress); err != nil {
+	if err := adb.RetrySetupAdb(logger, dutAddress, 3*time.Minute); err != nil {
 		// ADB failure implies DUT is CROS.
 		// TODO: Do second validation that DUT is cros by invoking GetConnectionWithRetry.
 		return CROS, nil
