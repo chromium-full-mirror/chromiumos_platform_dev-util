@@ -193,6 +193,7 @@ COPY shadow_config.ini .
 RUN sudo mkdir -p /opt/browser-tools
 COPY --chown=chromeos-test:chromeos-test vpython3 /opt/browser-tools/vpython3
 COPY --chown=chromeos-test:chromeos-test 3.8/ /opt/browser-tools/3.8/
+COPY --chown=chromeos-test:chromeos-test 3.11/ /opt/browser-tools/3.11/
 # vpython3 relies on CIPD to activate virtual env.
 COPY --chown=chromeos-test:chromeos-test cipd /opt/browser-tools/cipd
 
