@@ -35,7 +35,7 @@ func RunCommand(ctx context.Context, cmd *exec.Cmd, cmdName string, input proto.
 	defer func() {
 		stdout = so.String()
 		stderr = se.String()
-		logOutputs(cmdName, stdout, stderr)
+		LogOutputs(cmdName, stdout, stderr)
 	}()
 
 	log.Printf("Run cmd: %q", cmd)
@@ -51,8 +51,8 @@ func RunCommand(ctx context.Context, cmd *exec.Cmd, cmdName string, input proto.
 	return
 }
 
-// logOutputs logs cmd stdout and stderr
-func logOutputs(cmdName string, stdout string, stderr string) {
+// LogOutputs logs cmd stdout and stderr
+func LogOutputs(cmdName string, stdout string, stderr string) {
 	if stdout != "" {
 		log.Printf("#### stdout from %q start ####\n", cmdName)
 		log.Print(stdout)

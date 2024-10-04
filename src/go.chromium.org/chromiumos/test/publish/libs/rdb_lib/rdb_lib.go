@@ -105,10 +105,11 @@ func (rdblib *RdbLib) UploadTestResults(ctx context.Context, rdbStreamConfig *rd
 		return fmt.Errorf("error in rdb upload stream command creation: %s", err.Error())
 	}
 
-	_, _, err = common_utils.RunCommand(ctx, cmd, "rdb-upload", nil, true)
-
+	cmdName := "rdb-upload"
+	stdout, stderr, err := common_utils.RunCommand(ctx, cmd, cmdName, nil, true)
+	common_utils.LogOutputs(cmdName, stdout, stderr)
 	if err != nil {
-		return fmt.Errorf("error in rdb-upload: %s", err.Error())
+		return fmt.Errorf("error in %q cmd: %s", cmdName, err.Error())
 	}
 
 	return nil
