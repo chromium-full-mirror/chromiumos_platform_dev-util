@@ -23,24 +23,20 @@ import (
 
 type FoilProvisionExecutor struct {
 	Logger *log.Logger
-	// TODO: CrosServodAddress should not be a part of executor. Move it to ProvisionStartupRequest.
-	CrosServodAddress string
 }
 
-func NewFoilProvisionExecutor(logger *log.Logger, crosServodAddress string) (*FoilProvisionExecutor, error) {
+func NewFoilProvisionExecutor(logger *log.Logger) (*FoilProvisionExecutor, error) {
 	return &FoilProvisionExecutor{
-		Logger:            logger,
-		CrosServodAddress: crosServodAddress,
+		Logger: logger,
 	}, nil
 }
 
-func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (common_utils.ServiceState, error) {
+func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, servoNexusAddr string, req *api.InstallRequest) (common_utils.ServiceState, error) {
 	osType, err := cross_over.DetectOS(c.Logger, fmt.Sprintf("%v:%v", dut.GetChromeos().GetSsh().GetAddress(), dut.GetChromeos().GetSsh().GetPort()))
 	if err != nil {
 		return nil, err
 	}
 	if osType == cross_over.CROS {
-
 		params := &cross_over.CrossOverParameters{
 			DutClient:       dutClient,
 			Dut:             dut,
@@ -49,7 +45,7 @@ func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 			//ServodDockerImagePath:     "us-docker.pkg.dev/chromeos-partner-moblab/common-core/servod:release",
 			//TODO: Decide how ServodDockerContainerName and ServodDockerImagePath will be populated.
 		}
-		conn, err := grpc.Dial(c.CrosServodAddress, grpc.WithInsecure())
+		conn, err := grpc.Dial(servoNexusAddr, grpc.WithInsecure())
 		if err != nil {
 			return nil, err
 		}

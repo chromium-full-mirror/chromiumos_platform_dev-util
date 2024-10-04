@@ -18,11 +18,10 @@ import (
 
 // ServerCommand executed the provisioning as a Server
 type ServerCommand struct {
-	metadata          *metadata.ServerMetadata
-	logFileName       string
-	metadataFile      string
-	flagSet           *flag.FlagSet
-	crosServodAddress string
+	metadata     *metadata.ServerMetadata
+	logFileName  string
+	metadataFile string
+	flagSet      *flag.FlagSet
 }
 
 func NewServerCommand() *ServerCommand {
@@ -34,8 +33,6 @@ func NewServerCommand() *ServerCommand {
 	sc.flagSet.IntVar(&sc.metadata.Port, "port", constants.DefaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", constants.DefaultPort))
 	sc.flagSet.StringVar(&sc.logFileName, "log-path", constants.DefaultLogDirectory, fmt.Sprintf("Path to record execution logs. Default value is %s", constants.DefaultLogDirectory))
 	sc.flagSet.StringVar(&sc.metadataFile, "metadata", "", "Specify the request jsonproto input file. Provide service paths and ProvisionState.")
-	// TODO: Move crosServodAddress to ProvisionStartupRequest.
-	sc.flagSet.StringVar(&sc.crosServodAddress, "crosServodAddress", "localhost:80", "The address for the cros-servod CFT service. Format should be IP:Port")
 	return sc
 }
 
@@ -72,7 +69,7 @@ func (cc *ServerCommand) validateCLIInputs() error {
 
 func (sc *ServerCommand) Run() error {
 	sc.metadata.Log.Printf("running server mode:")
-	foilProvisionExecutor, err := executor.NewFoilProvisionExecutor(sc.metadata.Log, sc.crosServodAddress)
+	foilProvisionExecutor, err := executor.NewFoilProvisionExecutor(sc.metadata.Log)
 	if err != nil {
 		sc.metadata.Log.Fatalln("failed to create FoilProvisionExecutor: ", err)
 		return err

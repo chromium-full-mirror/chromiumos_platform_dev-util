@@ -18,7 +18,7 @@ import (
 type AndroidProvisionExecutor struct {
 }
 
-func (c *AndroidProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (common_utils.ServiceState, error) {
+func (c *AndroidProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, servoNexusAddr string, req *api.InstallRequest) (common_utils.ServiceState, error) {
 	svc, err := service.NewAndroidService(dut, dutClient, req)
 	if err != nil {
 		return nil, err

@@ -5,9 +5,9 @@
 package executor
 
 import (
+	"errors"
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 	"go.chromium.org/chromiumos/test/provision/v2/lacros-provision/service"
-	"errors"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
@@ -18,7 +18,7 @@ import (
 type LaCrOSProvisionExecutor struct {
 }
 
-func (c *LaCrOSProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (common_utils.ServiceState, error) {
+func (c *LaCrOSProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, servoNexusAddr string, req *api.InstallRequest) (common_utils.ServiceState, error) {
 	cs, err := service.NewLaCrOSService(dut, dutClient, req)
 	if err != nil {
 		return nil, err

@@ -25,11 +25,12 @@ import (
 )
 
 type ProvisionServer struct {
-	options   *metadata.ServerMetadata
-	dutClient api.DutServiceClient
-	manager   *lro.Manager
-	executor  ProvisionExecutor
-	conns     []*grpc.ClientConn
+	options        *metadata.ServerMetadata
+	dutClient      api.DutServiceClient
+	manager        *lro.Manager
+	executor       ProvisionExecutor
+	conns          []*grpc.ClientConn
+	servoNexusAddr string
 }
 
 func NewProvisionServer(options *metadata.ServerMetadata, executor ProvisionExecutor) (*ProvisionServer, func(), error) {
@@ -88,6 +89,8 @@ func (ps *ProvisionServer) StartUp(ctx context.Context, req *api.ProvisionStartu
 		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
 		return &response, err
 	}
+	// TODO: Uncomment this when proto changes are made available.
+	//ps.servoNexusAddr = req.GetServoNexusAddr().GetAddress() + ":" + req.GetServoNexusAddr().GetPort()
 	ps.options.Dut = req.Dut
 	ps.options.DutAddress = fmt.Sprintf("%s:%d", req.GetDutServer().GetAddress(), req.GetDutServer().GetPort())
 	dutConn, err := grpc.Dial(ps.options.DutAddress, grpc.WithInsecure())
@@ -129,7 +132,7 @@ func (ps *ProvisionServer) installTarget(ctx context.Context, req *api.InstallRe
 		return api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, nil, errors.New("error: no dut client found")
 	}
 
-	fs, err := ps.executor.GetFirstState(ps.options.Dut, ps.dutClient, req)
+	fs, err := ps.executor.GetFirstState(ps.options.Dut, ps.dutClient, ps.servoNexusAddr, req)
 	if err != nil {
 		return api.InstallResponse_STATUS_INVALID_REQUEST, nil, err
 	}

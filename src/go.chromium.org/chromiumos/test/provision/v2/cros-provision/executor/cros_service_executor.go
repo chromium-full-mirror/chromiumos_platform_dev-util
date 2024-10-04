@@ -8,8 +8,8 @@
 package executor
 
 import (
-	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 	"errors"
+	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 
 	"go.chromium.org/chromiumos/test/provision/v2/cros-provision/service"
 	state_machine "go.chromium.org/chromiumos/test/provision/v2/cros-provision/state-machine"
@@ -21,7 +21,7 @@ import (
 type CrOSProvisionExecutor struct {
 }
 
-func (c *CrOSProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (common_utils.ServiceState, error) {
+func (c *CrOSProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, servoNexusAddr string, req *api.InstallRequest) (common_utils.ServiceState, error) {
 	cs, err := service.NewCrOSService(dut, dutClient, req)
 	if err != nil {
 		return nil, err

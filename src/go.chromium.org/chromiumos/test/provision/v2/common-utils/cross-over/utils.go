@@ -13,7 +13,9 @@ import (
 
 	"go.chromium.org/chromiumos/config/go/api/test/xmlrpc"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
 	"go.chromium.org/chromiumos/test/util/adb"
+	"golang.org/x/crypto/ssh"
 )
 
 type OS_TYPE int
@@ -21,19 +23,51 @@ type OS_TYPE int
 const (
 	ANDROID OS_TYPE = iota
 	CROS
+	UNKNOWN
 )
 
-func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
-	// TODO: If its already an android DUT, then we can optimize and avoid calling SetupAdb two times, here and in FoilPreInitState.
-	if err := adb.RetrySetupAdb(logger, dutAddress, 3*time.Minute); err != nil {
-		// ADB failure implies DUT is CROS.
-		// TODO: Do second validation that DUT is cros by invoking GetConnectionWithRetry.
-		return CROS, nil
+func checkSSH(logger *log.Logger, dutAddress string, config *ssh.ClientConfig, retryCount int, retryInterval time.Duration) bool {
+	log.Println("Checking for ssh connection.")
+	for ; retryCount >= 0; retryCount-- {
+		_, err := ssh.Dial("tcp", dutAddress, config)
+		if err == nil {
+			return true
+		}
+		log.Println("Got error while ssh. Retrying...")
+		time.Sleep(retryInterval)
+	}
+	return false
+}
+
+func checkADB(logger *log.Logger, dutAddress string, timeout time.Duration) bool {
+	err := adb.RetrySetupAdb(logger, dutAddress, timeout)
+	if err != nil {
+		return false
 	}
 	if err := adb.TeardownAdb(logger, dutAddress); err != nil {
 		logger.Println("Warning: TeardownAdb failed: ", err)
 	}
-	return ANDROID, nil
+	return true
+}
+
+func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
+	config := dutssh.GetSSHConfig()
+	// Perform fast connection check.
+	if checkSSH(logger, dutAddress, config, 2, 2*time.Second) {
+		return CROS, nil
+	}
+	if checkADB(logger, dutAddress, 10*time.Second) {
+		return ANDROID, nil
+	}
+
+	// Perform long connection check.
+	if checkSSH(logger, dutAddress, config, 5, 10*time.Second) {
+		return CROS, nil
+	}
+	if checkADB(logger, dutAddress, 3*time.Minute) {
+		return ANDROID, nil
+	}
+	return UNKNOWN, fmt.Errorf("could not detect underlining os for dut")
 }
 
 func callServod(ctx context.Context, log *log.Logger, servodClient api.ServodServiceClient, key, value, servoHostPath, servodDockerContainerName string, servodPort int32) error {
