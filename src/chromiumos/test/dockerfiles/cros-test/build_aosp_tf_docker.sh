@@ -16,13 +16,15 @@ KEEP_TMP_FILES=0
 TRADEFED_ZIP="tradefed.zip"
 
 DOCKERFILE="Dockerfile_TF_AOSP"
-DOCKER_TAG="us-docker.pkg.dev/cros-registry/test-services/cros-test:cros-test-aosp"
+DOCKER_TAG="us-docker.pkg.dev/cros-registry/test-services/cros-test:prodAospTF"
 
 METADATA_BUCKET="gs://cros-xts-metadata"
 METADATA_COMPILE_SCRIPT="../../python/src/tools/compile_xts_metadata.py"
 
 CROS_TEST_BUILD_PATH="../../../../go.chromium.org/chromiumos/test/execution/cmd/cros-test/."
 GOPATH_VALS=$(realpath -e "../../../../../../../../chroot/usr/lib/gopath/"):$(realpath -e "../../../../..")
+
+PLATFORM_TOOLS_URL="https://dl.google.com/android/repository/platform-tools-latest-linux.zip"
 
 function download_artifact () {
   local SUITE=$1
@@ -32,8 +34,10 @@ function download_artifact () {
   local ZIP_FILE="android-${SUITE}.zip"
 
   echo "Downloading ${ZIP_FILE} for build ${BUILD} to ${TMPDIR_ARTIFACTS}..."
+  set -x
   /google/data/ro/projects/android/fetch_artifact --bid "${BUILD}" \
     --target "${TARGET}" "${ZIP_FILE}" "${TMPDIR_ARTIFACTS}"
+  set +x
   if [[ ! -f "${TMPDIR_ARTIFACTS}/${ZIP_FILE}" ]]; then
     echo "Error fetching artifact: ${TMPDIR_ARTIFACTS}/${ZIP_FILE}"
     exit 2
@@ -122,6 +126,10 @@ set +x
 echo "Unpacking Tradefed console to ${TMPDIR_TF}..."
 unzip -q "${TMPDIR_TF}/${TRADEFED_ZIP}" -d "${TMPDIR_TF}"
 rm "${TMPDIR_TF}/${TRADEFED_ZIP}"
+# Download platform tools (adb, etc.) to the tradefed dir.
+wget -q --retry-connrefused -O platform-tools.zip "${PLATFORM_TOOLS_URL}"
+unzip -jq platform-tools.zip -d "${TMPDIR_TF}"
+rm platform-tools.zip
 
 # Build cros-test binary.
 echo "Building cros-test binary..."

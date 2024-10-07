@@ -12,7 +12,6 @@ ARG ARTIFACT_DIR
 # squashfs-tools is for Uprev specifically.
 RUN apt-get update \
     && apt-get install -y \
-      android-sdk \
       attr \
       ca-certificates \
       cpio \
@@ -28,18 +27,17 @@ RUN apt-get update \
       wget \
       xxd
 
-# fetch recent Android command line tools and use sdkmanager to fetch
-# required android tools such as aapt and aapt2.
-RUN rm -rf /var/lib/apt/lists/* && \
-    wget -q https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip && \
-    unzip commandlinetools-linux-7583922_latest.zip && \
-    mv cmdline-tools /usr/lib/android-sdk/ && \
-    yes | /usr/lib/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=/usr/lib/android-sdk --licenses > /dev/null && \
-    /usr/lib/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=/usr/lib/android-sdk "platforms;android-30" "build-tools;30.0.3" && \
-    ln -sf /usr/lib/android-sdk/build-tools/30.0.3/aapt /usr/bin/aapt && \
-    ln -sf /usr/lib/android-sdk/build-tools/30.0.3/aapt2 /usr/bin/aapt2 && \
-    ln -sf /usr/lib/android-sdk/platform-tools/adb /usr/bin/adb
+# Install SDK tools (aapt, adb, fastboot, mke2fs)
+RUN mkdir -p /usr/lib/android-sdk/lib64
+RUN wget -q --retry-connrefused -O build-tools.zip https://dl.google.com/android/repository/build-tools_r34-linux.zip \
+    && unzip -jq build-tools.zip -d /usr/lib/android-sdk android-14/aapt \
+    && unzip -jq build-tools.zip -d /usr/lib/android-sdk android-14/aapt2 \
+    && unzip -jq build-tools.zip -d /usr/lib/android-sdk/lib64 android-14/lib64/* \
+    && rm build-tools.zip \
+    && ln -sf /usr/lib/android-sdk/aapt /usr/bin/aapt \
+    && ln -sf /usr/lib/android-sdk/aapt2 /usr/bin/aapt2
 
+ENV LD_LIBRARY_PATH /usr/lib/android-sdk/lib64:${LD_LIBRARY_PATH}
 ENV ANDROID_HOME=/usr/lib/android-sdk
 
 # # grab gsutil
@@ -99,5 +97,6 @@ ENV GOOGLE_APPLICATION_CREDENTIALS=/creds/service_accounts/skylab-drone.json
 ENV TZ=Etc/UTC
 ENV USE_HOST_ADB=true
 ENV GLOBAL_LOG_PATH=/tmp/test/logs
+ENV TRADEFED_OPTS="-DCTS_ROOT=/tradefed -DDTS_ROOT=/tradefed -DVTS_ROOT=/tradefed -DGTS_ROOT=/tradefed"
 
 ENV PATH=/tradefed:$PATH
