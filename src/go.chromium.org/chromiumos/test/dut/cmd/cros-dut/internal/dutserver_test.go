@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package main
+package internal
 
 import (
 	"bytes"
-	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
-	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh/mock_dutssh"
 	"context"
 	"errors"
 	"fmt"
@@ -17,6 +15,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
+	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh/mock_dutssh"
 
 	"github.com/golang/mock/gomock"
 	"go.chromium.org/chromiumos/config/go/test/api"
