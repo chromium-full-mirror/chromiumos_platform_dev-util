@@ -78,7 +78,7 @@ func (s ValidateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 }
 
 func (s ValidateState) Next() common_utils.ServiceState {
-	return nil
+	return NewCrossOverTerminateState(s.servodClient, s.params)
 }
 
 func (s ValidateState) Name() string {

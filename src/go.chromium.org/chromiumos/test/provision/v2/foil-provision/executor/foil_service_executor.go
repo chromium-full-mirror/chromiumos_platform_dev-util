@@ -36,7 +36,11 @@ func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 	if err != nil {
 		return nil, err
 	}
+	log.Println("Detected OS type ", osType)
 	if osType == cross_over.CROS {
+		if servoNexusAddr == "" {
+			return nil, fmt.Errorf("servoNexusAdd required for crossover provision")
+		}
 		params := &cross_over.CrossOverParameters{
 			DutClient:       dutClient,
 			Dut:             dut,

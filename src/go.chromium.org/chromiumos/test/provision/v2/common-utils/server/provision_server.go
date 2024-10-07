@@ -89,8 +89,9 @@ func (ps *ProvisionServer) StartUp(ctx context.Context, req *api.ProvisionStartu
 		response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
 		return &response, err
 	}
-	// TODO: Uncomment this when proto changes are made available.
-	//ps.servoNexusAddr = req.GetServoNexusAddr().GetAddress() + ":" + req.GetServoNexusAddr().GetPort()
+	if req.GetServoNexusAddr() != nil {
+		ps.servoNexusAddr = fmt.Sprintf("%v:%v", req.GetServoNexusAddr().GetAddress(), req.GetServoNexusAddr().GetPort())
+	}
 	ps.options.Dut = req.Dut
 	ps.options.DutAddress = fmt.Sprintf("%s:%d", req.GetDutServer().GetAddress(), req.GetDutServer().GetPort())
 	dutConn, err := grpc.Dial(ps.options.DutAddress, grpc.WithInsecure())
