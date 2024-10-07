@@ -235,7 +235,7 @@ func getCliSubcommand() (model.CliSubcommand, error) {
 	return model.CliUnknown, errors.Reason("Unknown CLI subcommand").Err()
 }
 
-func mainInternal() int {
+func MainInternal() int {
 	rm, err := getRunMode()
 	if err != nil {
 		log.Fatalln(err)
@@ -265,5 +265,5 @@ func mainInternal() int {
 }
 
 func main() {
-	os.Exit(mainInternal())
+	os.Exit(MainInternal())
 }

@@ -52,112 +52,114 @@ func newLogger(logFile *os.File) *log.Logger {
 	return newLog
 }
 
-func main() {
-	os.Exit(func() int {
-		flag.NewFlagSet("version", flag.ExitOnError)
+func MainInternal() int {
+	flag.NewFlagSet("version", flag.ExitOnError)
 
-		dutName := flag.String("dut_name", "", "DUT name to connect to. Mutually exclusive from dut_address. E.g.: chromeos1-row1-rack9-host4.")
-		dutAddress := flag.String("dut_address", "", "DUT address to connect to. Mutually exclusive from dut_name. A DUT address must be in the format address:port. E.g.: 1.2.3.4:8080")
-		wiringAddress := flag.String("wiring_address", "", "Address to TLW. Only required if using DUT name.")
-		protoChunkSize := flag.Int64("chunk_size", 1024*1024, "Largest size of blob or coredumps to include in an individual response.")
-		serializerPath := flag.String("serializer_path", "/usr/local/sbin/crash_serializer", "Location of the serializer binary on disk in the DUT.")
-		cacheAddress := flag.String("cache_address", "", "CacheForDUT service address.")
-		port := flag.Int("port", 0, "the port used to start service. default not specified")
-		flag.Parse()
+	dutName := flag.String("dut_name", "", "DUT name to connect to. Mutually exclusive from dut_address. E.g.: chromeos1-row1-rack9-host4.")
+	dutAddress := flag.String("dut_address", "", "DUT address to connect to. Mutually exclusive from dut_name. A DUT address must be in the format address:port. E.g.: 1.2.3.4:8080")
+	wiringAddress := flag.String("wiring_address", "", "Address to TLW. Only required if using DUT name.")
+	protoChunkSize := flag.Int64("chunk_size", 1024*1024, "Largest size of blob or coredumps to include in an individual response.")
+	serializerPath := flag.String("serializer_path", "/usr/local/sbin/crash_serializer", "Location of the serializer binary on disk in the DUT.")
+	cacheAddress := flag.String("cache_address", "", "CacheForDUT service address.")
+	port := flag.Int("port", 0, "the port used to start service. default not specified")
+	flag.Parse()
 
-		if len(os.Args) > 1 && os.Args[1] == "version" {
-			fmt.Println("dutservice version ", Version)
-			return 0
-		}
-
-		if *dutAddress == "" && *dutName == "" {
-			fmt.Println("A DUT address or DUT name must be specified.")
-		}
-
-		if *dutName != "" && *dutAddress != "" {
-			fmt.Println("DUT address and DUT name are mutually exclusive.")
-		}
-
-		if *dutName != "" && *wiringAddress == "" {
-			fmt.Println("A Wiring address must be valid if DUT name is used.")
-		}
-
-		if *dutAddress != "" && *wiringAddress != "" {
-			fmt.Println("A Wiring address should not be specified if DUT address is used.")
-		}
-
-		if *cacheAddress == "" {
-			fmt.Println("Caching address must be specified.")
-			return 2
-		}
-
-		if *port == 0 {
-			fmt.Println("Port not specified, using bind() command to request the next available dynamically allocated source port number.")
-		}
-
-		if *dutName == "" {
-			dutName = dutAddress
-		}
-
-		logFile, err := createLogFile()
-		if err != nil {
-			log.Fatalln("Failed to create log file: ", err)
-		}
-		defer logFile.Close()
-
-		logger := newLogger(logFile)
-		logger.Println("Starting dutservice version ", Version)
-		logger.Println("Starting dutservice on port ", *port)
-		l, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
-		if err != nil {
-			logger.Fatalln("Failed to create a net listener: ", err)
-			return 2
-		}
-		ctx := context.Background()
-		logger.Println("Attempting to connect w/ Retry.")
-
-		// Define the initial connection tries/retry logic.
-		initialConReq := api.RestartRequest{
-			Args: []string{},
-			Retry: &api.RestartRequest_ReconnectRetry{
-				Times:      3,
-				IntervalMs: 5000,
-			},
-		}
-
-		conn, err := GetConnectionWithRetry(ctx, *dutName, *wiringAddress, &initialConReq, logger)
-		if err != nil {
-			logger.Println("Failed to connect to DUT via SSH ", err)
-			logger.Println("Will try to connect to DUT via ADB.")
-			// It is possible that the DUT has android image. DUT with android image cannot be
-			// sshed. Check with setup adb. If that succeeds don't fail cros-dut.
-			if err = adb.SetupAdb(logger, *dutAddress); err != nil {
-				logger.Println("Failed to connect to DUT via ADB ", err)
-				return 2
-			} else {
-				if err = adb.TeardownAdb(logger, *dutAddress); err != nil {
-					logger.Println("Warning: TeardownAdb failed: ", err)
-				}
-			}
-			logger.Println("Warning: cros-dut wont work because DUT has android OS. After installing cros call ForceReconnect.")
-		}
-		// Log the port _after_ the conn is established server.
-		logger.Println("Started server on address ", l.Addr().String())
-		logger.Println("Continue")
-
-		// Write port number to ~/.cftmeta for go/cft-port-discovery
-		err = portdiscovery.WriteServiceMetadata("cros-dut", l.Addr().String(), logger)
-		if err != nil {
-			logger.Println("Warning: error when writing to metadata file: ", err)
-		}
-
-		server, destructor := newDutServiceServer(l, logger, &dutssh.SSHClient{Client: conn}, *serializerPath, *protoChunkSize, *dutName, *wiringAddress, *cacheAddress)
-		defer destructor()
-
-		err = server.Serve(l)
-		if err != nil {
-			logger.Fatalln("Failed to initialize server: ", err)
-		}
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		fmt.Println("dutservice version ", Version)
 		return 0
-	}())
+	}
+
+	if *dutAddress == "" && *dutName == "" {
+		fmt.Println("A DUT address or DUT name must be specified.")
+	}
+
+	if *dutName != "" && *dutAddress != "" {
+		fmt.Println("DUT address and DUT name are mutually exclusive.")
+	}
+
+	if *dutName != "" && *wiringAddress == "" {
+		fmt.Println("A Wiring address must be valid if DUT name is used.")
+	}
+
+	if *dutAddress != "" && *wiringAddress != "" {
+		fmt.Println("A Wiring address should not be specified if DUT address is used.")
+	}
+
+	if *cacheAddress == "" {
+		fmt.Println("Caching address must be specified.")
+		return 2
+	}
+
+	if *port == 0 {
+		fmt.Println("Port not specified, using bind() command to request the next available dynamically allocated source port number.")
+	}
+
+	if *dutName == "" {
+		dutName = dutAddress
+	}
+
+	logFile, err := createLogFile()
+	if err != nil {
+		log.Fatalln("Failed to create log file: ", err)
+	}
+	defer logFile.Close()
+
+	logger := newLogger(logFile)
+	logger.Println("Starting dutservice version ", Version)
+	logger.Println("Starting dutservice on port ", *port)
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	if err != nil {
+		logger.Fatalln("Failed to create a net listener: ", err)
+		return 2
+	}
+	ctx := context.Background()
+	logger.Println("Attempting to connect w/ Retry.")
+
+	// Define the initial connection tries/retry logic.
+	initialConReq := api.RestartRequest{
+		Args: []string{},
+		Retry: &api.RestartRequest_ReconnectRetry{
+			Times:      3,
+			IntervalMs: 5000,
+		},
+	}
+
+	conn, err := GetConnectionWithRetry(ctx, *dutName, *wiringAddress, &initialConReq, logger)
+	if err != nil {
+		logger.Println("Failed to connect to DUT via SSH ", err)
+		logger.Println("Will try to connect to DUT via ADB.")
+		// It is possible that the DUT has android image. DUT with android image cannot be
+		// sshed. Check with setup adb. If that succeeds don't fail cros-dut.
+		if err = adb.SetupAdb(logger, *dutAddress); err != nil {
+			logger.Println("Failed to connect to DUT via ADB ", err)
+			return 2
+		} else {
+			if err = adb.TeardownAdb(logger, *dutAddress); err != nil {
+				logger.Println("Warning: TeardownAdb failed: ", err)
+			}
+		}
+		logger.Println("Warning: cros-dut wont work because DUT has android OS. After installing cros call ForceReconnect.")
+	}
+	// Log the port _after_ the conn is established server.
+	logger.Println("Started server on address ", l.Addr().String())
+	logger.Println("Continue")
+
+	// Write port number to ~/.cftmeta for go/cft-port-discovery
+	err = portdiscovery.WriteServiceMetadata("cros-dut", l.Addr().String(), logger)
+	if err != nil {
+		logger.Println("Warning: error when writing to metadata file: ", err)
+	}
+
+	server, destructor := newDutServiceServer(l, logger, &dutssh.SSHClient{Client: conn}, *serializerPath, *protoChunkSize, *dutName, *wiringAddress, *cacheAddress)
+	defer destructor()
+
+	err = server.Serve(l)
+	if err != nil {
+		logger.Fatalln("Failed to initialize server: ", err)
+	}
+	return 0
+}
+
+func main() {
+	os.Exit(MainInternal())
 }
