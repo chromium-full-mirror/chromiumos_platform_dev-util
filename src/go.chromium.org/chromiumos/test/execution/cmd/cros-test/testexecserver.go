@@ -107,6 +107,7 @@ func runTests(ctx context.Context, logger *log.Logger, resultRootDir, tlwAddr st
 			return nil, err
 		}
 		allRspn.TestCaseResults = append(allRspn.TestCaseResults, rspn.TestCaseResults...)
+		allRspn.GivenTestResults = append(allRspn.GivenTestResults, rspn.GivenTestResults...)
 	}
 	return &allRspn, nil
 }

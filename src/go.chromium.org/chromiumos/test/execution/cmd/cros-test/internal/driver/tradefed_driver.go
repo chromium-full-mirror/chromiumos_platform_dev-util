@@ -160,9 +160,10 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 	// One difference between Tast/Autotest and this is that the test case given will likely result in many
 	// testcases; where T/AT were normally 1:1
 
-	results, artifacts := buildTradefedResult(td.logger, testType)
+	results, artifacts := buildTradefedResult(td.logger, testType, req)
 	if results.GetTestCaseResults() != nil {
 		allRspn.TestCaseResults = append(allRspn.TestCaseResults, results.TestCaseResults...)
+		allRspn.GivenTestResults = append(allRspn.GivenTestResults, results.GivenTestResults...)
 	} else {
 		td.logger.Println("No results to report: ", results)
 	}

@@ -244,30 +244,77 @@ func processResults(logger *log.Logger, TS TestSuite, testInfoMap map[string]Eve
 			status = testInfo.Status
 		}
 		// TODO; if no testInfo matched, calculate status.
-		errorText := ""
-		switch status {
-		case "ASSUMPTION_FAILURE":
-			errorText = test.AsssumptionFailure
-		case "FAILED":
-			errorText = test.Failure
-		case "INCOMPLETE":
-			errorText = test.Incomplete
-		case "SKIPPED":
-			errorText = test.Skipped
-		case "IGNORED":
-			errorText = test.Ignored
-		default:
-			errorText = "Unknown test status"
-		}
-
+		errorText := getErrorText(status, test)
 		allTestCases = append(allTestCases,
 			buildTcResult(fmt.Sprintf("tradefed.%s.%s#%s", testType, testInfo.ModuleName, fullTestName),
 				status, startTime, test.Time/1000, errorText))
 	}
+
 	return allTestCases
 }
 
-func parseCompatibilityXmlResults(logger *log.Logger, testType string) ([]*api.TestCaseResult, []string, error) {
+func getErrorText(status string, test TestCase) string {
+	errorText := ""
+	switch status {
+	case "ASSUMPTION_FAILURE":
+		errorText = test.AsssumptionFailure
+	case "FAILED":
+		errorText = test.Failure
+	case "INCOMPLETE":
+		errorText = test.Incomplete
+	case "SKIPPED":
+		errorText = test.Skipped
+	case "IGNORED":
+		errorText = test.Ignored
+	default:
+		errorText = "Unknown test status"
+	}
+	return errorText
+}
+
+func processGivenTestResults(logger *log.Logger, TS TestSuite, testInfoMap map[string]EventLogTestInfo) []*api.CrosTestResponse_GivenTestResult {
+	givenTestCases := []*api.CrosTestResponse_GivenTestResult{}
+	// map format for holding parent child like relationship. This will be used later to populate givenTestCases
+	testMap := make(map[string][]*api.TestCaseResult)
+
+	startTime, err := time.Parse(time.RFC3339, normalizeTime(TS.Timestamp))
+	if err != nil {
+		logger.Println("Error parsing Tradefed test start time: ", TS.Timestamp)
+		startTime = time.Now()
+	}
+
+	logger.Println("Creating test map with parent/module as key and test case result as child list")
+	// for all test cases parsed from metrics-*.xml
+	for _, test := range TS.TestCases {
+		fullTestName := fmt.Sprintf("%s#%s", test.ClassName, test.Name)
+		testInfo, ok := testInfoMap[fullTestName]
+		// check if exists in testInfoMap parsed from aggregated-events*.txt, testInfoMap has module name, status info as value for each test in map
+		if ok {
+			// form child test case result
+			testCaseResult := buildTcResult(fullTestName, testInfo.Status, startTime, test.Time/1000, getErrorText(testInfo.Status, test))
+			// add to child case list by module
+			if val, ok := testMap[testInfo.ModuleName]; ok {
+				testMap[testInfo.ModuleName] = append(val, testCaseResult)
+			} else {
+				testMap[testInfo.ModuleName] = []*api.TestCaseResult{testCaseResult}
+			}
+		}
+	}
+
+	// create given test cases object from the testMap
+	logger.Println("Creating given test case results object from test map")
+	for parent, childCaseList := range testMap {
+		givenTestCases = append(givenTestCases, &api.CrosTestResponse_GivenTestResult{
+			ParentTest:           parent,
+			ChildTestCaseResults: childCaseList,
+		})
+		logger.Printf("Given test case with parent: %s added with %d child test cases\n", parent, len(childCaseList))
+	}
+
+	return givenTestCases
+}
+
+func parseCompatibilityXmlResults(logger *log.Logger, testType string, req *api.CrosTestRequest) ([]*api.TestCaseResult, []*api.CrosTestResponse_GivenTestResult, []string, error) {
 	var logsDir []string
 	allTestCases := []*api.TestCaseResult{}
 
@@ -276,7 +323,7 @@ func parseCompatibilityXmlResults(logger *log.Logger, testType string) ([]*api.T
 		// Fallback to stub location for XML result file.
 		xmlResultFile, err = selectFileByPattern(filepath.Join(tfStageLogsPath, tfStageResultPattern))
 		if err != nil {
-			return allTestCases, logsDir, fmt.Errorf("Failed to locate result file: %w", err)
+			return allTestCases, nil, logsDir, fmt.Errorf("Failed to locate result file: %w", err)
 		}
 	}
 
@@ -285,18 +332,49 @@ func parseCompatibilityXmlResults(logger *log.Logger, testType string) ([]*api.T
 	logger.Println("Parsing results from: ", xmlResultFile)
 	R := Result{}
 	if err = parseResultFile(logger, xmlResultFile, &R); err != nil {
-		return allTestCases, logsDir, err
+		return allTestCases, nil, logsDir, err
 	}
+	allTestCases = generateTestCaseResult(logger, testType, R, req)
+	givenTestCases := generateGivenTestCases(logger, testType, R, req)
 
+	return allTestCases, givenTestCases, logsDir, nil
+}
+
+func testResponseNoXMLFound(req *api.CrosTestRequest) *api.CrosTestResponse {
+	r := &api.CrosTestResponse{}
+	if req == nil || req.GetTestSuites() == nil {
+		return r
+	}
+	for _, suites := range req.GetTestSuites() {
+		for _, testCaseIds := range suites.GetTestCaseIds().GetTestCaseIds() {
+			testCaseResult := buildTcResult(testCaseIds.GetValue(), "INCOMPLETE", time.Time{}, 1, "")
+			r.TestCaseResults = append(r.TestCaseResults, testCaseResult)
+			r.GivenTestResults = append(r.GivenTestResults, &api.CrosTestResponse_GivenTestResult{
+				ParentTest:           testCaseIds.GetValue(),
+				ChildTestCaseResults: []*api.TestCaseResult{testCaseResult},
+			})
+		}
+	}
+	return r
+}
+
+func generateTestCaseResult(logger *log.Logger, testType string, R Result, req *api.CrosTestRequest) []*api.TestCaseResult {
+	allTestCases := []*api.TestCaseResult{}
 	startTimeMs, _ := strconv.ParseInt(R.Start, 10, 64)
 	startTime := time.UnixMilli(startTimeMs)
 	logger.Println("Found n module results:", len(R.Modules))
+	modulesFromReq := getAllModulesFromReq(req)
 	for _, module := range R.Modules {
+		delete(modulesFromReq, fmt.Sprintf("tradefed.%s.%s", testType, module.Name))
 		nTests, _ := strconv.Atoi(module.Total_Tests)
 		runTime, _ := strconv.Atoi(module.Runtime)
 		duration := runTime
 		if nTests != 0 {
 			duration = runTime / nTests
+		} else {
+			// mark module as Crash if no tests were executed for the module
+			allTestCases = append(allTestCases,
+				buildTcResult(fmt.Sprintf("tradefed.%s.%s", testType, module.Name), "INCOMPLETE", time.Time{}, 1, ""))
 		}
 
 		logger.Println("Parsing Module: ", module.Name)
@@ -314,11 +392,76 @@ func parseCompatibilityXmlResults(logger *log.Logger, testType string) ([]*api.T
 			}
 		}
 	}
-
-	return allTestCases, logsDir, nil
+	for moduleName := range modulesFromReq {
+		allTestCases = append(allTestCases,
+			buildTcResult(moduleName, "INCOMPLETE", time.Time{}, 1, ""))
+	}
+	return allTestCases
 }
 
-func buildTradefedResult(logger *log.Logger, testType string) (*api.CrosTestResponse, []string) {
+func getAllModulesFromReq(req *api.CrosTestRequest) map[string]struct{} {
+	modules := make(map[string]struct{})
+	if req == nil || req.GetTestSuites() == nil {
+		return modules
+	}
+	for _, suites := range req.GetTestSuites() {
+		for _, testCaseIds := range suites.GetTestCaseIds().GetTestCaseIds() {
+			modules[testCaseIds.GetValue()] = struct{}{}
+		}
+	}
+	return modules
+}
+
+func generateGivenTestCases(logger *log.Logger, testType string, R Result, req *api.CrosTestRequest) []*api.CrosTestResponse_GivenTestResult {
+	givenTestCases := []*api.CrosTestResponse_GivenTestResult{}
+	startTimeMs, _ := strconv.ParseInt(R.Start, 10, 64)
+	startTime := time.UnixMilli(startTimeMs)
+	logger.Println("Found n module results:", len(R.Modules))
+	modulesFromReq := getAllModulesFromReq(req)
+	for _, module := range R.Modules {
+		delete(modulesFromReq, fmt.Sprintf("tradefed.%s.%s", testType, module.Name))
+		nTests, _ := strconv.Atoi(module.Total_Tests)
+		runTime, _ := strconv.Atoi(module.Runtime)
+		duration := runTime
+		if nTests != 0 {
+			duration = runTime / nTests
+		} else {
+			// mark module as Crash if no tests were executed for the module
+			givenTestCases = append(givenTestCases, &api.CrosTestResponse_GivenTestResult{
+				ParentTest:           fmt.Sprintf("tradefed.%s.%s", testType, module.Name),
+				ChildTestCaseResults: []*api.TestCaseResult{buildTcResult(fmt.Sprintf("tradefed.%s.%s", testType, module.Name), "INCOMPLETE", time.Time{}, 1, "")},
+			})
+
+		}
+
+		logger.Println("Parsing Module: ", module.Name)
+		// Make a duration of atleast 1 second so the proto isnt empty.
+		testDur := int64(duration / 1000)
+		if testDur == 0 {
+			testDur = 1
+		}
+		givenTestCase := &api.CrosTestResponse_GivenTestResult{}
+		for _, testcase := range module.TestCases {
+
+			childTestCases := []*api.TestCaseResult{}
+			for _, test := range testcase.Tests {
+				testName := fmt.Sprintf("%s#%s", testcase.Name, test.Name)
+				childTestCases = append(childTestCases,
+					buildTcResult(testName, test.Result, startTime, testDur, test.Failure.Message))
+			}
+			givenTestCase.ParentTest = module.Name
+			givenTestCase.ChildTestCaseResults = childTestCases
+		}
+		givenTestCases = append(givenTestCases, givenTestCase)
+	}
+	for moduleName := range modulesFromReq {
+		givenTestCases = append(givenTestCases,
+			&api.CrosTestResponse_GivenTestResult{ParentTest: moduleName, ChildTestCaseResults: []*api.TestCaseResult{buildTcResult(moduleName, "INCOMPLETE", time.Time{}, 1, "")}})
+	}
+	return givenTestCases
+}
+
+func buildTradefedResult(logger *log.Logger, testType string, req *api.CrosTestRequest) (*api.CrosTestResponse, []string) {
 	// List of glob patterns of artifacts that should be saved in test results.
 	var logsToSave = []string{}
 
@@ -329,9 +472,10 @@ func buildTradefedResult(logger *log.Logger, testType string) (*api.CrosTestResp
 	if err != nil {
 		logger.Println("Error locating Tradefed metric result file: ", err)
 		logger.Println("Trying to locate and parse compatibility result file...")
-		f.TestCaseResults, logsToSave, err = parseCompatibilityXmlResults(logger, testType)
+		f.TestCaseResults, f.GivenTestResults, logsToSave, err = parseCompatibilityXmlResults(logger, testType, req)
 		if err != nil {
 			logger.Println("Error locating or parsing Tradefed compatibility result file: ", err)
+			return testResponseNoXMLFound(req), logsToSave
 		}
 		return f, logsToSave
 	} else {
@@ -339,7 +483,7 @@ func buildTradefedResult(logger *log.Logger, testType string) (*api.CrosTestResp
 
 		TS := TestSuite{}
 		if err = parseResultFile(logger, resultPath, &TS); err != nil {
-			return f, logsToSave
+			return testResponseNoXMLFound(req), logsToSave
 		}
 
 		testInfoMap, eventLogs := loadEventLogReport(logger)
@@ -351,10 +495,40 @@ func buildTradefedResult(logger *log.Logger, testType string) (*api.CrosTestResp
 			TS.Name, TS.Tests, TS.Failures)
 
 		f.TestCaseResults = processResults(logger, TS, testInfoMap, testType)
+		f.GivenTestResults = processGivenTestResults(logger, TS, testInfoMap)
+
+		// report modules as Crash for which no tests were reported.
+		modulesWithNoResult := noResultModules(logger, TS, testInfoMap, req, testType)
+		for module := range modulesWithNoResult {
+			crashStatusTestResult := buildTcResult(fmt.Sprintf("tradefed.%s.%s", testType, module),
+				"INCOMPLETE", time.Time{}, 1, "")
+			f.TestCaseResults = append(f.TestCaseResults, crashStatusTestResult)
+			f.GivenTestResults = append(f.GivenTestResults, &api.CrosTestResponse_GivenTestResult{
+				ParentTest:           fmt.Sprintf("tradefed.%s.%s", testType, module),
+				ChildTestCaseResults: []*api.TestCaseResult{crashStatusTestResult},
+			})
+		}
 	}
 	logger.Println("Found n case results:", len(f.TestCaseResults))
 
 	return f, logsToSave
+}
+
+func noResultModules(logger *log.Logger, TS TestSuite, testInfoMap map[string]EventLogTestInfo, req *api.CrosTestRequest, testType string) map[string]struct{} {
+	modulesFromRequest := getAllModulesFromReq(req)
+	for _, test := range TS.TestCases {
+		fullTestName := fmt.Sprintf("%s#%s", test.ClassName, test.Name)
+		testInfo, ok := testInfoMap[fullTestName]
+		if ok {
+			// remove module if a test has been reported for it.
+			delete(modulesFromRequest, fmt.Sprintf("tradefed.%s.%s", testType, testInfo.ModuleName))
+		}
+	}
+	// logging modules which were not found in results from xml
+	for module := range modulesFromRequest {
+		logger.Printf(module)
+	}
+	return modulesFromRequest
 }
 
 func buildTcResult(testName string, testStatus string, startTime time.Time, duration int64,

@@ -19,8 +19,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const TradefedTestResultFile = "tradefed_test_data/test_result.xml"
-
+const (
+	TradefedTestResultFile              = "tradefed_test_data/test_result.xml"
+	TradefedTestResultFileModulesNoTest = "tradefed_test_data/test_result_modules_no_test.xml"
+)
 const (
 	FileSelectFileByPattern1 = "/tmp/test-SelectFileByPattern-file1.txt"
 	FileSelectFileByPattern2 = "/tmp/test-SelectFileByPattern-file2.txt"
@@ -282,6 +284,34 @@ func TestParseResultFile(t *testing.T) {
 // 	})
 // }
 
+func Test_BuildTFResult(t *testing.T) {
+	R := Result{}
+	testType := "CTS"
+	moduleName := "tradefed" + "." + testType + "." + "CtsJvmtiRunTest1976HostTestCases"
+	logger := log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
+	err := parseResultFile(logger, TradefedTestResultFileModulesNoTest, &R)
+	if err != nil {
+		t.Logf("No error expected")
+	}
+	allTestCases := generateTestCaseResult(logger, testType, R, nil)
+	givenTestCases := generateGivenTestCases(logger, testType, R, nil)
+	if allTestCases[0].TestCaseId.Value != moduleName {
+		t.Errorf("Expected %s, found %s", moduleName, allTestCases[0].TestCaseId.Value)
+	}
+	if givenTestCases[0].GetParentTest() != moduleName {
+		t.Errorf("Expected %s, found %s", moduleName, givenTestCases[0].GetParentTest())
+	}
+	if _, ok := allTestCases[0].Verdict.(*api.TestCaseResult_Crash_); !ok {
+		t.Errorf("Expected verdict CRASH")
+	}
+	if givenTestCases[0].GetParentTest() != moduleName {
+		t.Errorf("Expected %s, found %s", moduleName, givenTestCases[0].GetParentTest())
+	}
+	if _, ok := givenTestCases[0].ChildTestCaseResults[0].Verdict.(*api.TestCaseResult_Crash_); !ok {
+		t.Errorf("Expected verdict CRASH")
+	}
+
+}
 func TestBuildTcResult(t *testing.T) {
 	t.Parallel()
 
