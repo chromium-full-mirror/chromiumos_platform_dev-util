@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Implements dut_service.proto (see proto for details)
-package internal
+package cli
 
 import (
 	"bufio"

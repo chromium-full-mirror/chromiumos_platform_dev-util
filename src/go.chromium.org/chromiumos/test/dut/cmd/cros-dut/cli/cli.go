@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Package internal implements the cros-dut for interfacing with the DUT.
-package internal
+// Package cli implements the cros-dut for interfacing with the DUT.
+package cli
 
 import (
 	"context"

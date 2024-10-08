@@ -8,9 +8,9 @@ package main
 import (
 	"os"
 
-	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/internal"
+	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/cli"
 )
 
 func main() {
-	os.Exit(internal.MainInternal())
+	os.Exit(cli.MainInternal())
 }

@@ -7,9 +7,9 @@ package main
 import (
 	"os"
 
-	"go.chromium.org/chromiumos/test/servod/cmd/cros-servod/internal"
+	"go.chromium.org/chromiumos/test/servod/cmd/cros-servod/cli"
 )
 
 func main() {
-	os.Exit(internal.MainInternal())
+	os.Exit(cli.MainInternal())
 }
