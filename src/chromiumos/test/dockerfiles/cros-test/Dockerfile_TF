@@ -4,6 +4,8 @@
 
 FROM gcr.io/dockerized-tradefed/tradefed:latest
 
+ARG METADATA_DIR="."
+
 USER root
 
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update \
@@ -45,7 +47,7 @@ COPY --chown=chromeos-test:chromeos-test cros-test /usr/bin/
 RUN mkdir -p /tmp/test/metadata
 RUN mkdir -p /tmp/test/logs
 # Bring in metadata to 1 location (Can be different per board.)
-COPY --chown=chromeos-test:chromeos-test *.pb /tmp/test/metadata/
+COPY --chown=chromeos-test:chromeos-test ${METADATA_DIR}/*.pb /tmp/test/metadata/
 
 
 # Do a final chmod and chown

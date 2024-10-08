@@ -11,12 +11,19 @@ set -e
 HERE="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
 cd "${HERE}" || exit
 
+# What docker image to build: 0: AOSP TF, 1: internal TF
+INTERNAL_TF=0
+
+# Keep temp files after script finishes.
 KEEP_TMP_FILES=0
 
 TRADEFED_ZIP="tradefed.zip"
 
-DOCKERFILE="Dockerfile_TF_AOSP"
-DOCKER_TAG="us-docker.pkg.dev/cros-registry/test-services/cros-test:prodAospTF"
+DOCKERFILE_AOSP="Dockerfile_TF_AOSP"
+DOCKERFILE_INTERNAL="Dockerfile_TF"
+
+DOCKER_TAG_AOSP="us-docker.pkg.dev/cros-registry/test-services/cros-test:prodAospTF"
+DOCKER_TAG_INTERNAL="us-docker.pkg.dev/cros-registry/test-services/cros-test:prodTF"
 
 METADATA_BUCKET="gs://cros-xts-metadata"
 METADATA_COMPILE_SCRIPT="../../python/src/tools/compile_xts_metadata.py"
@@ -59,8 +66,8 @@ function download_artifact () {
   rm -fR "${TMPDIR_ARTIFACTS}/${BASE_DIR}/tools"
 }
 
-if [[ ! -f "./${DOCKERFILE}" ]]; then
-  echo "Docker file ${DOCKERFILE} must be pressent in the current folder."
+if [[ ! -f "./${DOCKERFILE_AOSP}" && ! -f "./${DOCKERFILE_INTERNAL}" ]]; then
+  echo "Tradefed docker file must be present in the current folder."
   exit 2
 fi
 
@@ -72,8 +79,13 @@ while [[ $# -gt 0 ]]; do
       METADATA+=("$1")
       shift
       ;;
+    -i|--internal)
+      INTERNAL_TF=1
+      echo "Building internal TF docker..."
+      shift
+      ;;
     -k|--keep-tmp-files)
-      KEEP_TMP_FILES=true
+      KEEP_TMP_FILES=1
       shift
       ;;
     *)
@@ -83,9 +95,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-TMPDIR_TF=$(mktemp -d -p . -t tf_dir_XXXXXXXXXX) || exit 1
 TMPDIR_METADATA=$(mktemp -d -p . -t tf_metadata_XXXXXXXXXX) || exit 1
-TMPDIR_ARTIFACTS=$(mktemp -d -p . -t tf_artifacts_XXXXXXXXXX) || exit 1
+if [[ "${INTERNAL_TF}" -eq 0 ]]; then
+  TMPDIR_TF=$(mktemp -d -p . -t tf_dir_XXXXXXXXXX) || exit 1
+  TMPDIR_ARTIFACTS=$(mktemp -d -p . -t tf_artifacts_XXXXXXXXXX) || exit 1
+fi
 
 if [[ "${#METADATA[@]}" -eq 0 ]]; then
   echo "Metadata arguments (--metadata FILE1 --metadata FILE2...) not provided."
@@ -111,25 +125,29 @@ for i in "${METADATA[@]}"; do
     <<<"$(cat "${TMPDIR_METADATA}/${DIGEST_NAME}" | jq -r '.[]')"
   set -e
   echo "Metadata suite=${SUITE} branch=${BRANCH} bid=${BUILD} target=${TARGET}"
-  download_artifact "${SUITE}" "${BUILD}" "${TARGET}"
+  if [[ "${INTERNAL_TF}" -eq 0 ]]; then
+    download_artifact "${SUITE}" "${BUILD}" "${TARGET}"
+  fi
   SUITES+=("${SUITE}")
 done
 
 echo "Test suites to be included in docker image: [${SUITES[*]}]..."
 
 # Fetch and unpack tradefed console.
-echo "Downloading Tradefed console for build ${BUILD} and target ${TARGET}..."
-set -x
-/google/data/ro/projects/android/fetch_artifact --bid "${BUILD}" \
-  --target "${TARGET}" "${TRADEFED_ZIP}" "${TMPDIR_TF}"
-set +x
-echo "Unpacking Tradefed console to ${TMPDIR_TF}..."
-unzip -q "${TMPDIR_TF}/${TRADEFED_ZIP}" -d "${TMPDIR_TF}"
-rm "${TMPDIR_TF}/${TRADEFED_ZIP}"
-# Download platform tools (adb, etc.) to the tradefed dir.
-wget -q --retry-connrefused -O platform-tools.zip "${PLATFORM_TOOLS_URL}"
-unzip -jq platform-tools.zip -d "${TMPDIR_TF}"
-rm platform-tools.zip
+if [[ "${INTERNAL_TF}" -eq 0 ]]; then
+  echo "Downloading Tradefed console for build ${BUILD} and target ${TARGET}..."
+  set -x
+  /google/data/ro/projects/android/fetch_artifact --bid "${BUILD}" \
+    --target "${TARGET}" "${TRADEFED_ZIP}" "${TMPDIR_TF}"
+  set +x
+  echo "Unpacking Tradefed console to ${TMPDIR_TF}..."
+  unzip -q "${TMPDIR_TF}/${TRADEFED_ZIP}" -d "${TMPDIR_TF}"
+  rm "${TMPDIR_TF}/${TRADEFED_ZIP}"
+  # Download platform tools (adb, etc.) to the tradefed dir.
+  wget -q --retry-connrefused -O platform-tools.zip "${PLATFORM_TOOLS_URL}"
+  unzip -jq platform-tools.zip -d "${TMPDIR_TF}"
+  rm platform-tools.zip
+fi
 
 # Build cros-test binary.
 echo "Building cros-test binary..."
@@ -141,18 +159,28 @@ if [[ ! -f "./cros-test" ]]; then
 fi
 
 # Build Docker image.
-echo "Building docker image: ${DOCKER_TAG}"
-set -x
-docker buildx build -f "${DOCKERFILE}" --no-cache=true -t "${DOCKER_TAG}" \
-  --build-arg TRADEFED_DIR="${TMPDIR_TF}" \
-  --build-arg METADATA_DIR="${TMPDIR_METADATA}" \
-  --build-arg ARTIFACT_DIR="${TMPDIR_ARTIFACTS}" .
-set +x
+if [[ "${INTERNAL_TF}" -eq 0 ]]; then
+  echo "Building AOSP docker image: ${DOCKER_TAG_AOSP}"
+  set -x
+  docker buildx build -f "${DOCKERFILE_AOSP}" --no-cache=true -t "${DOCKER_TAG_AOSP}" \
+    --build-arg TRADEFED_DIR="${TMPDIR_TF}" \
+    --build-arg METADATA_DIR="${TMPDIR_METADATA}" \
+    --build-arg ARTIFACT_DIR="${TMPDIR_ARTIFACTS}" .
+  set +x
+else
+  echo "Building docker image: ${DOCKER_TAG_INTERNAL}"
+  set -x
+  docker buildx build -f "${DOCKERFILE_INTERNAL}" --no-cache=true -t "${DOCKER_TAG_INTERNAL}" \
+    --build-arg METADATA_DIR="${TMPDIR_METADATA}" .
+  set +x
+fi
 
 # Remove temporary files.
-if [[ -n "${KEEP_TMP_FILES}" ]]; then
+if [[ "${KEEP_TMP_FILES}" -eq 0 ]]; then
   rm -fR "${TMPDIR_METADATA}"
-  rm -fR "${TMPDIR_ARTIFACTS}"
-  rm -fR "${TMPDIR_TF}"
+  if [[ "${INTERNAL_TF}" -eq 0 ]]; then
+    rm -fR "${TMPDIR_ARTIFACTS}"
+    rm -fR "${TMPDIR_TF}"
+  fi
   rm ./cros-test
 fi

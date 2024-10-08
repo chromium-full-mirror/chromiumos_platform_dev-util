@@ -39,6 +39,7 @@ def _test_case_factory(
         case_data: dict representing the 'modules' JSON data
         suite_name: string representing the 'suite' JSON field
         branch: string representing the 'branch' JSON field
+        targets: list of string representing 'targets' JSON field
         build_id: string representing the 'build_id' JSON field
     """
     name = f'{suite_name}.{case_data["name"]}'
@@ -48,17 +49,20 @@ def _test_case_factory(
     ]
     params.extend(
         [
+            tc_pb.TestCase.Tag(value=f"suite:{suite_name}"),
             tc_pb.TestCase.Tag(value=f"branch:{branch}"),
             tc_pb.TestCase.Tag(value=f"build_id:{build_id}"),
         ]
     )
     params.extend([tc_pb.TestCase.Tag(value=f"target:{t}") for t in targets])
-    deps = [
-        tc_pb.TestCase.Dependency(value=f"abi:{t}")
-        for t in case_data.get("abis", [])
-    ]
+    params.extend(
+        [
+            tc_pb.TestCase.Tag(value=f"abi:{t}")
+            for t in case_data.get("abis", [])
+        ]
+    )
     test_case = tc_pb.TestCase(
-        id=tc_id, name=name, tags=params, dependencies=deps
+        id=tc_id, name=name, tags=params, dependencies=[]
     )
 
     bug_component = (
