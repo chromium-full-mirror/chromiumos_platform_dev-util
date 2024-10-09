@@ -413,3 +413,6 @@ disp_overwrite["f808e6d14128"] = [
 disp_overwrite[
     "d62edf60bfc9"
 ] = "drop"  # CHROMIUM: arm64: mt8186: dts: enable MALI gpu on Corsola
+disp_overwrite[
+    "fd7ab9476ab9"
+] = "drop"  # FROMLIST: media: imx258: add vblank control to support wide frame rate range
