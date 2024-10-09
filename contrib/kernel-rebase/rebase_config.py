@@ -111,6 +111,7 @@ topic_patches["chromeos"] = [
 
 topic_patches["mm"] = [
     "fixups/FIXUP: CHROMIUM: mm: per-process reclaim pages.patch",
+    "fixups/FIXUP: CHROMIUM: mm: per-process reclaim - page_mapcount.patch",
 ]
 
 topic_patches["media"] = [
