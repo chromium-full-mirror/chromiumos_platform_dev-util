@@ -122,6 +122,7 @@ topic_patches["media"] = [
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - Makefile.patch",
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - assign_str.patch",
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - vmalloc.patch",
+    "fixups/FIXUP: CHROMIUM: mtk-mdp: add driver to probe mdp components.patch",
 ]
 
 topic_patches["dts"] = [
