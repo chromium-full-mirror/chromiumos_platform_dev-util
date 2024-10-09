@@ -164,6 +164,7 @@ patch_deps = {
     "ddce70d74ef7": ["a9a10c006900", "ff5f250f00ad"],
     "ec6cf3d62980": ["4e20fae6c6f1"],
     "c4305a040e64": ["41f5cb08b0c2", "268a3f9a5de0", "dbc44b0d9303"],
+    "839fccb8f6e4": ["e38ee2af3e5f"],
 }
 
 # Add entry here to overwrite default disposition on particular commit
