@@ -416,3 +416,6 @@ disp_overwrite[
 disp_overwrite[
     "fd7ab9476ab9"
 ] = "drop"  # FROMLIST: media: imx258: add vblank control to support wide frame rate range
+disp_overwrite[
+    "343d22969268"
+] = "drop"  # FROMLIST: Bluetooth: btusb: Fix failed to send func ctrl for MediaTek devices.
