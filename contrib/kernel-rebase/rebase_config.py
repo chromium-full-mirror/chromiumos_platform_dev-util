@@ -79,6 +79,7 @@ topic_patches["cros_ec"] = [
     "fixups/FIXUP: CHROMIUM: iio: cros_ec: flush as hwfifo attribute.patch",
     "fixups/FIXUP: CHROMIUM: platform chrome: wilco_ec: Add charge scheduling sysfs.patch",
     "fixups/FIXUP: CHROMIUM: iio: cros_ec_activity: add activity sensor driver.patch",
+    "fixups/FIXUP: CHROMIUM: platform chrome: wilco_ec: Add charge scheduling sysfs - groups.patch",
 ]
 
 topic_patches["gpu/other"] = [
