@@ -72,6 +72,7 @@ topic_patches["drivers"] = [
 topic_patches["bluetooth"] = [
     "fixups/FIXUP: CHROMIUM: bluetooth: Support userspace SCO.patch",
     "fixups/FIXUP: CHROMIUM: Bluetooth: Optimize the LE connection sequence.patch",
+    "fixups/FIXUP: CHROMIUM: Bluetooth: btusb: Workaround for spotty SCO quality.patch",
 ]
 
 topic_patches["cros_ec"] = [
