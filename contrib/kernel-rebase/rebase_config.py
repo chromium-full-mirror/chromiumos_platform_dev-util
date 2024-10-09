@@ -127,7 +127,6 @@ topic_patches["media"] = [
 
 topic_patches["dts"] = [
     "fixups/FIXUP: CHROMIUM: arm64: dts: mt8186: Add corsola-steelix and rusty board.patch",
-    "fixups/FIXUP: CHROMIUM: arm64: dts: mt8186: Add dpi node.patch",
 ]
 
 topic_patches["arch"] = [
