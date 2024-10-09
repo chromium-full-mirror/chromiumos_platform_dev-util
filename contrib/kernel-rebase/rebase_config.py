@@ -425,3 +425,6 @@ disp_overwrite[
 disp_overwrite[
     "2bd0f90d4f40"
 ] = "drop"  # CHROMIUM: media/ipu6: retry auth if driver get unexpected response from CSE
+disp_overwrite[
+    "31a6a5970717"
+] = "drop"  # CHROMIUM: arm64: dts: mt8183: Modify sustainable-power for cerise and fennel
