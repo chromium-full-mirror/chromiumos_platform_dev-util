@@ -419,3 +419,6 @@ disp_overwrite[
 disp_overwrite[
     "343d22969268"
 ] = "drop"  # FROMLIST: Bluetooth: btusb: Fix failed to send func ctrl for MediaTek devices.
+disp_overwrite[
+    "c861af77011e"
+] = "drop"  # CHROMIUM: ARM64: Define compat syscall numbers
