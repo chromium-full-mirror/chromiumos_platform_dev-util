@@ -422,3 +422,6 @@ disp_overwrite[
 disp_overwrite[
     "c861af77011e"
 ] = "drop"  # CHROMIUM: ARM64: Define compat syscall numbers
+disp_overwrite[
+    "2bd0f90d4f40"
+] = "drop"  # CHROMIUM: media/ipu6: retry auth if driver get unexpected response from CSE
