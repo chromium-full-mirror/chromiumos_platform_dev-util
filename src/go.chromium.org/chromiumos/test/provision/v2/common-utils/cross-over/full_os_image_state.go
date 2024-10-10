@@ -60,6 +60,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	log.Println("Running command on host now ", installCommand)
 	if output, err := session.CombinedOutput(installCommand); err != nil {
 		log.Println("Failed to run installCommand: ", installCommand, err)
+		log.Println(string(output))
 		return nil, api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
 	} else {
 		log.Println(string(output))

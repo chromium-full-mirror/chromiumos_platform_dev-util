@@ -43,12 +43,26 @@ func (s ValidateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 			log.Println("Error while testing adb connection ", err)
 			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 		}
+
+		// As soon as we get the ADB connection, immediately set the keep awake settings.
+		c1, err := adb.AdbShellCmd([]string{"svc", "power", "stayon", "true"}, dutAddress, log)
+		if err != nil {
+			log.Println("Unable to set stay awake:", c1)
+			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
+		}
+		c2, err := adb.AdbShellCmd([]string{"settings", "put", "global", "stay_on_while_plugged_in", "7"}, dutAddress, log)
+		if err != nil {
+			log.Println("Unable to set stay awake:", c2)
+			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
+		}
+
 		dutVersion, err := adb.AdbShellCmd([]string{"getprop", "ro.system.build.version.incremental"}, dutAddress, log)
 		if err != nil {
 			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 		}
 		dutVersion = strings.Trim(dutVersion, " \n")
 		// TODO: Remove hardcoded version
+
 		if dutVersion != "12445875" {
 			err := fmt.Errorf("post provision verification failed. Installed version on dut is %s but want %s", dutVersion, "12445875")
 			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err

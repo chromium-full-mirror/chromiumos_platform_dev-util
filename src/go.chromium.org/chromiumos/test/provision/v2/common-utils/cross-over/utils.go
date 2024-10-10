@@ -26,20 +26,48 @@ const (
 	UNKNOWN
 )
 
+func connectWithTimeout(addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error) {
+	result := make(chan *ssh.Client)
+	errChan := make(chan error)
+
+	go func() {
+		client, err := ssh.Dial("tcp", addr, config)
+		if err != nil {
+			errChan <- err
+		} else {
+			result <- client
+		}
+	}()
+
+	select {
+	case client := <-result:
+		return client, nil
+	case err := <-errChan:
+		return nil, err
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("SSH timed out")
+	}
+}
+
 func checkSSH(logger *log.Logger, dutAddress string, config *ssh.ClientConfig, retryCount int, retryInterval time.Duration) bool {
-	log.Println("Checking for ssh connection.")
+	logger.Println("Checking for ssh connection. w. retry count: ", retryCount)
 	for ; retryCount >= 0; retryCount-- {
-		_, err := ssh.Dial("tcp", dutAddress, config)
+		logger.Println("attempting to SSH dail the device")
+
+		_, err := connectWithTimeout(dutAddress, config, 5*time.Second)
 		if err == nil {
+			logger.Println("SSH dail the device successfull")
+
 			return true
 		}
-		log.Println("Got error while ssh. Retrying...")
+		logger.Println("Got error while ssh. Retrying...:", retryInterval)
 		time.Sleep(retryInterval)
 	}
 	return false
 }
 
 func checkADB(logger *log.Logger, dutAddress string, timeout time.Duration) bool {
+	logger.Println("Checking for adb connection. w/ timeout: ", timeout)
 	err := adb.RetrySetupAdb(logger, dutAddress, timeout)
 	if err != nil {
 		return false
@@ -51,6 +79,7 @@ func checkADB(logger *log.Logger, dutAddress string, timeout time.Duration) bool
 }
 
 func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
+	logger.Println("Detecting OS type")
 	config := dutssh.GetSSHConfig()
 	// Perform fast connection check.
 	if checkSSH(logger, dutAddress, config, 2, 2*time.Second) {
