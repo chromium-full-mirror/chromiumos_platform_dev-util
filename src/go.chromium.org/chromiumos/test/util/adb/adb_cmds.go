@@ -78,6 +78,34 @@ func RetrySetupAdb(log *log.Logger, addr string, timeout time.Duration) error {
 
 }
 
+func SetupAdbConnections(logger *log.Logger, addrs []string) (err error) {
+	for i := 0; i < 3; i++ {
+		for _, addr := range addrs {
+			innerErr := AdbConnect(logger, addr)
+			if innerErr != nil {
+				logger.Printf("failed to connect to %s, %s", addr, innerErr)
+				err = fmt.Errorf("%s\n%s", err, innerErr)
+			}
+		}
+
+		allFound := true
+		for _, addr := range addrs {
+			found, innerErr := AdbDeviceFound(addr, logger)
+			allFound = allFound && found
+			if innerErr != nil {
+				logger.Printf("Failed to find device %s, %s", addr, innerErr)
+			}
+		}
+
+		if allFound {
+			err = nil
+			return
+		}
+	}
+
+	return
+}
+
 func SetupAdb(logger *log.Logger, addr string) (err error) {
 	err = AdbConnect(logger, addr)
 	if err != nil {

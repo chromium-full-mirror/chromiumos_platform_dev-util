@@ -206,7 +206,7 @@ func fillTestCaseResult(raw map[string]interface{}) (*api.TestCaseResult, error)
 	}
 
 	startTimeValue, ok := raw[startTimeKey]
-	if !ok {
+	if !ok || startTimeValue == nil {
 		// The map does not have start time information, use current time.
 		startTime = time.Now()
 	} else {
@@ -214,7 +214,7 @@ func fillTestCaseResult(raw map[string]interface{}) (*api.TestCaseResult, error)
 	}
 
 	endTimeValue, ok := raw[endTimeKey]
-	if !ok {
+	if !ok || endTimeValue == nil {
 		// The map does not have end time information.
 		// Use start time.
 		endTime = startTime

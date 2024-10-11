@@ -6,215 +6,181 @@
 package driver
 
 import (
-	"bufio"
-	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/common"
-	"go.chromium.org/chromiumos/test/execution/errors"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
-	"strings"
+	"path"
+	"runtime/debug"
 	"sync"
-	"time"
 
-	"google.golang.org/protobuf/encoding/prototext"
+	c "go.chromium.org/chromiumos/test/util/adb"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/common"
+	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
 )
 
-const omnilabGatewayOutputMaxCapacity = 4096 * 1024 * 10 // 40MB
-const moblyCmd = "gateway_go"
-
-// MoblyTestDriver runs mobly and report its results.
-type MoblyTestDriver struct {
+// MoblyDriver runs mobly and report its results.
+type MoblyDriver struct {
 	// logger provides logging service.
 	logger *log.Logger
 }
 
 // NewMoblyTestDriver creates a new driver to run tests.
-func NewMoblyDriver(logger *log.Logger) *MoblyTestDriver {
-	return &MoblyTestDriver{
+func NewMoblyDriver(logger *log.Logger) *MoblyDriver {
+	return &MoblyDriver{
 		logger: logger,
 	}
 }
 
 // Name returns the name of the driver.
-func (td *MoblyTestDriver) Name() string {
+func (md *MoblyDriver) Name() string {
 	return "mobly"
 }
 
-// Execute Mobly command against Omnilab Gateway Client and process test results
-func runMoblyCmd(ctx context.Context, logger *log.Logger, test *api.TestCaseMetadata) (*api.TestCaseResult, error) {
-	startTime := time.Now()
-
-	moblyArgs, err := genMoblyArgs(test)
-	if err != nil {
-		return buildTestCaseResult(test,
-			startTime,
-			time.Since(startTime),
-			"FAIL",
-			err.Error()), nil
+func buildMoblyCommand(logger *log.Logger, tests []*api.TestCaseMetadata, resultsPath string) []string {
+	logger.Println("Building mobly command")
+	baseArgs := []string{
+		"local_mobly_runner.py",
+		"-p", "betocq_test_suite",
+		"-i",
+		"-c", "test_config.yml",
+		"-lp", resultsPath,
 	}
 
-	// Run mobly command.
-	cmd := exec.Command(moblyCmd, moblyArgs...)
+	baseArgs = append(baseArgs, "--tests")
+	for _, test := range tests {
+		baseArgs = append(baseArgs, test.GetTestCase().GetName())
+	}
+
+	return baseArgs
+}
+
+// Execute Mobly command against Omnilab Gateway Client and process test results
+func runMoblyTest(ctx context.Context, logger *log.Logger, tests []*api.TestCaseMetadata, serials []string, resultsPath string, metadata []*api.Arg) error {
+	err := c.SetupAdbConnections(logger, serials)
+	if err != nil {
+		return fmt.Errorf("setupAdb failed, %w", err)
+	}
+
+	exit := make(chan struct{})
+	defer func() {
+		exit <- struct{}{}
+		for _, s := range serials {
+			if err := c.TeardownAdb(logger, s); err != nil {
+				logger.Printf("Failed to tear down adb connection to %s: %s", s, err)
+			}
+		}
+	}()
+
+	if err := GenerateMoblyConfig(logger, "/usr/local/mobly", serials, metadata); err != nil {
+		return fmt.Errorf("failed to generate mobly config, %w", err)
+	}
+
+	cmdArgs := buildMoblyCommand(logger, tests, resultsPath)
+	cmd := exec.Command("python3", cmdArgs...)
+	cmd.Dir = "/usr/local/mobly"
+	logger.Println("Running Mobly: ", cmd.String())
+
+	c.KeepAdbAlive(logger, serials, exit)
+	return launchAndReadMobly(cmd, logger)
+}
+
+func buildMoblyResult(logger *log.Logger, resultsPath string) *api.CrosTestResponse {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Println("found a panic")
+			logger.Printf("Error: %+v", errors.New(fmt.Sprintf("%v", r)))
+			logger.Println(string(debug.Stack()))
+		}
+	}()
+
+	logger.Println("building results")
+	f := &api.CrosTestResponse{}
+
+	logger.Println("reading file")
+	moblyResultBytes, err := os.ReadFile(resultsPath)
+	logger.Println("reading file done")
+	if err != nil {
+		logger.Printf("failed to read %s, %s", resultsPath, err)
+		return nil
+	}
+
+	logger.Println("translating")
+	testCaseResults, err := common.TranslateMoblyResults(moblyResultBytes)
+	logger.Println("translating done")
+	if err != nil {
+		logger.Printf("failed to translate mobly results, %s", err)
+		return nil
+	}
+
+	f.TestCaseResults = testCaseResults
+
+	logger.Println("Got results:")
+	for _, result := range f.TestCaseResults {
+		logger.Println(result.String())
+	}
+
+	return f
+}
+
+// RunTests drives a test framework to execute tests.
+func (md *MoblyDriver) RunTests(ctx context.Context, resultsDir string, req *api.CrosTestRequest, tlwAddr string, tests []*api.TestCaseMetadata) (*api.CrosTestResponse, error) {
+	allRspn := &api.CrosTestResponse{}
+
+	serials, err := device.DerviceSerials(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call DeviceSerials: %s", err)
+	}
+
+	metadata, _, err := common.UnpackMetadata(req)
+	if err != nil {
+		md.logger.Println(err)
+		return nil, err
+	}
+
+	metadata = append(metadata, common.ExtraArgs(req)...)
+
+	err = runMoblyTest(ctx, md.logger, tests, serials, resultsDir, metadata)
+	if err != nil {
+		md.logger.Println(err)
+		return nil, err
+	}
+
+	resultsPath := path.Join(resultsDir, "betocq_test_suite", "LocalTestBed", "latest", "test_summary.yaml")
+	allRspn = buildMoblyResult(md.logger, resultsPath)
+
+	return allRspn, nil
+}
+
+func launchAndReadMobly(cmd *exec.Cmd, logger *log.Logger) error {
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return buildTestCaseResult(test,
-			startTime,
-			time.Since(startTime),
-			"FAIL",
-			fmt.Errorf("failed to capture mobly stderr: %v", err).Error()), nil
+		return fmt.Errorf("StderrPipe failed")
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return buildTestCaseResult(test,
-			startTime,
-			time.Since(startTime),
-			"FAIL",
-			fmt.Errorf("failed to capture mobly stdout: %v", err).Error()), nil
+		return fmt.Errorf("StdoutPipe failed")
 	}
-	logger.Println("Running Mobly: ", cmd.String())
 	if err := cmd.Start(); err != nil {
-		return buildTestCaseResult(test,
-			startTime,
-			time.Since(startTime),
-			"FAIL",
-			fmt.Errorf("failed to run mobly: %v", err).Error()), nil
+		return fmt.Errorf("failed to run Tauto: %v", err)
 	}
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	// Goroutine to handle stderr logging
 	go func() {
 		defer wg.Done()
-		common.TestScanner(stderr, logger, "mobly")
+		common.TestScanner(stderr, logger, "Mobly")
 	}()
 
-	type result struct {
-		sessionDetailResponse *sessionDetailResponse
-		err                   error
-	}
-	stdoutResultChannel := make(chan result)
-
-	// Goroutine to process GetSessionDetailResponse from Omnilab Gateway Client.
 	go func() {
 		defer wg.Done()
-
-		scanner := bufio.NewScanner(stdout)
-		buf := make([]byte, omnilabGatewayOutputMaxCapacity)
-		scanner.Buffer(buf, omnilabGatewayOutputMaxCapacity)
-		scanner.Split(bufio.ScanLines)
-		for scanner.Scan() {
-			respJsonText := scanner.Text()
-			// Process response from Omnilab Gateway Client
-			// Each line of output in stdout is a json marshalled representation of
-			// Omnilab Gateway gRPC proto definition.
-			var response sessionDetailResponse
-			err := json.Unmarshal([]byte(respJsonText), &response)
-			if err != nil {
-				logger.Printf("[%v] failed to deserialize Omnilab Gateway Client output (%v): %v",
-					"mobly", respJsonText, err)
-				stdoutResultChannel <- result{sessionDetailResponse: nil, err: err}
-				break
-			}
-			//Check sessionDetailResponse status and exit conditions
-			if response.SessionDetail.SessionSummary.Status == "DONE" {
-				logger.Printf("[%v] Omnilab Gateway Client output: %v", "mobly", respJsonText)
-				stdoutResultChannel <- result{sessionDetailResponse: &response, err: nil}
-				break
-			}
-
-		}
-		if scanner.Err() != nil {
-			logger.Printf("[%v] failed to read stdout pipe: %v", "mobly", scanner.Err())
-			stdoutResultChannel <- result{sessionDetailResponse: nil, err: scanner.Err()}
-		}
+		common.TestScanner(stdout, logger, "Mobly")
 	}()
 
-	select {
-	case <-ctx.Done():
-		return buildTestCaseResult(test,
-			startTime,
-			time.Since(startTime),
-			"FAIL",
-			ctx.Err().Error()), nil
-
-	case res := <-stdoutResultChannel:
-		// wait for the stderr goroutine to finish.
-		// The unlock statement is moved here to ensure there is no deadlock.
-		wg.Wait()
-		if res.err != nil {
-			return buildTestCaseResult(test,
-				startTime,
-				time.Since(startTime),
-				"FAIL",
-				res.err.Error()), nil
-		} else if res.sessionDetailResponse != nil {
-			tcResult := buildTestCaseResultFromSessionResponse(test,
-				startTime,
-				time.Since(startTime),
-				res.sessionDetailResponse)
-			logger.Printf("[%v] Test case result: %v", "mobly", prototext.Format(tcResult))
-			return tcResult, nil
-		}
-		return buildTestCaseResult(test,
-			startTime,
-			time.Since(startTime),
-			"FAIL",
-			"Unknown error"), nil
-	}
-}
-
-// Generate Mobly command line arguments for Omnilab Gateway Client
-func genMoblyArgs(test *api.TestCaseMetadata) ([]string, error) {
-	argList := make([]string, 0)
-	tagsMap := getTestCaseMetadataTags(test)
-
-	arr, ok := tagsMap["mobly_mh_target"]
-	if ok && len(arr) > 0 {
-		target := arr[0]
-		argList = append(argList, "-target_name")
-		argList = append(argList, target)
-		argList = append(argList, "-test_flags")
-		//TODO (jonfan): The execution is hardcoded against a fixed omnilab setup.
-		//Remove the hardcoded once the mechanism is in place to inject scheduling dimensions.
-		argList = append(argList, "--notest_loasd --test_arg=--run_as=chromeos-engprod --test_arg=--dimension_label=chromeos-engprod-demo")
-		return argList, nil
-	} else {
-		return nil, errors.NewStatusError(errors.InvalidArgument, fmt.Errorf("%v", "could not find mobly_mh_target"))
-	}
-}
-
-// RunTests drives a test framework to execute tests.
-func (td *MoblyTestDriver) RunTests(ctx context.Context, resultsDir string, req *api.CrosTestRequest, tlwAddr string, tests []*api.TestCaseMetadata) (*api.CrosTestResponse, error) {
-	var testCaseResults []*api.TestCaseResult
-
-	//TODO (jonfan): Merge all tests into one session for performance consideration.
-	for _, test := range tests {
-		tcResult, err := runMoblyCmd(ctx, td.logger, test)
-		if err != nil {
-			// Ideally we should not be here as all the errors should have been wrapped
-			// as a failed test case inside of runMoblyCmd.
-			return nil, errors.NewStatusError(errors.InvalidArgument,
-				fmt.Errorf("fail to run mobly command for test %v", test.TestCase.Name))
-		}
-		testCaseResults = append(testCaseResults, tcResult)
-	}
-	return &api.CrosTestResponse{TestCaseResults: testCaseResults}, nil
-}
-
-// Collect tag names and tag values and convert to map of string arrays
-func getTestCaseMetadataTags(test *api.TestCaseMetadata) map[string][]string {
-	tagsMap := make(map[string][]string)
-	for _, tag := range test.TestCase.GetTags() {
-		// Splitting on the first semi colon
-		arr := strings.SplitN(tag.Value, ":", 2)
-		if len(arr) != 2 {
-			continue
-		}
-		tagsMap[arr[0]] = append(tagsMap[arr[0]], arr[1])
-	}
-	return tagsMap
+	wg.Wait()
+	return nil
 }

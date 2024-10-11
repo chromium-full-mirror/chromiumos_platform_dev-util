@@ -64,6 +64,7 @@ func (s *ExecutionServiceServer) RunTests(ctx context.Context, req *api.CrosTest
 
 	rspn, err := runTests(ctx, s.logger, resultsDir, s.tlwAddr, s.metadata, req)
 	if err != nil {
+		s.logger.Printf("Error running tests, %s", err)
 		return op, errors.Annotate(err, "RunTests: failed to run test").Err()
 	}
 	s.logger.Printf("Test RPC Command was successful")
