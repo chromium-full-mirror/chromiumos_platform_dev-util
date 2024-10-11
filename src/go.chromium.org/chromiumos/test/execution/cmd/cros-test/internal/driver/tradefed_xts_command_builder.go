@@ -27,16 +27,28 @@ const (
 
 var ctsSkipDownloadArtifacts = []string{"TESTS_ZIP", "DEVICE_IMAGE", "BASEBAND"}
 
-func extractBuildInfo(test *api.TestCase) (branch string, target string, build string) {
+func extractBuildInfo(test *api.TestCase, metadata *api.ExecutionMetadata) (branch string, target string, build string) {
+	// First priority are execution metadata flags.
+	if branchFlag, err := extractMetadataFlag(metadata, "branch"); err == nil {
+		branch = branchFlag
+	}
+	if targetFlag, err := extractMetadataFlag(metadata, "build_flavor"); err == nil {
+		target = targetFlag
+	}
+	if buildIdFlag, err := extractMetadataFlag(metadata, "build_id"); err == nil {
+		branch = buildIdFlag
+	}
+
+	// If not passed in execution metadata, check the test metadata tags.
 	for _, t := range test.Tags {
-		if strings.HasPrefix(t.Value, "branch:") {
+		if strings.HasPrefix(t.Value, "branch:") && branch == "" {
 			branch = strings.TrimPrefix(t.Value, "branch:")
 		}
 		// TODO: select the correct target based on device architecture.
-		if strings.HasPrefix(t.Value, "target:") && strings.Contains(t.Value, "x86") {
+		if strings.HasPrefix(t.Value, "target:") && strings.Contains(t.Value, "x86") && target == "" {
 			target = strings.TrimPrefix(t.Value, "target:")
 		}
-		if strings.HasPrefix(t.Value, "build_id:") {
+		if strings.HasPrefix(t.Value, "build_id:") && build == "" {
 			build = strings.TrimPrefix(t.Value, "build_id:")
 		}
 	}
@@ -114,8 +126,8 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 
 	if !isAospTradefed() {
 
-		cmd = append(cmd, "--cts-use-partial-download", "--cts-version", "2", "--gdevice-flash:disable",
-			"--no-bugreport-on-invocation-ended", "--invocation-data", "android-build-environment=prod",
+		cmd = append(cmd, "--cts-use-partial-download", "--cts-version", "2",
+			"--no-bugreport-on-invocation-ended", "--gdevice-flash:disable",
 			"--android-build-api-log-saver:no-remove-staged-files", "--no-use-event-streaming",
 			"--google-device-setup:set-global-setting", "verifier_verify_adb_installs=0",
 			"--reporter-template", "template/reporters/subprocess-reporter",
@@ -155,8 +167,32 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 				cmd = append(cmd, "--invocation-data", fmt.Sprintf("work_unit_id=%s", AnTsWorkUnitID))
 				logger.Printf("Got work unit id: %s", AnTsWorkUnitID)
 			}
+			if atpName, err := extractMetadataFlag(metadata, "atp_test_name"); err == nil {
+				cmd = append(cmd, "--invocation-data", fmt.Sprintf("atp_test_name=%s", atpName))
+				logger.Printf("Got ATP test name: %s", atpName)
+			}
+			extra_branch, _ := extractMetadataFlag(metadata, "extra_branch")
+			extra_target, _ := extractMetadataFlag(metadata, "extra_target")
+			extra_build, _ := extractMetadataFlag(metadata, "extra_build")
+			if extra_branch != "" && extra_target != "" && extra_build != "" {
+				extraBuilds := fmt.Sprintf(`'extra_builds=[{"build_id": "%s",`+
+					`"build_target": "%s", "build_flavor": "%s", "build_platform": "linux",`+
+					`"build_type": null, "branch": "%s", "build_alias": null, "attempt_id":`+
+					`"latest", "build_os": "linux"}]'`, extra_build, extra_target,
+					extra_target, extra_branch)
+				cmd = append(cmd, "--invocation-data", extraBuilds)
+			}
+
 		} else {
 			cmd = append(cmd, "--cts-params", "--result-reporter:disable")
+		}
+
+		if envName, err := extractMetadataFlag(metadata, "android-build-environment"); err == nil {
+			cmd = append(cmd, "--invocation-data", fmt.Sprintf("android-build-environment=%s", envName))
+			logger.Printf("Got Android build environment: %s", envName)
+		} else {
+			// Use production build env as default, if not specified otherwise.
+			cmd = append(cmd, "--invocation-data", "android-build-environment=prod")
 		}
 	}
 
@@ -168,10 +204,11 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 	}
 
 	var buildInfoReported = false
+	var branch, target, build string
 
 	for _, t := range tests {
 		testName := formatTestName(t.TestCase.Name)
-		branch, target, build := extractBuildInfo(t.TestCase)
+		branch, target, build = extractBuildInfo(t.TestCase, metadata)
 		if len(branch) > 0 && len(target) > 0 && len(build) > 0 && !buildInfoReported {
 			cmd = append(cmd, "--branch", branch, "--build-flavor", target,
 				"--build-id", build)
