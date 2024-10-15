@@ -6,15 +6,16 @@
 package cli
 
 import (
+	"errors"
+	"flag"
+	"fmt"
+	"strings"
+
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 	"go.chromium.org/chromiumos/test/provision/v2/common-utils/metadata"
 	"go.chromium.org/chromiumos/test/provision/v2/common-utils/server"
 	"go.chromium.org/chromiumos/test/provision/v2/cros-provision/constants"
 	"go.chromium.org/chromiumos/test/provision/v2/cros-provision/executor"
-	"errors"
-	"flag"
-	"fmt"
-	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )

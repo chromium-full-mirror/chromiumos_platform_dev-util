@@ -8,6 +8,7 @@ package cross_over
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
@@ -34,7 +35,9 @@ func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (
 	req := &api.StopServodRequest{}
 	req.ServodPort = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
 	req.ServoHostPath = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
-	req.ServodDockerContainerName = s.params.ServodDockerContainerName
+	if strings.Contains(req.ServoHostPath, satlab) {
+		req.ServodDockerContainerName = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
+	}
 	log.Printf("\nCalling stop servod with request %v.", req)
 	op, err := s.servodClient.StopServod(ctx, req)
 	if err != nil {

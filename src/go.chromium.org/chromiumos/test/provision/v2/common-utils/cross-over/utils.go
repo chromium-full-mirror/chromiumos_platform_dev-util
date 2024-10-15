@@ -13,7 +13,6 @@ import (
 
 	"go.chromium.org/chromiumos/config/go/api/test/xmlrpc"
 	"go.chromium.org/chromiumos/config/go/test/api"
-	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
 	"go.chromium.org/chromiumos/test/util/adb"
 	"golang.org/x/crypto/ssh"
 )
@@ -80,7 +79,7 @@ func checkADB(logger *log.Logger, dutAddress string, timeout time.Duration) bool
 
 func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
 	logger.Println("Detecting OS type")
-	config := dutssh.GetSSHConfig()
+	config := GetSSHConfig()
 	// Perform fast connection check.
 	if checkSSH(logger, dutAddress, config, 2, 2*time.Second) {
 		return CROS, nil

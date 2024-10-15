@@ -9,15 +9,23 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 
-	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 	"golang.org/x/crypto/ssh"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/protobuf/types/known/anypb"
 )
+
+var launchTargetPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`build_details/P?[0-9]+/([a-z_\-]+)`),
+	regexp.MustCompile(`artifacts_list/P?[0-9]+/([a-z_\-]+)`)}
+
+var buildIdPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`build_details/(P?[0-9]+)/`),
+	regexp.MustCompile(`artifacts_list/(P?[0-9]+)/`)}
 
 // FullOSImageState copies the full Android/Cros image onto DUT disk.
 type FullOSImageState struct {
@@ -34,7 +42,7 @@ func NewFullOSImageState(servodClient api.ServodServiceClient, params *CrossOver
 
 func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("Executing " + s.Name())
-	config := dutssh.GetSSHConfig()
+	config := GetSSHConfig()
 	dutAddress := fmt.Sprintf("%s:%v", s.params.Dut.GetChromeos().GetSsh().GetAddress(), s.params.Dut.GetChromeos().GetSsh().GetPort())
 	var client *ssh.Client
 	log.Println("Establishing ssh connection to dut on address: ", dutAddress)
@@ -53,7 +61,15 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	cacheServerAdd := s.params.Dut.GetCacheServer().GetAddress().GetAddress()
 	installCommand := ""
 	if strings.Contains(s.params.TargetImagePath.GetPath(), "android-build") {
-		installCommand = "al-install chromeos-throw-away-bucket/kimjae/al-12445875.bin.img " + cacheServerAdd
+		buildId, err := targetBuild(s.params.TargetImagePath.GetPath())
+		if err != nil {
+			return nil, api.InstallResponse_STATUS_INVALID_REQUEST, err
+		}
+		launchTarget, err := extractTargetLaunch(s.params.TargetImagePath.GetPath())
+		if err != nil {
+			return nil, api.InstallResponse_STATUS_INVALID_REQUEST, err
+		}
+		installCommand = fmt.Sprintf("al-install android-build/builds/%s/%s/attempts/latest/artifacts/android-desktop_image.bin.gz %s", buildId, launchTarget, cacheServerAdd)
 	} else {
 		installCommand = "cros-install chromeos-image-archive/brya-release/R130-16033.4.0 " + cacheServerAdd
 	}
@@ -74,4 +90,24 @@ func (s FullOSImageState) Next() common_utils.ServiceState {
 
 func (s FullOSImageState) Name() string {
 	return "Full OS Image State"
+}
+
+func extractTargetLaunch(path string) (string, error) {
+	for _, re := range launchTargetPatterns {
+		matches := re.FindStringSubmatch(path)
+		if len(matches) == 2 {
+			return matches[1], nil
+		}
+	}
+	return "", fmt.Errorf("could not extract launch from %s", path)
+}
+
+func targetBuild(imagePath string) (string, error) {
+	for _, re := range buildIdPatterns {
+		matches := re.FindStringSubmatch(imagePath)
+		if len(matches) == 2 {
+			return matches[1], nil
+		}
+	}
+	return "", fmt.Errorf("could not extract buildId from %s", imagePath)
 }

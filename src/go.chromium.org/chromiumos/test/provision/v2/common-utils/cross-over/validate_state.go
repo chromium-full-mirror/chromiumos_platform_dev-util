@@ -61,10 +61,12 @@ func (s ValidateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 		}
 		dutVersion = strings.Trim(dutVersion, " \n")
-		// TODO: Remove hardcoded version
-
-		if dutVersion != "12445875" {
-			err := fmt.Errorf("post provision verification failed. Installed version on dut is %s but want %s", dutVersion, "12445875")
+		targetBuild, err := targetBuild(s.params.TargetImagePath.GetPath())
+		if err != nil {
+			return nil, api.InstallResponse_STATUS_INVALID_REQUEST, err
+		}
+		if targetBuild != dutVersion {
+			err := fmt.Errorf("post provision verification failed. Installed version on dut is %s but want %s", dutVersion, targetBuild)
 			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 		}
 		if err := adb.TeardownAdb(log, dutAddress); err != nil {

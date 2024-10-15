@@ -9,9 +9,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"strings"
+
+	xmlrpc_value "go.chromium.org/chromiumos/config/go/api/test/xmlrpc"
+
+	dc "github.com/docker/docker/client"
 
 	"go.chromium.org/chromiumos/lro"
 	"go.chromium.org/chromiumos/test/servod/cmd/commandexecutor"
@@ -33,6 +38,7 @@ type ServodService struct {
 	commandexecutor commandexecutor.CommandExecutorInterface
 	sshPool         *ssh.Pool
 	servodPool      *servod.Pool
+	dockerClient    *dc.Client
 }
 
 // NewServodService creates a new servod service.
@@ -175,9 +181,25 @@ func (s *ServodService) ExecCmd(ctx context.Context, req *api.ExecCmdRequest) (*
 // Allowed methods: doc, get, set, and hwinit.
 func (s *ServodService) CallServod(ctx context.Context, req *api.CallServodRequest) (*api.CallServodResponse, error) {
 	s.logger.Printf("Received api.CallServodRequest: %#v\n", req)
-
+	servoHostPath := req.ServoHostPath
+	isSatlab := false
+	if strings.Contains(req.ServoHostPath, "satlab") {
+		isSatlab = true
+		containerIp, err := s.getSatlabServodContainerIP(ctx, req.ServodDockerContainerName)
+		if err != nil {
+			err := fmt.Errorf("Servod container not started on satlab.Did you forget to call StartServod?")
+			return &api.CallServodResponse{
+				Result: &api.CallServodResponse_Failure_{
+					Failure: &api.CallServodResponse_Failure{
+						ErrorMessage: err.Error(),
+					},
+				},
+			}, err
+		}
+		servoHostPath = containerIp
+	}
 	sd, err := s.servodPool.Get(
-		req.ServoHostPath,
+		servoHostPath,
 		req.ServodPort,
 		// This method must return non-nil value for servod.Get to work so return a dummy array.
 		func() ([]string, error) {
@@ -192,8 +214,12 @@ func (s *ServodService) CallServod(ctx context.Context, req *api.CallServodReque
 			},
 		}, err
 	}
-
-	val, err := sd.Call(ctx, s.sshPool, strings.ToLower(req.Method.String()), req.Args)
+	var val *xmlrpc_value.Value
+	if isSatlab {
+		val, err = sd.Call(ctx, servoHostPath, int(req.ServodPort), strings.ToLower(req.Method.String()), req.Args)
+	} else {
+		val, err = sd.CallWithProxy(ctx, s.sshPool, strings.ToLower(req.Method.String()), req.Args)
+	}
 	if err != nil {
 		return &api.CallServodResponse{
 			Result: &api.CallServodResponse_Failure_{
@@ -203,7 +229,6 @@ func (s *ServodService) CallServod(ctx context.Context, req *api.CallServodReque
 			},
 		}, err
 	}
-
 	return &api.CallServodResponse{
 		Result: &api.CallServodResponse_Success_{
 			Success: &api.CallServodResponse_Success{

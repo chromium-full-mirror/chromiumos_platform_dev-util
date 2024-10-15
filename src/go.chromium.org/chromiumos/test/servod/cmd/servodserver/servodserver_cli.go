@@ -6,14 +6,120 @@ package servodserver
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"os"
 	"strings"
+	"time"
 
+	"github.com/docker/docker/api/types"
+
+	"github.com/docker/docker/api/types/filters"
+
+	dc "github.com/docker/docker/client"
+	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/chromiumos/infra/proto/go/satlabrpcserver"
 	"go.chromium.org/chromiumos/test/servod/cmd/model"
+	"google.golang.org/grpc"
 
 	"go.chromium.org/luci/common/errors"
 )
+
+const (
+	SatlabRPCServer = "satlab_rpcserver:6003"
+	dockerHost      = "tcp://192.168.231.1:2375"
+)
+
+func (s *ServodService) getDockerClient() (*dc.Client, error) {
+	timeout := time.Duration(1 * time.Second)
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout: timeout,
+		}).DialContext,
+	}
+	c := http.Client{Transport: transport}
+	return dc.NewClientWithOpts(dc.WithHost(dockerHost), dc.WithHTTPClient(&c), dc.WithAPIVersionNegotiation())
+}
+
+func (s *ServodService) stopServodOnSatlab(ctx context.Context, servodDockerContainerName string) error {
+	s.logger.Println("Calling ContainerRemove")
+	if err := s.dockerClient.ContainerRemove(ctx, servodDockerContainerName, types.ContainerRemoveOptions{}); err != nil {
+		return err
+	}
+	s.logger.Println("Successfully removed ", servodDockerContainerName)
+	return nil
+}
+
+func (s *ServodService) getSatlabServodContainerIP(ctx context.Context, containerName string) (ipaddr string, err error) {
+	s.logger.Println("Getting the containerIP for ", containerName)
+	// Create filter to get container with given hostname and in running state.
+	f := filters.NewArgs()
+	f.Add("name", containerName)
+	f.Add("status", "running")
+	// Get the list of containers based on the filter above.
+	if s.dockerClient == nil {
+		s.logger.Println("dockerClient is null.... creating the docker client now.")
+		s.dockerClient, err = s.getDockerClient()
+		if err != nil {
+			s.logger.Println("failed to create the docker client.")
+			return "", fmt.Errorf("failed to create the docker client")
+		}
+	}
+	containers, err := s.dockerClient.ContainerList(ctx, types.ContainerListOptions{Filters: f})
+	if err != nil {
+		s.logger.Println("\n Error occurred while getting the docker containers list")
+		return "", err
+	}
+	// Return error if the container is not found or is not in running state.
+	if len(containers) != 1 {
+		return "", fmt.Errorf("%d number of container(s) with name %s found", len(containers), containerName)
+	}
+	// Get the Docker network set to the container, this is set in the drone env variables.
+	// If not found then fall back to default network name.
+	cnet := os.Getenv("DOCKER_DEFAULT_NETWORK")
+	if cnet == "" {
+		cnet = "default_satlab"
+	}
+	if containers[0].NetworkSettings != nil {
+		satNet := containers[0].NetworkSettings.Networks[cnet]
+		if satNet != nil {
+			return satNet.IPAddress, nil
+		}
+		return "", fmt.Errorf("could not find the %q network for the container %q. Found networks: [%v]", cnet, containerName, containers[0].NetworkSettings.Networks)
+	}
+	return "", fmt.Errorf("could not find IP address for the container %q", containerName)
+}
+
+func (s *ServodService) startServodOnSatlab(servodDockerContainerName string) error {
+	dockerClient, err := s.getDockerClient()
+	if err != nil {
+		return err
+	}
+	s.dockerClient = dockerClient
+	if ip, err := s.getSatlabServodContainerIP(context.Background(), servodDockerContainerName); err == nil && ip != "" {
+		s.logger.Println("Servo Container already running.")
+		return nil
+	}
+	s.logger.Println("Starting servod container on Satlab.")
+	conn, err := grpc.Dial(SatlabRPCServer, grpc.WithInsecure())
+	if err != nil {
+		return fmt.Errorf("failed to initiate communication to satlab RPC %v Error %v", err, SatlabRPCServer)
+	}
+	satlabClient := satlabrpcserver.NewSatlabRpcServiceClient(conn)
+	req := &api.StartServodRequest{ServodDockerContainerName: servodDockerContainerName}
+	if _, err := satlabClient.StartServod(context.Background(), req); err != nil {
+		return fmt.Errorf("SatlabRPCServer's startServo failed: %v", err)
+	}
+	_, err = s.getSatlabServodContainerIP(context.Background(), servodDockerContainerName)
+	if err != nil {
+		return fmt.Errorf("could not get ip address of servod container on satlab")
+	}
+	s.logger.Println("Servod cotnainer started via satlabrpc.")
+	return nil
+}
 
 // RunCli runs servod service as execution by CLI.
 func (s *ServodService) RunCli(cs model.CliSubcommand, a model.CliArgs, stdin io.Reader, routeToStd bool) (bytes.Buffer, bytes.Buffer, error) {
@@ -26,11 +132,19 @@ func (s *ServodService) RunCli(cs model.CliSubcommand, a model.CliArgs, stdin io
 	command := ""
 	switch cs {
 	case model.CliStartServod:
-		command, err = s.getStartServodCommand(a)
-		if err != nil {
-			return bOut, bErr, err
+		if strings.Contains(a.ServodDockerContainerName, "satlab") {
+			s.logger.Println("Calling startServodOnSatlab")
+			return bOut, bErr, s.startServodOnSatlab(a.ServodDockerContainerName)
+		} else {
+			command, err = s.getStartServodCommand(a)
+			if err != nil {
+				return bOut, bErr, err
+			}
 		}
 	case model.CliStopServod:
+		if a.ServodDockerContainerName != "" && strings.Contains(a.ServodDockerContainerName, "satlab") {
+			return bOut, bErr, s.stopServodOnSatlab(context.Background(), a.ServodDockerContainerName)
+		}
 		command = s.getStopServodCommand(a)
 	case model.CliExecCmd:
 		command = s.getExecCmdCommand(a)
@@ -63,7 +177,6 @@ func (s *ServodService) getStartServodCommand(a model.CliArgs) (string, error) {
 	if a.SerialName == "" {
 		return "", errors.Reason("SerialName not specified").Err()
 	}
-
 	command := ""
 	if a.ServodDockerImagePath != "" {
 		if a.ServodDockerContainerName == "" {

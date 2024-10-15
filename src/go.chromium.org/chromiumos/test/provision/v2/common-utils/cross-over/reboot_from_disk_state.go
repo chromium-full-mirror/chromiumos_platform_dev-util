@@ -7,6 +7,7 @@ package cross_over
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
@@ -32,21 +33,25 @@ func (s RebootFromDiskState) Execute(ctx context.Context, log *log.Logger) (*any
 	log.Println("Executing " + s.Name())
 	servoHostPath := s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
 	servoPort := s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
-	if err := callServod(ctx, log, s.servodClient, "power_state", "off", servoHostPath, s.params.ServodDockerContainerName, servoPort); err != nil {
+	servodDockerContainerName := ""
+	if strings.Contains(servoHostPath, satlab) {
+		servodDockerContainerName = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
+	}
+	if err := callServod(ctx, log, s.servodClient, "power_state", "off", servoHostPath, servodDockerContainerName, servoPort); err != nil {
 		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
 	log.Printf("\nWaiting for the power state to turn off.")
 	// TODO: Instead of fixed wait time, use a poll based status checker. Refer WaitForPowerStates and GetECSystemPowerState in firmware code.
 	time.Sleep(waitForPowerOff)
 
-	if err := callServod(ctx, log, s.servodClient, "image_usbkey_direction", "servo_sees_usbkey", servoHostPath, s.params.ServodDockerContainerName, servoPort); err != nil {
+	if err := callServod(ctx, log, s.servodClient, "image_usbkey_direction", "servo_sees_usbkey", servoHostPath, servodDockerContainerName, servoPort); err != nil {
 		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
 	log.Printf("\nWaiting for the image_usbkey_direction.")
 	// TODO: Instead of fixed wait time, use a poll based status checker. Refer WaitForPowerStates and GetECSystemPowerState in firmware code.
 	time.Sleep(10 * time.Second)
 
-	if err := callServod(ctx, log, s.servodClient, "power_state", "on", servoHostPath, s.params.ServodDockerContainerName, servoPort); err != nil {
+	if err := callServod(ctx, log, s.servodClient, "power_state", "on", servoHostPath, servodDockerContainerName, servoPort); err != nil {
 		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
 	log.Println("Waiting for power on. waiting for 2 minutes")

@@ -36,7 +36,7 @@ func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 	if err != nil {
 		return nil, err
 	}
-	log.Println("Detected OS type ", osType)
+	c.Logger.Println("Detected OS type ", osType)
 	if osType == cross_over.CROS {
 		if servoNexusAddr == "" {
 			return nil, fmt.Errorf("servoNexusAdd required for crossover provision")
@@ -45,9 +45,6 @@ func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 			DutClient:       dutClient,
 			Dut:             dut,
 			TargetImagePath: req.GetImagePath(),
-			//ServodDockerContainerName: "servod-process",
-			//ServodDockerImagePath:     "us-docker.pkg.dev/chromeos-partner-moblab/common-core/servod:release",
-			//TODO: Decide how ServodDockerContainerName and ServodDockerImagePath will be populated.
 		}
 		conn, err := grpc.Dial(servoNexusAddr, grpc.WithInsecure())
 		if err != nil {
