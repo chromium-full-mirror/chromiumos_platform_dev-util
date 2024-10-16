@@ -43,6 +43,12 @@ func (c *EnableChargeLimitCommand) Execute(log *log.Logger) error {
 	}
 
 	if _, err := c.cs.Connection.RunCmd(c.ctx, "start", []string{"powerd"}); err != nil {
+		log_out, log_err := c.cs.Connection.RunCmd(c.ctx, "cat", []string{"/var/log/powerd.out", "/var/log/power_manager/powerd.LATEST"})
+		if log_err != nil {
+			log.Printf("failed to read powerd logs: %s", log_err)
+		} else {
+			log.Printf("powerd log contents: %s", log_out)
+		}
 		return fmt.Errorf("failed to start powerd, %s", err)
 	}
 
