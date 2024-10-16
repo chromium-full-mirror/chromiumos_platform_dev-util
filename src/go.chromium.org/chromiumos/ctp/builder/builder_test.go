@@ -185,32 +185,6 @@ BBClient is required to be non-nil. You likely just need to call CTPBuilder.AddD
 			TimeoutMins: 360,
 		},
 	},
-	{
-		testName: "test secondary boards != lacrospath",
-		input: CTPBuilder{
-			BBClient:             fakeClientExposeFields{},
-			Board:                "zork",
-			Image:                "zork-release/R107-15117.103.0",
-			Pool:                 "xolabs-satlab",
-			TestPlan:             sampleTestPlan,
-			SecondaryBoards:      []string{"zork"},
-			SecondaryImages:      []string{"zork-release/R107-15117.103.0"},
-			SecondaryLacrosPaths: []string{"foo", "bar"},
-		},
-		wantValidationErrString: "number of requested secondary-boards: 1 does not match with number of requested secondary-lacros-paths: 2",
-		wantCTPBuilder: CTPBuilder{
-			BBClient:    fakeClientExposeFields{},
-			BBService:   "",
-			Board:       "zork",
-			BuilderID:   getDefaultBuilder(),
-			Image:       "zork-release/R107-15117.103.0",
-			ImageBucket: "chromeos-image-archive",
-			Pool:        "xolabs-satlab",
-			Priority:    140,
-			TestPlan:    sampleTestPlan,
-			TimeoutMins: 360,
-		},
-	},
 }
 
 // ErrToString enables safe conversions of errors to
@@ -270,11 +244,10 @@ var testSoftwareDependenciesData = []struct {
 		"",
 	},
 	{
-		"bucket, image, lacros, and label",
+		"bucket, image, and label",
 		CTPBuilder{
 			ImageBucket: "sample-bucket",
 			Image:       "sample-image",
-			LacrosPath:  "sample-lacros-path",
 			ProvisionLabels: map[string]string{
 				"fwrw-version": "foo-rw",
 			},
@@ -283,7 +256,6 @@ var testSoftwareDependenciesData = []struct {
 			{Dep: &test_platform.Request_Params_SoftwareDependency_RwFirmwareBuild{RwFirmwareBuild: "foo-rw"}},
 			{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuildGcsBucket{ChromeosBuildGcsBucket: "sample-bucket"}},
 			{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuild{ChromeosBuild: "sample-image"}},
-			{Dep: &test_platform.Request_Params_SoftwareDependency_LacrosGcsPath{LacrosGcsPath: "sample-lacros-path"}},
 		},
 		"",
 	},
@@ -466,11 +438,10 @@ var testSecondaryDevicesData = []struct {
 		},
 	},
 	{
-		"board image lacros path",
+		"board image path",
 		CTPBuilder{
-			SecondaryBoards:      []string{"board1", "board2"},
-			SecondaryImages:      []string{"board1-release/10000.0.0", "board2-release/9999.0.0"},
-			SecondaryLacrosPaths: []string{"lc1", "lc2"},
+			SecondaryBoards: []string{"board1", "board2"},
+			SecondaryImages: []string{"board1-release/10000.0.0", "board2-release/9999.0.0"},
 		},
 		[]*test_platform.Request_Params_SecondaryDevice{
 			{
@@ -479,7 +450,6 @@ var testSecondaryDevicesData = []struct {
 				},
 				SoftwareDependencies: []*test_platform.Request_Params_SoftwareDependency{
 					{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuild{ChromeosBuild: "board1-release/10000.0.0"}},
-					{Dep: &test_platform.Request_Params_SoftwareDependency_LacrosGcsPath{LacrosGcsPath: "lc1"}},
 				},
 			},
 			{
@@ -488,7 +458,6 @@ var testSecondaryDevicesData = []struct {
 				},
 				SoftwareDependencies: []*test_platform.Request_Params_SoftwareDependency{
 					{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuild{ChromeosBuild: "board2-release/9999.0.0"}},
-					{Dep: &test_platform.Request_Params_SoftwareDependency_LacrosGcsPath{LacrosGcsPath: "lc2"}},
 				},
 			},
 		},

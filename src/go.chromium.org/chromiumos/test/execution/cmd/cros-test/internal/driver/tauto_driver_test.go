@@ -146,10 +146,6 @@ func TestProcessArgs(t *testing.T) {
 							Flag:  "retries",
 							Value: "2",
 						},
-						{
-							Flag:  "lacros_gcs_path",
-							Value: "gs://chrome-test-builds/lacros/8758550891523072705_with_patch/lacros_all_tast_tests",
-						},
 						{},
 						{},
 					},
@@ -167,7 +163,7 @@ func TestProcessArgs(t *testing.T) {
 		},
 	}
 	args, _ := processArgs(req)
-	if args != "retries=2 lacros_gcs_path=gs://chrome-test-builds/lacros/8758550891523072705_with_patch/lacros_all_tast_tests" {
+	if args != "retries=2" {
 		t.Error("Args wrong ", args)
 	}
 }

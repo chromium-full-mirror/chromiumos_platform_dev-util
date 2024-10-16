@@ -66,8 +66,6 @@ type CTPBuilder struct {
 	ImageBucket string
 	// Keyvals will be passed into autotest
 	Keyvals map[string]string
-	// LacrosPath is the GS path to a Lacros object
-	LacrosPath string
 	// MaxRetries controls the amount of times CTP will attempt to retry a test
 	MaxRetries int
 	// Model specifies what model a test should run on
@@ -96,9 +94,6 @@ type CTPBuilder struct {
 	// SecondaryImages is a list containing the images of any secondary devices
 	// Should be of equal length to SecondaryBoards or zero
 	SecondaryImages []string
-	// SecondaryBoards is a list containing the LacrosPath of any secondary devices
-	// Should either be equal to the length of SecondaryBoards or zero
-	SecondaryLacrosPaths []string
 	// TestPlan is the test plan we want to execute
 	// These should not be built by hand, instead using a method in the CTP client lib
 	TestPlan *test_platform.Request_TestPlan
@@ -222,11 +217,6 @@ func (c *CTPBuilder) validateAndAddDefaults() error {
 	// each secondary DUT.
 	if len(c.SecondaryImages) > 0 && len(c.SecondaryBoards) != len(c.SecondaryImages) {
 		errors = append(errors, fmt.Sprintf("number of requested secondary-boards: %d does not match with number of requested secondary-images: %d", len(c.SecondaryBoards), len(c.SecondaryImages)))
-	}
-	// If lacros provision is required for secondary DUTs, then we require a path for
-	// each secondary DUT.
-	if len(c.SecondaryLacrosPaths) > 0 && len(c.SecondaryLacrosPaths) != len(c.SecondaryBoards) {
-		errors = append(errors, fmt.Sprintf("number of requested secondary-boards: %d does not match with number of requested secondary-lacros-paths: %d", len(c.SecondaryBoards), len(c.SecondaryLacrosPaths)))
 	}
 	if c.BBClient == nil {
 		errors = append(errors, fmt.Sprintf("BBClient is required to be non-nil. You likely just need to call CTPBuilder.AddDefaultBBClient() to accomplish this"))
@@ -379,11 +369,6 @@ func (c *CTPBuilder) softwareDependencies() ([]*test_platform.Request_Params_Sof
 			Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuild{ChromeosBuild: c.Image},
 		})
 	}
-	if c.LacrosPath != "" {
-		deps = append(deps, &test_platform.Request_Params_SoftwareDependency{
-			Dep: &test_platform.Request_Params_SoftwareDependency_LacrosGcsPath{LacrosGcsPath: c.LacrosPath},
-		})
-	}
 	return deps, nil
 }
 
@@ -455,11 +440,6 @@ func (c *CTPBuilder) secondaryDevices() []*test_platform.Request_Params_Secondar
 			sd.HardwareAttributes = &test_platform.Request_Params_HardwareAttributes{
 				Model: c.SecondaryModels[i],
 			}
-		}
-		if len(c.SecondaryLacrosPaths) > 0 && c.SecondaryLacrosPaths[i] != "" {
-			sd.SoftwareDependencies = append(sd.SoftwareDependencies, &test_platform.Request_Params_SoftwareDependency{
-				Dep: &test_platform.Request_Params_SoftwareDependency_LacrosGcsPath{LacrosGcsPath: c.SecondaryLacrosPaths[i]},
-			})
 		}
 		secondary_devices = append(secondary_devices, sd)
 	}

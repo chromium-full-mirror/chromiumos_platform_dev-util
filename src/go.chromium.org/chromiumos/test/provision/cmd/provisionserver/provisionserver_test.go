@@ -5,21 +5,20 @@
 package provisionserver
 
 import (
-	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/info"
-	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/mock_services"
-	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services"
-	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services/ashservice"
-	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services/crosservice"
-	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services/firmwareservice"
-	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services/lacrosservice"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/info"
+	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/mock_services"
+	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services"
+	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services/ashservice"
+	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services/crosservice"
+	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services/firmwareservice"
 
 	"github.com/golang/mock/gomock"
 	conf "go.chromium.org/chromiumos/config/go"
@@ -444,147 +443,6 @@ func TestPostInstallOverwriteWhenSpecified(t *testing.T) {
 		t.Fatalf("failed post-install state: %v", err)
 	}
 
-}
-
-func TestLaCrOSInstallStateTransitions(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	sam := mock_services.NewMockServiceAdapterInterface(ctrl)
-
-	cs := lacrosservice.NewLaCrOSServiceFromExistingConnection(
-		sam,
-		&conf.StoragePath{
-			HostType: conf.StoragePath_GS,
-			Path:     "path/to/image",
-		},
-		&lacrosservice.LaCrOSMetadata{Content: struct {
-			Version string "json:\"version\""
-		}{"v1"}},
-		"",
-		"/var/lib/imageloader/lacros",
-	)
-
-	ctx := context.Background()
-
-	// INSTALL
-	st := cs.GetFirstState()
-
-	gomock.InOrder(
-		sam.EXPECT().CreateDirectories(gomock.Any(), gomock.Eq([]string{"/var/lib/imageloader/lacros/v1"})).Return(nil),
-		sam.EXPECT().CopyData(gomock.Any(), gomock.Eq("path/to/image/lacros_compressed.squash"), gomock.Eq("/var/lib/imageloader/lacros/v1/image.squash")).Return(nil),
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("stat"), gomock.Eq([]string{"-c%s", "/var/lib/imageloader/lacros/v1/image.squash"})).Return(" 100 ", nil),
-		// Ensure dd runs if value isn't multiple of 4096:
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("dd"), gomock.Eq([]string{"if=/dev/zero", "bs=1", "count=3996", "seek=100", "of=/var/lib/imageloader/lacros/v1/image.squash"})).Return("", nil),
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("verity"), gomock.Eq([]string{"mode=create", "alg=sha256", "payload=/var/lib/imageloader/lacros/v1/image.squash", "payload_blocks=1", "hashtree=/var/lib/imageloader/lacros/v1/hashtree", "salt=random", ">", "/var/lib/imageloader/lacros/v1/table"})).Return("", nil),
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("cat"), gomock.Eq([]string{"/var/lib/imageloader/lacros/v1/hashtree", ">>", "/var/lib/imageloader/lacros/v1/image.squash"})).Return("", nil),
-	)
-
-	if err := st.Execute(ctx); err != nil {
-		t.Fatalf("failed install state: %v", err)
-	}
-
-	// POST INSTALL
-	st = st.Next()
-
-	json_data, err := json.MarshalIndent(struct {
-		ManifestVersion int    `json:"manifest-version"`
-		FsType          string `json:"fs-type"`
-		Version         string `json:"version"`
-		ImageSha256Hash string `json:"image-sha256-hash"`
-		TableSha256Hash string `json:"table-sha256-hash"`
-	}{
-		ManifestVersion: 1,
-		FsType:          "squashfs",
-		Version:         "v1",
-		ImageSha256Hash: "image_hash",
-		TableSha256Hash: "table_hash",
-	}, "", "  ")
-	if err != nil {
-		t.Fatalf("failed to marshal expected data, %v", err)
-	}
-
-	component_json_data, err := json.MarshalIndent(struct {
-		ManifestVersion int    `json:"manifest-version"`
-		Name            string `json:"name"`
-		Version         string `json:"version"`
-		ImageName       string `json:"imageName"`
-		Squash          bool   `json:"squash"`
-		FsType          string `json:"fsType"`
-		IsRemovable     bool   `json:"isRemovable"`
-	}{
-		ManifestVersion: 2,
-		Name:            "lacros",
-		Version:         "v1",
-		ImageName:       "image.squash",
-		Squash:          true,
-		FsType:          "squashfs",
-		IsRemovable:     false,
-	}, "", "  ")
-	if err != nil {
-		t.Fatalf("failed to marshal expected component data, %v", err)
-	}
-
-	gomock.InOrder(
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("sha256sum"), gomock.Eq([]string{"/var/lib/imageloader/lacros/v1/image.squash", "|", "cut", "-d' '", "-f1"})).Return("image_hash", nil),
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("sha256sum"), gomock.Eq([]string{"/var/lib/imageloader/lacros/v1/table", "|", "cut", "-d' '", "-f1"})).Return("table_hash", nil),
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("echo"), gomock.Eq([]string{"'" + string(json_data) + "'", ">", "/var/lib/imageloader/lacros/v1/imageloader.json"})).Return("", nil),
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("echo"), gomock.Eq([]string{"'" + string(component_json_data) + "'", ">", "/var/lib/imageloader/lacros/v1/manifest.json"})).Return("", nil),
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("echo"), gomock.Eq([]string{"'v1'", ">", "/var/lib/imageloader/lacros/latest-version"})).Return("", nil),
-	)
-
-	if err := st.Execute(ctx); err != nil {
-		t.Fatalf("failed post-install state: %v", err)
-	}
-
-	// VERIFY (Currently empty)
-	st = st.Next()
-
-	if err := st.Execute(ctx); err != nil {
-		t.Fatalf("failed verify state: %v", err)
-	}
-
-	if st.Next() != nil {
-		t.Fatalf("verify should be the last step")
-	}
-}
-
-func TestLacrosAlignedDoesNotExtendAlignment(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	sam := mock_services.NewMockServiceAdapterInterface(ctrl)
-
-	cs := lacrosservice.NewLaCrOSServiceFromExistingConnection(
-		sam,
-		&conf.StoragePath{
-			HostType: conf.StoragePath_GS,
-			Path:     "path/to/image",
-		},
-		&lacrosservice.LaCrOSMetadata{Content: struct {
-			Version string "json:\"version\""
-		}{"v1"}},
-		"",
-		"/var/lib/imageloader/lacros",
-	)
-
-	ctx := context.Background()
-
-	// INSTALL
-	st := cs.GetFirstState()
-
-	gomock.InOrder(
-		sam.EXPECT().CreateDirectories(gomock.Any(), gomock.Eq([]string{"/var/lib/imageloader/lacros/v1"})).Return(nil),
-		sam.EXPECT().CopyData(gomock.Any(), gomock.Eq("path/to/image/lacros_compressed.squash"), gomock.Eq("/var/lib/imageloader/lacros/v1/image.squash")).Return(nil),
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("stat"), gomock.Eq([]string{"-c%s", "/var/lib/imageloader/lacros/v1/image.squash"})).Return(" 4096 ", nil),
-		// Ensure dd doesn't run if value is multiple of 4096:
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("verity"), gomock.Eq([]string{"mode=create", "alg=sha256", "payload=/var/lib/imageloader/lacros/v1/image.squash", "payload_blocks=1", "hashtree=/var/lib/imageloader/lacros/v1/hashtree", "salt=random", ">", "/var/lib/imageloader/lacros/v1/table"})).Return("", nil),
-		sam.EXPECT().RunCmd(gomock.Any(), gomock.Eq("cat"), gomock.Eq([]string{"/var/lib/imageloader/lacros/v1/hashtree", ">>", "/var/lib/imageloader/lacros/v1/image.squash"})).Return("", nil),
-	)
-
-	if err := st.Execute(ctx); err != nil {
-		t.Fatalf("failed install state: %v", err)
-	}
 }
 
 func TestAshInstallStateTransitions(t *testing.T) {

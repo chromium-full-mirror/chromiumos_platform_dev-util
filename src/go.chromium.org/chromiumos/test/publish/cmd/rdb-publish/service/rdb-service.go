@@ -255,9 +255,8 @@ func downloadSources(ctx context.Context, destPath string, sources *metadata.Pub
 	// proto.
 	//
 	// If the build used other sources (e.g. uncommitted changes,
-	// such as a new version of a dependecy) or if the deployment was
-	// dirty (e.g. a custom version of Lacros was deployed), this
-	// shall be set to true.
+	// such as a new version of a dependency) or if the deployment was
+	// dirty, this shall be set to true.
 	if sources.IsDeploymentDirty {
 		sourcesProto.IsDirty = true
 	}

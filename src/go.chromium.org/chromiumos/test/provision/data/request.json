@@ -25,17 +25,6 @@
         },
         "portage_package": {
           "category": "chromeos-base",
-          "package_name": "chromeos-lacros",
-          "version": "99.9.9999.r9"
-        }
-      },
-      {
-        "package_path": {
-          "host_type": "GS",
-          "path": "gs:/special_path_to_the_image"
-        },
-        "portage_package": {
-          "category": "chromeos-base",
           "package_name": "chromeos-chrome",
           "version": "99.9.9999.r9"
         }

@@ -25,7 +25,6 @@ import (
 	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services/ashservice"
 	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services/crosservice"
 	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services/firmwareservice"
-	"go.chromium.org/chromiumos/test/provision/cmd/provisionserver/bootstrap/services/lacrosservice"
 )
 
 // provision holds info for provisioning.
@@ -106,12 +105,6 @@ func (s *provision) installState(ctx context.Context, state *api.ProvisionState,
 		packageName := pkg.GetPortagePackage().GetPackageName()
 		s.logger.Printf("Running package: %s, category: %s, version: %s", packageName, pkg.GetPortagePackage().GetCategory(), pkg.GetPortagePackage().GetVersion())
 		switch packageName {
-		case "chromeos-lacros":
-			if fr, err := s.installLacros(ctx, &api.InstallLacrosRequest{
-				LacrosImagePath: pkg.PackagePath,
-			}, op); err != nil {
-				return fr, err
-			}
 		case "chromeos-chrome":
 			if fr, err := s.installAsh(ctx, &api.InstallAshRequest{
 				AshImagePath: pkg.PackagePath,
@@ -149,25 +142,6 @@ func (s *provision) installCros(ctx context.Context, req *api.InstallCrosRequest
 	s.logger.Println("Received api.InstallCrosRequest: ", req)
 	cs := crosservice.NewCrOSService(s.dut, s.dutClient, req)
 	return s.execute(ctx, &cs, op)
-}
-
-// installLacros installs a specified version of Lacros on the DUT.
-func (s *provision) installLacros(ctx context.Context, req *api.InstallLacrosRequest, op *longrunning.Operation) (*api.InstallFailure, error) {
-	s.logger.Println("Received api.InstallLacrosRequest: ", req)
-	ls, err := lacrosservice.NewLaCrOSService(s.dut, s.dutClient, req)
-	if err != nil {
-		fr := &api.InstallFailure{
-			Reason: api.InstallFailure_REASON_PROVISIONING_FAILED,
-		}
-		s.setNewOperationError(
-			op,
-			codes.Aborted,
-			fmt.Sprintf("pre-provision: failed setup: %s", err),
-			fr.Reason.String(),
-		)
-		return fr, err
-	}
-	return s.execute(ctx, &ls, op)
 }
 
 // installAsh installs a specified version of ash-chrome on the DUT.

@@ -32,21 +32,6 @@ func (s *provision) InstallCros(ctx context.Context, req *api.InstallCrosRequest
 	return op, nil
 }
 
-// InstallLacros installs a specified version of Lacros on the DUT.
-func (s *provision) InstallLacros(ctx context.Context, req *api.InstallLacrosRequest) (*longrunning.Operation, error) {
-	op := s.manager.NewOperation()
-	response := api.InstallLacrosResponse{}
-	if fr, err := s.installLacros(ctx, req, op); err != nil {
-		response.Outcome = &api.InstallLacrosResponse_Failure{
-			Failure: fr,
-		}
-	} else {
-		response.Outcome = &api.InstallLacrosResponse_Success{}
-	}
-	s.manager.SetResult(op.Name, &response)
-	return op, nil
-}
-
 // InstallAsh installs a specified version of ash-chrome on the DUT.
 //
 // This directly overwrites the version of ash-chrome on the current root

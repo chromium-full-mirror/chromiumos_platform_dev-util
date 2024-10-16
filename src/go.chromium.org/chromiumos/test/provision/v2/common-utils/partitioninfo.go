@@ -11,11 +11,6 @@ import (
 )
 
 const (
-	LaCrOSRootComponentPath = "/var/lib/imageloader/lacros"
-	LaCrOSPageSize          = 4096
-)
-
-const (
 	PartitionNumStateful = "1"
 	PartitionNumKernelA  = "2"
 	PartitionNumKernelB  = "4"
