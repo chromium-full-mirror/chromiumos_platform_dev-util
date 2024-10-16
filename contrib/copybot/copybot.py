@@ -1013,6 +1013,7 @@ def rewrite_commit_message(
     upstream_rev: str,
     change_id: str,
     prepend_subject: str = "",
+    insert_into_msg: Optional[Dict[int, str]] = None,
     sign_off: bool = False,
     keep_pseudoheaders: Iterable[str] = (),
     additional_pseudoheaders: Iterable[str] = (),
@@ -1024,6 +1025,8 @@ def rewrite_commit_message(
         upstream_rev: The upstream commit hash corresponding to this commit.
         change_id: The Change-Id to add to the commit.
         prepend_subject: A string to prepend the subject line with.
+        insert_into_msg: A Dict(line, message) of messages to add to the
+            commit msg.
         sign_off: True if Signed-off-by should be added to the commit message.
         keep_pseudoheaders: Pseudoheaders which should not be prefixed.
         additional_pseudoheaders: Psuedoheaders to be added to the commit
@@ -1032,6 +1035,11 @@ def rewrite_commit_message(
     commit_message = repo.get_commit_message()
     if prepend_subject:
         commit_message = prepend_subject + commit_message
+    if insert_into_msg:
+        tmp_commit_msg = commit_message.splitlines()
+        for line, msg in sorted(insert_into_msg.items(), reverse=True):
+            tmp_commit_msg.insert(line, msg)
+        commit_message = "\n".join(tmp_commit_msg)
     pseudoheaders, commit_message = Pseudoheaders.from_commit_message(
         commit_message
     )
@@ -1150,6 +1158,11 @@ def run_copybot(
         downstream_branch,
         downstream_subtree,
     ) = parse_repo_info(args.downstream)
+
+    insert_into_msg = {}
+    for msg in args.insert_into_msg:
+        index, _, msg = msg.rpartition(":")
+        insert_into_msg[int(index)] = msg
 
     if local_downstream:
         git_dir = downstream_url
@@ -1367,6 +1380,7 @@ def run_copybot(
                         upstream_rev=rev,
                         change_id=change_id or generate_change_id(),
                         prepend_subject=args.prepend_subject,
+                        insert_into_msg=insert_into_msg,
                         sign_off=args.add_signed_off_by,
                         keep_pseudoheaders=keep_pseudoheaders,
                         additional_pseudoheaders=[
@@ -1386,6 +1400,7 @@ def run_copybot(
                 upstream_rev=rev,
                 change_id=change_id or generate_change_id(),
                 prepend_subject=args.prepend_subject,
+                insert_into_msg=insert_into_msg,
                 sign_off=args.add_signed_off_by,
                 keep_pseudoheaders=keep_pseudoheaders,
                 additional_pseudoheaders=args.add_pseudoheaders,
@@ -1515,6 +1530,13 @@ def main(argv: Optional[List[str]] = None) -> None:
         "--prepend-subject",
         help="Prepend the subject of commits made with this string",
         default="",
+    )
+    parser.add_argument(
+        "--insert-into-msg",
+        help="Insert the text into the line specified.  Line number"
+        " comes first and is separated from text by a colon",
+        action="append",
+        default=[],
     )
     parser.add_argument(
         "--exclude-file-pattern",
