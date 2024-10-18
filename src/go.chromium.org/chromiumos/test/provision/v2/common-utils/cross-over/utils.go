@@ -84,7 +84,7 @@ func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
 	if checkSSH(logger, dutAddress, config, 2, 2*time.Second) {
 		return CROS, nil
 	}
-	if checkADB(logger, dutAddress, 10*time.Second) {
+	if checkADB(logger, dutAddress, 5*time.Second) {
 		return ANDROID, nil
 	}
 
@@ -92,7 +92,7 @@ func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
 	if checkSSH(logger, dutAddress, config, 5, 10*time.Second) {
 		return CROS, nil
 	}
-	if checkADB(logger, dutAddress, 3*time.Minute) {
+	if checkADB(logger, dutAddress, 15*time.Second) {
 		return ANDROID, nil
 	}
 	return UNKNOWN, fmt.Errorf("could not detect underlining os for dut")

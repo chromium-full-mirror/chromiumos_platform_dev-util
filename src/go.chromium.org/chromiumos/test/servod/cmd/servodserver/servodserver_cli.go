@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-
 	"github.com/docker/docker/api/types/filters"
 
 	dc "github.com/docker/docker/client"
@@ -45,11 +44,17 @@ func (s *ServodService) getDockerClient() (*dc.Client, error) {
 }
 
 func (s *ServodService) stopServodOnSatlab(ctx context.Context, servodDockerContainerName string) error {
-	s.logger.Println("Calling ContainerRemove")
-	if err := s.dockerClient.ContainerRemove(ctx, servodDockerContainerName, types.ContainerRemoveOptions{}); err != nil {
-		return err
+	s.logger.Println("Calling ContainerKill")
+	if err := s.dockerClient.ContainerKill(ctx, servodDockerContainerName, "INT" /*signal*/); err != nil {
+		s.logger.Println("Warning! container SIGINT failed", err)
 	}
-	s.logger.Println("Successfully removed ", servodDockerContainerName)
+
+	s.logger.Println("Calling ContainerStop")
+	if err := s.dockerClient.ContainerStop(ctx, servodDockerContainerName, nil); err != nil {
+		s.logger.Println("Warning! ContainerStop failed", err)
+	}
+	s.logger.Println("Waiting 30 seconds for ContainerStop")
+	time.Sleep(30 * time.Second)
 	return nil
 }
 

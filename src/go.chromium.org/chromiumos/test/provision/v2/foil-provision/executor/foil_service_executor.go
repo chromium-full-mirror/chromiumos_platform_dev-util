@@ -34,10 +34,13 @@ func NewFoilProvisionExecutor(logger *log.Logger) (*FoilProvisionExecutor, error
 func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, servoNexusAddr string, req *api.InstallRequest) (common_utils.ServiceState, error) {
 	osType, err := cross_over.DetectOS(c.Logger, fmt.Sprintf("%v:%v", dut.GetChromeos().GetSsh().GetAddress(), dut.GetChromeos().GetSsh().GetPort()))
 	if err != nil {
-		return nil, err
+		c.Logger.Println("Could not detect the OS. Will perform CrossOver provision.")
+	} else if osType == cross_over.ANDROID {
+		c.Logger.Println("Android Detected")
+	} else {
+		c.Logger.Println("CROS Detected")
 	}
-	c.Logger.Println("Detected OS type ", osType)
-	if osType == cross_over.CROS {
+	if err != nil || osType == cross_over.CROS {
 		if servoNexusAddr == "" {
 			return nil, fmt.Errorf("servoNexusAdd required for crossover provision")
 		}
