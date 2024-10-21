@@ -216,11 +216,8 @@ def cherry_pick(repo, sha, use_am=True):
     """
 
     if use_am:
-        patch = format_patch(repo, sha)
         path = "/tmp/rebase_cherry_pick_patch"
-
-        with open(path, "w+", encoding="utf-8") as f:
-            f.write(patch)
+        format_patch(repo, sha, path)
         apply_patch(repo, path, sha)
     else:
         with sh.pushd(repo):
@@ -342,7 +339,7 @@ def patch_path(title):
     return "patches/" + title + ".patch"
 
 
-def format_patch(repo, sha):
+def diff_sha(repo, sha):
     """Gets the diff between HEAD~ and HEAD"""
 
     with sh.pushd(repo):
@@ -356,6 +353,16 @@ def format_patch(repo, sha):
         )
 
     return str(diff)
+
+
+def format_patch(repo, sha, path):
+    """Outputs a diff corresponding to given revision to a patch file at given path"""
+
+    diff = diff_sha(repo, sha)
+    with open(path, "w+", encoding="utf-8") as f:
+        f.write(diff)
+
+    return path
 
 
 def revision_sha(repo_path, branch):
@@ -386,16 +393,13 @@ def sha_in_head(repo, sha):
 def save_head(repo, sha, path_override=None, add_prefix=False):
     """Saves the current diff as a conflict resolution"""
 
-    diff = format_patch(repo, "HEAD")
     if path_override is None:
         title = patch_title(repo, sha)
         path = patch_path(title)
     else:
         path = path_override
     print("Saving patch", sha, "as", path)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(diff)
-
+    format_patch(repo, "HEAD", path)
     add_kcr_patch_tag(path, add_prefix)
 
 
