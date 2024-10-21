@@ -29,6 +29,17 @@ func NewCrosDutContainer(deviceId *common.DeviceIdentifier) *builders.ContainerB
 	return dutContainerBuilder
 }
 
+func NewServoNexusContainer(deviceId *common.DeviceIdentifier) *builders.ContainerBuilder {
+	servoTaskId := common.NewTaskIdentifier(common.ServoNexus).AddDeviceId(deviceId)
+	servoContainerBuilder := builders.NewContainerBuilder(
+		servoTaskId.Id, common.ServoNexus, "",
+		"/tmp/servod", fmt.Sprintf("%s server -server_port 0", common.CrosServod),
+	)
+	servoContainerBuilder.Network = "adbnet"
+
+	return servoContainerBuilder
+}
+
 func NewCrosProvisionContainer(ContainerId *common.TaskIdentifier) *builders.ContainerBuilder {
 	provisionContainerBuilder := builders.NewContainerBuilder(
 		ContainerId.Id, common.CrosProvision, "",

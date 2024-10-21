@@ -13,6 +13,8 @@ const (
 	AndroidProvision = "android-provision"
 	CrosDut          = "cros-dut"
 	RdbPublish       = "rdb-publish"
+	ServoNexus       = "servo-nexus"
+	CrosServod       = "cros-servod"
 
 	// Device base identifiers.
 	Primary   = "primary"

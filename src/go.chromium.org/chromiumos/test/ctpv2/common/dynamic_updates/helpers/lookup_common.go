@@ -102,6 +102,7 @@ func (LH *DynamicProvisionHelper) GenerateProvisionRequest(req *api.InternalTest
 	return GenerateProvisionRequest(
 		req, taskId, deviceId,
 		[]*builders.ContainerBuilder{
+			NewServoNexusContainer(deviceId),
 			NewCrosDutContainer(deviceId),
 			provisionContainer,
 		},

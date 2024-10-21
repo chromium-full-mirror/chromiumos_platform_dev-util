@@ -15,10 +15,12 @@ import (
 // DefaultProvisionStartUpRequest outlines the default values
 // typically required for starting up a provision task.
 func DefaultProvisionStartUpRequest(deviceId *common.DeviceIdentifier) *interfaces.ProvisionTaskStartUpRequest {
+	servoTaskIdentifier := common.NewTaskIdentifier(common.ServoNexus).AddDeviceId(deviceId)
 	return &interfaces.ProvisionTaskStartUpRequest{
 		DynamicInputs: map[string]string{
-			"dut":       deviceId.GetDevice("dut"),
-			"dutServer": deviceId.GetCrosDutServer(),
+			"dut":            deviceId.GetDevice("dut"),
+			"dutServer":      deviceId.GetCrosDutServer(),
+			"servoNexusAddr": servoTaskIdentifier.Id,
 		},
 	}
 }

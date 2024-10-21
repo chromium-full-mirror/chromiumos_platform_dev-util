@@ -32,6 +32,7 @@ type ContainerBuilder struct {
 	ContainerTemplate *api.Template
 	DynamicDeps       []*api.DynamicDep
 	AdditionalVolumes []string
+	Network           string
 }
 
 // NewContainerBuilder initializes.
@@ -96,5 +97,6 @@ func (builder *ContainerBuilder) Build() *api.ContainerRequest {
 		ContainerImageKey:  builder.ContainerImageKey,
 		ContainerImagePath: builder.ContainerImagePath,
 		DynamicDeps:        builder.DynamicDeps,
+		Network:            builder.Network,
 	}
 }
