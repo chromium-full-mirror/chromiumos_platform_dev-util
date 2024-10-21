@@ -60,18 +60,19 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	}
 	cacheServerAdd := s.params.Dut.GetCacheServer().GetAddress().GetAddress()
 	installCommand := ""
-	if strings.Contains(s.params.TargetImagePath.GetPath(), "android-build") {
-		buildId, err := targetBuild(s.params.TargetImagePath.GetPath())
+	targetImgPath := s.params.TargetImagePath.GetPath()
+	if strings.Contains(targetImgPath, "android-build") {
+		buildId, err := targetBuild(targetImgPath)
 		if err != nil {
 			return nil, api.InstallResponse_STATUS_INVALID_REQUEST, err
 		}
-		launchTarget, err := extractTargetLaunch(s.params.TargetImagePath.GetPath())
+		launchTarget, err := extractTargetLaunch(targetImgPath)
 		if err != nil {
 			return nil, api.InstallResponse_STATUS_INVALID_REQUEST, err
 		}
 		installCommand = fmt.Sprintf("al-install android-build/builds/%s/%s/attempts/latest/artifacts/android-desktop_image.bin.gz %s", buildId, launchTarget, cacheServerAdd)
 	} else {
-		installCommand = "cros-install chromeos-image-archive/brya-release/R130-16033.4.0 " + cacheServerAdd
+		installCommand = fmt.Sprintf("cros-install %s %s", targetImgPath[:5], cacheServerAdd)
 	}
 	log.Println("Running command on host now ", installCommand)
 	if output, err := session.CombinedOutput(installCommand); err != nil {

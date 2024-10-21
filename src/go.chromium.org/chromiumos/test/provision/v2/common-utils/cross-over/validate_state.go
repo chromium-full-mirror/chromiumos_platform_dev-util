@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
@@ -84,9 +85,14 @@ func (s ValidateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 		}
 		log.Println("Content of /etc/os-release ", content)
-		// TODO: Remove hardcoded version
-		if !strings.Contains(content, "16033.4.0") {
-			err = fmt.Errorf("expected version 16033.4.0 but got " + content)
+		buildIDRegex := regexp.MustCompile("BUILD_ID=(.*)")
+		buildIDResult := buildIDRegex.FindStringSubmatch(content)
+		if len(buildIDResult) == 0 {
+			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, fmt.Errorf("could not find buildId")
+		}
+		targetImgPath := s.params.TargetImagePath.GetPath()
+		if !strings.Contains(targetImgPath, buildIDResult[1]) {
+			err = fmt.Errorf("expected version %s but got %s", targetImgPath, buildIDResult[1])
 			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 		}
 	}
