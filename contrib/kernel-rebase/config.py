@@ -494,5 +494,5 @@ topiclist_short = [
 #
 #     Email address         Type      Role
 spreadsheet_share_with = {
-#    "example@google.com": ["user", "reader"],
+    #    "example@google.com": ["user", "reader"],
 }
