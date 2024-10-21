@@ -45,6 +45,10 @@ subject_droplist = ["ANDROID:", "Android:", "android:"]
 # by default.
 debug = False
 
+# Control whether to dump patch files for review. If enabled, the output will
+# be located under review/$(topic)/{original,new} directories
+output_patches_for_review = False
+
 # List of SHAs to be dropped manually, for example because they are
 # upstream but not auto-detected by the tool.
 sha_droplist = []

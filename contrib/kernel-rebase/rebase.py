@@ -330,6 +330,10 @@ class Rebaser:
 
         print("Rebasing topics %s, branch %s" % (topic_list, end_name))
 
+        if output_patches_for_review:
+            sh.mkdir("-p", review_path(end_name, "/new"))
+            sh.mkdir("-p", review_path(end_name, "/original"))
+
         print("Checkout to %s..." % topic_branch)
         checkout("kernel-upstream", topic_branch)
 
@@ -408,6 +412,7 @@ class Rebaser:
                     )  # sha is only used for debugs
                     add_kcr_patch_tag(diff)
                 noconflicts += 1
+                save_for_review("kernel-upstream", end_name, sha, fsha)
                 # No conflicts, check rerere and continue
                 call_hook(fsha, "post")
                 continue
@@ -435,6 +440,7 @@ class Rebaser:
                 with sh.pushd("kernel-upstream"):
                     try:
                         sh.git("-c", "core.editor=true", "am", "--continue")
+                        save_for_review("kernel-upstream", end_name, sha, fsha)
                         call_hook(fsha, "post")
                     except sh.ErrorReturnCode_128 as e:
                         am_err = "No changes - did you forget" in str(e.stdout)
@@ -480,6 +486,7 @@ class Rebaser:
                 with sh.pushd("kernel-upstream"):
                     try:
                         sh.git("-c", "core.editor=true", "am", "--continue")
+                        save_for_review("kernel-upstream", end_name, sha, fsha)
                         call_hook(sha, "post")
                     except Exception as e:  # pylint: disable=broad-except
                         err_s = str(e)
@@ -548,6 +555,9 @@ class Rebaser:
                             + "' to "
                             + topic
                             + " topic branch."
+                        )
+                        save_for_review(
+                            "kernel-upstream", end_name, None, "HEAD"
                         )
                         call_hook("[nosha]", "post")
                         continue
@@ -701,6 +711,25 @@ def triage():
     with open("total_stats.bin", "wb") as f:
         pickle.dump(total_stats, f)
     return (topic_stats, topic_stderr)
+
+
+def review_path(topic, suffix):
+    """Returns path where patches should be saved for review + given suffix at the end"""
+    return "review/" + topic + "/" + suffix
+
+
+def save_for_review(repo, topic, src_sha, new_sha):
+    """Saves source (@src_sha) and resolved (@HEAD) patches as files for review"""
+
+    if not output_patches_for_review:
+        return
+
+    title = patch_title(repo, new_sha)
+    if src_sha is not None:
+        path = review_path(topic, "original/") + title + ".patch"
+        format_patch(repo, src_sha, path)
+    path = review_path(topic, "/new/") + title + ".patch"
+    format_patch(repo, "HEAD", path)
 
 
 def save_head_user(prefix=None):
