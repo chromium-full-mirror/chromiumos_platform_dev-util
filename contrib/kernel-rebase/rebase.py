@@ -598,8 +598,8 @@ class Rebaser:
             return
         src_gid = ret[0][1]
         src = ""
-        for topic_name in self.topics:
-            if self.topics[topic_name] == src_gid:
+        for topic_name, gid in self.topics.items():
+            if gid == src_gid:
                 src = src_gid
                 src_topic = topic_name
         assert src != "", "No such topic?"
@@ -628,7 +628,7 @@ def triage():
     verify_time = datetime.now() - start  # about 0s
 
     # Check if executor is alive, we'll need it for verifying build
-    if do_on_cros_sdk("true", 1) == {}:
+    if not do_on_cros_sdk("true", 1):
         print("Is executor running?")
         return None
     r = Rebaser()
@@ -636,7 +636,7 @@ def triage():
     upstream_stats = r.upstreamed
     total_stats = r.total
     topic_stderr = {}
-    for topic in topic_stats:
+    for topic in list(topic_stats):
         topic_branch = branch_name("triage", rebase_target, topic)
         ret = r.rebase_one(topic, is_triage=True)
         topic_stats[topic] = [
