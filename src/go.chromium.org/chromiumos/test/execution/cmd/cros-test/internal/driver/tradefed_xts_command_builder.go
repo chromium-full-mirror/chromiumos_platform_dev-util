@@ -27,8 +27,7 @@ const (
 
 var ctsSkipDownloadArtifacts = []string{"TESTS_ZIP", "DEVICE_IMAGE", "BASEBAND"}
 
-func extractBuildInfo(test *api.TestCase, metadata *api.ExecutionMetadata) (branch string, target string, build string) {
-	// First priority are execution metadata flags.
+func extractBuildInfoFromExecutionMetadata(metadata *api.ExecutionMetadata) (branch string, target string, build string) {
 	if branchFlag, err := extractMetadataFlag(metadata, "branch"); err == nil {
 		branch = branchFlag
 	}
@@ -39,16 +38,19 @@ func extractBuildInfo(test *api.TestCase, metadata *api.ExecutionMetadata) (bran
 		branch = buildIdFlag
 	}
 
-	// If not passed in execution metadata, check the test metadata tags.
+	return
+}
+
+func extractBuildInfoFromTest(test *api.TestCase) (branch string, target string, build string) {
 	for _, t := range test.Tags {
-		if strings.HasPrefix(t.Value, "branch:") && branch == "" {
+		if strings.HasPrefix(t.Value, "branch:") {
 			branch = strings.TrimPrefix(t.Value, "branch:")
 		}
 		// TODO: select the correct target based on device architecture.
-		if strings.HasPrefix(t.Value, "target:") && strings.Contains(t.Value, "x86") && target == "" {
+		if strings.HasPrefix(t.Value, "target:") && strings.Contains(t.Value, "x86") {
 			target = strings.TrimPrefix(t.Value, "target:")
 		}
-		if strings.HasPrefix(t.Value, "build_id:") && build == "" {
+		if strings.HasPrefix(t.Value, "build_id:") {
 			build = strings.TrimPrefix(t.Value, "build_id:")
 		}
 	}
@@ -204,23 +206,37 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 	}
 
 	var buildInfoReported = false
+	var invocationInfoReported = false
 	var branch, target, build string
+	branch, target, build = extractBuildInfoFromExecutionMetadata(metadata)
+	if len(branch) > 0 && len(target) > 0 && len(build) > 0 {
+		// If provided, use these to set branch, target and build. this will make internal
+		// TF ants plugin to work correctly with ATP created invocation.
+		cmd = append(cmd, "--branch", branch, "--build-flavor", target,
+			"--build-id", build)
+		invocationInfoReported = true
+		logger.Println("Setting build info from execution metadata - branch/target/build: ", branch, "/", target, "/", build)
+	}
 
 	for _, t := range tests {
 		testName := formatTestName(t.TestCase.Name)
-		branch, target, build = extractBuildInfo(t.TestCase, metadata)
-		if len(branch) > 0 && len(target) > 0 && len(build) > 0 && !buildInfoReported {
-			cmd = append(cmd, "--branch", branch, "--build-flavor", target,
-				"--build-id", build)
-			if !isAospTradefed() {
-				cmd = append(cmd, "--cts-branch", branch, "--cts-build-flavor", target,
-					"--cts-build-id", build)
+		ctsBranch, ctsTarget, ctsBuild := extractBuildInfoFromTest(t.TestCase)
+		if len(ctsBranch) > 0 && len(ctsTarget) > 0 && len(ctsBuild) > 0 && !buildInfoReported {
+			if !invocationInfoReported {
+				// if no build info is updated yet, then use test metadata build info to update them.
+				cmd = append(cmd, "--branch", ctsBranch, "--build-flavor", ctsTarget,
+					"--build-id", ctsBuild)
+				invocationInfoReported = true
 			}
+
+			if !isAospTradefed() {
+				cmd = append(cmd, "--cts-branch", ctsBranch, "--cts-build-flavor", ctsTarget,
+					"--cts-build-id", ctsBuild)
+			}
+			logger.Println("Setting cts build info from test metadata - branch/target/build: ", ctsBranch, "/", ctsTarget, "/", ctsBuild)
 			buildInfoReported = true
 		}
-		// quotedTestName := fmt.Sprintf("\"%s\"", testName)
-		logger.Println("Running provided test: ", testName,
-			" for branch/target/build: ", branch, "/", target, "/", build)
+		logger.Println("Running provided test: ", testName)
 
 		if isAospTradefed() {
 			cmd = append(cmd, "--include-filter", testName)
