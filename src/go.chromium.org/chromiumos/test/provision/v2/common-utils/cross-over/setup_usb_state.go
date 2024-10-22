@@ -22,8 +22,7 @@ import (
 // TODO: Set provisionOSImagePath when its ready. Currently using a cros test image as a placeholder.
 // TODO: Post 9/23 deadline, remove provisionOSImagePath hardcoding here and input from provision request.
 const (
-	provisionOSImagePath = "gs://chromeos-throw-away-bucket/kimjae/brya-provision-v2.bin"
-	dutSeesUsbkeyWait    = time.Second * 5
+	dutSeesUsbkeyWait = time.Second * 5
 )
 
 // SetupUSBState downloads the bootable provision image onto USB.
@@ -47,6 +46,8 @@ func (s SetupUSBState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 	if strings.Contains(servoHostPath, satlab) {
 		servodDockerContainerName = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
 	}
+	board := s.params.Dut.GetChromeos().GetDutModel().GetBuildTarget()
+	provisionOSImagePath := fmt.Sprintf("gs://chromeos-throw-away-bucket/kimjae/%s-provision-v2.bin", board)
 
 	// TODO: Instead of passing cache server url, we should pass gs path and cros-servod should build cache url from it.
 	provisionImgCacheServerPath := fmt.Sprintf("http://%s:%v/download/%s", s.params.Dut.GetCacheServer().GetAddress().GetAddress(), s.params.Dut.GetCacheServer().GetAddress().GetPort(), provisionOSImagePath[5:])
