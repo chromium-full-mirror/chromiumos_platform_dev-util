@@ -437,23 +437,24 @@ class Rebaser:
             if is_resolved("kernel-upstream") and not override_unresolved:
                 print("All resolved automatically.")
                 autoresolved += 1
-                with sh.pushd("kernel-upstream"):
-                    try:
+                try:
+                    with sh.pushd("kernel-upstream"):
                         sh.git("-c", "core.editor=true", "am", "--continue")
-                        save_for_review("kernel-upstream", end_name, sha, fsha)
-                        call_hook(fsha, "post")
-                    except sh.ErrorReturnCode_128 as e:
-                        am_err = "No changes - did you forget" in str(e.stdout)
-                        if am_err:
-                            print(
-                                "Cherry-pick/am empty due to conflict resolution. Skip."
-                            )
+                except sh.ErrorReturnCode_128 as e:
+                    am_err = "No changes - did you forget" in str(e.stdout)
+                    if am_err:
+                        print(
+                            "Cherry-pick/am empty due to conflict resolution. Skip."
+                        )
+                        with sh.pushd("kernel-upstream"):
                             sh.git("-c", "core.editor=true", "am", "--abort")
-                            call_hook(fsha, "post_empty")
-                            continue
-                        raise e
-                    if diff is not None:
-                        add_kcr_patch_tag(diff)
+                        call_hook(fsha, "post_empty")
+                        continue
+                    raise e
+                if diff is not None:
+                    add_kcr_patch_tag(diff)
+                save_for_review("kernel-upstream", end_name, sha, fsha)
+                call_hook(fsha, "post")
             elif is_triage:
                 # Conflict requires manual resolution - drop and continue
                 print("Commit requires manual resolution. Dropping it for now.")
@@ -483,26 +484,27 @@ class Rebaser:
                     print("Something still unresolved. Resolve and hit enter.")
                     input()
                 manual += 1
-                with sh.pushd("kernel-upstream"):
-                    try:
+                try:
+                    with sh.pushd("kernel-upstream"):
                         sh.git("-c", "core.editor=true", "am", "--continue")
-                        save_for_review("kernel-upstream", end_name, sha, fsha)
-                        call_hook(sha, "post")
-                    except Exception as e:  # pylint: disable=broad-except
-                        err_s = str(e)
-                        if "did you forget to use 'git add'" in err_s:
+                except Exception as e:  # pylint: disable=broad-except
+                    err_s = str(e)
+                    if "did you forget to use 'git add'" in err_s:
+                        with sh.pushd("kernel-upstream"):
                             sh.git("am", "--skip")
-                            call_hook(fsha, "post_drop")
-                            print(
-                                "Patch empty due to conflict resolution. Skip."
-                            )
-                        else:
-                            print("git am --continue failed:")
-                            print(e)
-                            print("Fatal? [y/n]")
-                            ans = input()
-                            if ans in ["y", "Y"]:
-                                return {}
+                        call_hook(fsha, "post_drop")
+                        print(
+                            "Patch empty due to conflict resolution. Skip."
+                        )
+                    else:
+                        print("git am --continue failed:")
+                        print(e)
+                        print("Fatal? [y/n]")
+                        ans = input()
+                        if ans in ["y", "Y"]:
+                            return {}
+                save_for_review("kernel-upstream", end_name, sha, fsha)
+                call_hook(sha, "post")
                 save_head("kernel-upstream", fsha)
             elif cmd in ["drop", "d"]:
                 dropped += 1
