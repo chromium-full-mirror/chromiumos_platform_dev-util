@@ -51,10 +51,14 @@ func Main() error {
 	defer cancelFlash()
 
 	go func(rw *progress.ReportingWriter) {
-		ch <- r.Flash(flashCtx, payload, rw, artifact.Kernel, partState.InactiveKernel())
+		ch <- r.Flash(flashCtx, payload, rw, artifact.Kernel, partState.InactiveKernel(),
+			// Flush the page cache for the kernel partition to avoid aliasing between
+			// the partition and the device. See also https://crrev.com/c/5934991.
+			true,
+		)
 	}(pr.NewWriter("kernel"))
 	go func(rw *progress.ReportingWriter) {
-		ch <- r.Flash(flashCtx, payload, rw, artifact.Rootfs, partState.InactiveRootfs())
+		ch <- r.Flash(flashCtx, payload, rw, artifact.Rootfs, partState.InactiveRootfs(), false)
 	}(pr.NewWriter("rootfs"))
 	go func(rw *progress.ReportingWriter) {
 		ch <- r.FlashStateful(flashCtx, payload, rw, r.ClobberStateful)

@@ -91,7 +91,7 @@ func (req *Request) openObject(ctx context.Context, p payload.Payload, rw *progr
 }
 
 // Flash a partition with imageID to partition.
-func (req *Request) Flash(ctx context.Context, p payload.Payload, rw *progress.ReportingWriter, imageID artifact.ImageID, partition string) error {
+func (req *Request) Flash(ctx context.Context, p payload.Payload, rw *progress.ReportingWriter, imageID artifact.ImageID, partition string, sync bool) error {
 	r, close, err := req.openObject(ctx, p, rw, imageID, true)
 	if err != nil {
 		return err
@@ -110,6 +110,24 @@ func (req *Request) Flash(ctx context.Context, p payload.Payload, rw *progress.R
 
 	if _, err := copyChunked(w, r, make([]byte, 1<<20)); err != nil {
 		return fmt.Errorf("copy to %s failed: %w", partition, err)
+	}
+
+	if sync {
+		if err := w.Sync(); err != nil {
+			return fmt.Errorf("cannot sync partition: %w", err)
+		}
+
+		dropCaches, err := os.OpenFile("/proc/sys/vm/drop_caches", os.O_WRONLY|os.O_TRUNC, 0666)
+		if err != nil {
+			return fmt.Errorf("failed to open /proc/sys/vm/drop_caches: %w", err)
+		}
+		defer dropCaches.Close()
+		if _, err := dropCaches.WriteString("1\n"); err != nil {
+			return fmt.Errorf("failed to write /proc/sys/vm/drop_caches: %w", err)
+		}
+		if err := dropCaches.Close(); err != nil {
+			return fmt.Errorf("failed to close /proc/sys/vm/drop_caches: %w", err)
+		}
 	}
 
 	return nil
