@@ -8,6 +8,7 @@ go_library(
     name = "payload",
     srcs = [
         "cloud_storage.go",
+        "http.go",
         "payload.go",
     ],
     importpath = "chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/payload",

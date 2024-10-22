@@ -16,12 +16,16 @@ import (
 // One of the payload types must be set.
 type OneOf struct {
 	CloudStorage *CloudStorage `json:"cloud_storage"`
+	HTTP         *HTTP         `json:"http"`
 }
 
 // Instance returns the Payload instance.
 func (p *OneOf) Instance() (Payload, error) {
 	if p.CloudStorage != nil {
 		return p.CloudStorage, nil
+	}
+	if p.HTTP != nil {
+		return p.HTTP, nil
 	}
 	return nil, fmt.Errorf("none of the payloads are set")
 }

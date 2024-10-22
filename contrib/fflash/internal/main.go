@@ -21,6 +21,7 @@ import (
 
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/dut"
 	embeddedagent "chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/embedded-agent"
+	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/payload"
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/ssh"
 )
 
@@ -69,6 +70,7 @@ refer to the error message below:
 }
 
 type Options struct {
+	PayloadFile   string `json:",omitempty"` // JSON payload file to flash
 	GS            string `json:",omitempty"` // gs:// directory to flash
 	VersionString string `json:",omitempty"` // version string such as R105-14989.0.0
 	MilestoneNum  int    `json:",omitempty"` // release number such as 105
@@ -114,7 +116,12 @@ func Main(ctx context.Context, t0 time.Time, target string, opts *Options) error
 	}
 	log.Println("DUT arch:", dutArch)
 
-	payload, err := createGSPayload(ctx, tkSrc, sshClient, target, opts)
+	var payload *payload.OneOf
+	if opts.PayloadFile != "" {
+		payload, err = createFilePayload(opts.PayloadFile)
+	} else {
+		payload, err = createGSPayload(ctx, tkSrc, sshClient, target, opts)
+	}
 	if err != nil {
 		return fmt.Errorf("createGSPayload(): %w", err)
 	}
@@ -203,4 +210,18 @@ func Main(ctx context.Context, t0 time.Time, target string, opts *Options) error
 	}
 
 	return nil
+}
+
+func createFilePayload(payloadFile string) (*payload.OneOf, error) {
+	r, err := os.Open(payloadFile)
+	if err != nil {
+		return nil, err
+	}
+	out := &payload.OneOf{}
+	dec := json.NewDecoder(r)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(out); err != nil {
+		return nil, fmt.Errorf("error parsing %q: %w", payloadFile, err)
+	}
+	return out, nil
 }

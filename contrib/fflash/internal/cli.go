@@ -38,6 +38,8 @@ func cliParse(args []string) (target string, opts Options, err error) {
 		"whether rootfs verification on the new root is enabled. "+
 			"Choices: yes, no (default)",
 	).Default(no).Enum(yes, no)
+	app.Flag("payload", "Path to the JSON encoded raw payload file to send to dut-agent").
+		PlaceHolder("FILE").StringVar(&opts.PayloadFile)
 	clobberStateful := app.Flag(
 		"clobber-stateful",
 		"whether to clobber the stateful partition. Choices: yes, no (default)").Default(no).Enum(yes, no)
