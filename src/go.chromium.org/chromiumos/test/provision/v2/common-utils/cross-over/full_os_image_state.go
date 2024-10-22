@@ -49,7 +49,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	client, err := ssh.Dial("tcp", dutAddress, config)
 	if err != nil {
 		log.Println("Failed to tcp dial: ", err)
-		return nil, api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
+		return nil, api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
 	}
 	defer client.Close()
 	var session *ssh.Session

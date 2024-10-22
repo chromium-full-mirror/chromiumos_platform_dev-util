@@ -77,6 +77,11 @@ func checkADB(logger *log.Logger, dutAddress string, timeout time.Duration) bool
 	return true
 }
 
+func IsCROS(logger *log.Logger, dutAddress string) bool {
+	config := GetSSHConfig()
+	return checkSSH(logger, dutAddress, config, 5, 2*time.Second)
+}
+
 func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
 	logger.Println("Detecting OS type")
 	config := GetSSHConfig()

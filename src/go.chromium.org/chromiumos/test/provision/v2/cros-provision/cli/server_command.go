@@ -99,7 +99,7 @@ func (cc *ServerCommand) validateProtoInputs(cpp *api.CrosProvisionRequest) erro
 func (sc *ServerCommand) Run() error {
 	sc.metadata.Log.Printf("running server mode:")
 
-	ps, closer, err := server.NewProvisionServer(sc.metadata, &executor.CrOSProvisionExecutor{})
+	ps, closer, err := server.NewProvisionServer(sc.metadata, &executor.CrOSProvisionExecutor{Logger: sc.metadata.Log})
 	defer closer()
 	if err != nil {
 		sc.metadata.Log.Fatalln("failed to create provision: ", err)

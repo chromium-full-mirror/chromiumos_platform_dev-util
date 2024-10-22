@@ -9,8 +9,12 @@ package executor
 
 import (
 	"errors"
+	"fmt"
+	"log"
 
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
+	cross_over "go.chromium.org/chromiumos/test/provision/v2/common-utils/cross-over"
+	"google.golang.org/grpc"
 
 	"go.chromium.org/chromiumos/test/provision/v2/cros-provision/service"
 	state_machine "go.chromium.org/chromiumos/test/provision/v2/cros-provision/state-machine"
@@ -20,9 +24,28 @@ import (
 )
 
 type CrOSProvisionExecutor struct {
+	Logger *log.Logger
 }
 
 func (c *CrOSProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, servoNexusAddr string, req *api.InstallRequest) (common_utils.ServiceState, error) {
+	if !cross_over.IsCROS(c.Logger, fmt.Sprintf("%v:%v", dut.GetChromeos().GetSsh().GetAddress(), dut.GetChromeos().GetSsh().GetPort())) {
+		c.Logger.Println("DUT not on CROS, will perform crossOver(ANDROID->CROS) provisioning.")
+		if servoNexusAddr == "" {
+			return nil, fmt.Errorf("servoNexusAdd required for crossover provision")
+		}
+		params := &cross_over.CrossOverParameters{
+			DutClient:       dutClient,
+			Dut:             dut,
+			TargetImagePath: req.GetImagePath(),
+		}
+		conn, err := grpc.Dial(servoNexusAddr, grpc.WithInsecure())
+		if err != nil {
+			return nil, err
+		}
+		crosServodClient := api.NewServodServiceClient(conn)
+		return cross_over.NewCrossOverInitState(crosServodClient, params), nil
+	}
+	c.Logger.Println("CROS Detected, will perform CROS -> CROS provisioning.")
 	cs, err := service.NewCrOSService(dut, dutClient, req)
 	if err != nil {
 		return nil, err
