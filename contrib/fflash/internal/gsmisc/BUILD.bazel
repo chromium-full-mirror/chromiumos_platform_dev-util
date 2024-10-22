@@ -5,9 +5,12 @@
 load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
-    name = "misc",
+    name = "gsmisc",
     srcs = ["gsutil.go"],
-    importpath = "chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/misc",
+    importpath = "chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/gsmisc",
     visibility = ["//:__subpackages__"],
-    deps = ["@com_google_cloud_go_storage//:storage"],
+    deps = [
+        "//internal/artifact",
+        "@com_google_cloud_go_storage//:storage",
+    ],
 )

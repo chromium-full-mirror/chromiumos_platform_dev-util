@@ -22,8 +22,7 @@ import (
 	"google.golang.org/api/iterator"
 
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/artifact"
-	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/dut"
-	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/misc"
+	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/gsmisc"
 )
 
 // version like R{r}-{x}.{y}.{z} e.g. R109-15236.80.0
@@ -182,15 +181,15 @@ func getLatestVersionForLATEST(ctx context.Context, c *storage.Client, board str
 		latestFileObj := c.Bucket("chromeos-image-archive").Object(attrs.Name)
 		r, err := latestFileObj.NewReader(ctx)
 		if err != nil {
-			return "", fmt.Errorf("cannot open LATEST file %s: %w", misc.GsURI(latestFileObj), err)
+			return "", fmt.Errorf("cannot open LATEST file %s: %w", gsmisc.URI(latestFileObj), err)
 		}
 		rawVersion, err := io.ReadAll(r)
 		if err != nil {
-			return "", fmt.Errorf("cannot read from LATEST file %s: %w", misc.GsURI(latestFileObj), err)
+			return "", fmt.Errorf("cannot read from LATEST file %s: %w", gsmisc.URI(latestFileObj), err)
 		}
 		version, err := parseVersion(string(rawVersion))
 		if err != nil {
-			return "", fmt.Errorf("cannot parse LATEST file %s: %w", misc.GsURI(latestFileObj), err)
+			return "", fmt.Errorf("cannot parse LATEST file %s: %w", gsmisc.URI(latestFileObj), err)
 		}
 		// using the latest file to parse version so don't need to worry about milestone when comparing
 		// versions
@@ -283,23 +282,23 @@ func (sid snapshotID) String() string {
 }
 
 // Given an artifact directory, figure out the image names.
-func resolveArtifactImages(ctx context.Context, c *storage.Client, bucket, dir string) (*artifact.Artifact, error) {
-	art := &artifact.Artifact{
+func resolveArtifactImages(ctx context.Context, c *storage.Client, bucket, dir string) (*artifact.GSArtifact, error) {
+	art := &artifact.GSArtifact{
 		Bucket: bucket,
 		Dir:    dir,
 		Images: artifact.ZstdImages,
 	}
-	err1 := dut.CheckArtifact(ctx, c, art)
+	err1 := gsmisc.CheckArtifact(ctx, c, art)
 	if err1 == nil {
 		return art, nil
 	}
 
-	art = &artifact.Artifact{
+	art = &artifact.GSArtifact{
 		Bucket: bucket,
 		Dir:    dir,
 		Images: artifact.GzipImages,
 	}
-	err2 := dut.CheckArtifact(ctx, c, art)
+	err2 := gsmisc.CheckArtifact(ctx, c, art)
 	if err2 == nil {
 		return art, nil
 	}
@@ -310,7 +309,7 @@ func resolveArtifactImages(ctx context.Context, c *storage.Client, bucket, dir s
 // Given a version hint, try to find a snapshot build.
 // For snapshot/postsubmit images, see also:
 // https://docs.google.com/presentation/d/1IynhrQMDtH3dAjXJD3Aheb4ZTYveVwBAEPgf6TgKzUs/edit?resourcekey=0-epY9CwLiU9zLv4E3dDs0FA#slide=id.g150f95639fd_0_70
-func findSnapshotAroundVersion(ctx context.Context, c *storage.Client, snapshotOrPostsubmit, board, versionOrPrefix string) (*artifact.Artifact, error) {
+func findSnapshotAroundVersion(ctx context.Context, c *storage.Client, snapshotOrPostsubmit, board, versionOrPrefix string) (*artifact.GSArtifact, error) {
 	var tryVersions []string
 	if v, err := parseVersion(versionOrPrefix); err != nil {
 		log.Printf("Looking for %s builds with prefix %s", snapshotOrPostsubmit, versionOrPrefix)
@@ -359,7 +358,7 @@ func findSnapshotAroundVersion(ctx context.Context, c *storage.Client, snapshotO
 	return nil, fmt.Errorf("no valid %s build found", snapshotOrPostsubmit)
 }
 
-func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *Options) (*artifact.Artifact, error) {
+func getFlashTarget(ctx context.Context, c *storage.Client, board string, opts *Options) (*artifact.GSArtifact, error) {
 	if opts.GS != "" {
 		url, err := url.Parse(opts.GS)
 		if err != nil {

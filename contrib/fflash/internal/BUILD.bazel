@@ -20,8 +20,9 @@ go_library(
         "//internal/artifact",
         "//internal/dut",
         "//internal/embedded-agent",
-        "//internal/misc",
+        "//internal/gsmisc",
         "//internal/partitions",
+        "//internal/payload",
         "//internal/progress",
         "//internal/ssh",
         "@com_github_alecthomas_kingpin//:kingpin",
@@ -46,5 +47,7 @@ go_test(
         "//internal/artifact",
         "//internal/dut",
         "@com_github_frankban_quicktest//:quicktest",
+        "@com_google_cloud_go_storage//:storage",
+        "@org_golang_google_api//option",
     ],
 )

@@ -21,13 +21,10 @@ go_library(
     deps = [
         "//internal/artifact",
         "//internal/logging",
-        "//internal/misc",
         "//internal/partitions",
+        "//internal/payload",
         "//internal/progress",
         "@com_github_klauspost_compress//zstd",
         "@com_github_klauspost_readahead//:readahead",
-        "@com_google_cloud_go_storage//:storage",
-        "@org_golang_google_api//option",
-        "@org_golang_x_oauth2//:oauth2",
     ],
 )

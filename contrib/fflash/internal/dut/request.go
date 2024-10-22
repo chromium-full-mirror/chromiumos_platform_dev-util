@@ -7,8 +7,7 @@ package dut
 import (
 	"time"
 
-	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/artifact"
-	"golang.org/x/oauth2"
+	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/payload"
 )
 
 // Request contains everything needed to perform a flash.
@@ -16,8 +15,7 @@ type Request struct {
 	// Base time when the flash started, for logging.
 	ElapsedTimeWhenSent time.Duration
 
-	Token    *oauth2.Token
-	Artifact *artifact.Artifact
+	Payload *payload.OneOf
 
 	FlashOptions
 }

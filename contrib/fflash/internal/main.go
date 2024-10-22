@@ -13,14 +13,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 	"time"
 
-	"cloud.google.com/go/storage"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/option"
 
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/dut"
 	embeddedagent "chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/embedded-agent"
@@ -99,13 +96,6 @@ func Main(ctx context.Context, t0 time.Time, target string, opts *Options) error
 		return err
 	}
 
-	storageClient, err := storage.NewClient(ctx,
-		option.WithTokenSource(tkSrc),
-	)
-	if err != nil {
-		return fmt.Errorf("storage.NewClient failed: %w", err)
-	}
-
 	sshDialer, err := ssh.NewDialer(ssh.SshOptions{Port: opts.Port})
 	if err != nil {
 		return fmt.Errorf("failed to make ssh dialer: %w", err)
@@ -124,34 +114,13 @@ func Main(ctx context.Context, t0 time.Time, target string, opts *Options) error
 	}
 	log.Println("DUT arch:", dutArch)
 
-	var board string
-	if opts.GS != "" || opts.Board != "" {
-		board = opts.Board
-	} else {
-		var err error
-		board, err = DetectBoard(sshClient)
-		if err != nil {
-			return fmt.Errorf("cannot detect board of %s: %w. %s", target, err,
-				"specify --board or --gs to bypass auto board detection",
-			)
-		}
-		log.Println("DUT board:", board)
-	}
-
-	art, err := getFlashTarget(ctx, storageClient, board, opts)
+	payload, err := createGSPayload(ctx, tkSrc, sshClient, target, opts)
 	if err != nil {
-		return err
+		return fmt.Errorf("createGSPayload(): %w", err)
 	}
-	log.Printf("flashing directory: gs://%s", path.Join(art.Bucket, art.Dir))
-	log.Print("flashing images: ", strings.Join(art.Names(), " "))
-
-	req, err := createFlashRequest(ctx, tkSrc, art, opts.FlashOptions)
-	if err != nil {
-		return err
-	}
-	// Check that the downscoped token works.
-	if err := dut.CheckArtifact(ctx, storageClient, req.Artifact); err != nil {
-		return err
+	req := &dut.Request{
+		Payload:      payload,
+		FlashOptions: opts.FlashOptions,
 	}
 
 	if opts.DryRun {

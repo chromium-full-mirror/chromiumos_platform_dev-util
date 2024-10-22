@@ -13,6 +13,7 @@ import (
 	"os"
 	"time"
 
+	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/artifact"
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/logging"
 	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/progress"
 )
@@ -34,11 +35,14 @@ func Main() error {
 	log.Printf("active kernel/rootfs: %s, %s", partState.ActiveKernel(), partState.ActiveRootfs())
 	log.Printf("flashing to: %s, %s", partState.InactiveKernel(), partState.InactiveRootfs())
 
-	client, err := r.Client(ctx)
+	payload, err := r.Payload.Instance()
 	if err != nil {
-		return err
+		return fmt.Errorf("r.Payload.Instance(): %w", err)
 	}
-	defer client.Close()
+	if err := payload.InitClient(ctx); err != nil {
+		return fmt.Errorf("payload.InitClient(): %w", err)
+	}
+	defer payload.CloseClient()
 
 	pr := progress.NewProgressReporter()
 	ch := make(chan error)
@@ -47,13 +51,13 @@ func Main() error {
 	defer cancelFlash()
 
 	go func(rw *progress.ReportingWriter) {
-		ch <- r.Flash(flashCtx, client, rw, r.Artifact.Kernel, partState.InactiveKernel())
+		ch <- r.Flash(flashCtx, payload, rw, artifact.Kernel, partState.InactiveKernel())
 	}(pr.NewWriter("kernel"))
 	go func(rw *progress.ReportingWriter) {
-		ch <- r.Flash(flashCtx, client, rw, r.Artifact.Rootfs, partState.InactiveRootfs())
+		ch <- r.Flash(flashCtx, payload, rw, artifact.Rootfs, partState.InactiveRootfs())
 	}(pr.NewWriter("rootfs"))
 	go func(rw *progress.ReportingWriter) {
-		ch <- r.FlashStateful(flashCtx, client, rw, r.ClobberStateful)
+		ch <- r.FlashStateful(flashCtx, payload, rw, r.ClobberStateful)
 	}(pr.NewWriter("stateful"))
 
 	var failed bool

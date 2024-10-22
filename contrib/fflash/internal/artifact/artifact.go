@@ -4,7 +4,9 @@
 
 package artifact
 
-type Artifact struct {
+import "log"
+
+type GSArtifact struct {
 	// Cloud storage bucket path.
 	Bucket string
 	Dir    string
@@ -39,6 +41,21 @@ func (i *Images) Names() []string {
 	}
 }
 
+// Name of the image ID.
+func (i *Images) Name(id ImageID) string {
+	switch id {
+	case Kernel:
+		return i.Kernel
+	case Rootfs:
+		return i.Rootfs
+	case Stateful:
+		return i.Stateful
+	default:
+		log.Panicf("unknown ImageID %q", id)
+	}
+	panic("unreachable")
+}
+
 // GzipImages to flash.
 //
 // See https://source.chromium.org/chromiumos/chromiumos/codesearch/+/main:chromite/lib/constants.py;l=697-704;drc=e94de9b6a35c961b92a9aa57fc3f7923525b9925
@@ -58,3 +75,12 @@ var ZstdImages = Images{
 	Rootfs:      "full_ROOT.bin.zst",
 	Stateful:    "stateful.zst",
 }
+
+// ImageID is used to
+type ImageID string
+
+const (
+	Kernel   ImageID = "kernel"
+	Rootfs   ImageID = "rootfs"
+	Stateful ImageID = "stateful"
+)
