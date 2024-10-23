@@ -173,6 +173,29 @@ patch_deps = {
 disp_overwrite = {}
 # example
 # disp_overwrite['62b865c66db4'] = 'drop'
+
+#
+# devicetree
+#
+disp_overwrite[
+    "b64d69a884ab"
+] = "drop"  #  FROMLIST: dt-bindings: mediatek: Add Mediatek MDP3 dt-bindings
+disp_overwrite[
+    "af209b301e75"
+] = "drop"  #  FROMLIST: dt-bindings: i2c: add attribute default-timing-adjust
+disp_overwrite[
+    "00dc43451ac4"
+] = "drop"  #  CHROMIUM: dt-bindings: arm: mediatek: add early mt8186-corsola devices
+disp_overwrite[
+    "b4667bfee08a"
+] = "pick"  #  FIXUP: FROMLIST: dt-bindings: usb: Add Type-C switch binding
+disp_overwrite[
+    "d32f140fc9c3"
+] = "drop"  #  CHROMIUM: dt-bindings: arm: mediatek: Add MT8186 Chinchou/Chinchou360 Chromebooks
+
+#
+# uncategorized
+#
 disp_overwrite[
     "4dac2b933823"
 ] = "drop"  # FROMLIST: overlayfs: handle XATTR_NOSECURITY flag for get xattr method
