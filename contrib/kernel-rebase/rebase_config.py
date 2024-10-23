@@ -71,8 +71,6 @@ topic_patches["drivers"] = [
 
 topic_patches["bluetooth"] = [
     "fixups/FIXUP: CHROMIUM: bluetooth: Support userspace SCO.patch",
-    "fixups/FIXUP: CHROMIUM: Bluetooth: Optimize the LE connection sequence.patch",
-    "fixups/FIXUP: CHROMIUM: Bluetooth: btusb: Workaround for spotty SCO quality.patch",
 ]
 
 topic_patches["cros_ec"] = [
@@ -218,15 +216,46 @@ disp_overwrite[
 ] = "drop"  #  CHROMIUM: mm/mglru: slow down promotion through page tables
 
 #
+# bluetooth
+#
+disp_overwrite["f2968dcf8e73"] = [
+    "move",
+    "bluetooth",
+]  # FROMLIST: devcoredump: Add per device sysfs entry to enable/disable coredump
+disp_overwrite[
+    "7dd4aecb1f30"
+] = "drop"  # CHROMIUM: Bluetooth: Use addr instead of hci_conn in LE Connection complete
+disp_overwrite[
+    "a1d603d646dd"
+] = "drop"  # CHROMIUM: Bluetooth: Fix LE pair
+disp_overwrite[
+    "343d22969268"
+] = "drop"  # FROMLIST: Bluetooth: btusb: Fix failed to send func ctrl for MediaTek devices.
+disp_overwrite[
+    "fe8b3b7530db"
+] = "drop"  # CHROMIUM: Add a new MGMT error code for 0x3E HCI error.
+disp_overwrite[
+    "c3960a2af1a7"
+] = "drop"  # CHROMIUM: bluetooth: Remove Mode Change from suspend event mask
+disp_overwrite[
+    "6cf88d1fae63"
+] = "drop"  # CHROMIUM: Use link policies to disallow role switches
+disp_overwrite[
+    "e7a013b46db8"
+] = "drop"  # CHROMIUM: Bluetooth: Optimize the LE connection sequence
+disp_overwrite[
+    "7cc71dbe32f3"
+] = "drop"  # CHROMIUM: Bluetooth: hci_sync: keep advertisements during power off
+disp_overwrite[
+    "fec604565502"
+] = "drop"  # CHROMIUM: Fix hci_connect_le argument order
+
+#
 # uncategorized
 #
 disp_overwrite[
     "4dac2b933823"
 ] = "drop"  # FROMLIST: overlayfs: handle XATTR_NOSECURITY flag for get xattr method
-disp_overwrite["f2968dcf8e73"] = [
-    "move",
-    "bluetooth",
-]  # FROMLIST: devcoredump: Add per device sysfs entry to enable/disable coredump
 disp_overwrite["c4b7214921e3"] = [
     "move",
     "block-fs",
@@ -239,13 +268,6 @@ disp_overwrite["3c6ead5c25ad"] = [
     "move",
     "mm",
 ]  # CHROMIUM: mm: Reschedule during per-process reclaim
-disp_overwrite[
-    "8f91972ac6f4"
-] = "drop"  # Revert "Bluetooth: Fix a refcnt underflow problem for hci_conn"
-disp_overwrite[
-    "7dd4aecb1f30"
-] = "drop"  # CHROMIUM: Bluetooth: Use addr instead of hci_conn in LE Connection complete
-disp_overwrite["a1d603d646dd"] = "drop"  # CHROMIUM: Bluetooth: Fix LE pair
 disp_overwrite[
     "bccfdf53c1b2"
 ] = "drop"  # FROMLIST: fuse: Definitions and ioctl for passthrough
@@ -384,9 +406,6 @@ disp_overwrite[
 disp_overwrite[
     "fd7ab9476ab9"
 ] = "drop"  # FROMLIST: media: imx258: add vblank control to support wide frame rate range
-disp_overwrite[
-    "343d22969268"
-] = "drop"  # FROMLIST: Bluetooth: btusb: Fix failed to send func ctrl for MediaTek devices.
 disp_overwrite[
     "c861af77011e"
 ] = "drop"  # CHROMIUM: ARM64: Define compat syscall numbers
