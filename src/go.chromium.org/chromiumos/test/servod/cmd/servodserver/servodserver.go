@@ -187,7 +187,7 @@ func (s *ServodService) CallServod(ctx context.Context, req *api.CallServodReque
 		isSatlab = true
 		containerIp, err := s.getSatlabServodContainerIP(ctx, req.ServodDockerContainerName)
 		if err != nil {
-			err := fmt.Errorf("Servod container not started on satlab.Did you forget to call StartServod?")
+			err := fmt.Errorf("servod container not started on satlab.Did you forget to call StartServod?")
 			return &api.CallServodResponse{
 				Result: &api.CallServodResponse_Failure_{
 					Failure: &api.CallServodResponse_Failure{
