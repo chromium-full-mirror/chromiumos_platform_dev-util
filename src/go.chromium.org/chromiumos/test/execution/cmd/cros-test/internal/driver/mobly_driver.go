@@ -7,7 +7,6 @@ package driver
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -93,7 +92,7 @@ func buildMoblyResult(logger *log.Logger, resultsPath string) *api.CrosTestRespo
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Println("found a panic")
-			logger.Printf("Error: %+v", errors.New(fmt.Sprintf("%v", r)))
+			logger.Printf("Error: %+v", fmt.Errorf("%v", r))
 			logger.Println(string(debug.Stack()))
 		}
 	}()

@@ -25,10 +25,6 @@ import (
 )
 
 const (
-	tradefedTestResultFile = "results/latest/test_result.xml"
-	ctsResultsDir          = "results/"
-	ctsLogsDir             = "logs/"
-
 	tradefedDir          = "/tradefed"
 	tradefedAospBinary   = "tradefed.sh"
 	tradefedGoogleBinary = "tradefed_runner.sh"
@@ -216,7 +212,7 @@ func moveSingleArtifact(resultsDir string, artifact string) error {
 	mvCmd := exec.Command("mv", artifact, resultsDir)
 	out, err := mvCmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("Error moving file: %s, output: %s", err, string(out))
+		return fmt.Errorf("error moving file: %s, output: %s", err, string(out))
 	}
 	return nil
 }

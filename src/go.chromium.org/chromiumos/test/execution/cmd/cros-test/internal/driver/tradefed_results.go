@@ -125,7 +125,7 @@ func selectFileByPattern(pattern string) (string, error) {
 	}
 
 	if len(files) == 0 {
-		return "", fmt.Errorf("No files found matching pattern: %s", pattern)
+		return "", fmt.Errorf("no files found matching pattern: %s", pattern)
 	}
 
 	if len(files) == 1 {
@@ -136,7 +136,7 @@ func selectFileByPattern(pattern string) (string, error) {
 	if len(recentFile) > 0 {
 		return recentFile, nil
 	} else {
-		return "", fmt.Errorf("No files found matching pattern: %s", pattern)
+		return "", fmt.Errorf("no files found matching pattern: %s", pattern)
 	}
 }
 
@@ -323,7 +323,7 @@ func parseCompatibilityXmlResults(logger *log.Logger, testType string, req *api.
 		// Fallback to stub location for XML result file.
 		xmlResultFile, err = selectFileByPattern(filepath.Join(tfStageLogsPath, tfStageResultPattern))
 		if err != nil {
-			return allTestCases, nil, logsDir, fmt.Errorf("Failed to locate result file: %w", err)
+			return allTestCases, nil, logsDir, fmt.Errorf("failed to locate result file: %w", err)
 		}
 	}
 
