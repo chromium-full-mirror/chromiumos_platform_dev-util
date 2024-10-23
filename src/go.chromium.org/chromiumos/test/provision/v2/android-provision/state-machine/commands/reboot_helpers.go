@@ -14,17 +14,6 @@ import (
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/service"
 )
 
-// rebootToSystem reboots DUT to booting system image.
-func rebootToSystem(ctx context.Context, dut *service.DUTConnection, cmd string) error {
-	args := []string{"-s", dut.SerialNumber, "reboot"}
-	if _, err := dut.AssociatedHost.RunCmd(ctx, cmd, args); err != nil {
-		return err
-	}
-	// Device takes some time to boot.
-	maxWaitTime := 120 * time.Second
-	return waitForDevice(ctx, dut, maxWaitTime)
-}
-
 // rebootToBootloader reboots DUT into bootloader mode.
 func rebootToBootloader(ctx context.Context, dut *service.DUTConnection, cmd string) error {
 	args := []string{"-s", dut.SerialNumber, "reboot", "bootloader"}

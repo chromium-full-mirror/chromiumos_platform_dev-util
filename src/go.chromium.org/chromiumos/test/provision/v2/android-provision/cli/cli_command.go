@@ -135,9 +135,12 @@ func (cc *CLICommand) Run() error {
 		if err != nil {
 			return fmt.Errorf("failed to create Android service: %s", err)
 		}
-	} else {
-		svc, err = service.NewAndroidServiceFromAndroidProvisionRequest(api.NewDutServiceClient(dutConn), cc.inputProto)
-	}
+		} else {
+			svc, err = service.NewAndroidServiceFromAndroidProvisionRequest(api.NewDutServiceClient(dutConn), cc.inputProto)
+			if err != nil {
+				return fmt.Errorf("failed to create Android service: %s", err)
+			}
+		}
 	cc.log.Printf("New AndroidService Created")
 	out := &api.AndroidProvisionCLIResponse{
 		Id: &lab_api.Dut_Id{

@@ -27,12 +27,6 @@ const (
 	tastDir          = "/usr/local/libexec/chrome-binary-tests/"
 )
 
-// Time specific consts
-const (
-	twoSeconds = 2 * time.Second
-	tenSeconds = 10 * time.Second
-)
-
 // binaries to be copied in installation
 var copyPaths = [...]string{
 	"ash_shell",
@@ -163,7 +157,7 @@ func (a *AshService) StopChrome(ctx context.Context) error {
 
 // KillChrome tries to pkill chrome, retrying/re-polling every two seconds
 func (a *AshService) KillChrome(ctx context.Context) error {
-	for start := time.Now(); time.Since(start) < tenSeconds; time.Sleep(twoSeconds) {
+	for start := time.Now(); time.Since(start) < 10 * time.Second; time.Sleep(2 * time.Second) {
 		if !a.isChromeInUse(ctx) {
 			return nil
 		}

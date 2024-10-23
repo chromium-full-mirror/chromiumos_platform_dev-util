@@ -76,14 +76,6 @@ func (c curlMatcher) String() string {
 	return fmt.Sprintf("curl -f -S -o %s url?file=(%s)", c.target, c.fileMatcher)
 }
 
-type yamlReader struct {
-	*strings.Reader
-}
-
-func (yr yamlReader) Close() error {
-	return nil
-}
-
 type rpcMsg struct {
 	msg proto.Message
 }

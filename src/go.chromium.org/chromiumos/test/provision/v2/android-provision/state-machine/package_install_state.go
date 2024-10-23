@@ -25,7 +25,7 @@ type PackageInstallState struct {
 
 func (s PackageInstallState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("State: Execute AndroidPackageInstallState")
-	ctx = context.WithValue(ctx, "stage", common.PackageInstall)
+	ctx = context.WithValue(ctx, common.StageCtxKey, common.PackageInstall)
 	cmds := []common_utils.CommandInterface{
 		commands.NewInstallAPKCommand(ctx, s.svc),
 		commands.NewRestartAppCommand(ctx, s.svc),
@@ -50,9 +50,7 @@ func (s PackageInstallState) Execute(ctx context.Context, log *log.Logger) (*any
 }
 
 func (s PackageInstallState) Next() common_utils.ServiceState {
-	return PostInstallState{
-		svc: s.svc,
-	}
+	return PostInstallState(s)
 }
 
 func (s PackageInstallState) Name() string {

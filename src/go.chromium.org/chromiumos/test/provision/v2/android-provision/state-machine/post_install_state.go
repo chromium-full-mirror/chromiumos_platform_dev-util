@@ -23,7 +23,7 @@ type PostInstallState struct {
 
 func (s PostInstallState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("State: Execute AndroidPostInstallState")
-	ctx = context.WithValue(ctx, "stage", common.PostInstall)
+	ctx = context.WithValue(ctx, common.StageCtxKey, common.PostInstall)
 	cmds := []common_utils.CommandInterface{
 		commands.NewCleanupCommand(ctx, s.svc),
 	}

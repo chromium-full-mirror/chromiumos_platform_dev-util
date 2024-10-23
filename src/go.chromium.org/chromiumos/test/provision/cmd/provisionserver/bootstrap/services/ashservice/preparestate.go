@@ -35,9 +35,7 @@ func (s AshPrepareState) Execute(ctx context.Context) error {
 }
 
 func (s AshPrepareState) Next() services.ServiceState {
-	return AshInstallState{
-		service: s.service,
-	}
+	return AshInstallState(s)
 }
 
 func (s AshPrepareState) Name() string {

@@ -57,7 +57,7 @@ func (c *CheckInstallNeeded) Execute(log *log.Logger) error {
 		c.cs.UpdateCros = true
 	}
 
-	if c.cs.UpdateCros == false && c.canClearTPM(c.ctx) {
+	if !c.cs.UpdateCros && c.canClearTPM(c.ctx) {
 		oid, err := c.cs.Connection.RunCmd(c.ctx, "hwsec-ownership-id", []string{"id"})
 		oid = strings.TrimSpace(oid)
 		if err != nil {

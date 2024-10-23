@@ -42,9 +42,7 @@ func (s CrOSProvisionDLCState) Execute(ctx context.Context, log *log.Logger) (*a
 }
 
 func (s CrOSProvisionDLCState) Next() common_utils.ServiceState {
-	return CrOSInstallMiniOSState{
-		service: s.service,
-	}
+	return CrOSInstallMiniOSState(s)
 }
 
 func (s CrOSProvisionDLCState) Name() string {

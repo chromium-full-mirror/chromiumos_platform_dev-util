@@ -20,9 +20,7 @@ func (s CrOSVerifyState) Execute(ctx context.Context) error {
 }
 
 func (s CrOSVerifyState) Next() services.ServiceState {
-	return CrOSProvisionDLCState{
-		service: s.service,
-	}
+	return CrOSProvisionDLCState(s)
 }
 
 func (s CrOSVerifyState) Name() string {

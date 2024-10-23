@@ -64,3 +64,6 @@ var OSVersionToGMSCorePlatformMap = map[string]string{
 	"13": "prodsc",
 	"14": "prodsc",
 }
+
+type ProvisionCtxKey string
+const StageCtxKey ProvisionCtxKey = "stage"

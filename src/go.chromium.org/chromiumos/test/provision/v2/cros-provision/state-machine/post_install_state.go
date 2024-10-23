@@ -54,9 +54,7 @@ func (s CrOSPostInstallState) Execute(ctx context.Context, log *log.Logger) (*an
 }
 
 func (s CrOSPostInstallState) Next() common_utils.ServiceState {
-	return CrOSVerifyState{
-		service: s.service,
-	}
+	return CrOSVerifyState(s)
 }
 
 func (s CrOSPostInstallState) Name() string {

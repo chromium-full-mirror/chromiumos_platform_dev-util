@@ -36,7 +36,7 @@ func NewCopyDataCommand(ctx context.Context, svc *service.AndroidService) *CopyD
 
 func (c *CopyDataCommand) Execute(log *log.Logger) error {
 	log.Printf("Start CopyDataCommand Execute")
-	switch s := c.ctx.Value("stage"); s {
+	switch s := c.ctx.Value(common.StageCtxKey); s {
 	case common.PackageFetch:
 		if err := c.copyPackages(); err != nil {
 			log.Printf("CopyDataCommand Failure: %v", err)

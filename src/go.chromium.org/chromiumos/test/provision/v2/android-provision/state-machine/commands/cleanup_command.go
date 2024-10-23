@@ -30,7 +30,7 @@ func NewCleanupCommand(ctx context.Context, svc *service.AndroidService) *Cleanu
 
 func (c *CleanupCommand) Execute(log *log.Logger) error {
 	log.Printf("Start CleanupCommand Execute")
-	if stage := c.ctx.Value("stage"); stage != nil {
+	if stage := c.ctx.Value(common.StageCtxKey); stage != nil {
 		switch stage {
 		case common.OSInstall:
 			if osImage := c.svc.OS; osImage != nil && osImage.ImagePath.GsPath != "" {
@@ -59,7 +59,7 @@ func (c *CleanupCommand) GetErrorMessage() string {
 }
 
 func (c *CleanupCommand) GetStatus() api.InstallResponse_Status {
-	if stage := c.ctx.Value("stage"); stage == common.PostInstall {
+	if stage := c.ctx.Value(common.StageCtxKey); stage == common.PostInstall {
 		return api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED
 	}
 	return api.InstallResponse_STATUS_PROVISIONING_FAILED

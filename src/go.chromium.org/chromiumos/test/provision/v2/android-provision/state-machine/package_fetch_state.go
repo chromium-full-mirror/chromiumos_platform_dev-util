@@ -25,7 +25,7 @@ type PackageFetchState struct {
 
 func (s PackageFetchState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("State: Execute AndroidPackageFetchState")
-	ctx = context.WithValue(ctx, "stage", common.PackageFetch)
+	ctx = context.WithValue(ctx, common.StageCtxKey, common.PackageFetch)
 	cmds := []common_utils.CommandInterface{
 		commands.NewResolveCIPDPackageCommand(ctx, s.svc),
 		commands.NewFetchCIPDPackageCommand(ctx, s.svc),
@@ -51,9 +51,7 @@ func (s PackageFetchState) Execute(ctx context.Context, log *log.Logger) (*anypb
 }
 
 func (s PackageFetchState) Next() common_utils.ServiceState {
-	return PackageInstallState{
-		svc: s.svc,
-	}
+	return PackageInstallState(s)
 }
 
 func (s PackageFetchState) Name() string {

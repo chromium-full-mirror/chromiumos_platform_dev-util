@@ -70,10 +70,8 @@ var (
 	getVersion                = RunCommandStructure{Command: "cat", Args: []string{"/etc/lsb-release"}}
 	stopUI                    = RunCommandStructure{Command: "stop", Args: []string{"ui"}}
 	stopUpdateEngine          = RunCommandStructure{Command: "stop", Args: []string{"update-engine"}}
-	dlcLibExists              = PathExistsCommandStructure{Path: common_utils.DlcLibDir}
 	kvmDevicePathExists       = PathExistsCommandStructure{Path: common_utils.KvmDevicePath}
 	stopDLCservice            = RunCommandStructure{Command: "stop", Args: []string{"dlcservice"}}
-	removeVerified            = RunCommandStructure{Command: "rm", Args: []string{"-f", "/var/cache/dlc/*/*/dlc_b/verified"}}
 	startDLCservice           = RunCommandStructure{Command: "start", Args: []string{"dlcservice"}}
 	copyKernel                = PipeCommandStructure{Source: "gs://path/to/image/full_dev_part_KERN.bin.gz", Command: "gzip -d | dd of=" + deviceDiskKernelB + " obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to " + deviceDiskKernelB + " failed.\" >&2\n  exit 1\nfi"}
 	copyZstKernel             = PipeCommandStructure{Source: "gs://path/to/image/full_KERN.bin.zst", Command: "zstdcat | dd of=" + deviceDiskKernelB + " obs=2M \npipestatus=(\"${PIPESTATUS[@]}\")\nif [[ \"${pipestatus[0]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Fetching path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[1]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Decompressing path/to/image failed.\" >&2\n  exit 1\nelif [[ \"${pipestatus[2]}\" -ne 0 ]]; then\n  echo \"$(date --rfc-3339=seconds) ERROR: Writing to " + deviceDiskKernelB + " failed.\" >&2\n  exit 1\nfi"}
@@ -1671,14 +1669,6 @@ func getPathExistsCommand(sam *mock_common_utils.MockServiceAdapterInterface, s 
 
 func getCreateDirCommand(sam *mock_common_utils.MockServiceAdapterInterface, s CreateDirsStructure) *gomock.Call {
 	return sam.EXPECT().CreateDirectories(gomock.Any(), gomock.Eq(s.Dirs))
-}
-
-func getDeleteDirCommand(sam *mock_common_utils.MockServiceAdapterInterface, s DeleteDirStructure) *gomock.Call {
-	return sam.EXPECT().DeleteDirectory(gomock.Any(), gomock.Eq(s.Dir))
-}
-
-func getCopyDataCommand(sam *mock_common_utils.MockServiceAdapterInterface, s CopyCommandStructure) *gomock.Call {
-	return sam.EXPECT().CopyData(gomock.Any(), gomock.Eq(s.Source), gomock.Eq(s.Dest))
 }
 
 func getPipeDataCommand(sam *mock_common_utils.MockServiceAdapterInterface, s PipeCommandStructure) *gomock.Call {

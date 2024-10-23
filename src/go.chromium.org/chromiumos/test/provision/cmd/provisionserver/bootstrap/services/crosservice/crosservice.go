@@ -70,8 +70,6 @@ func (c *CrOSService) CleanupOnFailure(states []services.ServiceState, execution
 	Constant Variables
 */
 
-const curlWithRetries = "curl -S -s -v -# -C - --retry 3 --retry-delay 60"
-
 const pipeStatusHandler = `
 pipestatus=("${PIPESTATUS[@]}")
 if [[ "${pipestatus[0]}" -ne 0 ]]; then
@@ -437,8 +435,6 @@ func (c *CrOSService) CorrectDLCPermissions(ctx context.Context) error {
 }
 
 func bucketJoin(bucket string, append string) string {
-	if strings.HasPrefix(bucket, "gs://") {
-		bucket = bucket[5:]
-	}
+	bucket = strings.TrimPrefix(bucket, "gs://")
 	return fmt.Sprintf("gs://%s", path.Join(bucket, append))
 }

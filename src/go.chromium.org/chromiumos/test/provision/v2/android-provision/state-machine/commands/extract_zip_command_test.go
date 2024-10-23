@@ -58,7 +58,7 @@ func TestExtractZipCommand(t *testing.T) {
 		ctx := context.Background()
 		cmd := NewExtractZipCommand(ctx, svc)
 		Convey("Execute - PackageFetch", func() {
-			cmd.ctx = context.WithValue(cmd.ctx, "stage", common.PackageFetch)
+			cmd.ctx = context.WithValue(cmd.ctx, common.StageCtxKey, common.PackageFetch)
 			mockZipReader := zip.NewMockZipReaderInterface(ctrl)
 			cmd.zip = mockZipReader
 			log, _ := common.SetUpLog(provisionDir)
@@ -67,7 +67,7 @@ func TestExtractZipCommand(t *testing.T) {
 			So(cmd.Execute(log), ShouldBeNil)
 		})
 		Convey("Execute - undefined stage", func() {
-			cmd.ctx = context.WithValue(cmd.ctx, "stage", nil)
+			cmd.ctx = context.WithValue(cmd.ctx, common.StageCtxKey, nil)
 			log, _ := common.SetUpLog(provisionDir)
 			So(cmd.Execute(log), ShouldNotBeNil)
 		})

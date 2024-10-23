@@ -73,11 +73,11 @@ func (s *VMLeaserServiceServer) Install(ctx context.Context, req *api.InstallReq
 	case "type.googleapis.com/chromiumos.test.api.ReleaseVMRequest":
 		return s.handleReleaseVMRequest(ctx, op, req)
 	default:
-		return nil, fmt.Errorf("Invalid metadata type: %s in request", metadataType)
+		return nil, fmt.Errorf("invalid metadata type: %s in request", metadataType)
 	}
 }
 
-func (s *VMLeaserServiceServer) handleLeaseVMRequest(ctx context.Context, op *longrunning.Operation, req *api.InstallRequest) (*longrunning.Operation, error) {
+func (s *VMLeaserServiceServer) handleLeaseVMRequest(_ context.Context, op *longrunning.Operation, req *api.InstallRequest) (*longrunning.Operation, error) {
 	var leaseVMReq api.LeaseVMRequest
 	if err := req.Metadata.UnmarshalTo(&leaseVMReq); err != nil {
 		s.logger.Printf("Invalid request: %s", err)
@@ -94,7 +94,7 @@ func (s *VMLeaserServiceServer) handleLeaseVMRequest(ctx context.Context, op *lo
 		return nil, err
 	}
 	authorization := "Bearer " + token
-	ctx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("Authorization", authorization))
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("Authorization", authorization))
 	resp, err := s.vmleaserClient.LeaseVM(ctx, &leaseVMReq)
 	if err != nil {
 		s.logger.Printf("Failed to make gRPC request: %s", err)
@@ -113,7 +113,7 @@ func (s *VMLeaserServiceServer) handleLeaseVMRequest(ctx context.Context, op *lo
 	return op, nil
 }
 
-func (s *VMLeaserServiceServer) handleReleaseVMRequest(ctx context.Context, op *longrunning.Operation, req *api.InstallRequest) (*longrunning.Operation, error) {
+func (s *VMLeaserServiceServer) handleReleaseVMRequest(_ context.Context, op *longrunning.Operation, req *api.InstallRequest) (*longrunning.Operation, error) {
 	var releaseVMReq api.ReleaseVMRequest
 	if err := req.Metadata.UnmarshalTo(&releaseVMReq); err != nil {
 		s.logger.Printf("Invalid request: %s", err)
@@ -130,7 +130,7 @@ func (s *VMLeaserServiceServer) handleReleaseVMRequest(ctx context.Context, op *
 		return nil, err
 	}
 	authorization := "Bearer " + token
-	ctx = metadata.NewOutgoingContext(context.Background(), metadata.Pairs("Authorization", authorization))
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs("Authorization", authorization))
 	resp, err := s.vmleaserClient.ReleaseVM(ctx, &releaseVMReq)
 	if err != nil {
 		s.logger.Printf("Failed to make gRPC request: %s", err)

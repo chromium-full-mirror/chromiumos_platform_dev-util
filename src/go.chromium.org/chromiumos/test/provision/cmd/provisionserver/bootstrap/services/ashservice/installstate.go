@@ -26,9 +26,7 @@ func (s AshInstallState) Execute(ctx context.Context) error {
 }
 
 func (s AshInstallState) Next() services.ServiceState {
-	return AshPostInstallState{
-		service: s.service,
-	}
+	return AshPostInstallState(s)
 }
 
 func (s AshInstallState) Name() string {

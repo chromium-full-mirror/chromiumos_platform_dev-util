@@ -21,7 +21,6 @@ import (
 // variables in CrOSService
 type CrOSPreInitState struct {
 	service    *service.CrOSService
-	shouldSkip bool
 }
 
 // NewCrOSPreInitState provides an interface to CrOSPreInitState.
@@ -53,17 +52,12 @@ func (s CrOSPreInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 
 // Next provides the interface to the CrosInitState if the install flag is set.
 func (s CrOSPreInitState) Next() common_utils.ServiceState {
-	if s.service.UpdateCros == true {
-		return CrOSInitState{
-			service: s.service,
-		}
-	} else if s.service.QuickResetDevice == true {
-		return CrOSResetDeviceState{
-			service: s.service,
-		}
+	if s.service.UpdateCros {
+		return CrOSInitState(s)
+	} else if s.service.QuickResetDevice {
+		return CrOSResetDeviceState(s)
 	}
 	return nil
-
 }
 
 // Name of the step.

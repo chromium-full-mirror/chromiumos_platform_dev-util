@@ -21,7 +21,6 @@ import (
 // variables in CrOSService
 type CrOSResetDeviceState struct {
 	service    *service.CrOSService
-	shouldSkip bool
 }
 
 // NewCrOSResetDeviceState provides an interface to CrOSResetDeviceState.

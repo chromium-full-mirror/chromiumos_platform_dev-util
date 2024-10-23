@@ -48,9 +48,7 @@ func (s CrOSInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 }
 
 func (s CrOSInitState) Next() common_utils.ServiceState {
-	return CrOSInstallState{
-		service: s.service,
-	}
+	return CrOSInstallState(s)
 }
 
 func (s CrOSInitState) Name() string {

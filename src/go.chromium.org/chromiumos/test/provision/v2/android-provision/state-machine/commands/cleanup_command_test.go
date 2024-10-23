@@ -52,19 +52,19 @@ func TestCleanupCommand(t *testing.T) {
 		cmd := NewCleanupCommand(context.Background(), svc)
 
 		Convey("Execute - OSInstall", func() {
-			cmd.ctx = context.WithValue(cmd.ctx, "stage", common.OSInstall)
+			cmd.ctx = context.WithValue(cmd.ctx, common.StageCtxKey, common.OSInstall)
 			log, _ := common.SetUpLog(provisionDir)
 			associatedHost.EXPECT().DeleteDirectory(gomock.Any(), gomock.Eq("/tmp_DutAndroidProductOut")).Times(1)
 			So(cmd.Execute(log), ShouldBeNil)
 		})
 		Convey("Execute - PackageInstall", func() {
-			cmd.ctx = context.WithValue(cmd.ctx, "stage", common.PackageInstall)
+			cmd.ctx = context.WithValue(cmd.ctx, common.StageCtxKey, common.PackageInstall)
 			log, _ := common.SetUpLog(provisionDir)
 			associatedHost.EXPECT().DeleteDirectory(gomock.Any(), gomock.Eq("/tmp/instanceId")).Times(1)
 			So(cmd.Execute(log), ShouldBeNil)
 		})
 		Convey("Execute - PostInstall", func() {
-			cmd.ctx = context.WithValue(cmd.ctx, "stage", common.PostInstall)
+			cmd.ctx = context.WithValue(cmd.ctx, common.StageCtxKey, common.PostInstall)
 			log, _ := common.SetUpLog(provisionDir)
 			So(cmd.Execute(log), ShouldBeNil)
 			_, err := os.Stat(svc.ProvisionDir)
@@ -77,15 +77,15 @@ func TestCleanupCommand(t *testing.T) {
 			So(cmd.GetErrorMessage(), ShouldEqual, "failed to cleanup temp files")
 		})
 		Convey("GetStatus - OSInstall", func() {
-			cmd.ctx = context.WithValue(cmd.ctx, "stage", common.OSInstall)
+			cmd.ctx = context.WithValue(cmd.ctx, common.StageCtxKey, common.OSInstall)
 			So(cmd.GetStatus(), ShouldEqual, api.InstallResponse_STATUS_PROVISIONING_FAILED)
 		})
 		Convey("GetStatus - PackageInstall", func() {
-			cmd.ctx = context.WithValue(cmd.ctx, "stage", common.PackageInstall)
+			cmd.ctx = context.WithValue(cmd.ctx, common.StageCtxKey, common.PackageInstall)
 			So(cmd.GetStatus(), ShouldEqual, api.InstallResponse_STATUS_PROVISIONING_FAILED)
 		})
 		Convey("GetStatus - PostInstall", func() {
-			cmd.ctx = context.WithValue(cmd.ctx, "stage", common.PostInstall)
+			cmd.ctx = context.WithValue(cmd.ctx, common.StageCtxKey, common.PostInstall)
 			So(cmd.GetStatus(), ShouldEqual, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED)
 		})
 	})

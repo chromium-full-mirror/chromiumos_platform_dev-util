@@ -53,9 +53,7 @@ func (s CrOSInstallState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 }
 
 func (s CrOSInstallState) Next() common_utils.ServiceState {
-	return CrosUpdateFirmwareState{
-		service: s.service,
-	}
+	return CrosUpdateFirmwareState(s)
 }
 
 func (s CrOSInstallState) Name() string {

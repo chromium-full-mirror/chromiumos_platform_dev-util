@@ -59,7 +59,7 @@ func TestCopyDataCommand(t *testing.T) {
 
 		Convey("Execute - copy package", func() {
 			log, _ := common.SetUpLog(provisionDir)
-			cmd.ctx = context.WithValue(cmd.ctx, "stage", common.PackageFetch)
+			cmd.ctx = context.WithValue(cmd.ctx, common.StageCtxKey, common.PackageFetch)
 			gomock.InOrder(
 				associatedHost.EXPECT().CopyData(gomock.Any(), "gsPath", "/tmp/instanceId/apkName.apk").Times(1),
 			)
@@ -69,7 +69,7 @@ func TestCopyDataCommand(t *testing.T) {
 		})
 		Convey("Execute - copy os images from folder", func() {
 			svc.OS.ImagePath.GsPath = "gs://bucket/folder1/folder2/"
-			cmd.ctx = context.WithValue(cmd.ctx, "stage", common.OSFetch)
+			cmd.ctx = context.WithValue(cmd.ctx, common.StageCtxKey, common.OSFetch)
 			log, _ := common.SetUpLog(provisionDir)
 			mockGsClient.EXPECT().ListFiles(gomock.Any(), gomock.Eq("folder1/folder2/"), gomock.Eq("/")).Return([]string{"bootloader.img", "radio.img", "smtg-img-2132123.zip"}, nil).Times(1)
 			associatedHost.EXPECT().CopyData(gomock.Any(), gomock.Any(), gomock.Eq("/mnt/stateful_partition/android_provision/folder1/folder2/bootloader.img")).Times(1)
@@ -79,7 +79,7 @@ func TestCopyDataCommand(t *testing.T) {
 			So(svc.OS.ImagePath.Files, ShouldResemble, []string{"bootloader.img", "radio.img", "smtg-img-2132123.zip"})
 		})
 		Convey("Execute - undefined stage", func() {
-			cmd.ctx = context.WithValue(cmd.ctx, "stage", nil)
+			cmd.ctx = context.WithValue(cmd.ctx, common.StageCtxKey, nil)
 			log, _ := common.SetUpLog(provisionDir)
 			So(cmd.Execute(log), ShouldBeError)
 		})

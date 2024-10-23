@@ -62,9 +62,7 @@ func (s CrOSProvisionDLCState) Execute(ctx context.Context) error {
 }
 
 func (s CrOSProvisionDLCState) Next() services.ServiceState {
-	return CrOSInstallMiniOSState{
-		service: s.service,
-	}
+	return CrOSInstallMiniOSState(s)
 }
 
 func (s CrOSProvisionDLCState) Name() string {

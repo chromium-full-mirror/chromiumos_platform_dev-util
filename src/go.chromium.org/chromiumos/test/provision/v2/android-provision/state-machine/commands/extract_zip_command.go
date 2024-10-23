@@ -34,7 +34,7 @@ func NewExtractZipCommand(ctx context.Context, svc *service.AndroidService) *Ext
 func (c *ExtractZipCommand) Execute(log *log.Logger) error {
 	log.Printf("Start ExtractZipCommand Execute")
 	var err error
-	if stage := c.ctx.Value("stage"); stage != nil {
+	if stage := c.ctx.Value(common.StageCtxKey); stage != nil {
 		switch stage {
 		case common.PackageFetch:
 			err = c.extractCIPDPackages()

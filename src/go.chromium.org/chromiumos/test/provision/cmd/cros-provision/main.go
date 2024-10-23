@@ -222,16 +222,16 @@ func mainInternal(ctx context.Context) int {
 	}
 	switch rm {
 	case runCli:
-		log.Printf("Running CLI mode!")
+		log.Print("Running CLI mode!")
 		return runCLI(ctx, os.Args[2:])
 	case runServer:
-		log.Printf("Running server mode!")
+		log.Print("Running server mode!")
 		return startServer(os.Args[2:])
 	case runVersion:
 		log.Printf("cros-provisions version: %s", version)
 		return 0
 	}
-	log.Printf(helpDescription)
+	log.Print(helpDescription)
 	return 0
 }
 

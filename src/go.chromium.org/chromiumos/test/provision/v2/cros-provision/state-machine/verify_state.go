@@ -41,9 +41,7 @@ func (s CrOSVerifyState) Execute(ctx context.Context, log *log.Logger) (*anypb.A
 }
 
 func (s CrOSVerifyState) Next() common_utils.ServiceState {
-	return CrOSProvisionDLCState{
-		service: s.service,
-	}
+	return CrOSProvisionDLCState(s)
 }
 
 func (s CrOSVerifyState) Name() string {

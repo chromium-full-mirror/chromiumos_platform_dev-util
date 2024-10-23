@@ -42,7 +42,6 @@ func (c *WaitForStickyKernel) Execute(log *log.Logger) error {
 	stickyTimeout := (45 * 4 + 10) * time.Second
 	stickyKernelCtx, cancel := context.WithTimeout(c.ctx, stickyTimeout)
 	defer cancel()
-	twoSeconds := 2 * time.Second
 	if _, err := c.cs.Connection.RunCmd(c.ctx, "cgpt", []string{"repair", c.cs.MachineMetadata.RootInfo.RootDisk}); err != nil {
 		return fmt.Errorf("failed to repair GPT headers and tables: %s", err)
 	}
@@ -63,7 +62,7 @@ func (c *WaitForStickyKernel) Execute(log *log.Logger) error {
 				log.Printf("WaitForStickyKernel Success")
 				return nil
 			}
-			time.Sleep(twoSeconds)
+			time.Sleep(2 * time.Second)
 		}
 	}
 }

@@ -28,14 +28,11 @@ const (
 	defaultAuthTokenFilePath = "/tmp/vm-provision/authToken.txt"
 )
 
-// Version is the version info of this command. It is filled in during emerge.
-var Version = "<unknown>"
 var defaultPort = 8010
 
 type args struct {
 	// Common input params.
 	logPath      string
-	version      bool
 	port         int
 	authFilePath string
 }

@@ -31,7 +31,7 @@ func NewPrepareState(s *service.AndroidService) common_utils.ServiceState {
 
 func (s PrepareState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("State: Execute AndroidPrepareState")
-	ctx = context.WithValue(ctx, "stage", common.Prepare)
+	ctx = context.WithValue(ctx, common.StageCtxKey, common.Prepare)
 	cmds := []common_utils.CommandInterface{
 		commands.NewRestartADBCommand(ctx, s.svc),
 		commands.NewFetchDutInfoCommand(ctx, s.svc),
@@ -54,9 +54,7 @@ func (s PrepareState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any,
 }
 
 func (s PrepareState) Next() common_utils.ServiceState {
-	return OSFetchState{
-		svc: s.svc,
-	}
+	return OSFetchState(s)
 }
 
 func (s PrepareState) Name() string {

@@ -25,7 +25,7 @@ type OSFetchState struct {
 
 func (s OSFetchState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("State: Execute AndroidOSFetchState")
-	ctx = context.WithValue(ctx, "stage", common.OSFetch)
+	ctx = context.WithValue(ctx, common.StageCtxKey, common.OSFetch)
 	cmds := []common_utils.CommandInterface{
 		commands.NewResolveImagePathCommand(ctx, s.svc),
 		commands.NewCopyDataCommand(ctx, s.svc),
@@ -48,9 +48,7 @@ func (s OSFetchState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any,
 }
 
 func (s OSFetchState) Next() common_utils.ServiceState {
-	return OSInstallState{
-		svc: s.svc,
-	}
+	return OSInstallState(s)
 }
 
 func (s OSFetchState) Name() string {

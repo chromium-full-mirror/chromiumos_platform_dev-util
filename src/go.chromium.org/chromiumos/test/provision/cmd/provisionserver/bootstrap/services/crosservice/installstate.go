@@ -56,9 +56,7 @@ func (s CrOSInstallState) Execute(ctx context.Context) error {
 }
 
 func (s CrOSInstallState) Next() services.ServiceState {
-	return CrOSPostInstallState{
-		service: s.service,
-	}
+	return CrOSPostInstallState(s)
 }
 
 func (s CrOSInstallState) Name() string {

@@ -25,7 +25,7 @@ type OSInstallState struct {
 
 func (s OSInstallState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("State: Execute AndroidOSInstallState")
-	ctx = context.WithValue(ctx, "stage", common.OSInstall)
+	ctx = context.WithValue(ctx, common.StageCtxKey, common.OSInstall)
 	cmds := []common_utils.CommandInterface{
 		commands.NewRebootToBootloaderCommand(ctx, s.svc),
 		commands.NewFlashOsCommand(ctx, s.svc),
@@ -49,9 +49,7 @@ func (s OSInstallState) Execute(ctx context.Context, log *log.Logger) (*anypb.An
 }
 
 func (s OSInstallState) Next() common_utils.ServiceState {
-	return PackageFetchState{
-		svc: s.svc,
-	}
+	return PackageFetchState(s)
 }
 
 func (s OSInstallState) Name() string {
