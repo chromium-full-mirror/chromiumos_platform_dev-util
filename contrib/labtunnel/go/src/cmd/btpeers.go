@@ -7,10 +7,13 @@ package cmd
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"chromiumos/platform/dev/contrib/labtunnel/ssh"
 	"github.com/spf13/cobra"
+
+	"chromiumos/platform/dev/contrib/labtunnel/log"
 )
 
 var (
@@ -57,17 +60,24 @@ starting at 1.
 			if err != nil {
 				return fmt.Errorf("could not determine hostname: %w", err)
 			}
-			if _, err := tunnelToDut(cmd.Context(), tunnelRegistry, sshManager, 1, hostDut); err != nil {
+			localDut, err := tunnelToDut(cmd.Context(), tunnelRegistry, sshManager, 1, hostDut)
+			if err != nil {
 				return err
 			}
 
 			// Tunnel to btpeers.
-			if _, err := tunnelToBtpeersUsingDutHost(cmd.Context(), tunnelRegistry, sshManager, hostDut, btpeersCmdBtpeerCount); err != nil {
+			localBtpeers, err := tunnelToBtpeersUsingDutHost(cmd.Context(), tunnelRegistry, sshManager, hostDut, btpeersCmdBtpeerCount)
+			if err != nil {
 				return nil
 			}
 
 			time.Sleep(time.Second)
 			tunnelRegistry.PrintToLog()
+			log.Logger.Printf(
+				"Example Tast call (in chroot): tast run -var=btpeers=%s %s <test>",
+				strings.Join(localBtpeers, ","),
+				localDut)
+
 			ctx := cmd.Context()
 			if leased {
 				ctx = pollDUTLease(ctx, hostDut)

@@ -70,16 +70,18 @@ see "labtunnel btpeers --help" for details.
 			}
 
 			// Tunnel to btpeers.
-			if _, err := tunnelToBtpeersUsingDutHost(cmd.Context(), tunnelRegistry, sshManager, hostDut, wificellCmdBtpeerCount); err != nil {
+			localBtpeers, err := tunnelToBtpeersUsingDutHost(cmd.Context(), tunnelRegistry, sshManager, hostDut, wificellCmdBtpeerCount)
+			if err != nil {
 				return err
 			}
 
 			time.Sleep(time.Second)
 			tunnelRegistry.PrintToLog()
 			log.Logger.Printf(
-				"Example Tast call (in chroot): tast run -var=router=%s -var=pcap=%s %s <test>",
+				"Example Tast call (in chroot): tast run -var=router=%s -var=pcap=%s -var=btpeers=%s %s <test>",
 				strings.Join(localRouters, ","),
 				strings.Join(localPcaps, ","),
+				strings.Join(localBtpeers, ","),
 				localDut)
 			ctx := cmd.Context()
 			if leased {
