@@ -161,7 +161,6 @@ patch_deps = {
     "ddce70d74ef7": ["a9a10c006900", "ff5f250f00ad"],
     "ec6cf3d62980": ["4e20fae6c6f1"],
     "c4305a040e64": ["41f5cb08b0c2", "268a3f9a5de0", "dbc44b0d9303"],
-    "839fccb8f6e4": ["e38ee2af3e5f"],
 }
 
 # Add entry here to overwrite default disposition on particular commit
@@ -249,6 +248,37 @@ disp_overwrite[
 disp_overwrite[
     "fec604565502"
 ] = "drop"  # CHROMIUM: Fix hci_connect_le argument order
+
+#
+# net
+#
+disp_overwrite[
+    "0f31c6bc52d7"
+] = "drop" # BACKPORT: FROMLIST: net: wwan: t7xx: Fix remove rescan block
+disp_overwrite[
+    "fccf284589f4"
+] = "drop" # CHROMIUM: net: wwan: t7xx: Modify the LINUX/LK trigger source
+disp_overwrite[
+    "40a319ebd082"
+] = "drop" # CHROMIUM: net: wwan: t7xx: Delete flash FW end reboot rescan
+disp_overwrite[
+    "c940646a64e5"
+] = "drop" # CHROMIUM: net: wwan: t7xx: Add support for cold reboot
+disp_overwrite[
+    "4c11c48db0a6"
+] = "drop" # CHROMIUM: net: wwan: t7xx: Add delay between remove and rescan
+disp_overwrite[
+    "ca4893020e63"
+] = "drop" # CHROMIUM: net: wwan: t7xx: Compat for MR2 software
+disp_overwrite[
+    "fc836abd5821"
+] = "drop" # CHROMIUM: net: wwan: t7xx: Restore udev events
+disp_overwrite[
+    "839fccb8f6e4"
+] = "drop" # FROMLIST: net: wwan: t7xx: Enable fw flashing and coredump collection
+disp_overwrite[
+    "e38ee2af3e5f"
+] = "drop" # FROMLIST: net: wwan: t7xx: PCIe reset rescan
 
 #
 # uncategorized
@@ -376,9 +406,6 @@ disp_overwrite[
 disp_overwrite[
     "1245bbd2e04e"
 ] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add spmi node
-disp_overwrite[
-    "f724b94f5dab"
-] = "drop"  # CHROMIUM: FIXUP: Ensure iwl7000 has precedence over iwlwifi
 disp_overwrite["57edb04330b8"] = [
     "move",
     "block-fs",
