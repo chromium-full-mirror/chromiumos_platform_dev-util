@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -35,7 +36,7 @@ func extractBuildInfoFromExecutionMetadata(metadata *api.ExecutionMetadata) (bra
 		target = targetFlag
 	}
 	if buildIdFlag, err := extractMetadataFlag(metadata, "build_id"); err == nil {
-		branch = buildIdFlag
+		build = buildIdFlag
 	}
 
 	return
@@ -156,7 +157,15 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			cmd = append(cmd, "--skip-download", artifact)
 		}
 
-		if resultsUpload {
+		uploadToAnts := true
+		if skipAntsUploadFlag, err := extractMetadataFlag(metadata, "skip_ants_upload"); err == nil {
+			logger.Printf("Skip upload to AnTS: %s", skipAntsUploadFlag)
+			if b, err := strconv.ParseBool(skipAntsUploadFlag); err == nil && b {
+				uploadToAnts = false
+			}
+		}
+
+		if resultsUpload && uploadToAnts {
 			cmd = append(cmd, "--cts-params", "--result-reporter:no-disable",
 				"--ants-result-reporter:create-local-invocation",
 				"--ants-result-reporter:save-metric-file")
