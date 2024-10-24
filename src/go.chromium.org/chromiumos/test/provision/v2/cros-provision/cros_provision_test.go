@@ -110,8 +110,8 @@ var (
 	hwsecID                   = RunCommandStructure{Command: "hwsec-ownership-id", Args: []string{"id"}}
 	chargeLimitEnabled        = RunCommandStructure{Command: "echo", Args: []string{"\"1\"", ">", "/var/lib/power_manager/charge_limit_enabled"}}
 	chargePercentHold         = RunCommandStructure{Command: "echo", Args: []string{"\"3\"", ">", "/var/lib/power_manager/adaptive_charging_hold_delta_percent"}}
-	stopPowerd                = RunCommandStructure{Command: "stop", Args: []string{"powerd"}}
-	startPowerd               = RunCommandStructure{Command: "start", Args: []string{"powerd"}}
+	stopPowerd                = RunCommandStructure{Command: "stop", Args: []string{"powerd", "2>&1"}}
+	startPowerd               = RunCommandStructure{Command: "start", Args: []string{"powerd", "2>&1"}}
 	getForceProvisionMarker   = PathExistsCommandStructure{Path: "/mnt/stateful_partition/.force_provision"}
 	bootIDCheck               = RunCommandStructure{Command: "/bin/cat", Args: []string{"/proc/sys/kernel/random/boot_id"}}
 	sysrqTrigger              = RunCommandStructure{Command: "/bin/echo", Args: []string{"\"b\"", ">", "/proc/sysrq-trigger"}}

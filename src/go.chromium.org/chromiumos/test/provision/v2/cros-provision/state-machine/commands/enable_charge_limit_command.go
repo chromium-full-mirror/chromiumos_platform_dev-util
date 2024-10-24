@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -38,18 +39,21 @@ func (c *EnableChargeLimitCommand) Execute(log *log.Logger) error {
 		return fmt.Errorf("failed to create adaptive_charging_hold_delta_percent pref, %s", err)
 	}
 
-	if _, err := c.cs.Connection.RunCmd(c.ctx, "stop", []string{"powerd"}); err != nil {
-		log.Printf("failed to stop powerd, %s", err)
+	if stdout, err := c.cs.Connection.RunCmd(c.ctx, "stop", []string{"powerd", "2>&1"}); err != nil {
+		// Typical failure is that powerd is not running, which is fine. We
+		// only need to ensure that it starts after we wrote the above prefs.
+		if !strings.Contains(stdout, "stop: Unknown instance") {
+			return fmt.Errorf("failed to stop powerd: %s: %s", err, stdout)
+		}
 	}
 
-	if _, err := c.cs.Connection.RunCmd(c.ctx, "start", []string{"powerd"}); err != nil {
-		log_out, log_err := c.cs.Connection.RunCmd(c.ctx, "cat", []string{"/var/log/powerd.out", "/var/log/power_manager/powerd.LATEST"})
-		if log_err != nil {
-			log.Printf("failed to read powerd logs: %s", log_err)
-		} else {
-			log.Printf("powerd log contents: %s", log_out)
+	if stdout, err := c.cs.Connection.RunCmd(c.ctx, "start", []string{"powerd", "2>&1"}); err != nil {
+		// If the job is already running, somebody else probably started it between
+		// the time we stopped it and when we tried to start it again. In that case
+		// the goal has succeeded, because it was restarted.
+		if !strings.Contains(stdout, "start: Job is already running") {
+			return fmt.Errorf("failed to start powerd: %s: %s", err, stdout)
 		}
-		return fmt.Errorf("failed to start powerd, %s", err)
 	}
 
 	log.Printf("EnableChargeLimitCommand Success")
