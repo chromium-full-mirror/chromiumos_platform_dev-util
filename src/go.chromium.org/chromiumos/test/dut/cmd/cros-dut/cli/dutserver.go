@@ -623,7 +623,7 @@ func GetConnection(ctx context.Context, dutIdentifier string, wiringAddress stri
 		addr = dutIdentifier
 	}
 	logger.Printf("GetConnection Attempting to Dial!")
-	ssh, err := ssh.Dial("tcp", addr, dutssh.GetSSHConfig())
+	ssh, err := connectWithTimeout(addr, dutssh.GetSSHConfig(), 5*time.Second)
 	logger.Printf("GetConnection FINISHED Dial! %s\n", err)
 
 	return ssh, err
@@ -769,4 +769,27 @@ func getPipes(s dutssh.SessionInterface) (io.Reader, *bufio.Scanner, error) {
 	stderr := bufio.NewScanner(stderrReader)
 
 	return stdout, stderr, nil
+}
+
+func connectWithTimeout(addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error) {
+	result := make(chan *ssh.Client)
+	errChan := make(chan error)
+
+	go func() {
+		client, err := ssh.Dial("tcp", addr, config)
+		if err != nil {
+			errChan <- err
+		} else {
+			result <- client
+		}
+	}()
+
+	select {
+	case client := <-result:
+		return client, nil
+	case err := <-errChan:
+		return nil, err
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("SSH timed out")
+	}
 }
