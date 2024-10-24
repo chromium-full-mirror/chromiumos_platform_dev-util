@@ -393,3 +393,6 @@ disp_overwrite[
 disp_overwrite[
     "bcd3e90a5e56"
 ] = "drop"  #  FROMLIST: media: uvcvideo: Abort uvc_v4l2_open if video device is unregistered
+disp_overwrite[
+    "d6bd2210f1f4"
+] = "drop"  # CHROMIUM: kallsyms: Display differences between kallsyms passes
