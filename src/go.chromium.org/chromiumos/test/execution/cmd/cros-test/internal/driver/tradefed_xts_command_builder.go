@@ -115,7 +115,8 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 		cmd = append(cmd, "--config-name", plan,
 			"--test-tag", fmt.Sprintf("cros-%s-test", testType),
 			"--cts-package-name", fmt.Sprintf("android-%s.zip", testType),
-			"--rootdir-var", fmt.Sprintf("%s_ROOT", strings.ToUpper(testType)))
+			"--rootdir-var", fmt.Sprintf("%s_ROOT", strings.ToUpper(testType)),
+			"--no-set-test-harness")
 	}
 
 	logPath := os.Getenv("GLOBAL_LOG_PATH")

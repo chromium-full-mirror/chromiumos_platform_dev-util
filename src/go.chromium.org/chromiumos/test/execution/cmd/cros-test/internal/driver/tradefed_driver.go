@@ -14,7 +14,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
+	"go.chromium.org/chromiumos/test/util/adb"
 	c "go.chromium.org/chromiumos/test/util/adb"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -115,6 +117,18 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 	defer func() {
 		exit <- struct{}{}
 		for _, s := range serials {
+
+			// Force the disablement of the test_harness setting to resolve bootloops.
+			_, err := c.AdbCmd([]string{"-s", adb.FmtAddr(s), "root"}, logger)
+			if err != nil {
+				logger.Println("Failed to establish ADB root post test")
+			}
+			err = c.RetrySetupAdb(logger, s, 15*time.Second)
+			if err != nil {
+				logger.Println("Failed to recoonec to ADB post test")
+			}
+			c.AdbShellCmd([]string{"setprop", "persist.sys.test_harness", "0"}, s, logger)
+
 			if err := c.TeardownAdb(logger, s); err != nil {
 				logger.Printf("Failed to tear down adb connection to %s: %s", s, err)
 			}
