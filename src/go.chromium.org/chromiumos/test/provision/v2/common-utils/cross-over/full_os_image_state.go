@@ -72,7 +72,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		}
 		installCommand = fmt.Sprintf("al-install android-build/builds/%s/%s/attempts/latest/artifacts/android-desktop_image.bin.gz %s", buildId, launchTarget, cacheServerAdd)
 	} else {
-		installCommand = fmt.Sprintf("cros-install %s %s", targetImgPath[:5], cacheServerAdd)
+		installCommand = fmt.Sprintf("cros-install %s %s", targetImgPath[5:], cacheServerAdd)
 	}
 	log.Println("Running command on host now ", installCommand)
 	if output, err := session.CombinedOutput(installCommand); err != nil {

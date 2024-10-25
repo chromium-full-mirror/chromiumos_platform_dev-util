@@ -7,6 +7,7 @@ package cross_over
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"regexp"
 	"strings"
@@ -79,11 +80,17 @@ func (s ValidateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 		}
 
-		content, err := common.GetFile(ctx, "/etc/os-release", s.params.DutClient)
+		osReleaseFile, err := common.GetFile(ctx, "/etc/os-release", s.params.DutClient)
 		if err != nil {
 			log.Printf("Could not fetch /etc/os-release : %s\n", err)
 			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 		}
+		contentBytes, err := ioutil.ReadFile(osReleaseFile)
+		if err != nil {
+			log.Printf("Could not read %v : %s\n", osReleaseFile, err)
+			return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
+		}
+		content := string(contentBytes)
 		log.Println("Content of /etc/os-release ", content)
 		buildIDRegex := regexp.MustCompile("BUILD_ID=(.*)")
 		buildIDResult := buildIDRegex.FindStringSubmatch(content)
