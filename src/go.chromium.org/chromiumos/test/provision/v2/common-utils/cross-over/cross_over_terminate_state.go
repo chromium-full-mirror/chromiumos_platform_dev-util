@@ -55,7 +55,7 @@ func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (
 }
 
 func (s CrossOverTerminateState) Next() common_utils.ServiceState {
-	return nil
+	return s.params.PostProvisionState
 }
 
 func (s CrossOverTerminateState) Name() string {

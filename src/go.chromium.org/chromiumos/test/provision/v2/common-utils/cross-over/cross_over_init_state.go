@@ -25,9 +25,10 @@ const (
 )
 
 type CrossOverParameters struct {
-	Dut             *lab_api.Dut
-	TargetImagePath *storage_path.StoragePath
-	DutClient       api.DutServiceClient
+	Dut                *lab_api.Dut
+	TargetImagePath    *storage_path.StoragePath
+	DutClient          api.DutServiceClient
+	PostProvisionState common_utils.ServiceState
 }
 
 // CrossOverInitState starts the servod process.

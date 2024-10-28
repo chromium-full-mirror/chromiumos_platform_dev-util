@@ -28,15 +28,21 @@ type CrOSProvisionExecutor struct {
 }
 
 func (c *CrOSProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, servoNexusAddr string, req *api.InstallRequest) (common_utils.ServiceState, error) {
+	cs, err := service.NewCrOSService(dut, dutClient, req)
+	if err != nil {
+		return nil, err
+	}
+	crosProvisionState := state_machine.NewCrOSPreInitState(cs)
 	if !cross_over.IsCROS(c.Logger, fmt.Sprintf("%v:%v", dut.GetChromeos().GetSsh().GetAddress(), dut.GetChromeos().GetSsh().GetPort())) {
 		c.Logger.Println("DUT not on CROS, will perform crossOver(ANDROID->CROS) provisioning.")
 		if servoNexusAddr == "" {
 			return nil, fmt.Errorf("servoNexusAdd required for crossover provision")
 		}
 		params := &cross_over.CrossOverParameters{
-			DutClient:       dutClient,
-			Dut:             dut,
-			TargetImagePath: req.GetImagePath(),
+			DutClient:          dutClient,
+			Dut:                dut,
+			TargetImagePath:    req.GetImagePath(),
+			PostProvisionState: crosProvisionState,
 		}
 		conn, err := grpc.Dial(servoNexusAddr, grpc.WithInsecure())
 		if err != nil {
@@ -46,11 +52,7 @@ func (c *CrOSProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 		return cross_over.NewCrossOverInitState(crosServodClient, params), nil
 	}
 	c.Logger.Println("CROS Detected, will perform CROS -> CROS provisioning.")
-	cs, err := service.NewCrOSService(dut, dutClient, req)
-	if err != nil {
-		return nil, err
-	}
-	return state_machine.NewCrOSPreInitState(cs), nil
+	return crosProvisionState, nil
 }
 
 // Validate ensures the ProvisionStartupRequest meets specified requirements.
