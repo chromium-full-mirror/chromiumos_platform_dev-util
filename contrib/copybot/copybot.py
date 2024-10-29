@@ -1161,7 +1161,7 @@ def run_copybot(
 
     insert_into_msg = {}
     for msg in args.insert_into_msg:
-        index, _, msg = msg.rpartition(":")
+        index, _, msg = msg.partition(":")
         insert_into_msg[int(index)] = msg
 
     if local_downstream:
