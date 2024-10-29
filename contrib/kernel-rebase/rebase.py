@@ -344,6 +344,7 @@ class Rebaser:
         autoresolved = 0
         manual = 0
         fixup_manual = 0
+        index = 0
 
         dispositions_with_deps = []
         for i in dispositions:
@@ -412,7 +413,8 @@ class Rebaser:
                     )  # sha is only used for debugs
                     add_kcr_patch_tag(diff)
                 noconflicts += 1
-                save_for_review("kernel-upstream", end_name, sha, fsha)
+                index += 1
+                save_for_review("kernel-upstream", end_name, index, sha, fsha)
                 # No conflicts, check rerere and continue
                 call_hook(fsha, "post")
                 continue
@@ -453,7 +455,8 @@ class Rebaser:
                     raise e
                 if diff is not None:
                     add_kcr_patch_tag(diff)
-                save_for_review("kernel-upstream", end_name, sha, fsha)
+                index += 1
+                save_for_review("kernel-upstream", end_name, index, sha, fsha)
                 call_hook(fsha, "post")
             elif is_triage:
                 # Conflict requires manual resolution - drop and continue
@@ -493,9 +496,7 @@ class Rebaser:
                         with sh.pushd("kernel-upstream"):
                             sh.git("am", "--skip")
                         call_hook(fsha, "post_drop")
-                        print(
-                            "Patch empty due to conflict resolution. Skip."
-                        )
+                        print("Patch empty due to conflict resolution. Skip.")
                     else:
                         print("git am --continue failed:")
                         print(e)
@@ -503,7 +504,8 @@ class Rebaser:
                         ans = input()
                         if ans in ["y", "Y"]:
                             return {}
-                save_for_review("kernel-upstream", end_name, sha, fsha)
+                index += 1
+                save_for_review("kernel-upstream", end_name, index, sha, fsha)
                 call_hook(sha, "post")
                 save_head("kernel-upstream", fsha)
             elif cmd in ["drop", "d"]:
@@ -558,8 +560,9 @@ class Rebaser:
                             + topic
                             + " topic branch."
                         )
+                        index += 1
                         save_for_review(
-                            "kernel-upstream", end_name, None, "HEAD"
+                            "kernel-upstream", end_name, index, None, "HEAD"
                         )
                         call_hook("[nosha]", "post")
                         continue
@@ -720,18 +723,25 @@ def review_path(topic, suffix):
     return "review/" + topic + "/" + suffix
 
 
-def save_for_review(repo, topic, src_sha, new_sha):
+# Disable broad-exception-caught warning, since we only print the exception here for debugging
+# pylint: disable=W0703
+def save_for_review(repo, topic, index, src_sha, new_sha):
     """Saves source (@src_sha) and resolved (@HEAD) patches as files for review"""
 
     if not output_patches_for_review:
         return
 
-    title = patch_title(repo, new_sha)
-    if src_sha is not None:
-        path = review_path(topic, "original/") + title + ".patch"
-        format_patch(repo, src_sha, path)
-    path = review_path(topic, "/new/") + title + ".patch"
-    format_patch(repo, "HEAD", path)
+    try:
+        filename = (
+            "{:04d}-".format(index) + patch_title(repo, new_sha) + ".patch"
+        )
+        if src_sha is not None:
+            path = review_path(topic, "original/") + filename
+            format_patch(repo, src_sha, path)
+        path = review_path(topic, "/new/") + filename
+        format_patch(repo, "HEAD", path)
+    except Exception as e:
+        print("Failed to save {} for review: {}".format(new_sha, e))
 
 
 def save_head_user(prefix=None):
