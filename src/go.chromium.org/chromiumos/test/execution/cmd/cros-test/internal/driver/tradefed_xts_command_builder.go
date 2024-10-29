@@ -143,7 +143,8 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			"--skip-device-info", "--no-use-device-build-info", "--log-level", "VERBOSE",
 			"--max-log-size", "62914560", "--max-tmp-logcat-file", "62914560",
 			"--logcat-on-failure", "--screenshot-on-failure", "--include-test-log-tags",
-			"--result-reporter:disable-result-posting", "--use-log-saver",
+			"--result-reporter:disable-result-posting", "--result-reporter:no-disable",
+			"--use-log-saver",
 		}
 		if testType != "gts" && testType != "vts" {
 			ctsParams = append(ctsParams, "--property-check:no-throw-error")
@@ -166,8 +167,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 		}
 
 		if resultsUpload && uploadToAnts {
-			cmd = append(cmd, "--cts-params", "--result-reporter:no-disable",
-				"--ants-result-reporter:create-local-invocation",
+			cmd = append(cmd, "--ants-result-reporter:create-local-invocation",
 				"--ants-result-reporter:save-metric-file")
 
 			// Extract AnTS invocation id and WorkUnit ID from execution metadata.
@@ -194,9 +194,6 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 					extra_target, extra_branch)
 				cmd = append(cmd, "--invocation-data", extraBuilds)
 			}
-
-		} else {
-			cmd = append(cmd, "--cts-params", "--result-reporter:disable")
 		}
 
 		if envName, err := extractMetadataFlag(metadata, "android-build-environment"); err == nil {

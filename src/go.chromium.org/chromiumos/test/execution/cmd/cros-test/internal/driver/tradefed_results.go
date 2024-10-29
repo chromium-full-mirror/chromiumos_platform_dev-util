@@ -347,7 +347,7 @@ func testResponseNoXMLFound(req *api.CrosTestRequest) *api.CrosTestResponse {
 	}
 	for _, suites := range req.GetTestSuites() {
 		for _, testCaseIds := range suites.GetTestCaseIds().GetTestCaseIds() {
-			testCaseResult := buildTcResult(testCaseIds.GetValue(), "INCOMPLETE", time.Time{}, 1, "")
+			testCaseResult := buildTcResult(testCaseIds.GetValue(), "INCOMPLETE", time.Now().Add(-1*time.Second), 1, "")
 			r.TestCaseResults = append(r.TestCaseResults, testCaseResult)
 			r.GivenTestResults = append(r.GivenTestResults, &api.CrosTestResponse_GivenTestResult{
 				ParentTest:           testCaseIds.GetValue(),
@@ -374,7 +374,7 @@ func generateTestCaseResult(logger *log.Logger, testType string, R Result, req *
 		} else {
 			// mark module as Crash if no tests were executed for the module
 			allTestCases = append(allTestCases,
-				buildTcResult(fmt.Sprintf("tradefed.%s.%s", testType, module.Name), "INCOMPLETE", time.Time{}, 1, ""))
+				buildTcResult(fmt.Sprintf("tradefed.%s.%s", testType, module.Name), "INCOMPLETE", startTime, 1, ""))
 		}
 
 		logger.Println("Parsing Module: ", module.Name)
@@ -393,8 +393,7 @@ func generateTestCaseResult(logger *log.Logger, testType string, R Result, req *
 		}
 	}
 	for moduleName := range modulesFromReq {
-		allTestCases = append(allTestCases,
-			buildTcResult(moduleName, "INCOMPLETE", time.Time{}, 1, ""))
+		allTestCases = append(allTestCases, buildTcResult(moduleName, "INCOMPLETE", startTime, 1, ""))
 	}
 	return allTestCases
 }
@@ -429,7 +428,7 @@ func generateGivenTestCases(logger *log.Logger, testType string, R Result, req *
 			// mark module as Crash if no tests were executed for the module
 			givenTestCases = append(givenTestCases, &api.CrosTestResponse_GivenTestResult{
 				ParentTest:           fmt.Sprintf("tradefed.%s.%s", testType, module.Name),
-				ChildTestCaseResults: []*api.TestCaseResult{buildTcResult(fmt.Sprintf("tradefed.%s.%s", testType, module.Name), "INCOMPLETE", time.Time{}, 1, "")},
+				ChildTestCaseResults: []*api.TestCaseResult{buildTcResult(fmt.Sprintf("tradefed.%s.%s", testType, module.Name), "INCOMPLETE", startTime, 1, "")},
 			})
 
 		}
@@ -456,7 +455,7 @@ func generateGivenTestCases(logger *log.Logger, testType string, R Result, req *
 	}
 	for moduleName := range modulesFromReq {
 		givenTestCases = append(givenTestCases,
-			&api.CrosTestResponse_GivenTestResult{ParentTest: moduleName, ChildTestCaseResults: []*api.TestCaseResult{buildTcResult(moduleName, "INCOMPLETE", time.Time{}, 1, "")}})
+			&api.CrosTestResponse_GivenTestResult{ParentTest: moduleName, ChildTestCaseResults: []*api.TestCaseResult{buildTcResult(moduleName, "INCOMPLETE", startTime, 1, "")}})
 	}
 	return givenTestCases
 }
@@ -500,11 +499,10 @@ func buildTradefedResult(logger *log.Logger, testType string, req *api.CrosTestR
 		// report modules as Crash for which no tests were reported.
 		modulesWithNoResult := noResultModules(logger, TS, testInfoMap, req, testType)
 		for module := range modulesWithNoResult {
-			crashStatusTestResult := buildTcResult(fmt.Sprintf("tradefed.%s.%s", testType, module),
-				"INCOMPLETE", time.Time{}, 1, "")
+			crashStatusTestResult := buildTcResult(module, "INCOMPLETE", time.Now().Add(-1*time.Second), 1, "")
 			f.TestCaseResults = append(f.TestCaseResults, crashStatusTestResult)
 			f.GivenTestResults = append(f.GivenTestResults, &api.CrosTestResponse_GivenTestResult{
-				ParentTest:           fmt.Sprintf("tradefed.%s.%s", testType, module),
+				ParentTest:           module,
 				ChildTestCaseResults: []*api.TestCaseResult{crashStatusTestResult},
 			})
 		}
