@@ -58,9 +58,10 @@ func inverseRemoveBoardTestMap(removeBoardTestMap map[string][]string) map[strin
 func fetchPolicy() *api.FilterFlakyRequest_PassRatePolicy {
 	return &api.FilterFlakyRequest_PassRatePolicy{
 		PassRatePolicy: &api.PassRatePolicy{
-			PassRate:        99,
-			MinRuns:         5,
-			NumOfMilestones: 1,
+			PassRate:           99,
+			MinRuns:            5,
+			NumOfMilestones:    1,
+			MaxFilteredPercent: 50,
 		},
 	}
 }
