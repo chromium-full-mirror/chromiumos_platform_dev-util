@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
@@ -27,25 +26,17 @@ const (
 
 // SetupUSBState downloads the bootable provision image onto USB.
 type SetupUSBState struct {
-	servodClient api.ServodServiceClient
-	params       *CrossOverParameters
+	params *CrossOverParameters
 }
 
-func NewSetupUSBState(servodClient api.ServodServiceClient, params *CrossOverParameters) common_utils.ServiceState {
+func NewSetupUSBState(params *CrossOverParameters) common_utils.ServiceState {
 	return &SetupUSBState{
-		servodClient: servodClient,
-		params:       params,
+		params: params,
 	}
 }
 
 func (s SetupUSBState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("Executing " + s.Name())
-	servoHostPath := s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
-	servoPort := s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
-	servodDockerContainerName := ""
-	if strings.Contains(servoHostPath, satlab) {
-		servodDockerContainerName = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
-	}
 	board := s.params.Dut.GetChromeos().GetDutModel().GetBuildTarget()
 	provisionOSImagePath := fmt.Sprintf("gs://chromeos-throw-away-bucket/kimjae/%s-provision-v2.bin", board)
 
@@ -53,10 +44,10 @@ func (s SetupUSBState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 	provisionImgCacheServerPath := fmt.Sprintf("http://%s:%v/download/%s", s.params.Dut.GetCacheServer().GetAddress().GetAddress(), s.params.Dut.GetCacheServer().GetAddress().GetPort(), provisionOSImagePath[5:])
 	// TODO: Move these two calls to servod into cros-servod as a composite API SetupUSBKey.
 	// TODO: Deprecate primitive callServod and Exec API.
-	if err := callServod(ctx, log, s.servodClient, "download_image_to_usb_dev", provisionImgCacheServerPath, servoHostPath, servodDockerContainerName, servoPort); err != nil {
+	if err := callServodRetry(ctx, log, "download_image_to_usb_dev", provisionImgCacheServerPath, s.params); err != nil {
 		return nil, api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
 	}
-	if err := callServod(ctx, log, s.servodClient, "image_usbkey_mux", "dut_sees_usbkey", servoHostPath, servodDockerContainerName, servoPort); err != nil {
+	if err := callServodRetry(ctx, log, "image_usbkey_mux", "dut_sees_usbkey", s.params); err != nil {
 		return nil, api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
 	}
 	// Wait for some time for the dut_sees_usbkey to take affect.
@@ -65,7 +56,7 @@ func (s SetupUSBState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 }
 
 func (s SetupUSBState) Next() common_utils.ServiceState {
-	return NewRebootFromUSBState(s.servodClient, s.params)
+	return NewRebootFromUSBState(s.params)
 }
 
 func (s SetupUSBState) Name() string {

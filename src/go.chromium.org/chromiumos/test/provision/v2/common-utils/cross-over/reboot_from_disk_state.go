@@ -7,7 +7,6 @@ package cross_over
 import (
 	"context"
 	"log"
-	"strings"
 	"time"
 
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
@@ -18,40 +17,32 @@ import (
 
 // RebootFromDiskState boots the DUT from image on its disk.
 type RebootFromDiskState struct {
-	servodClient api.ServodServiceClient
-	params       *CrossOverParameters
+	params *CrossOverParameters
 }
 
-func NewRebootFromDiskState(servodClient api.ServodServiceClient, params *CrossOverParameters) common_utils.ServiceState {
+func NewRebootFromDiskState(params *CrossOverParameters) common_utils.ServiceState {
 	return &RebootFromDiskState{
-		servodClient: servodClient,
-		params:       params,
+		params: params,
 	}
 }
 
 func (s RebootFromDiskState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("Executing " + s.Name())
-	servoHostPath := s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
-	servoPort := s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
-	servodDockerContainerName := ""
-	if strings.Contains(servoHostPath, satlab) {
-		servodDockerContainerName = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
-	}
-	if err := callServod(ctx, log, s.servodClient, "power_state", "off", servoHostPath, servodDockerContainerName, servoPort); err != nil {
+	if err := callServodRetry(ctx, log, "power_state", "off", s.params); err != nil {
 		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
 	log.Printf("\nWaiting for the power state to turn off.")
 	// TODO: Instead of fixed wait time, use a poll based status checker. Refer WaitForPowerStates and GetECSystemPowerState in firmware code.
 	time.Sleep(waitForPowerOff)
 
-	if err := callServod(ctx, log, s.servodClient, "image_usbkey_direction", "servo_sees_usbkey", servoHostPath, servodDockerContainerName, servoPort); err != nil {
+	if err := callServodRetry(ctx, log, "image_usbkey_direction", "servo_sees_usbkey", s.params); err != nil {
 		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
 	log.Printf("\nWaiting for the image_usbkey_direction.")
 	// TODO: Instead of fixed wait time, use a poll based status checker. Refer WaitForPowerStates and GetECSystemPowerState in firmware code.
 	time.Sleep(10 * time.Second)
 
-	if err := callServod(ctx, log, s.servodClient, "power_state", "on", servoHostPath, servodDockerContainerName, servoPort); err != nil {
+	if err := callServodRetry(ctx, log, "power_state", "on", s.params); err != nil {
 		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
 	log.Println("Waiting for power on. waiting for 2 minutes")
@@ -60,7 +51,7 @@ func (s RebootFromDiskState) Execute(ctx context.Context, log *log.Logger) (*any
 }
 
 func (s RebootFromDiskState) Next() common_utils.ServiceState {
-	return NewValidateState(s.servodClient, s.params)
+	return NewValidateState(s.params)
 }
 
 func (s RebootFromDiskState) Name() string {

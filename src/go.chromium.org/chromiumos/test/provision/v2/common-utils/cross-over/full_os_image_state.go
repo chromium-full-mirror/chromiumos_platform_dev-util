@@ -29,14 +29,12 @@ var buildIdPatterns = []*regexp.Regexp{
 
 // FullOSImageState copies the full Android/Cros image onto DUT disk.
 type FullOSImageState struct {
-	servodClient api.ServodServiceClient
-	params       *CrossOverParameters
+	params *CrossOverParameters
 }
 
-func NewFullOSImageState(servodClient api.ServodServiceClient, params *CrossOverParameters) common_utils.ServiceState {
+func NewFullOSImageState(params *CrossOverParameters) common_utils.ServiceState {
 	return &FullOSImageState{
-		servodClient: servodClient,
-		params:       params,
+		params: params,
 	}
 }
 
@@ -86,7 +84,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 }
 
 func (s FullOSImageState) Next() common_utils.ServiceState {
-	return NewRebootFromDiskState(s.servodClient, s.params)
+	return NewRebootFromDiskState(s.params)
 }
 
 func (s FullOSImageState) Name() string {

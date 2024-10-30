@@ -44,17 +44,17 @@ func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 		if servoNexusAddr == "" {
 			return nil, fmt.Errorf("servoNexusAdd required for crossover provision")
 		}
-		params := &cross_over.CrossOverParameters{
-			DutClient:       dutClient,
-			Dut:             dut,
-			TargetImagePath: req.GetImagePath(),
-		}
 		conn, err := grpc.Dial(servoNexusAddr, grpc.WithInsecure())
 		if err != nil {
 			return nil, err
 		}
-		crosServodClient := api.NewServodServiceClient(conn)
-		return cross_over.NewCrossOverInitState(crosServodClient, params), nil
+		servoNexusClient := api.NewServodServiceClient(conn)
+		params := &cross_over.CrossOverParameters{
+			Dut:              dut,
+			TargetImagePath:  req.GetImagePath(),
+			ServoNexusClient: servoNexusClient,
+		}
+		return cross_over.NewCrossOverInitState(params), nil
 	}
 	cs, err := service.NewFoilService(dut, req)
 	if err != nil {

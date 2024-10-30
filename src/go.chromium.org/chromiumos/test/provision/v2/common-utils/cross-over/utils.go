@@ -9,10 +9,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"go.chromium.org/chromiumos/config/go/api/test/xmlrpc"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
+	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 	"go.chromium.org/chromiumos/test/util/adb"
 	"golang.org/x/crypto/ssh"
 )
@@ -24,6 +27,8 @@ const (
 	CROS
 	UNKNOWN
 )
+
+const connectionResetErr = "connection reset by peer"
 
 func connectWithTimeout(addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error) {
 	result := make(chan *ssh.Client)
@@ -103,7 +108,19 @@ func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
 	return UNKNOWN, fmt.Errorf("could not detect underlining os for dut")
 }
 
-func callServod(ctx context.Context, log *log.Logger, servodClient api.ServodServiceClient, key, value, servoHostPath, servodDockerContainerName string, servodPort int32) error {
+func callServodRetry(ctx context.Context, log *log.Logger, key, value string, params *CrossOverParameters) error {
+	err := callServod(ctx, log, key, value, params)
+	if err != nil && strings.Contains(err.Error(), connectionResetErr) {
+		log.Println("Got connection reset error in CallServod, restarting servod process and trying again. ", err)
+		if err = startServod(ctx, log, params.ServoNexusClient, params.Dut); err != nil {
+			return fmt.Errorf("failed to restart servod %v", err)
+		}
+		return callServod(ctx, log, key, value, params)
+	}
+	return err
+}
+
+func callServod(ctx context.Context, log *log.Logger, key, value string, params *CrossOverParameters) error {
 	log.Println("Making CallServo with key " + key + " and value " + value)
 	req := &api.CallServodRequest{}
 	req.Method = api.CallServodRequest_SET
@@ -119,11 +136,13 @@ func callServod(ctx context.Context, log *log.Logger, servodClient api.ServodSer
 			},
 		},
 	}
-	req.ServoHostPath = servoHostPath
-	req.ServodDockerContainerName = servodDockerContainerName
-	req.ServodPort = servodPort
+	req.ServoHostPath = params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
+	if strings.Contains(req.ServoHostPath, satlab) {
+		req.ServodDockerContainerName = params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
+	}
+	req.ServodPort = params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
 	log.Printf("\nMaking CallServod Call with req %v", req)
-	response, err := servodClient.CallServod(ctx, req)
+	response, err := params.ServoNexusClient.CallServod(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -136,4 +155,25 @@ func callServod(ctx context.Context, log *log.Logger, servodClient api.ServodSer
 	default:
 		return fmt.Errorf("unexpected result type for long running operation")
 	}
+}
+
+func startServod(ctx context.Context, log *log.Logger, servoNexusClient api.ServodServiceClient, dut *lab_api.Dut) error {
+	req := &api.StartServodRequest{}
+	req.Board = dut.GetChromeos().GetDutModel().GetBuildTarget()
+	req.Model = dut.GetChromeos().GetDutModel().GetModelName()
+	req.SerialName = dut.GetChromeos().GetServo().GetSerial()
+	req.ServodPort = dut.GetChromeos().GetServo().GetServodAddress().GetPort()
+	req.ServoHostPath = dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
+	if strings.Contains(req.ServoHostPath, satlab) {
+		req.ServodDockerContainerName = dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
+	}
+	log.Printf("\nCalling start servod with request %v.", req)
+	op, err := servoNexusClient.StartServod(ctx, req)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err = common_utils.WaitLongRunningOp(ctx, log, op)
+	return err
 }

@@ -23,14 +23,12 @@ import (
 
 // ValidateState checks if the correct version was provisioned or not.
 type ValidateState struct {
-	servodClient api.ServodServiceClient
-	params       *CrossOverParameters
+	params *CrossOverParameters
 }
 
-func NewValidateState(servodClient api.ServodServiceClient, params *CrossOverParameters) common_utils.ServiceState {
+func NewValidateState(params *CrossOverParameters) common_utils.ServiceState {
 	return &ValidateState{
-		servodClient: servodClient,
-		params:       params,
+		params: params,
 	}
 }
 
@@ -107,7 +105,7 @@ func (s ValidateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 }
 
 func (s ValidateState) Next() common_utils.ServiceState {
-	return NewCrossOverTerminateState(s.servodClient, s.params)
+	return NewCrossOverTerminateState(s.params)
 }
 
 func (s ValidateState) Name() string {

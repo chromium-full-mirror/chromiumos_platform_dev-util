@@ -38,18 +38,19 @@ func (c *CrOSProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 		if servoNexusAddr == "" {
 			return nil, fmt.Errorf("servoNexusAdd required for crossover provision")
 		}
+		conn, err := grpc.Dial(servoNexusAddr, grpc.WithInsecure())
+		if err != nil {
+			return nil, err
+		}
+		servoNexusClient := api.NewServodServiceClient(conn)
 		params := &cross_over.CrossOverParameters{
 			DutClient:          dutClient,
 			Dut:                dut,
 			TargetImagePath:    req.GetImagePath(),
 			PostProvisionState: crosProvisionState,
+			ServoNexusClient:   servoNexusClient,
 		}
-		conn, err := grpc.Dial(servoNexusAddr, grpc.WithInsecure())
-		if err != nil {
-			return nil, err
-		}
-		crosServodClient := api.NewServodServiceClient(conn)
-		return cross_over.NewCrossOverInitState(crosServodClient, params), nil
+		return cross_over.NewCrossOverInitState(params), nil
 	}
 	c.Logger.Println("CROS Detected, will perform CROS -> CROS provisioning.")
 	return crosProvisionState, nil

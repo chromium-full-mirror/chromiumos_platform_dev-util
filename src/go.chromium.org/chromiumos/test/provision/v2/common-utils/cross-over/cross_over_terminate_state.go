@@ -19,14 +19,12 @@ import (
 
 // CrossOverTerminateState stops the servod process and downloads the servod logs.
 type CrossOverTerminateState struct {
-	servodClient api.ServodServiceClient
-	params       *CrossOverParameters
+	params *CrossOverParameters
 }
 
-func NewCrossOverTerminateState(servodClient api.ServodServiceClient, params *CrossOverParameters) common_utils.ServiceState {
+func NewCrossOverTerminateState(params *CrossOverParameters) common_utils.ServiceState {
 	return &CrossOverTerminateState{
-		servodClient: servodClient,
-		params:       params,
+		params: params,
 	}
 }
 
@@ -39,7 +37,7 @@ func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (
 		req.ServodDockerContainerName = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
 	}
 	log.Printf("\nCalling stop servod with request %v.", req)
-	op, err := s.servodClient.StopServod(ctx, req)
+	op, err := s.params.ServoNexusClient.StopServod(ctx, req)
 	if err != nil {
 		return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 	}
