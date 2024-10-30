@@ -304,11 +304,12 @@ func processGivenTestResults(logger *log.Logger, TS TestSuite, testInfoMap map[s
 	// create given test cases object from the testMap
 	logger.Println("Creating given test case results object from test map")
 	for parent, childCaseList := range testMap {
+		paretTestName := fmt.Sprintf("tradefed.%s.%s", testType, parent)
 		givenTestCases = append(givenTestCases, &api.CrosTestResponse_GivenTestResult{
-			ParentTest:           parent,
+			ParentTest:           paretTestName,
 			ChildTestCaseResults: childCaseList,
 		})
-		logger.Printf("Given test case with parent: %s added with %d child test cases\n", parent, len(childCaseList))
+		logger.Printf("Given test case with parent: %s added with %d child test cases\n", paretTestName, len(childCaseList))
 	}
 
 	return givenTestCases
@@ -448,7 +449,7 @@ func generateGivenTestCases(logger *log.Logger, testType string, R Result, req *
 				childTestCases = append(childTestCases,
 					buildTcResult(testName, test.Result, startTime, testDur, test.Failure.Message))
 			}
-			givenTestCase.ParentTest = module.Name
+			givenTestCase.ParentTest = fmt.Sprintf("tradefed.%s.%s", testType, module.Name)
 			givenTestCase.ChildTestCaseResults = childTestCases
 		}
 		givenTestCases = append(givenTestCases, givenTestCase)
