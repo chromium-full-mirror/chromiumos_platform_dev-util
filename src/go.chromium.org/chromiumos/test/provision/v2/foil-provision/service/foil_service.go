@@ -51,7 +51,7 @@ func NewFoilService(dut *lab_api.Dut, req *api.InstallRequest) (*FoilService, er
 	cacheUrl.Host = cacheServerAddr
 	// TODO: Verify that the req.ImagePath.HostType is Android_build.
 	imagePath := req.GetImagePath().GetPath()
-	build, err := targetBuild(imagePath)
+	build, err := TargetBuild(imagePath)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func NewFoilService(dut *lab_api.Dut, req *api.InstallRequest) (*FoilService, er
 	}, nil
 }
 
-func targetBuild(imagePath string) (string, error) {
+func TargetBuild(imagePath string) (string, error) {
 	for _, re := range buildIdPatterns {
 		matches := re.FindStringSubmatch(imagePath)
 		if len(matches) == 2 {

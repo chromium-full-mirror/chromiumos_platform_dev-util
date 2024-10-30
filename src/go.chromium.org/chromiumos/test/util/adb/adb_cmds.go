@@ -180,3 +180,10 @@ func AdbShellCmd(cmdStr []string, addr string, log *log.Logger) (string, error) 
 	args = append(args, cmdStr...)
 	return AdbCmd(args, log)
 }
+
+func GetBuildVersion(addr string, log *log.Logger) (string, error) {
+	s, err := AdbShellCmd([]string{"getprop", "ro.system.build.version.incremental"}, addr, log)
+	s = strings.ReplaceAll(s, "\n", "")
+	return s, err
+
+}

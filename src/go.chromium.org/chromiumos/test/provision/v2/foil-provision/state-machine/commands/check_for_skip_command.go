@@ -32,7 +32,7 @@ func (c *CheckForSkip) Execute(log *log.Logger) error {
 	// Currently hard coded as there is no actual build fetching avaliable yet.
 	c.cs.SkipUpdate = strings.Contains(c.cs.CurrentBuild, c.cs.TargetBuild)
 
-	log.Println("SKIP LOGIC CHECKING V vs S", c.cs.CurrentBuild, c.cs.TargetBuild)
+	log.Println("SKIP LOGIC CHECKING: Current: vs Target:", c.cs.CurrentBuild, c.cs.TargetBuild)
 	return nil
 }
 func (c *CheckForSkip) Revert() error {

@@ -38,7 +38,7 @@ func NewSetupUSBState(params *CrossOverParameters) common_utils.ServiceState {
 func (s SetupUSBState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("Executing " + s.Name())
 	board := s.params.Dut.GetChromeos().GetDutModel().GetBuildTarget()
-	provisionOSImagePath := fmt.Sprintf("gs://chromeos-throw-away-bucket/kimjae/%s-provision-v2.bin", board)
+	provisionOSImagePath := fmt.Sprintf("gs://chromeos-throw-away-bucket/kimjae/%s-provision-v3.bin", board)
 
 	// TODO: Instead of passing cache server url, we should pass gs path and cros-servod should build cache url from it.
 	provisionImgCacheServerPath := fmt.Sprintf("http://%s:%v/download/%s", s.params.Dut.GetCacheServer().GetAddress().GetAddress(), s.params.Dut.GetCacheServer().GetAddress().GetPort(), provisionOSImagePath[5:])
