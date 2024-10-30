@@ -101,7 +101,7 @@ func detectTestType(tests []*api.TestCaseMetadata) string {
 }
 
 func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestCaseMetadata,
-	serials []string, resultsPath string, metadata *api.ExecutionMetadata) error {
+	serials []string, resultsPath string, metadata *api.ExecutionMetadata, board string) error {
 
 	for _, s := range serials {
 		if err := c.SetupAdb(logger, s); err != nil {
@@ -135,7 +135,7 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 
 	// Using Google TradeFed console for CTS and DTS tests.
 	baseArgs := []string{"run", "commandAndExit"}
-	baseArgs = append(baseArgs, BuildXtsTestCommand(logger, testType, tests, serials, metadata)...)
+	baseArgs = append(baseArgs, BuildXtsTestCommand(logger, testType, tests, serials, metadata, board)...)
 	cmd = exec.Command(getTradefedBinary(), baseArgs...)
 
 	logger.Println("Running TF: ", cmd.String())
@@ -164,7 +164,7 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 		executionMD = req.GetTestSuites()[0].GetExecutionMetadata()
 	}
 
-	_ = runTradefedTest(ctx, td.logger, tests, serials, resultsDir, executionMD)
+	_ = runTradefedTest(ctx, td.logger, tests, serials, resultsDir, executionMD, req.GetPrimary().GetDut().GetChromeos().GetDutModel().GetBuildTarget())
 	// TODO determine what we want to do with an error _and_ possibly having results
 	// In general I'd say just spit out the results.
 	// One difference between Tast/Autotest and this is that the test case given will likely result in many

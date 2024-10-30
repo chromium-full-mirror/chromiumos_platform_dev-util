@@ -28,6 +28,19 @@ const (
 
 var ctsSkipDownloadArtifacts = []string{"TESTS_ZIP", "DEVICE_IMAGE", "BASEBAND"}
 
+// TODO: find better way to discover or pass in board's architecture.
+var armBoards = []string{"corsola"}
+
+func getArchFromBoard(targetBoard string) string {
+	arch := "x86"
+	for _, board := range armBoards {
+		if strings.Contains(strings.ToLower(targetBoard), board) {
+			arch = "arm"
+		}
+	}
+	return arch
+}
+
 func extractBuildInfoFromExecutionMetadata(metadata *api.ExecutionMetadata) (branch string, target string, build string) {
 	if branchFlag, err := extractMetadataFlag(metadata, "branch"); err == nil {
 		branch = branchFlag
@@ -42,13 +55,12 @@ func extractBuildInfoFromExecutionMetadata(metadata *api.ExecutionMetadata) (bra
 	return
 }
 
-func extractBuildInfoFromTest(test *api.TestCase) (branch string, target string, build string) {
+func extractBuildInfoFromTest(test *api.TestCase, metadata *api.ExecutionMetadata, board string) (branch string, target string, build string) {
 	for _, t := range test.Tags {
 		if strings.HasPrefix(t.Value, "branch:") {
 			branch = strings.TrimPrefix(t.Value, "branch:")
 		}
-		// TODO: select the correct target based on device architecture.
-		if strings.HasPrefix(t.Value, "target:") && strings.Contains(t.Value, "x86") {
+		if strings.HasPrefix(t.Value, "target:") && strings.Contains(t.Value, getArchFromBoard(board)) {
 			target = strings.TrimPrefix(t.Value, "target:")
 		}
 		if strings.HasPrefix(t.Value, "build_id:") {
@@ -96,7 +108,7 @@ func extractMetadataFlag(metadata *api.ExecutionMetadata, flagName string) (stri
 }
 
 func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestCaseMetadata,
-	serials []string, metadata *api.ExecutionMetadata) []string {
+	serials []string, metadata *api.ExecutionMetadata, board string) []string {
 
 	cmd := []string{getTestRunner()}
 
@@ -227,7 +239,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 
 	for _, t := range tests {
 		testName := formatTestName(t.TestCase.Name)
-		ctsBranch, ctsTarget, ctsBuild := extractBuildInfoFromTest(t.TestCase)
+		ctsBranch, ctsTarget, ctsBuild := extractBuildInfoFromTest(t.TestCase, metadata, board)
 		if len(ctsBranch) > 0 && len(ctsTarget) > 0 && len(ctsBuild) > 0 && !buildInfoReported {
 			if !invocationInfoReported {
 				// if no build info is updated yet, then use test metadata build info to update them.

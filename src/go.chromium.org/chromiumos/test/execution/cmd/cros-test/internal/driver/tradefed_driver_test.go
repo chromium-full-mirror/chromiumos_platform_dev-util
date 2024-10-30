@@ -181,3 +181,38 @@ func TestDetectTestType(t *testing.T) {
 		}
 	})
 }
+
+func TestGetArchFromBoard(t *testing.T) {
+	t.Parallel()
+
+	Convey("Test getArchFromBoard", t, func() {
+		testCases := []struct {
+			name         string
+			board        string
+			expectedArch string
+		}{
+			{
+				name:         "Empty target",
+				board:        "",
+				expectedArch: "x86",
+			},
+			{
+				name:         "Brya (x86) target",
+				board:        "brya",
+				expectedArch: "x86",
+			},
+			{
+				name:         "Corsola (arm) target",
+				board:        "corsola",
+				expectedArch: "arm",
+			},
+		}
+
+		for _, tc := range testCases {
+			Convey(tc.name, func() {
+				detectedArch := getArchFromBoard(tc.board)
+				So(detectedArch, ShouldEqual, tc.expectedArch)
+			})
+		}
+	})
+}
