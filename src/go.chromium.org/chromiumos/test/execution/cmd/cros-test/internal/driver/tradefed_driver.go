@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"go.chromium.org/chromiumos/test/util/adb"
-	c "go.chromium.org/chromiumos/test/util/adb"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/common"
@@ -105,22 +104,22 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 	model string) error {
 
 	for _, s := range serials {
-		if err := c.SetupAdb(logger, s); err != nil {
+		if err := adb.SetupAdb(logger, s); err != nil {
 			return fmt.Errorf("setupAdb failed for %s", s)
 		}
 		// Force the disablement of the test_harness setting to resolve bootloops.
-		_, err := c.AdbCmd([]string{"-s", adb.FmtAddr(s), "root"}, logger)
+		_, err := adb.AdbCmd([]string{"-s", adb.FmtAddr(s), "root"}, logger)
 
 		if err != nil {
 			logger.Println("Failed to establish ADB root post test")
 		}
-		err = c.RetrySetupAdb(logger, s, 15*time.Second)
+		err = adb.RetrySetupAdb(logger, s, 15*time.Second)
 		if err != nil {
 			logger.Println("Failed to recoonec to ADB post test")
 		}
-		c.AdbShellCmd([]string{"echo", "demo", ">", "/sys/power/wake_lock"}, s, logger)
+		adb.AdbShellCmd([]string{"echo", "demo", ">", "/sys/power/wake_lock"}, s, logger)
 
-		c.AdbShellCmd([]string{"cat", "/sys/power/wake_lock"}, s, logger)
+		adb.AdbShellCmd([]string{"cat", "/sys/power/wake_lock"}, s, logger)
 	}
 
 	exit := make(chan struct{})
@@ -129,19 +128,19 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 		for _, s := range serials {
 
 			// Force the disablement of the test_harness setting to resolve bootloops.
-			_, err := c.AdbCmd([]string{"-s", adb.FmtAddr(s), "root"}, logger)
+			_, err := adb.AdbCmd([]string{"-s", adb.FmtAddr(s), "root"}, logger)
 
 			if err != nil {
 				logger.Println("Failed to establish ADB root post test")
 			}
-			err = c.RetrySetupAdb(logger, s, 15*time.Second)
+			err = adb.RetrySetupAdb(logger, s, 15*time.Second)
 			if err != nil {
 				logger.Println("Failed to recoonec to ADB post test")
 			}
 
-			c.AdbShellCmd([]string{"setprop", "persist.sys.test_harness", "0"}, s, logger)
+			adb.AdbShellCmd([]string{"setprop", "persist.sys.test_harness", "0"}, s, logger)
 
-			if err := c.TeardownAdb(logger, s); err != nil {
+			if err := adb.TeardownAdb(logger, s); err != nil {
 				logger.Printf("Failed to tear down adb connection to %s: %s", s, err)
 			}
 		}
@@ -156,7 +155,7 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 
 	logger.Println("Running TF: ", cmd.String())
 
-	c.KeepAdbAlive(logger, serials, exit)
+	adb.KeepAdbAlive(logger, serials, exit)
 	return launchAndRead(cmd, logger)
 }
 

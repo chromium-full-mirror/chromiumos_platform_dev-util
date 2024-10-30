@@ -116,13 +116,13 @@ func selectFileByPattern(pattern string) (string, error) {
 func parseResultFile(logger *log.Logger, resultPath string, v any) error {
 	resultData, err := os.ReadFile(resultPath)
 	if err != nil {
-		logger.Println("Error reading Tradefed result file: ", err)
+		logger.Println("Failed to read Tradefed result file: ", err)
 		return err
 	}
 	err = xml.Unmarshal(resultData, v)
 	// err = parseFunc(resultData)
 	if err != nil {
-		logger.Println("Error parsing Tradefed result file: ", err)
+		logger.Println("Failed to parse Tradefed result file: ", err)
 		return err
 	}
 	return nil
@@ -131,11 +131,11 @@ func parseResultFile(logger *log.Logger, resultPath string, v any) error {
 func uncompressGzip(gzFile string, outFileName string) error {
 	gz, err := os.Open(gzFile)
 	if err != nil {
-		return fmt.Errorf("Error opening GZIP file: %s, error: %v", gzFile, err)
+		return fmt.Errorf("error opening GZIP file: %s, error: %v", gzFile, err)
 	}
 	uncompressedStream, err := gzip.NewReader(gz)
 	if err != nil {
-		return fmt.Errorf("Error extracting GZIP file: %s, error: %v", gzFile, err)
+		return fmt.Errorf("error extracting GZIP file: %s, error: %v", gzFile, err)
 	}
 	// Make sure target path exists.
 	targetDir := filepath.Dir(outFileName)
@@ -145,11 +145,11 @@ func uncompressGzip(gzFile string, outFileName string) error {
 	}
 	outFile, err := os.Create(outFileName)
 	if err != nil {
-		return fmt.Errorf("Error creating output file: %s, error: %v", gzFile, err)
+		return fmt.Errorf("error creating output file: %s, error: %v", gzFile, err)
 	}
 	defer outFile.Close()
 	if _, err = io.Copy(outFile, uncompressedStream); err != nil {
-		return fmt.Errorf("Error extracting file: %s, error: %v", gzFile, err)
+		return fmt.Errorf("error extracting file: %s, error: %v", gzFile, err)
 	}
 	return nil
 }
@@ -307,7 +307,7 @@ func buildTradefedResult(logger *log.Logger, testType string, req *api.CrosTestR
 	var err error
 	f.TestCaseResults, f.GivenTestResults, logsToSave, err = parseCompatibilityXmlResults(logger, testType, req)
 	if err != nil {
-		logger.Println("Error locating or parsing Tradefed compatibility result file: ", err)
+		logger.Println("Failed to locate or parse Tradefed compatibility result file: ", err)
 		return testResponseNoXMLFound(req), logsToSave
 	}
 	logger.Println("Found n case results:", len(f.TestCaseResults))
