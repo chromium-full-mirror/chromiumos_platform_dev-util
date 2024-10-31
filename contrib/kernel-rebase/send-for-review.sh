@@ -63,4 +63,3 @@ repo upload --cbr --no-verify --wip .
 
 # Clean up
 rm -f "review/${topic}/"*.patch
-git reset HEAD^
