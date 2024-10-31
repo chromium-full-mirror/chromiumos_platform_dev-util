@@ -110,7 +110,6 @@ topic_patches["chromeos"] = [
 
 topic_patches["mm"] = [
     "fixups/FIXUP: CHROMIUM: mm: per-process reclaim pages.patch",
-    "fixups/FIXUP: CHROMIUM: mm: per-process reclaim - page_mapcount.patch",
 ]
 
 topic_patches["media"] = [
@@ -191,6 +190,31 @@ disp_overwrite[
 disp_overwrite[
     "d32f140fc9c3"
 ] = "drop"  #  CHROMIUM: dt-bindings: arm: mediatek: Add MT8186 Chinchou/Chinchou360 Chromebooks
+
+#
+# mm
+#
+disp_overwrite[
+    "bf27ad8f9d1c"
+] = "drop"  #  CHROMIUM: mm/mglru: simplify reset_ctrl_pos
+disp_overwrite[
+    "4ea7628b2be5"
+] = "drop"  #  CHROMIUM: mm/mglru: Split scan seqno from gen seqno
+disp_overwrite[
+    "31865023586b"
+] = "drop"  #  CHROMIUM: mm/mglru: split max_seq into file vs anon types
+disp_overwrite[
+    "a97196e4754f"
+] = "drop"  #  CHROMIUM: mm/mglru: age at different rates
+disp_overwrite[
+    "57d2c2ba37c2"
+] = "drop"  #  CHROMIUM: Add a config to tie generation age together
+disp_overwrite[
+    "bc4946831df4"
+] = "drop"  #  CHROMIUM: mm/mglru: Improve isolated page access bit harvesting
+disp_overwrite[
+    "f57164f428fb"
+] = "drop"  #  CHROMIUM: mm/mglru: slow down promotion through page tables
 
 #
 # uncategorized
