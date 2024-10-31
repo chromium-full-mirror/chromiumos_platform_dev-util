@@ -17,6 +17,7 @@ import (
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 	"go.chromium.org/chromiumos/test/util/adb"
+	"go.chromium.org/chromiumos/test/util/common"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -82,9 +83,18 @@ func checkADB(logger *log.Logger, dutAddress string, timeout time.Duration) bool
 	return true
 }
 
-func IsCROS(logger *log.Logger, dutAddress string) bool {
-	config := GetSSHConfig()
-	return checkSSH(logger, dutAddress, config, 5, 2*time.Second)
+func IsCROS(ctx context.Context, logger *log.Logger, dutClient api.DutServiceClient) bool {
+	logger.Println("Checking if /etc/lsb-release is present, if it does it means its CROS.")
+	for attempt := 1; attempt <= 2; attempt++ {
+		_, err := common.RunCmd(ctx, "ls", []string{"/etc/lsb-release"}, dutClient)
+		if err == nil {
+			return true
+		} else if attempt == 1 {
+			logger.Println("Got error while checking if /etc/lsb-release is present. Will retry.", err)
+		}
+	}
+	logger.Println("Check for /etc/lsb-release presence failed. Its probably a Android device.")
+	return false
 }
 
 func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {

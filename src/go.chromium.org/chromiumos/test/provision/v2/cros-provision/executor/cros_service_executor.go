@@ -8,6 +8,7 @@
 package executor
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -33,7 +34,7 @@ func (c *CrOSProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 		return nil, err
 	}
 	crosProvisionState := state_machine.NewCrOSPreInitState(cs)
-	if !cross_over.IsCROS(c.Logger, fmt.Sprintf("%v:%v", dut.GetChromeos().GetSsh().GetAddress(), dut.GetChromeos().GetSsh().GetPort())) {
+	if !cross_over.IsCROS(context.Background(), c.Logger, dutClient) {
 		c.Logger.Println("DUT not on CROS, will perform crossOver(ANDROID->CROS) provisioning.")
 		if servoNexusAddr == "" {
 			return nil, fmt.Errorf("servoNexusAdd required for crossover provision")
