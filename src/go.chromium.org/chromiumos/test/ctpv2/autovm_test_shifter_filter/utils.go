@@ -195,6 +195,7 @@ func isAnyVMImageAvailable(ctx context.Context, req *api.InternalTestplan, log *
 			continue
 		}
 		if exists {
+			req.GetSuiteInfo().GetSuiteMetadata().SchedulingUnits = append(req.GetSuiteInfo().GetSuiteMetadata().SchedulingUnits, generateVMSchedulingUnit(board, targetedVersion))
 			return exists, board, targetedVersion
 		}
 	}

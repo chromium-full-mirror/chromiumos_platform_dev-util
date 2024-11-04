@@ -11,6 +11,7 @@ import (
 
 	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
 
+	goconfig "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	testapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 )
@@ -67,6 +68,16 @@ func generateVMSchedulingUnit(board string, version string) *api.SchedulingUnit 
 					DutType: &testapi.Dut_Chromeos{
 						Chromeos: &testapi.Dut_ChromeOS{
 							DutModel: &testapi.DutModel{BuildTarget: board},
+						},
+					},
+				},
+				ProvisionInfo: []*api.ProvisionInfo{
+					{
+						InstallRequest: &api.InstallRequest{
+							ImagePath: &goconfig.StoragePath{
+								HostType: goconfig.StoragePath_GS,
+								Path:     "gs://chromeos-image-archive/" + board + "-" + release + version,
+							},
 						},
 					},
 				},
