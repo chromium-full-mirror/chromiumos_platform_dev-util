@@ -7,10 +7,13 @@ package driver
 
 import (
 	"bufio"
+	"compress/gzip"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -27,7 +30,7 @@ import (
 const (
 	tfStageLogsPath      = "/tmp/stage-android-build-api/stub"
 	tfStageResultPattern = "subprocess-test_result.xml_*.xml.gz"
-	tfAospResultPattern  = "android-*/results/latest/test_result.xml"
+	tfAospResultPattern  = "android-%s/results/latest/test_result.xml"
 	tfMetricsPattern     = "metrics-*.xml"
 )
 
@@ -315,16 +318,55 @@ func processGivenTestResults(logger *log.Logger, TS TestSuite, testInfoMap map[s
 	return givenTestCases
 }
 
+func uncompressGzip(gzFile string, outFileName string) error {
+	gz, err := os.Open(gzFile)
+	if err != nil {
+		return fmt.Errorf("Error opening GZIP file: %s, error: %v", gzFile, err)
+	}
+	uncompressedStream, err := gzip.NewReader(gz)
+	if err != nil {
+		return fmt.Errorf("Error extracting GZIP file: %s, error: %v", gzFile, err)
+	}
+	// Make sure target path exists.
+	targetDir := filepath.Dir(outFileName)
+	cmd := exec.Command("mkdir", "-p", targetDir)
+	if err = cmd.Run(); err != nil {
+		return fmt.Errorf("error creating target directory: %s, error: %s", targetDir, err)
+	}
+	outFile, err := os.Create(outFileName)
+	if err != nil {
+		return fmt.Errorf("Error creating output file: %s, error: %v", gzFile, err)
+	}
+	defer outFile.Close()
+	if _, err = io.Copy(outFile, uncompressedStream); err != nil {
+		return fmt.Errorf("Error extracting file: %s, error: %v", gzFile, err)
+	}
+	return nil
+}
+
 func parseCompatibilityXmlResults(logger *log.Logger, testType string, req *api.CrosTestRequest) ([]*api.TestCaseResult, []*api.CrosTestResponse_GivenTestResult, []string, error) {
 	var logsDir []string
 	allTestCases := []*api.TestCaseResult{}
 
-	xmlResultFile, err := selectFileByPattern(filepath.Join(tradefedDir, tfAospResultPattern))
+	aospResultXmlFile := filepath.Join(tradefedDir, fmt.Sprintf(tfAospResultPattern, testType))
+	xmlResultFile, err := selectFileByPattern(aospResultXmlFile)
 	if err != nil {
 		// Fallback to stub location for XML result file.
-		xmlResultFile, err = selectFileByPattern(filepath.Join(tfStageLogsPath, tfStageResultPattern))
+		xmlResultFile, err = selectFileByPattern(filepath.Join(tfStageLogsPath, "*", "*", tfStageResultPattern))
 		if err != nil {
 			return allTestCases, nil, logsDir, fmt.Errorf("failed to locate result file: %w", err)
+		} else {
+			standardResultFileName := filepath.Join(filepath.Dir(xmlResultFile), filepath.Base(aospResultXmlFile))
+			// Unzip stub location XML result file to the standard file name.
+			// This is required by CTS Archiver.
+			logger.Printf("Extracting stub XML result file: %s to: %s",
+				xmlResultFile, standardResultFileName)
+
+			if err = uncompressGzip(xmlResultFile, standardResultFileName); err != nil {
+				return allTestCases, nil, logsDir, fmt.Errorf("failed to prepare result file: %w", err)
+			} else {
+				xmlResultFile = standardResultFileName
+			}
 		}
 	}
 
@@ -468,44 +510,44 @@ func buildTradefedResult(logger *log.Logger, testType string, req *api.CrosTestR
 	logger.Println("Building results...")
 	f := &api.CrosTestResponse{}
 
-	resultPath, err := getResultFilePath()
+	var err error
+	f.TestCaseResults, f.GivenTestResults, logsToSave, err = parseCompatibilityXmlResults(logger, testType, req)
 	if err != nil {
-		logger.Println("Error locating Tradefed metric result file: ", err)
-		logger.Println("Trying to locate and parse compatibility result file...")
-		f.TestCaseResults, f.GivenTestResults, logsToSave, err = parseCompatibilityXmlResults(logger, testType, req)
+		logger.Println("Error locating or parsing Tradefed compatibility result file: ", err)
+		logger.Println("Trying to locate and parse metric result file...")
+		resultPath, err := getResultFilePath()
 		if err != nil {
-			logger.Println("Error locating or parsing Tradefed compatibility result file: ", err)
+			logger.Println("Error locating Tradefed metric result file: ", err)
 			return testResponseNoXMLFound(req), logsToSave
-		}
-		return f, logsToSave
-	} else {
-		logsToSave = append(logsToSave, resultPath)
+		} else {
+			logsToSave = append(logsToSave, resultPath)
 
-		TS := TestSuite{}
-		if err = parseResultFile(logger, resultPath, &TS); err != nil {
-			return testResponseNoXMLFound(req), logsToSave
-		}
+			TS := TestSuite{}
+			if err = parseResultFile(logger, resultPath, &TS); err != nil {
+				return testResponseNoXMLFound(req), logsToSave
+			}
 
-		testInfoMap, eventLogs := loadEventLogReport(logger)
-		if len(eventLogs) > 0 {
-			logsToSave = append(logsToSave, eventLogs)
-		}
+			testInfoMap, eventLogs := loadEventLogReport(logger)
+			if len(eventLogs) > 0 {
+				logsToSave = append(logsToSave, eventLogs)
+			}
 
-		logger.Printf("Parsing test suite %s; tests: %d, failures: %d",
-			TS.Name, TS.Tests, TS.Failures)
+			logger.Printf("Parsing test suite %s; tests: %d, failures: %d",
+				TS.Name, TS.Tests, TS.Failures)
 
-		f.TestCaseResults = processResults(logger, TS, testInfoMap, testType)
-		f.GivenTestResults = processGivenTestResults(logger, TS, testInfoMap)
+			f.TestCaseResults = processResults(logger, TS, testInfoMap, testType)
+			f.GivenTestResults = processGivenTestResults(logger, TS, testInfoMap)
 
-		// report modules as Crash for which no tests were reported.
-		modulesWithNoResult := noResultModules(logger, TS, testInfoMap, req, testType)
-		for module := range modulesWithNoResult {
-			crashStatusTestResult := buildTcResult(module, "INCOMPLETE", time.Now().Add(-1*time.Second), 1, "")
-			f.TestCaseResults = append(f.TestCaseResults, crashStatusTestResult)
-			f.GivenTestResults = append(f.GivenTestResults, &api.CrosTestResponse_GivenTestResult{
-				ParentTest:           module,
-				ChildTestCaseResults: []*api.TestCaseResult{crashStatusTestResult},
-			})
+			// report modules as Crash for which no tests were reported.
+			modulesWithNoResult := noResultModules(logger, TS, testInfoMap, req, testType)
+			for module := range modulesWithNoResult {
+				crashStatusTestResult := buildTcResult(module, "INCOMPLETE", time.Now().Add(-1*time.Second), 1, "")
+				f.TestCaseResults = append(f.TestCaseResults, crashStatusTestResult)
+				f.GivenTestResults = append(f.GivenTestResults, &api.CrosTestResponse_GivenTestResult{
+					ParentTest:           module,
+					ChildTestCaseResults: []*api.TestCaseResult{crashStatusTestResult},
+				})
+			}
 		}
 	}
 	logger.Println("Found n case results:", len(f.TestCaseResults))
