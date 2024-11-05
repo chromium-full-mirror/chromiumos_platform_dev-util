@@ -21,7 +21,8 @@ import (
 )
 
 const (
-	defaultRootPath = "/tmp/filters/%s"
+	defaultRootPath       = "/tmp/filters/%s"
+	TestPlatformFireStore = "test-platform-store"
 )
 
 // Version is the version info of this command. It is filled in during emerge.
@@ -30,19 +31,25 @@ var defaultPort = 0
 
 type args struct {
 	// Common input params.
-	logPath   string
+	logPath string
 
 	// Server mode params
-	port        int
+	port int
+}
+
+type CommonFilterParams struct {
+	FirestoreDatabaseName string
 }
 
 // startServer is the entry point for running post-process (TestFinderService) in server mode.
-func startServer(flagSet *flag.FlagSet, executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error), name string) error {
+func startServer(flagSet *flag.FlagSet, executor func(req *api.InternalTestplan, log *log.Logger, commonParams *CommonFilterParams) (*api.InternalTestplan, error), name string) error {
 	a := args{}
+	commonParams := CommonFilterParams{}
 	t := time.Now()
 	defaultLogPath := filepath.Join(fmt.Sprintf(defaultRootPath, name), t.Format("20060102-150405"))
 	flagSet.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
 	flagSet.IntVar(&a.port, "port", defaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", defaultPort))
+	flagSet.StringVar(&commonParams.FirestoreDatabaseName, "firestore", TestPlatformFireStore, fmt.Sprintf("Firestore database name to pull from. Default value is %s", TestPlatformFireStore))
 
 	flagSet.Parse(os.Args[2:])
 
@@ -63,7 +70,7 @@ func startServer(flagSet *flag.FlagSet, executor func(req *api.InternalTestplan,
 	if err != nil {
 		return fmt.Errorf("failed to write metadata port: %s", err)
 	}
-	server, closer := NewServer(logger, executor)
+	server, closer := NewServer(logger, &commonParams, executor)
 	defer closer()
 
 	err = server.Serve(l)
@@ -76,13 +83,13 @@ func startServer(flagSet *flag.FlagSet, executor func(req *api.InternalTestplan,
 }
 
 // Server starts the generic filter server.
-func Server(executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error), name string) error {
+func Server(executor func(req *api.InternalTestplan, log *log.Logger, commonParams *CommonFilterParams) (*api.InternalTestplan, error), name string) error {
 	fs := flag.NewFlagSet("Run generic-filter server", flag.ExitOnError)
 	return startServer(fs, executor, name)
 }
 
 // ServerWithFlagSet starts the generic filter server
 // with a custom flagSet extending the default flags.
-func ServerWithFlagSet(flagSet *flag.FlagSet, executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error), name string) error {
+func ServerWithFlagSet(flagSet *flag.FlagSet, executor func(req *api.InternalTestplan, log *log.Logger, commonParams *CommonFilterParams) (*api.InternalTestplan, error), name string) error {
 	return startServer(flagSet, executor, name)
 }

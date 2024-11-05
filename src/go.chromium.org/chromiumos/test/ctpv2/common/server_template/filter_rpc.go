@@ -16,15 +16,17 @@ import (
 
 // GenericFilterServiceServer ...
 type GenericFilterServiceServer struct {
-	logger   *log.Logger
-	executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error)
+	logger       *log.Logger
+	commonParams *CommonFilterParams
+	executor     func(req *api.InternalTestplan, log *log.Logger, commonParams *CommonFilterParams) (*api.InternalTestplan, error)
 }
 
 // NewServer creates an execution server.
-func NewServer(logger *log.Logger, executor func(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error)) (*grpc.Server, func()) {
+func NewServer(logger *log.Logger, commonParams *CommonFilterParams, executor func(req *api.InternalTestplan, log *log.Logger, commonParams *CommonFilterParams) (*api.InternalTestplan, error)) (*grpc.Server, func()) {
 	s := &GenericFilterServiceServer{
-		logger:   logger,
-		executor: executor,
+		logger:       logger,
+		commonParams: commonParams,
+		executor:     executor,
 	}
 
 	server := grpc.NewServer(grpc.MaxRecvMsgSize(1024*1024*32), grpc.MaxSendMsgSize(1024*1024*32))
@@ -47,7 +49,7 @@ func NewServer(logger *log.Logger, executor func(req *api.InternalTestplan, log 
 func (s *GenericFilterServiceServer) Execute(ctx context.Context, req *api.InternalTestplan) (*api.InternalTestplan, error) {
 	s.logger.Printf("Received Request: %s", req)
 
-	rspn, err := s.executor(req, s.logger)
+	rspn, err := s.executor(req, s.logger, s.commonParams)
 	if err != nil {
 		return nil, errors.Annotate(err, "Executor: failed to run").Err()
 	}

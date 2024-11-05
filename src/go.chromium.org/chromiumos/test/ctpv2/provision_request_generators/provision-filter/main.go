@@ -17,7 +17,7 @@ import (
 	conf "go.chromium.org/chromiumos/config/go"
 )
 
-func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
+func executor(req *api.InternalTestplan, log *log.Logger, commonParams *server.CommonFilterParams) (*api.InternalTestplan, error) {
 	// Will be the map of hardware which we can make provisionInfo for directly
 	foundHW := make(map[string]bool)
 

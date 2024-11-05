@@ -4,13 +4,14 @@
 package main
 
 import (
-	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+
+	server "go.chromium.org/chromiumos/test/ctpv2/common/server_template"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 
@@ -70,7 +71,7 @@ func fillTestCases(ctx context.Context, testPlan *api.InternalTestplan, resp *ap
 	return nil
 }
 
-func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
+func executor(req *api.InternalTestplan, log *log.Logger, commonParams *server.CommonFilterParams) (*api.InternalTestplan, error) {
 	ctx := context.Background()
 
 	testFinderResponse, err := startAndRunTestFinder(req, log)

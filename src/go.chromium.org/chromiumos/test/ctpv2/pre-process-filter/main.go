@@ -216,7 +216,7 @@ func innerMain(req *api.InternalTestplan, log *log.Logger) *api.InternalTestplan
 	return req
 }
 
-func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
+func executor(req *api.InternalTestplan, log *log.Logger, commonParams *server.CommonFilterParams) (*api.InternalTestplan, error) {
 	return innerMain(req, log), nil
 }
 

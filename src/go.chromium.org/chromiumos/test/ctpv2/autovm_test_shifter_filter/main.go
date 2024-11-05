@@ -141,7 +141,7 @@ func updateSchedulingUnitOptions(req *api.InternalTestplan, board string, versio
 	return nil
 }
 
-func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
+func executor(req *api.InternalTestplan, log *log.Logger, commonParams *server.CommonFilterParams) (*api.InternalTestplan, error) {
 
 	available, board, version := isAnyVMImageAvailable(context.Background(), req, log)
 

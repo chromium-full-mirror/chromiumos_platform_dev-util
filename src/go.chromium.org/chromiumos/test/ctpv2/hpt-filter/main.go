@@ -127,7 +127,7 @@ func hptGenerator(av *ActiveVersion) *generators.GenericTaskGenerator {
 	return generator
 }
 
-func executor(req *api.InternalTestplan, log *log.Logger) (*api.InternalTestplan, error) {
+func executor(req *api.InternalTestplan, log *log.Logger, commonParams *server.CommonFilterParams) (*api.InternalTestplan, error) {
 	ctx := context.Background()
 	gsClient, err := storage.NewGSClient(ctx, authTokenFile)
 	if err != nil {
