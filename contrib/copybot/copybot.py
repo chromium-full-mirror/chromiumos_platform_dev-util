@@ -52,6 +52,7 @@ import time
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 import urllib
 
+import copybot_argparser
 import requests  # pylint: disable=import-error
 
 
@@ -1474,169 +1475,14 @@ def write_json_error(path: pathlib.Path, err: Exception | None) -> None:
 
 
 def main(argv: Optional[List[str]] = None) -> None:
-    """The entry point to the program."""
-    parser = argparse.ArgumentParser(description="CopyBot")
-    parser.add_argument(
-        "--topic",
-        help="Topic to set and search in Gerrit",
-        default="copybot",
-    )
-    parser.add_argument(
-        "--label",
-        help="Label to set in Gerrit (can be passed multiple times)",
-        action="append",
-        dest="labels",
-        default=[],
-    )
-    parser.add_argument(
-        "--re",
-        help="Reviewer to set in Gerrit (can be passed multiple times)",
-        action="append",
-        dest="reviewers",
-        default=[],
-    )
-    parser.add_argument(
-        "--cc",
-        help="CC to set in Gerrit (can be passed multiple times)",
-        action="append",
-        dest="ccs",
-        default=[],
-    )
-    parser.add_argument(
-        "--push-option",
-        help="Add downstream push option (can be passed multiple times)",
-        action="append",
-        dest="push_options",
-        default=[],
-    )
-    parser.add_argument(
-        "--ht",
-        help="Hashtag to set in Gerrit (can be passed multiple times)",
-        action="append",
-        dest="hashtags",
-        default=[],
-    )
-    parser.add_argument(
-        "--json-out",
-        type=pathlib.Path,
-        help="Write JSON result to this file.",
-    )
-    parser.add_argument(
-        "--dry-run",
-        help="Don't push",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--prepend-subject",
-        help="Prepend the subject of commits made with this string",
-        default="",
-    )
-    parser.add_argument(
-        "--insert-into-msg",
-        help="Insert the text into the line specified.  Line number"
-        " comes first and is separated from text by a colon",
-        action="append",
-        default=[],
-    )
-    parser.add_argument(
-        "--exclude-file-pattern",
-        help="Exclude changes to files matched by these path regexes",
-        action="append",
-        dest="exclude_file_patterns",
-        default=[],
-    )
-    parser.add_argument(
-        "--merge-conflict-behavior",
-        help="How to handle merge conflicts",
-        default="SKIP",
-        choices=[behavior.name for behavior in MergeConflictBehavior],
-    )
-    parser.add_argument(
-        "--add-signed-off-by",
-        help="Add Signed-off-by pseudoheader to commit messages",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--keep-pseudoheader",
-        help="Keep a pseudoheader from being prefixed",
-        action="append",
-        dest="keep_pseudoheaders",
-        default=[],
-    )
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=500,
-        help="Maximum number of CLs to downstream at once.  0 for infinite.",
-    )
-    parser.add_argument(
-        "--upstream-history-limit",
-        type=int,
-        default=250,
-        help="Maximum number of CLs in upstream history to check.  0 for"
-        " infinite.",
-    )
-    parser.add_argument(
-        "--downstream-history-limit",
-        type=int,
-        default=0,
-        help="Maximum number of CLs in upstream history to check.  0 for"
-        " infinite.",
-    )
-    parser.add_argument(
-        "--include-downstream",
-        action="append",
-        default=[],
-        help="Downstream include paths (relative to the subtree) separated by"
-        " colons.  Note: Only supported with subtrees",
-    )
-    parser.add_argument(
-        "--add-pseudoheader",
-        action="append",
-        default=[],
-        dest="add_pseudoheaders",
-        help="Pseudoheaders to be added to the commit message",
-    )
-    parser.add_argument(
-        "--skip-job-name",
-        action="append",
-        default=[],
-        help="Skip CLs in upstream copied from the specified job name",
-    )
-    parser.add_argument(
-        "--skip-author-email",
-        action="append",
-        default=[],
-        help="Skip CLs in upstream authored by specified email",
-    )
-    parser.add_argument(
-        "--upstream-history-starts-with",
-        help="Commit hash to start comparing history from",
-        default="",
-    )
-    parser.add_argument(
-        "--downstream-history-starts-with",
-        help="Commit hash to start comparing history from",
-        default="",
-    )
-    parser.add_argument(
-        "upstream",
-        help="Upstream Git URL, optionally with a branch and subtree separated"
-        " by colons",
-    )
-    parser.add_argument(
-        "downstream",
-        help="Downstream Git URL, optionally with a branch and subtree"
-        "separated by colons",
-    )
-    args = parser.parse_args(argv)
-
+    parser = copybot_argparser.generate_copybot_arg_parser()
+    opts = parser.parse_args(argv)
     logging.basicConfig(
         format="%(asctime)s %(levelname)s: %(message)s",
         level=logging.INFO,
     )
 
-    if 0 < args.downstream_history_limit < args.upstream_history_limit:
+    if 0 < opts.downstream_history_limit < opts.upstream_history_limit:
         logger.warning(
             "Using a lower downstream limit than upstream limit may cause"
             " previously downstreamed changes to be chosen again."
@@ -1647,13 +1493,13 @@ def main(argv: Optional[List[str]] = None) -> None:
         with tempfile.TemporaryDirectory(
             ".copybot"
         ) as git_dir, tempfile.TemporaryDirectory("_patches") as patch_dir:
-            run_copybot(args, git_dir, patch_dir)
+            run_copybot(opts, git_dir, patch_dir)
     except Exception as e:
         err = e
         raise
     finally:
-        if args.json_out:
-            write_json_error(args.json_out, err)
+        if opts.json_out:
+            write_json_error(opts.json_out, err)
 
 
 if __name__ == "__main__":
