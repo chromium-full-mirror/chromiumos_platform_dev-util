@@ -26,7 +26,6 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/config/go/test/api/metadata"
 	"go.chromium.org/chromiumos/config/go/test/artifact"
-	"go.chromium.org/chromiumos/infra/proto/go/test_platform"
 	"go.chromium.org/luci/common/errors"
 	rdb_pb "go.chromium.org/luci/resultdb/proto/v1"
 )
@@ -202,11 +201,6 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 		return fmt.Errorf("error during rdb test results upload: %w", err)
 	}
 
-	// Apply exonerations
-	err = rdbLib.ApplyExonerations(ctx, []string{rps.CurrentInvocationId}, test_platform.Request_Params_NON_CRITICAL, nil, nil)
-	if err != nil {
-		return fmt.Errorf("error during exonerations: %w", err)
-	}
 	return nil
 }
 
