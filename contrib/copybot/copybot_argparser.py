@@ -86,6 +86,13 @@ def generate_copybot_arg_parser() -> argparse.Namespace:
         default=[],
     )
     parser.add_argument(
+        "--exclude-method",
+        help="How to handle exclusions.  DROP: Drop the change."
+        "FILTER: Filter the exclude-file-pattern matching files out of the CLs.",
+        default="DROP",
+        choices=[behavior.name for behavior in gerrit.ExclusionBehavior],
+    )
+    parser.add_argument(
         "--merge-conflict-behavior",
         help="How to handle merge conflicts",
         default="SKIP",

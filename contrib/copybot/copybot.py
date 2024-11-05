@@ -196,7 +196,8 @@ def find_commits_to_copy(
     upstream_limit: int = 0,
     downstream_limit: int = 0,
     exclude_file_patterns: Iterable[str] = (),
-    pending_changes: Optional[Dict[str, GerritClInfo]] = None,
+    filter_file_patterns: Iterable[str] = (),
+    pending_changes: Optional[Dict[str, gerrit.GerritClInfo]] = None,
     skip_copybot_job_names: Iterable[str] = (),
     skip_author_emails: Iterable[str] = (),
     include_change_id: bool = False,
@@ -218,6 +219,9 @@ def find_commits_to_copy(
         downstream_limit: The maxinum number of CLs in the downstream history
             to check.
         exclude_file_patterns: File paths that should not be copied.
+            CLs will be dropped containing these paths.
+        filter_file_patterns: File paths that should be filtered out.
+            CLs will be modified to drop these paths.
         pending_changes: Changes pending in downstream repo.
         skip_copybot_job_names: Names of copybot jobs to not copy CLs from
         skip_author_emails: Emails of authors to not copy CLs from
@@ -229,13 +233,18 @@ def find_commits_to_copy(
             downstream history.
 
     Returns:
-        A list of the commit hashes to copy.
+        Three values: a list of the commit hashes to copy, a
+        dictionary mapping commit hashes to the files that should be
+        included, and a dictionary mapping commit hashes to the files
+        that should be skipped.
 
     Raises:
         ValueError: If the provided last merged commit hash does not
            exist in upstream commit history.
     """
     commits_to_copy = []
+    commit_files_map = {}
+    skipped_files_map = {}
     upstream_change_ids = {}
     upstream_hashes = repo.log_hashes(
         revision_range=upstream_rev,
@@ -318,6 +327,26 @@ def find_commits_to_copy(
             else:
                 continue
 
+        commit_files = repo.commit_file_list(rev)
+        filtered_commit_files = []
+        for path in commit_files:
+            if not any(p.fullmatch(path) for p in filter_file_patterns):
+                filtered_commit_files.append(path)
+
+        if not filtered_commit_files:
+            logger.info(
+                "Skip commit %s due to empty file list after filtering "
+                "(before filtering was %r)",
+                rev,
+                commit_files,
+            )
+            continue
+
+        commit_files_map[rev] = filtered_commit_files
+        skipped_files_map[rev] = [
+            path for path in commit_files if path not in filtered_commit_files
+        ]
+
         if downstream_subtree and include_paths:
             commit_files = repo.commit_file_list(rev)
             filtered_commit_files = []
@@ -337,13 +366,14 @@ def find_commits_to_copy(
                 continue
         commits_to_copy.append(rev)
 
-    return commits_to_copy
+    return commits_to_copy, commit_files_map, skipped_files_map
 
 
 def rewrite_commit_message(
     repo: gerrit.GitRepo,
     upstream_rev: str,
     change_id: str,
+    skipped_files=(),
     prepend_subject: str = "",
     insert_into_msg: Optional[Dict[int, str]] = None,
     sign_off: bool = False,
@@ -356,6 +386,7 @@ def rewrite_commit_message(
         repo: The GitRepo to operate on.
         upstream_rev: The upstream commit hash corresponding to this commit.
         change_id: The Change-Id to add to the commit.
+        skipped_files: The list of files skipped.
         prepend_subject: A string to prepend the subject line with.
         insert_into_msg: A Dict(line, message) of messages to add to the
             commit msg.
@@ -376,6 +407,9 @@ def rewrite_commit_message(
         commit_message
     )
     pseudoheaders = pseudoheaders.prefix(keep=keep_pseudoheaders)
+
+    for path in skipped_files:
+        pseudoheaders["CopyBot-Skipped-File"] = path
 
     pseudoheaders["GitOrigin-RevId"] = upstream_rev
     if additional_pseudoheaders:
@@ -478,6 +512,15 @@ def run_copybot(
         git_dir: A temporary or local directory to use for Git operations.
         patch_dir: A temporary directory to use for storing patch files.
     """
+    drop_paths = []
+    if (
+        gerrit.ExclusionBehavior[args.exclude_method]
+        == gerrit.ExclusionBehavior.DROP
+    ):
+        drop_paths = args.exclude_file_patterns
+    filter_file_patterns = [
+        re.compile(pattern) for pattern in args.exclude_file_patterns
+    ]
     (
         _,
         upstream_url,
@@ -524,7 +567,7 @@ def run_copybot(
             branch=downstream_branch,
             hashtags=[args.topic],
             subtree=downstream_subtree,
-            exclude_paths=args.exclude_file_patterns,
+            exclude_paths=drop_paths,
         )
         logger.info(
             "Found %s pending changes already on Gerrit", len(pending_changes)
@@ -568,7 +611,7 @@ def run_copybot(
             downstream_rev,
             upstream_subtree,
             downstream_subtree,
-            args.exclude_file_patterns,
+            drop_paths,
             related_repo,
             upstream_history_length=upstream_history_length,
             downstream_history_length=downstream_history_length,
@@ -612,7 +655,10 @@ def run_copybot(
         )
         args.upstream_history_limit = num_cls_to_downstream
 
-    commits_to_copy = find_commits_to_copy(
+    commit_files_map = {}
+    skipped_files_map = {}
+
+    commits_to_copy, commit_files_map, skipped_files_map = find_commits_to_copy(
         repo,
         upstream_rev,
         upstream_subtree,
@@ -621,7 +667,8 @@ def run_copybot(
         include_paths=args.include_downstream,
         upstream_limit=args.upstream_history_limit,
         downstream_limit=args.downstream_history_limit,
-        exclude_file_patterns=args.exclude_file_patterns,
+        exclude_file_patterns=drop_paths,
+        filter_file_patterns=filter_file_patterns,
         pending_changes=pending_changes,
         skip_copybot_job_names=args.skip_job_name,
         skip_author_emails=args.skip_author_email,
@@ -661,18 +708,23 @@ def run_copybot(
                 logger.info(
                     "Rewording commit message due to copybot-reword hashtag."
                 )
+        filtered_rev = None
+        if skipped_files_map[rev]:
+            filtered_rev = repo.filter_commit(
+                rev=rev, patch_dir=patch_dir, files=commit_files_map[rev]
+            )
         try:
             if pending_change:
                 repo.fetch(downstream_url, pending_changes[rev].current_ref)
                 repo.cherry_pick("FETCH_HEAD")
             else:
                 repo.cherry_pick(
-                    rev,
+                    filtered_rev or rev,
                     patch_dir=patch_dir,
                     upstream_subtree=upstream_subtree,
                     downstream_subtree=downstream_subtree,
                     include_paths=args.include_downstream,
-                    exclude_paths=args.exclude_file_patterns,
+                    exclude_paths=drop_paths,
                 )
         except gerrit.EmptyCommitError:
             logger.warning("Skip cherry-pick due to empty commit")
@@ -698,22 +750,24 @@ def run_copybot(
                     repo.cherry_pick(rev="FETCH_HEAD", allow_conflict=True)
                 else:
                     repo.cherry_pick(
-                        rev,
+                        filtered_rev or rev,
                         patch_dir=patch_dir,
                         upstream_subtree=upstream_subtree,
                         downstream_subtree=downstream_subtree,
                         include_paths=args.include_downstream,
-                        exclude_paths=args.exclude_file_patterns,
+                        exclude_paths=drop_paths,
                         allow_conflict=True,
                     )
                 if not pending_change or reword_pending_change:
                     change_id = (
-                        pending_changes.get(rev) or GerritClInfo("", "", "")
+                        pending_changes.get(rev)
+                        or gerrit.GerritClInfo("", "", "")
                     ).change_id
                     rewrite_commit_message(
                         repo,
                         upstream_rev=rev,
                         change_id=change_id or gerrit.generate_change_id(),
+                        skipped_files=skipped_files_map[rev],
                         prepend_subject=args.prepend_subject,
                         insert_into_msg=insert_into_msg,
                         sign_off=args.add_signed_off_by,
@@ -728,12 +782,13 @@ def run_copybot(
             raise gerrit.MergeConflictsError(commits=[rev]) from e
         if not pending_change or reword_pending_change:
             change_id = (
-                pending_changes.get(rev) or GerritClInfo("", "", "")
+                pending_changes.get(rev) or gerrit.GerritClInfo("", "", "")
             ).change_id
             rewrite_commit_message(
                 repo,
                 upstream_rev=rev,
                 change_id=change_id or gerrit.generate_change_id(),
+                skipped_files=skipped_files_map[rev],
                 prepend_subject=args.prepend_subject,
                 insert_into_msg=insert_into_msg,
                 sign_off=args.add_signed_off_by,

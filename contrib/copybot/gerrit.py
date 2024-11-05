@@ -9,14 +9,17 @@ This library contains all of the functionality for gerrit used by copybot.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import enum
 import json
 import logging
+import os
 import pathlib
 import re
 import shlex
 import subprocess
+import tempfile
 import time
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
@@ -47,6 +50,19 @@ class MergeConflictBehavior(enum.Enum):
     SKIP = enum.auto()
     STOP = enum.auto()
     ALLOW_CONFLICT = enum.auto()
+
+
+class ExclusionBehavior(enum.Enum):
+    """How to behave on exclusions.
+
+    DROP: Drop any CL containing content in the excluded directories.
+        This method uses git path exclusions and generally runs faster.
+    FILTER: Filter out files/folders matching the exclusion rules from
+        the target CLs.
+    """
+
+    DROP = enum.auto()
+    FILTER = enum.auto()
 
 
 class MergeConflictError(Exception):
@@ -231,14 +247,17 @@ class GitRepo:
         result = self._run_git("show", "--pretty=", "--name-only", rev)
         return result.stdout.splitlines()
 
-    def show(self, rev: str = "HEAD", files: Iterable[str] = ()) -> str:
+    def show(
+        self, rev: str = "HEAD", files: Iterable[str] = (), patch_dir=""
+    ) -> str:
         """Do a `git show`."""
-        extra_args = []
+        extra_args = ["--output", f"{patch_dir}/filtered.patch"]
         if files:
             extra_args.append("--")
-            extra_args.append(*files)
-        result = self._run_git("show", rev, extra_args)
-        return result.stdout
+            extra_args.extend(files)
+
+        self._run_git("show", rev, *extra_args)
+        return f"{patch_dir}/filtered.patch"
 
     def apply(
         self,
@@ -336,6 +355,49 @@ class GitRepo:
         if not patch_dir.is_dir():
             subtree = pathlib.Path(path).parents[0]
         return subtree
+
+    @contextlib.contextmanager
+    def temp_worktree(self, rev="HEAD"):
+        """Context manager to create and destroy a temporary worktree."""
+        # pylint: disable=consider-using-with
+        tmpdir = tempfile.TemporaryDirectory()
+        try:
+            worktree_dir = pathlib.Path(tmpdir.name)
+            self._run_git("worktree", "add", "-d", worktree_dir, rev)
+            try:
+                yield self.__class__(worktree_dir)
+            finally:
+                self._run_git("worktree", "remove", "--force", worktree_dir)
+        finally:
+            # We use a try/finally to cleanup the temporary directory
+            # instead of a context manager as, in the successful
+            # condition, the worktree directory will no longer exist
+            # (git will have removed it).  In Python 3.10+, one can
+            # use ignore_cleanup_errors=True, but the chroot is on
+            # Python 3.6 right now.
+            try:
+                tmpdir.cleanup()
+            except FileNotFoundError:
+                pass
+
+    def filter_commit(
+        self,
+        rev: str = "HEAD",
+        patch_dir: Union[str, "os.PathLike[str]"] = "",
+        files: Iterable[str] = (),
+    ):
+        """Filter a commit to just certain files.
+
+        Returns:
+            The new commit hash.
+        """
+        old_message = self.get_commit_message(rev)
+        patch = self.show(rev, files, patch_dir)
+
+        with self.temp_worktree(f"{rev}~1") as worktree:
+            worktree.apply(patch)
+            worktree.add("", stage=True, force=True)
+            return worktree.commit(old_message)
 
     def cherry_pick(
         self,
