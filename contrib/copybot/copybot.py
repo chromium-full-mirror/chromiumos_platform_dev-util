@@ -38,694 +38,24 @@ Usage: copybot.py [options...] upstream_repo:branch downstream_repo:branch
 from __future__ import annotations
 
 import argparse
-import dataclasses
-import enum
 import json
 import logging
-import os
 import pathlib
 import re
-import shlex
 import subprocess
 import tempfile
-import time
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import urllib
 
 import copybot_argparser
-import requests  # pylint: disable=import-error
+import gerrit
 
 
 logger = logging.getLogger(__name__)
 
-# Matches a full 40-character commit hash.
-_COMMIT_HASH_PATTERN = re.compile(r"\b[0-9a-f]{40}\b")
-
-
-class MergeConflictBehavior(enum.Enum):
-    """How to behave on merge conflicts.
-
-    FAIL: Stop immediately. Don't upload anything.
-    SKIP: Skip the commit that failed to merge. Summarize the failed
-        commits at the end of the execution, and exit failure status.
-    STOP: Stop immediately. Upload staged changes prior to conflict.
-    ALLOW_CONFLICT: Commit the conflicted CL with conflicts.  Summarize
-        the conflicted CLs at the end of execution, and exit failure
-        status.  Conflicted CLs WILL be uploaded to the downstream.
-        "Commit: false" will be added to the commit message to prevent
-        GoB from committing conflicted changes before they are edited.
-    """
-
-    FAIL = enum.auto()
-    SKIP = enum.auto()
-    STOP = enum.auto()
-    ALLOW_CONFLICT = enum.auto()
-
-
-class MergeConflictError(Exception):
-    """A commit cannot be cherry-picked due to a conflict."""
-
-
-class EmptyCommitError(Exception):
-    """A commit cannot be cherry-picked as it results in an empty commit."""
-
-
-class CopybotFatalError(Exception):
-    """Copybot fatal error."""
-
-    enum_name = "FAILURE_UNKNOWN"
-
-    def __init__(
-        self, *args: str, commits: Optional[Sequence[str]] = None, **kwargs: str
-    ):
-        self.commits = commits
-        super().__init__(*args, **kwargs)
-
-
-class UpstreamFetchError(CopybotFatalError):
-    """Copybot died as the upstream failed to fetch."""
-
-    enum_name = "FAILURE_UPSTREAM_FETCH_ERROR"
-
-
-class DownstreamFetchError(CopybotFatalError):
-    """Copybot died as the downstream failed to fetch."""
-
-    enum_name = "FAILURE_DOWNSTREAM_FETCH_ERROR"
-
-
-class PushError(CopybotFatalError):
-    """Copybot died as it failed to push to the downstream GoB host."""
-
-    enum_name = "FAILURE_DOWNSTREAM_PUSH_ERROR"
-
-
-class MergeConflictsError(CopybotFatalError):
-    """Copybot ran, but encountered merge conflicts."""
-
-    enum_name = "FAILURE_MERGE_CONFLICTS"
-
-
-@dataclasses.dataclass
-class GerritClInfo:
-    """Stores information for a Gerrit CL."""
-
-    def __init__(self, change_id: str, hashtags: str, ref: str) -> None:
-        """Initialize the Gerrit CL Info.
-
-        Args:
-            change_id: Change ID on Gerrit for this change.
-            hashtags: Hashtags associated with this change
-            ref: Current ref for this changes to be able to form a refspec
-        """
-        self.change_id = change_id
-        self.hashtags = hashtags
-        self.current_ref = ref
-
-
-class GitRepo:
-    """Class wrapping common Git repository actions."""
-
-    def __init__(self, git_dir: Union[str, "os.PathLike[str]"]) -> None:
-        self.git_dir = git_dir
-
-    def _run_git(
-        self, *args: Any, **kwargs: Any
-    ) -> "subprocess.CompletedProcess[str]":
-        """Wrapper to run git with the provided arguments."""
-        argv = ["git", "-C", self.git_dir, "--no-pager", *args]
-        logger.info("Run `%s`", " ".join(shlex.quote(str(arg)) for arg in argv))
-        kwargs.setdefault("encoding", "utf-8")
-        kwargs.setdefault("errors", "replace")
-        try:
-            return subprocess.run(
-                argv,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                **kwargs,
-            )
-        except subprocess.CalledProcessError as e:
-            logger.error("Git command failed!")
-            logger.error("  STDOUT:")
-            for line in e.stdout.splitlines():
-                logger.error("    %s", line)
-            logger.error("  STDERR:")
-            for line in e.stderr.splitlines():
-                logger.error("    %s", line)
-            raise
-
-    @classmethod
-    def init(cls, git_dir: Union[str, "os.PathLike[str]"]) -> GitRepo:
-        """Do a `git init` to create a new repository."""
-        git_dir = pathlib.Path(git_dir)
-        repo = cls(git_dir)
-        if not (git_dir / ".git").exists():
-            repo._run_git("init")  # pylint: disable=protected-access
-        return repo
-
-    def rev_parse(self, rev: str = "HEAD") -> str:
-        """Do a `git rev-parse`."""
-        result = self._run_git("rev-parse", rev)
-        return result.stdout.rstrip()
-
-    def fetch(self, remote: str, ref: str = "") -> str:
-        """Do a `git fetch`.
-
-        Returns:
-            The full commit hash corresponding to FETCH_HEAD.
-        """
-        extra_args = []
-        if ref:
-            extra_args.append(ref)
-        self._run_git("fetch", remote, *extra_args)
-        return self.rev_parse("FETCH_HEAD")
-
-    def checkout(self, ref: str) -> "subprocess.CompletedProcess[str]":
-        """Do a `git checkout`."""
-        return self._run_git("checkout", ref)
-
-    def log(
-        self,
-        revision_range: str = "HEAD",
-        fmt: str = "",
-        num: int = 0,
-        subtree: str = "",
-        exclude_file_patterns: Iterable[str] = (),
-    ) -> "subprocess.CompletedProcess[str]":
-        """Do a `git log`."""
-        extra_args = []
-        if fmt:
-            extra_args.append(f"--format={fmt}")
-        if num:
-            extra_args.append(f"-n{num}")
-        extra_args.append("--")
-        extra_args.extend(
-            [f":!{path}" for path in (exclude_file_patterns or [])]
-        )
-        if subtree:
-            extra_args.append(subtree)
-        return self._run_git("log", revision_range, *extra_args)
-
-    def log_hashes(
-        self,
-        revision_range: str = "HEAD",
-        num: int = 0,
-        subtree: str = "",
-        exclude_file_patterns: Iterable[str] = (),
-    ) -> List[str]:
-        """Get the commit log as a list of commit hashes."""
-        result = self.log(
-            revision_range=revision_range,
-            fmt="%H",
-            num=num,
-            subtree=subtree,
-            exclude_file_patterns=exclude_file_patterns,
-        )
-        return result.stdout.splitlines()
-
-    def get_commit_message(self, rev: str = "HEAD") -> str:
-        """Get a commit message of a commit."""
-        result = self.log(revision_range=rev, num=1, fmt="%B")
-        return result.stdout
-
-    def get_author_email(self, rev: str = "HEAD") -> str:
-        """Get the authors email of a commit."""
-        result = self.log(revision_range=rev, num=1, fmt="%cE")
-        return result.stdout.strip()
-
-    def get_subject(self, rev: str = "HEAD") -> str:
-        """Get the subject of a commit."""
-        result = self.log(revision_range=rev, num=1, fmt="%s")
-        return result.stdout.strip()
-
-    def commit_file_list(self, rev: str = "HEAD") -> List[str]:
-        """Get the files modified by a commit."""
-        result = self._run_git("show", "--pretty=", "--name-only", rev)
-        return result.stdout.splitlines()
-
-    def show(self, rev: str = "HEAD", files: Iterable[str] = ()) -> str:
-        """Do a `git show`."""
-        extra_args = []
-        if files:
-            extra_args.append("--")
-            extra_args.append(*files)
-        result = self._run_git("show", rev, extra_args)
-        return result.stdout
-
-    def apply(
-        self,
-        patch: Union[str, "os.PathLike[str]"],
-        path: Union[str, "os.PathLike[str]"] = "",
-        include_paths: Optional[List[Union[str, "os.PathLike[str]"]]] = None,
-        exclude_paths: Optional[List[Union[str, "os.PathLike[str]"]]] = None,
-    ) -> "subprocess.CompletedProcess[str]":
-        """Apply a patch to the staging area."""
-        extra_args = []
-        if path:
-            extra_args.append(f"--directory={path}")
-        if include_paths:
-            extra_args.extend(f"--include={path}" for path in include_paths)
-        if exclude_paths:
-            extra_args.extend(f"--exclude={path}" for path in exclude_paths)
-
-        extra_args.append(str(patch))
-        return self._run_git("apply", *extra_args)
-
-    def commit(
-        self,
-        message: str,
-        amend: bool = False,
-        sign_off: bool = False,
-        stage: bool = False,
-    ) -> str:
-        """Create a commit.
-
-        Returns:
-            The commit hash.
-        """
-        extra_args = []
-        if stage:
-            extra_args.append("--all")
-        if amend:
-            extra_args.append("--amend")
-        if sign_off:
-            extra_args.append("--signoff")
-        self._run_git("commit", *extra_args, "-m", message)
-        return self.rev_parse()
-
-    def reword(self, new_message: str, sign_off: bool = False) -> str:
-        """Reword the commit at HEAD.
-
-        Returns:
-            The new commit hash.
-        """
-        return self.commit(new_message, amend=True, sign_off=sign_off)
-
-    def format_patch(
-        self,
-        rev: str,
-        output_path: Union[str, "os.PathLike[str]"],
-        num: int = 1,
-        relative_path: Union[str, "os.PathLike[str]"] = "",
-    ) -> pathlib.Path:
-        """Generate patch from revision with an optional relative path.
-
-        Returns:
-            Path of the output patch.
-        """
-        extra_args = []
-        if relative_path:
-            extra_args.append(f"--relative={relative_path}")
-        extra_args.extend([f"-{num}", rev, f"--output-directory={output_path}"])
-
-        result = self._run_git("format-patch", *extra_args)
-        return pathlib.Path(result.stdout.rstrip())
-
-    def add(
-        self,
-        path: Union[str, "os.PathLike[str]"],
-        stage: bool = False,
-        force: bool = False,
-    ) -> "subprocess.CompletedProcess[str]":
-        """Add unstaged files."""
-        extra_args = []
-        if stage:
-            extra_args.append("--all")
-        if force:
-            extra_args.append("--force")
-        if path:
-            extra_args.append(str(path))
-        return self._run_git("add", *extra_args)
-
-    def get_subtree_lowest_working_dir(
-        self, path: Union[str, "os.PathLike[str]"]
-    ) -> Union[str, "os.PathLike[str]"]:
-        """Get the lowest working directory path for subtree."""
-        patch_dir = pathlib.Path(self.git_dir)
-        if path:
-            patch_dir = patch_dir / path
-        subtree = path
-        if not patch_dir.is_dir():
-            subtree = pathlib.Path(path).parents[0]
-        return subtree
-
-    def cherry_pick(
-        self,
-        rev: str,
-        patch_dir: Union[str, "os.PathLike[str]"] = "",
-        upstream_subtree: Union[str, "os.PathLike[str]"] = "",
-        downstream_subtree: Union[str, "os.PathLike[str]"] = "",
-        include_paths: Optional[List[Union[str, "os.PathLike[str]"]]] = None,
-        exclude_paths: Optional[List[Union[str, "os.PathLike[str]"]]] = None,
-        allow_conflict: bool = False,
-    ) -> None:
-        """Do a `git cherry-pick`.
-
-        This will first try without any merge options, and if that fails,
-        try again with -Xpatience, which is slower, but may be more likely
-        to resolve a merge conflict.
-
-        Raises:
-            EmptyCommitError: The resultant commit was empty and should be
-                skipped.
-            MergeConflictError: There was a merge conflict that could not
-                be resolved automatically with -Xpatience.
-        """
-
-        def _try_cherry_pick(extra_flags: List[str]) -> None:
-            try:
-                self._run_git("cherry-pick", "-x", rev, *extra_flags)
-            except subprocess.CalledProcessError as e:
-                try:
-                    self._run_git("rev-parse", "--verify", "CHERRY_PICK_HEAD")
-                    logger.warning("Could not cherry-pick")
-                except subprocess.CalledProcessError as err:
-                    if "is a merge but no -m option was given" in e.stderr:
-                        logger.warning("Merge commit detected")
-                    raise MergeConflictError() from err
-                if allow_conflict:
-                    self.add(downstream_subtree, stage=True, force=True)
-                    self.commit(
-                        self.get_commit_message(rev),
-                        amend=False,
-                        sign_off=False,
-                        stage=True,
-                    )
-                else:
-                    self._run_git("cherry-pick", "--abort")
-                    if "The previous cherry-pick is now empty" in e.stderr:
-                        raise EmptyCommitError() from e
-                    raise MergeConflictError() from e
-
-        cherry_pick_flag_list: Tuple[List[str], ...] = (
-            [],
-            ["-Xpatience"],
-            ["-m", "2"],
-        )
-        if downstream_subtree or upstream_subtree or include_paths:
-            cherry_pick_flag_list = ()
-        for flags in cherry_pick_flag_list:
-            try:
-                _try_cherry_pick(flags)
-            except MergeConflictError:
-                continue
-            else:
-                return
-        patch = self.format_patch(
-            rev,
-            patch_dir,
-            1,
-            self.get_subtree_lowest_working_dir(upstream_subtree),
-        )
-        try:
-            self.apply(
-                patch=patch,
-                path=self.get_subtree_lowest_working_dir(downstream_subtree),
-                include_paths=include_paths,
-                exclude_paths=exclude_paths,
-            )
-        except subprocess.CalledProcessError as e:
-            if not allow_conflict:
-                raise MergeConflictError() from e
-        self.add(downstream_subtree, stage=True, force=True)
-        self.commit(
-            self.get_commit_message(rev),
-            amend=False,
-            sign_off=False,
-            stage=True,
-        )
-        return
-
-    def push(self, url: str, refspec: str, options: Iterable[str] = ()) -> None:
-        """Do a `git push`."""
-        args = []
-
-        if options:
-            for option in options:
-                args.extend(["-o", option])
-
-        args.append(url)
-        args.append(refspec)
-        self._run_git("push", *args)
-
-    def get_cl_count(self, original_rev: str, current_rev: str) -> int:
-        """Get the number of CLs between the specified revisions."""
-        if not original_rev or not current_rev:
-            return 0
-        args = ["--count"]
-        args.append(f"{original_rev}..{current_rev}")
-        result = self._run_git("rev-list", *args)
-        return int(result.stdout.rstrip())
-
-
-class Pseudoheaders:
-    """Dictionary-like object for the pseudoheaders from a commit message.
-
-    The pseudoheaders are the header-like lines often found in the
-    bottom of a commit message.  Header names are case-insensitive.
-
-    Pseudoheaders are parsed the same way that the "git footers"
-    command parses them.
-    """
-
-    # Matches lines that look like a "header" (the conventional footer
-    # lines in a commit message).
-    _PSEUDOHEADER_PATTERN = re.compile(r"^(?:[A-Za-z0-9]+-)*[A-Za-z0-9]+:\s+")
-
-    def __init__(self, header_list: Iterable[Tuple[str, str]] = ()) -> None:
-        if header_list:
-            self._header_list = list(header_list)
-        else:
-            self._header_list = []
-
-    @classmethod
-    def from_commit_message(
-        cls, commit_message: str, offset: int = 1
-    ) -> Tuple[Pseudoheaders, str]:
-        """Parse pseudoheaders from a commit message.
-
-        Args:
-            commit_message: commit message from git log.
-            offset: which line to start processing the message from.
-                Lines less than the offset will not be altered.
-
-        Returns:
-            Two values, a Pseudoheaders dictionary, and the commit
-            message without any pseudoheaders.
-        """
-        message_lines = commit_message.splitlines()
-        rewritten_message = []
-
-        header_list = []
-        for i, line in enumerate(message_lines):
-            if i < offset or not cls._PSEUDOHEADER_PATTERN.match(line):
-                rewritten_message.append(line)
-            else:
-                name, _, value = line.partition(":")
-                header_list.append((name, value.strip()))
-
-        return cls(header_list), "".join(
-            f"{line}\n" for line in rewritten_message
-        )
-
-    def prefix(
-        self, prefix: str = "Original-", keep: Iterable[str] = ()
-    ) -> Pseudoheaders:
-        """Prefix all header keys with a string.
-
-        Args:
-            prefix: The prefix to use.
-            keep: Headers which should not be modified.
-
-        Returns:
-            A new Pseudoheaders dictionary.
-        """
-        new_header_list = []
-
-        # Constructing a new pseudoheaders dictionary ensures we
-        # consider the keep list to be case insensitive.
-        keep_dict: Pseudoheaders = Pseudoheaders()
-        if keep:
-            keep_dict = self.__class__([(key, "Keeping") for key in keep])
-
-        for key, value in self._header_list:
-            if keep_dict.get(key):
-                new_header_list.append((key, value))
-            else:
-                new_header_list.append((f"{prefix}{key}", value))
-        return self.__class__(new_header_list)
-
-    def __getitem__(self, item: str) -> str:
-        """Get a header value by name."""
-        for key, value in self._header_list:
-            if key.lower() == item.lower():
-                return value
-        raise KeyError(item)
-
-    def get(self, item: str, default: str = "") -> str:
-        """Get a header value by name, or return a default value."""
-        try:
-            return self[item]
-        except KeyError:
-            return default
-
-    def as_dict(self) -> Dict[str, str]:
-        """Get the dict of stored values."""
-        return dict(self._header_list)
-
-    def __setitem__(self, key: str, value: str) -> None:
-        """Add a header."""
-        self._header_list.append((key, value))
-
-    def add_to_commit_message(self, commit_message: str) -> str:
-        """Add our pseudoheaders to a commit message.
-
-        Returns:
-            The new commit message.
-        """
-        message_lines = commit_message.splitlines()
-
-        if not message_lines:
-            message_lines = ["NO COMMIT MESSAGE"]
-
-        # Ensure exactly one blank line separating body and pseudoheaders.
-        while not message_lines[-1].strip():
-            message_lines.pop()
-
-        message_lines.append("")
-
-        for key, value in self._header_list:
-            message_lines.append(f"{key}: {value}")
-        return "".join(f"{line}\n" for line in message_lines)
-
-    def __str__(self) -> str:
-        return "\n".join(f"{key}:{value}" for key, value in self._header_list)
-
-    def update(self, other: Union[dict, Pseudoheaders]) -> None:
-        if isinstance(other, type(self)):
-            for key, value in other.as_dict().items():
-                self[key] = value
-        elif isinstance(other, dict):
-            for key, value in other:
-                self[key] = value
-        else:
-            raise TypeError(f"Other class has conflicting type({type(other)})")
-
-
-class Gerrit:
-    """Wrapper for actions on a Gerrit host."""
-
-    def __init__(self, hostname: str) -> None:
-        self.hostname = hostname
-
-    def search(self, query: str) -> List[Dict[str, Any]]:
-        """Do a query on Gerrit."""
-        url = f"https://{self.hostname}/changes/"
-        params = [
-            ("q", query),
-            ("o", "CURRENT_REVISION"),
-            ("o", "CURRENT_COMMIT"),
-            ("o", "COMMIT_FOOTERS"),
-        ]
-        while True:
-            r = requests.get(url, params=params)
-            if r.ok:
-                break
-            if r.status_code == requests.codes.too_many:
-                time.sleep(1)
-                continue
-            r.raise_for_status()
-            assert False
-
-        if r.text[:5] != ")]}'\n":
-            logger.error("Bad response from Gerrit: %r", r.text)
-            raise ValueError("Unexpected JSON payload from gerrit")
-
-        result = json.loads(r.text[5:])
-        return result
-
-    def find_pending_changes(
-        self,
-        project: str,
-        branch: str,
-        hashtags: Iterable[str] = (),
-        subtree: str = "",
-        exclude_paths: Iterable[str] = (),
-    ) -> Dict[str, GerritClInfo]:
-        """Find pending changes previously opened by CopyBot on Gerrit.
-
-        Returns:
-            A dictionary mapping upstream commit hashes to their
-            current Change-Id on Gerrit and their associated hashtags.
-        """
-        query = [
-            "status:open",
-            f"project:{project}",
-            f"branch:{branch}",
-        ]
-        if hashtags:
-            query.extend(f"hashtag:{hashtag}" for hashtag in hashtags)
-        if subtree:
-            query.append(f"directory:{subtree}")
-        if exclude_paths:
-            for path in exclude_paths:
-                query.append(f"-directory:{path}")
-        query_result = self.search(" ".join(query))
-        change_ids = {}
-        for cl in query_result:
-            change_id = cl["change_id"]
-            current_revision_hash = cl["current_revision"]
-            current_revision_data = cl["revisions"][current_revision_hash]
-            commit_message = current_revision_data["commit"]["message"]
-            origin_rev_id = get_origin_rev_id(commit_message)
-            rev_id = []
-            if origin_rev_id:
-                rev_id.append(origin_rev_id)
-            else:
-                for commit_hash in _COMMIT_HASH_PATTERN.finditer(
-                    commit_message
-                ):
-                    rev_id.append(commit_hash.group(0))
-            for rev in rev_id:
-                change_ids[rev] = GerritClInfo(
-                    change_id,
-                    cl["hashtags"].copy(),
-                    current_revision_data["ref"],
-                )
-        return change_ids
-
-
-def generate_change_id() -> str:
-    """Generate a Unique Change-Id."""
-    return f"I{os.urandom(20).hex()}"
-
-
-def get_origin_rev_id(commit_message: str) -> str:
-    """Get the origin revision hash from a commit message.
-
-    Returns:
-        The revision hash if one was found, or None otherwise.
-    """
-    pseudoheaders, _ = Pseudoheaders.from_commit_message(commit_message)
-    origin_revid = pseudoheaders.get("GitOrigin-RevId")
-    if not origin_revid:
-        origin_revid = pseudoheaders.get("Original-Commit-Id")
-    return origin_revid
-
-
-def get_change_id(commit_message: str) -> str:
-    """Get the Change-Id from a commit message.
-
-    Returns:
-        The Change-Id if one was found, or None otherwise.
-    """
-    pseudoheaders, _ = Pseudoheaders.from_commit_message(commit_message)
-    return pseudoheaders.get("Change-Id")
-
 
 def find_last_merged_rev(
-    repo: GitRepo,
+    repo: gerrit.GitRepo,
     upstream_rev: str,
     downstream_rev: str,
     upstream_subtree: str = "",
@@ -776,14 +106,14 @@ def find_last_merged_rev(
     upstream_change_ids = {}
     if include_change_id:
         for rev in upstream_hashes:
-            change_id = get_change_id(repo.get_commit_message(rev))
+            change_id = gerrit.get_change_id(repo.get_commit_message(rev))
             if change_id:
                 upstream_change_ids[change_id] = rev
 
     for rev in downstream_hashes:
         commit_message = repo.get_commit_message(rev)
-        origin_revid = get_origin_rev_id(commit_message)
-        change_id = get_change_id(commit_message)
+        origin_revid = gerrit.get_origin_rev_id(commit_message)
+        change_id = gerrit.get_change_id(commit_message)
         if (
             rev in upstream_hashes
             or origin_revid
@@ -805,7 +135,7 @@ def find_last_merged_rev(
 
 
 def get_downstreamed_list(
-    repo: GitRepo,
+    repo: gerrit.GitRepo,
     downstream_rev: str,
     downstream_subtree: str = "",
     exclude_file_patterns: Iterable[str] = (),
@@ -842,8 +172,8 @@ def get_downstreamed_list(
             break
 
         commit_message = repo.get_commit_message(rev)
-        origin_revid = get_origin_rev_id(commit_message)
-        change_id = get_change_id(commit_message)
+        origin_revid = gerrit.get_origin_rev_id(commit_message)
+        change_id = gerrit.get_change_id(commit_message)
 
         if origin_revid:
             downstreamed_revs.append(origin_revid)
@@ -857,7 +187,7 @@ def get_downstreamed_list(
 
 
 def find_commits_to_copy(
-    repo: GitRepo,
+    repo: gerrit.GitRepo,
     upstream_rev: str,
     upstream_subtree: str,
     downstream_rev: str,
@@ -917,7 +247,7 @@ def find_commits_to_copy(
         for counter, rev in enumerate(upstream_hashes):
             if counter > upstream_limit and upstream_limit != 0:
                 break
-            change_id = get_change_id(repo.get_commit_message(rev))
+            change_id = gerrit.get_change_id(repo.get_commit_message(rev))
             if change_id:
                 upstream_change_ids[change_id] = rev
     downstreamed_revs = get_downstreamed_list(
@@ -938,9 +268,10 @@ def find_commits_to_copy(
 
         # Check if this is a filtered commit.
         commit_message = repo.get_commit_message(rev)
-        pseudoheaders, commit_message = Pseudoheaders.from_commit_message(
-            commit_message
-        )
+        (
+            pseudoheaders,
+            commit_message,
+        ) = gerrit.Pseudoheaders.from_commit_message(commit_message)
         job_name = pseudoheaders.get("Copybot-Job-Name")
         if skip_copybot_job_names and job_name in skip_copybot_job_names:
             logger.info(
@@ -1010,7 +341,7 @@ def find_commits_to_copy(
 
 
 def rewrite_commit_message(
-    repo: GitRepo,
+    repo: gerrit.GitRepo,
     upstream_rev: str,
     change_id: str,
     prepend_subject: str = "",
@@ -1041,7 +372,7 @@ def rewrite_commit_message(
         for line, msg in sorted(insert_into_msg.items(), reverse=True):
             tmp_commit_msg.insert(line, msg)
         commit_message = "\n".join(tmp_commit_msg)
-    pseudoheaders, commit_message = Pseudoheaders.from_commit_message(
+    pseudoheaders, commit_message = gerrit.Pseudoheaders.from_commit_message(
         commit_message
     )
     pseudoheaders = pseudoheaders.prefix(keep=keep_pseudoheaders)
@@ -1049,7 +380,7 @@ def rewrite_commit_message(
     pseudoheaders["GitOrigin-RevId"] = upstream_rev
     if additional_pseudoheaders:
         for additional_header in additional_pseudoheaders:
-            parsed, _ = Pseudoheaders.from_commit_message(
+            parsed, _ = gerrit.Pseudoheaders.from_commit_message(
                 additional_header, offset=0
             )
             pseudoheaders.update(parsed)
@@ -1176,17 +507,19 @@ def run_copybot(
         related_repo = True
         if "Change-Id" not in keep_pseudoheaders:
             keep_pseudoheaders.append("Change-Id")
-    merge_conflict_behavior = MergeConflictBehavior[
+    merge_conflict_behavior = gerrit.MergeConflictBehavior[
         args.merge_conflict_behavior
     ]
     pending_changes = {}
-    gerrit: Optional[Gerrit] = None
+    gerrit_inst: Optional[gerrit.Gerrit] = None
     if (m := is_server_gob(str(downstream_url))) is not None:
         downstream_gob_host = m.group(1)
         downstream_project = m.group(2)
 
-        gerrit = Gerrit(f"{downstream_gob_host}-review.googlesource.com")
-        pending_changes = gerrit.find_pending_changes(
+        gerrit_inst = gerrit.Gerrit(
+            f"{downstream_gob_host}-review.googlesource.com"
+        )
+        pending_changes = gerrit_inst.find_pending_changes(
             project=downstream_project,
             branch=downstream_branch,
             hashtags=[args.topic],
@@ -1196,18 +529,18 @@ def run_copybot(
         logger.info(
             "Found %s pending changes already on Gerrit", len(pending_changes)
         )
-    repo = GitRepo.init(git_dir)
+    repo = gerrit.GitRepo.init(git_dir)
     try:
         upstream_rev = repo.fetch(upstream_url, upstream_branch)
     except subprocess.CalledProcessError as e:
-        raise UpstreamFetchError(
+        raise gerrit.UpstreamFetchError(
             f"Failed to fetch branch {upstream_branch} from {upstream_url}"
         ) from e
 
     try:
         downstream_rev = repo.fetch(downstream_url, downstream_branch)
     except subprocess.CalledProcessError as e:
-        raise DownstreamFetchError(
+        raise gerrit.DownstreamFetchError(
             f"Failed to fetch branch {downstream_branch} from {downstream_url}"
         ) from e
     upstream_history_length = 0
@@ -1341,22 +674,23 @@ def run_copybot(
                     include_paths=args.include_downstream,
                     exclude_paths=args.exclude_file_patterns,
                 )
-        except EmptyCommitError:
+        except gerrit.EmptyCommitError:
             logger.warning("Skip cherry-pick due to empty commit")
             empty_revs.append(rev)
             continue
-        except MergeConflictError as e:
+        except gerrit.MergeConflictError as e:
             logger.error("Merge conflict cherry-picking %s!", rev)
-            if merge_conflict_behavior is MergeConflictBehavior.SKIP:
+            if merge_conflict_behavior is gerrit.MergeConflictBehavior.SKIP:
                 logger.warning("Skipping %s", rev)
                 skipped_revs.append(rev)
                 continue
-            elif merge_conflict_behavior is MergeConflictBehavior.STOP:
+            elif merge_conflict_behavior is gerrit.MergeConflictBehavior.STOP:
                 logger.warning("Stopping at revision %s", rev)
                 skipped_revs.extend(list(reversed(commits_to_copy))[i:])
                 break
             elif (
-                merge_conflict_behavior is MergeConflictBehavior.ALLOW_CONFLICT
+                merge_conflict_behavior
+                is gerrit.MergeConflictBehavior.ALLOW_CONFLICT
             ):
                 logger.warning("Committing %s with conflicts", rev)
                 if pending_change:
@@ -1379,7 +713,7 @@ def run_copybot(
                     rewrite_commit_message(
                         repo,
                         upstream_rev=rev,
-                        change_id=change_id or generate_change_id(),
+                        change_id=change_id or gerrit.generate_change_id(),
                         prepend_subject=args.prepend_subject,
                         insert_into_msg=insert_into_msg,
                         sign_off=args.add_signed_off_by,
@@ -1391,7 +725,7 @@ def run_copybot(
                     )
                 conflicted_revs.append(rev)
                 continue
-            raise MergeConflictsError(commits=[rev]) from e
+            raise gerrit.MergeConflictsError(commits=[rev]) from e
         if not pending_change or reword_pending_change:
             change_id = (
                 pending_changes.get(rev) or GerritClInfo("", "", "")
@@ -1399,7 +733,7 @@ def run_copybot(
             rewrite_commit_message(
                 repo,
                 upstream_rev=rev,
-                change_id=change_id or generate_change_id(),
+                change_id=change_id or gerrit.generate_change_id(),
                 prepend_subject=args.prepend_subject,
                 insert_into_msg=insert_into_msg,
                 sign_off=args.add_signed_off_by,
@@ -1419,7 +753,9 @@ def run_copybot(
                     downstream_url, push_refspec, options=args.push_options
                 )
             except subprocess.CalledProcessError as e:
-                raise PushError(f"Failed to push to {downstream_url}") from e
+                raise gerrit.PushError(
+                    f"Failed to push to {downstream_url}"
+                ) from e
         else:
             logger.info("Skip push due to dry/local run")
 
@@ -1442,7 +778,7 @@ def run_copybot(
         )
         for rev in revlist:
             logger.error("- %s", rev)
-        raise MergeConflictsError(commits=skipped_revs)
+        raise gerrit.MergeConflictsError(commits=skipped_revs)
 
     conflictedlist = [
         repo.log(rev, fmt="%H %s", num=1).stdout.strip()
@@ -1452,7 +788,7 @@ def run_copybot(
         logger.error("The following commits were uploaded with conflicts:")
         for rev in conflictedlist:
             logger.error("- %s", rev)
-        raise MergeConflictsError(commits=conflicted_revs)
+        raise gerrit.MergeConflictsError(commits=conflicted_revs)
 
 
 def write_json_error(path: pathlib.Path, err: Exception | None) -> None:
@@ -1464,12 +800,12 @@ def write_json_error(path: pathlib.Path, err: Exception | None) -> None:
     """
     err_json: Dict[str, Any] = {}
     if err:
-        if isinstance(err, CopybotFatalError):
+        if isinstance(err, gerrit.CopybotFatalError):
             err_json["failure_reason"] = err.enum_name
             if err.commits:
                 err_json["merge_conflicts"] = [{"hash": x} for x in err.commits]
         else:
-            err_json["failure_reason"] = CopybotFatalError.enum_name
+            err_json["failure_reason"] = gerrit.CopybotFatalError.enum_name
     logger.debug("JSON response: %s", err_json)
     path.write_text(json.dumps(err_json))
 
