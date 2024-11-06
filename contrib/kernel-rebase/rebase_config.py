@@ -121,6 +121,7 @@ topic_patches["media"] = [
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - assign_str.patch",
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - vmalloc.patch",
     "fixups/FIXUP: CHROMIUM: mtk-mdp: add driver to probe mdp components.patch",
+    "fixups/FIXUP: CHROMIUM: media: platform: mediatek: mdp3: add support for ISP direct-linked to MDP.patch.patch",
 ]
 
 topic_patches["dts"] = [
@@ -419,6 +420,13 @@ disp_overwrite[
 disp_overwrite[
     "d6bd2210f1f4"
 ] = "drop"  # CHROMIUM: kallsyms: Display differences between kallsyms passes
+disp_overwrite[
+    "caa46d0439a3"
+] = "drop"  #  CHROMIUM: media: ov08x40: fixup ov08x40_start_streaming()
+disp_overwrite["bd5f054941fd"] = [
+    "move",
+    "media",
+]  # CHROMIUM: soc: mediatek: mmsys: add support for ISP control
 disp_overwrite[
     "dd3af47588d4"
 ] = "drop"  # CHROMIUM: thermal: Add notifier call chain for hot/critical events
