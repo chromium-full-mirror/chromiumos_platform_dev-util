@@ -568,6 +568,7 @@ func (fws *FirmwareService) runFutility(ctx context.Context, rwOnly bool, futili
 	if ecImagePath != "" {
 		// If we are flashing EC, we might lose SSH access, so use nohup to run futility in a temporary python script, and poll for results
 		logFile := path.Join(path.Dir(ecImagePath), "futility.log")
+		startupLogFile := path.Join(path.Dir(ecImagePath), "futility.start")
 		pyScript := path.Join(path.Dir(ecImagePath), "futility.py")
 		var scriptBody strings.Builder
 		scriptBody.WriteString(`#!/usr/bin/env python3
@@ -595,7 +596,7 @@ with open("`)
 		}
 		defer connection.RunCmd(ctx, "rm", []string{"-f", fmt.Sprintf("'%s'", logFile)})
 
-		_, err = connection.RunCmd(ctx, "bash", []string{"-c", Escape(fmt.Sprintf("nohup python3 '%s' </dev/null >&/dev/null & exit", pyScript))})
+		_, err = connection.RunCmd(ctx, "bash", []string{"-c", Escape(fmt.Sprintf("nohup python3 '%s' </dev/null >&'%s' & exit", pyScript, startupLogFile))})
 		if err != nil {
 			return errors.Wrap(err, "failed to run nohup")
 		}
@@ -608,7 +609,11 @@ with open("`)
 			buf, err := connection.RunCmd(ctx, "cat", []string{fmt.Sprintf("'%s'", logFile)})
 			if err != nil {
 				log.Printf("failed to download %q: %v", logFile, err)
-				continue
+				buf, err = connection.RunCmd(ctx, "cat", []string{fmt.Sprintf("'%s'", startupLogFile)})
+				if err != nil {
+					log.Printf("failed to download %q: %v", startupLogFile, err)
+					continue
+				}
 			}
 			m := exitCodeRe.FindStringSubmatch(buf)
 			if m != nil {

@@ -463,7 +463,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 					}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
 					dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
 						Command: "bash",
-						Args:    []string{"-c", "'nohup python3 '\"'\"'/var/tmp/some TempDir/futility.py'\"'\"' </dev/null >&/dev/null & exit'"},
+						Args:    []string{"-c", "'nohup python3 '\"'\"'/var/tmp/some TempDir/futility.py'\"'\"' </dev/null >&'\"'\"'/var/tmp/some TempDir/futility.start'\"'\"' & exit'"},
 					}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
 					dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
 						Command: "cat",
