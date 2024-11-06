@@ -26,6 +26,9 @@ func TestBoardModelRealm(t *testing.T) {
 			},
 		},
 	}
+	validRealms := map[string]bool{
+		"eve-eve": true,
+	}
 
 	Convey("Get board-model realm for a base build", t, func() {
 		testResult := &artifact.TestResult{
@@ -41,7 +44,7 @@ func TestBoardModelRealm(t *testing.T) {
 				},
 			},
 		}
-		realm := boardModelRealm(testResult)
+		realm := boardModelRealm(testResult, validRealms)
 		So(realm, ShouldResemble, "chromeos:eve-eve")
 	})
 
@@ -59,7 +62,7 @@ func TestBoardModelRealm(t *testing.T) {
 				},
 			},
 		}
-		realm := boardModelRealm(testResult)
+		realm := boardModelRealm(testResult, validRealms)
 		So(realm, ShouldResemble, "chromeos:eve-eve")
 	})
 
@@ -77,7 +80,7 @@ func TestBoardModelRealm(t *testing.T) {
 				},
 			},
 		}
-		realm := boardModelRealm(testResult)
+		realm := boardModelRealm(testResult, validRealms)
 		So(realm, ShouldBeEmpty)
 	})
 
@@ -106,7 +109,7 @@ func TestBoardModelRealm(t *testing.T) {
 				},
 			},
 		}
-		realm := boardModelRealm(testResult)
+		realm := boardModelRealm(testResult, validRealms)
 		So(realm, ShouldBeEmpty)
 	})
 
@@ -124,7 +127,7 @@ func TestBoardModelRealm(t *testing.T) {
 				},
 			},
 		}
-		realm := boardModelRealm(testResult)
+		realm := boardModelRealm(testResult, validRealms)
 		So(realm, ShouldBeEmpty)
 	})
 }

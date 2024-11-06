@@ -119,7 +119,7 @@ func (rdbClient *RdbClient) StreamCommand(ctx context.Context, rdbStreamConfig *
 
 	if rdbStreamConfig.Include {
 		if strings.TrimSpace(rdbStreamConfig.Realm) != "" {
-			streamArgs = append(streamArgs, "-new", "-realm", rdbStreamConfig.Realm)
+			streamArgs = append(streamArgs, "-new", "-realm", rdbStreamConfig.Realm, "-include")
 		} else {
 			return nil, fmt.Errorf("realm cannot be empty when requested to include new realm")
 		}

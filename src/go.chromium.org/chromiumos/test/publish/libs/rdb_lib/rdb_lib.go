@@ -12,10 +12,16 @@ import (
 
 	"go.chromium.org/chromiumos/test/publish/clients/rdb_client"
 	common_utils "go.chromium.org/chromiumos/test/publish/cmd/common-utils"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/protobuf/encoding/prototext"
 
 	"github.com/google/uuid"
 	"go.chromium.org/chromiumos/config/go/test/artifact"
 	"go.chromium.org/chromiumos/infra/proto/go/test_platform"
+	"go.chromium.org/luci/common/api/gitiles"
+	gitiles_pb "go.chromium.org/luci/common/proto/gitiles"
+	realms_config "go.chromium.org/luci/common/proto/realms"
 	rdb_pb "go.chromium.org/luci/resultdb/proto/v1"
 )
 
@@ -64,6 +70,18 @@ const (
 
 	// Rdb query result limit
 	RdbQueryResultLimit = 1000
+
+	// Chrome internal Gitiles host
+	ChromeInternalGitilesHost = "chrome-internal.googlesource.com"
+
+	// ChromeOS infra config project on Gitiles
+	ChromeOSInfraConfigGitilesProject = "chromeos/infra/config"
+
+	// Main branch on Gitiles
+	GitilesMainBranch = "main"
+
+	// Realm config file path in infra/config repo on Gitiles
+	RealmConfigFilePath = "generated/realms.cfg"
 )
 
 type RdbLib struct {
@@ -93,8 +111,17 @@ func (rdblib *RdbLib) UploadTestResults(ctx context.Context, rdbStreamConfig *rd
 		resultAdapterArgs = append(resultAdapterArgs, "-testhaus-base-url", rdbStreamConfig.TesthausBaseURL)
 	}
 
-	// TODO(b/354085540): Set the board.model realm once the boardModelRealm
-	// function is fully completed.
+	validRealms, err := validRealms(ctx)
+	if err != nil {
+		log.Printf("Failed to get the valid realm list due to the error: %s", err.Error())
+	} else {
+		realm := boardModelRealm(testResult, validRealms)
+		if realm != "" {
+			rdbStreamConfig.Include = true
+			rdbStreamConfig.Realm = realm
+			log.Printf("Successfully set the board.model realm: %q", realm)
+		}
+	}
 
 	resultAdapterArgs = append(resultAdapterArgs, "--", "echo")
 
@@ -117,7 +144,7 @@ func (rdblib *RdbLib) UploadTestResults(ctx context.Context, rdbStreamConfig *rd
 
 // boardModelRealm gets the board-model realm for this test result.
 // Returns an empty value if no appropriate board-model realm was found.
-func boardModelRealm(testResult *artifact.TestResult) string {
+func boardModelRealm(testResult *artifact.TestResult, validRealms map[string]bool) string {
 	if testResult == nil {
 		return ""
 	}
@@ -146,9 +173,64 @@ func boardModelRealm(testResult *artifact.TestResult) string {
 		return ""
 	}
 
-	// TODO(b/354085540): Validate the board-model realm by confirming it exists
-	// within the set of valid realms defined in LUCI Auth
-	return "chromeos:" + board + "-" + model
+	boardModelRealm := board + "-" + model
+	if _, ok := validRealms[boardModelRealm]; !ok {
+		log.Printf("The generated board.model realm: %q is invalid", boardModelRealm)
+		return ""
+	}
+
+	return "chromeos:" + boardModelRealm
+}
+
+// validRealms gets the full list of valid realms from the ChromeOS infra config
+// file on the gitiles.
+func validRealms(ctx context.Context) (map[string]bool, error) {
+	ts, err := createTokenSource(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token from json: %w", err)
+	}
+
+	// Reads the realm config file from the infra/config repo on Gitiles.
+	client := oauth2.NewClient(ctx, ts)
+	gitilesClient, err := gitiles.NewRESTClient(client, ChromeInternalGitilesHost, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gitiles client: %w", err)
+	}
+
+	req := &gitiles_pb.DownloadFileRequest{
+		Project:    ChromeOSInfraConfigGitilesProject,
+		Committish: GitilesMainBranch,
+		Path:       RealmConfigFilePath,
+	}
+	resp, err := gitilesClient.DownloadFile(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get the realm config file due to the error: %w", err)
+	}
+
+	realmsConfig := &realms_config.RealmsCfg{}
+	if err = prototext.Unmarshal([]byte(resp.GetContents()), realmsConfig); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal the realm config file due to the error: %w", err)
+	}
+
+	validRealms := make(map[string]bool, len(realmsConfig.Realms))
+	for _, realm := range realmsConfig.Realms {
+		if realm.Name != "" {
+			validRealms[realm.Name] = true
+		}
+	}
+	return validRealms, nil
+
+}
+
+// createTokenSource creates an oauth2.TokenSource from service account key
+// credentials.
+func createTokenSource(ctx context.Context) (oauth2.TokenSource, error) {
+	creds, err := google.FindDefaultCredentials(ctx)
+	if err != nil {
+		log.Printf("Error loading credentials: %s", err)
+		return nil, err
+	}
+	return creds.TokenSource, nil
 }
 
 // isBuildPartnerVisible returns True if a build is visible to partners or False
