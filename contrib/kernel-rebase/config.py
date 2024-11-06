@@ -2,18 +2,18 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Configuration file"""
+"""Continuous rebase configuration file"""
 
-rebase_baseline_branch = "chromeos-5.15"
-android_baseline_branch = "android13-5.15"
+rebase_baseline_branch = "chromeos-6.6"
+android_baseline_branch = "deprecated/android-5.4"
 
 # Set rebase_target to desired target.
 # Select target tag, or 'latest' to rebase to ToT.
-rebase_target = "latest"
+rebase_target = "v6.12-rc5"
 
 # Set rebasedb_name to None to use default.
 # Otherwise pick desired file name.
-rebasedb_name = None
+rebasedb_name = f"rebase-{rebase_target}.db"
 
 # Name of the file with Google's spreadsheet ID. If the file does not exist,
 # a new spreadsheet is created and its ID is written down and then reused.
@@ -47,46 +47,72 @@ debug = False
 
 # Control whether to dump patch files for review. If enabled, the output will
 # be located under review/$(topic)/{original,new} directories
-output_patches_for_review = False
+output_patches_for_review = True
 
 # List of SHAs to be dropped manually, for example because they are
 # upstream but not auto-detected by the tool.
-sha_droplist = []
+sha_droplist = [
+    ["9ab7893e57cd", "upstream", "44758bafa536"],
+    ["5482ed86293b", "upstream", "d30f370d3a49"],
+    ["80269d1d18e8", "upstream", "145d59baff59"],
+    ["64096771a56d", "upstream", "b9b05664ebf6"],
+    ["eff9d0917462", "upstream", "93fe48a58590"],
+    ["b716d03da4f7", "upstream", "f567ff6c76f7"],
+    ["3e462e6b05e8", "queued for v5.9", "b56bdff78e0b"],
+    ["f8f2b91749a2", "queued for v5.9", "bbcf90c0646a"],
+]
 
 droplist = [
     ("drivers/net/wireless/iwl7000", "Intel"),
-    #           ('drivers/gpu/drm/i915', 'Intel'),
-    #           ('drivers/gpu/drm/amd', 'AMD')
+    ("drivers/gpu/drm/evdi", "DisplayLink"),
+    ("drivers/gpu/drm/i915", "Intel"),
+    ("drivers/gpu/drm/amd", "AMD"),
 ]
 
 topiclist = [
-    ["chromeos", ["chromeos", "COMMIT-QUEUE.ini", "PRESUBMIT.cfg"]],
+    #     ['iwl7000', ['drivers/net/wireless/iwl7000']],
     [
-        "cros_ec/iio",
+        "chromeos",
         [
+            "chromeos",
+            "security/chromiumos",
+            "COMMIT-QUEUE.ini",
+            "PRESUBMIT.cfg",
+            "init",
+            "scripts",
+            "unblocked_terms.txt",
+            ".gitignore",
+            "OWNERS",
+            "DIR_METADATA",
+        ],
+    ],
+    [
+        "mm",
+        [
+            "mm",
+            "include/linux/low-mem-notify.h",
+            "include/linux/mm_metrics.h",
+            "include/linux/mm.h",
+        ],
+    ],
+    [
+        "cros_ec",
+        [
+            "include/linux/platform_data/cros_ec_commands.h",
             "drivers/iio/common/cros_ec_sensors",
             "drivers/iio/accel/cros_ec_accel_legacy.c",
             "drivers/iio/pressure/cros_ec_baro.c",
             "drivers/iio/counter/cros_ec_sensors_sync.c",
             "drivers/iio/light/cros_ec_light_prox.c",
             "include/linux/iio/common/cros_ec_sensors_core.h",
-            "Documentation/ABI/testing/sysfs-bus-iio-cros-ec",
-        ],
-    ],
-    [
-        "cros_ec/wilco",
-        [
             "drivers/platform/chrome/wilco_ec",
             "drivers/rtc/rtc-wilco-ec",
             "drivers/power/supply/wilco-charger",
             "include/linux/platform_data/wilco-ec.h",
             "Documentation/ABI/testing/debugfs-wilco-ec",
             "Documentation/ABI/testing/sysfs-platform-wilco-ec",
-        ],
-    ],
-    [
-        "cros_ec",
-        [
+            "drivers/extcon/extcon-usbc-cros_ec",
+            "Documentation/devicetree/bindings/extcon/extcon-cros-ec.txt",
             "drivers/mfd/cros_ec",
             "drivers/power/cros",
             "drivers/rtc/rtc-cros-ec",
@@ -100,19 +126,20 @@ topiclist = [
             "drivers/i2c/busses/i2c-cros-ec",
             "include/linux/mfd/cros_ec",
             "include/linux/chromeos",
-            "include/linux/platform_data/cros_ec_commands.h",
-            "sound/soc/codecs/cros_ec_codec.c",
             "Documentation/devicetree/bindings/chrome",
-            "Documentation/ABI/testing/sysfs-class-chromeos-driver-cros-ec-vbc"
-            "Documentation/ABI/testing/debugfs-cros-ec"
-            "drivers/extcon/extcon-usbc-cros_ec",
-            "drivers/extcon/extcon-tcss-cros-ec.c",
-            "drivers/extcon/extcon-tcss-cros-ec.h",
-            "Documentation/devicetree/bindings/extcon/extcon-cros-ec.txt",
+            "drivers/iio",
+            "drivers/staging/iio",
+            "Documentation/driver-api/iio",
+            "Documentation/devicetree/bindings/iio",
+            "Documentation/devicetree/bindings/staging/iio",
+            "Documentation/iio",
+            "include/linux/iio",
+            "include/uapi/linux/iio",
+            "include/dt-bindings/iio",
         ],
     ],
     [
-        "power",
+        "power-thermal",
         [
             "drivers/power",
             "drivers/base/power",
@@ -124,33 +151,27 @@ topiclist = [
             "Documentation/power",
             "arch/x86/power",
             "Documentation/devicetree/bindings/power",
+            "Documentation/driver-api/thermal",
+            "drivers/thermal",
+            "include/linux/thermal",
+            "Documentation/devicetree/bindings/thermal",
+            "drivers/firmware/google",
         ],
     ],
-    ["usb-gadget", ["drivers/usb/gadget"]],
     [
-        "usb",
+        "drm",
         [
-            "drivers/usb",
-            "include/linux/usb",
-            "include/uapi/linux/usb",
-            "Documentation/devicetree/bindings/usb",
-            "tools/usb",
-        ],
-    ],
-    ["arm/mali", ["drivers/gpu/arm"]],
-    ["drm/amd", ["drivers/gpu/drm/amd"]],
-    ["drm/i915", ["drivers/gpu/drm/i915"]],
-    ["drm/mediatek", ["drivers/gpu/drm/mediatek"]],
-    ["drm/qualcomm", ["drivers/gpu/drm/msm"]],
-    ["drm/panel", ["drivers/gpu/drm/panel"]],
-    ["drm/rockchip", ["drivers/gpu/drm/rockchip"]],
-    [
-        "drm/virtio",
-        [
-            "drivers/gpu/drm/virtio",
             "include/drm/virtio_drm.h",
             "include/uapi/drm/virtgpu_drm.h",
             "include/uapi/linux/virtio_gpu.h",
+            "drivers/gpu/drm/amd",
+            "drivers/gpu/drm/i915",
+            "drivers/gpu/drm/mediatek",
+            "drivers/gpu/drm/panel",
+            "drivers/gpu/drm/rockchip",
+            "drivers/gpu/drm/virtio",
+            "drivers/gpu/drm",
+            "drivers/dma-buf",
         ],
     ],
     [
@@ -164,20 +185,7 @@ topiclist = [
         ],
     ],
     [
-        "media/qcom",
-        [
-            "drivers/media/platform/qcom",
-            "Documentation/devicetree/bindings/media/qcom,sc7180-venus.yaml",
-            "Documentation/devicetree/bindings/media/qcom,sdm845-venus.yaml",
-            "Documentation/devicetree/bindings/media/qcom,msm8916-venus.yaml",
-            "Documentation/devicetree/bindings/media/qcom,msm8996-venus.yaml",
-            "Documentation/devicetree/bindings/media/qcom,sdm845-venus-v2.yaml",
-            "Documentation/devicetree/bindings/media/qcom,venus.txt",
-        ],
-    ],
-    ["media/virtio", ["drivers/media/virtio"]],
-    [
-        "media/other",
+        "media",
         [
             "drivers/media",
             "drivers/staging/media",
@@ -185,31 +193,8 @@ topiclist = [
             "include/uapi/linux/videodev2.h",
             "include/uapi/linux/v4l2-controls.h",
             "Documentation/media",
-            "Documentation/devicetree/bindings/media",
-        ],
-    ],
-    ["input", ["drivers/input", "include/linux/input"]],
-    [
-        "iio",
-        [
-            "drivers/iio",
-            "drivers/staging/iio",
-            "Documentation/driver-api/iio",
-            "Documentation/devicetree/bindings/iio",
-            "Documentation/devicetree/bindings/staging/iio",
-            "Documentation/iio",
-            "include/linux/iio",
-            "include/uapi/linux/iio",
-            "include/dt-bindings/iio",
-        ],
-    ],
-    [
-        "mmc",
-        [
-            "drivers/mmc",
-            "Documentation/mmc",
-            "include/linux/mmc",
-            "include/uapi/linux/mmc",
+            "include/uapi/linux/v4l2-common.h",
+            "Documentation/userspace-api/media",
         ],
     ],
     [
@@ -219,16 +204,6 @@ topiclist = [
             "drivers/bluetooth",
             "Documentation/devicetree/bindings/net/btusb.txt",
             "include/net/bluetooth",
-        ],
-    ],
-    [
-        "wireless",
-        [
-            "net/wireless",
-            "drivers/net/wireless",
-            "include/uapi/linux/wireless.h",
-            "include/uapi/nl80211-vnd-realtek.h",
-            "Documentation/devicetree/bindings/net/wireless",
         ],
     ],
     [
@@ -243,11 +218,13 @@ topiclist = [
             "include/dt-bindings/net",
             "include/linux/net",
             "include/uapi/linux/sockios.h",
+            "include/uapi/linux/wireless.h",
+            "include/uapi/nl80211-vnd-realtek.h",
+            "Documentation/devicetree/bindings/net/wireless",
         ],
     ],
-    ["sound/intel", ["sound/soc/intel", "sound/soc/sof/intel"]],
     [
-        "sound/other",
+        "sound",
         [
             "sound",
             "Documentation/devicetree/bindings/sound",
@@ -256,239 +233,94 @@ topiclist = [
         ],
     ],
     [
-        "security",
+        "block-fs",
         [
-            "security",
-            "include/linux/alt-syscall.h",
-            "include/linux/syscalls.h",
-            "arch/arm64/kernel/alt-syscall.c",
-            "arch/x86/kernel/alt-syscall.c",
-            "kernel/alt-syscall.ch",
-        ],
-    ],
-    [
-        "android",
-        [
-            "android",
-            "Documentation/android",
-            "drivers/android",
-            "drivers/staging/android",
-            "include/linux/android",
-            "include/uapi/linux/android",
-        ],
-    ],
-    ["fs/ecryptfs", ["fs/ecryptfs"]],
-    ["fs/esdfs", ["fs/esdfs"]],
-    ["fs/other", ["fs"]],
-    ["hid", ["drivers/hid"]],
-    [
-        "md",
-        [
+            "fs",
+            "include/linux/pstore",
+            "include/uapi/linux/fuse.h",
+            "Documentation/devicetree/bindings/reserved-memory/ramoops.txt",
+            "Documentation/devicetree/bindings/misc/ramoops.txt",
+            "Documentation/ramoops.txt",
+            "block",
             "drivers/md",
             "init/do_mounts_dm.c",
             "Documentation/device-mapper/boot.txt",
         ],
     ],
     [
-        "thermal",
+        "tpm-virtio",
         [
-            "drivers/thermal",
-            "include/linux/thermal",
-            "Documentation/devicetree/bindings/thermal",
+            "drivers/virtio",
+            "include/uapi/linux/virtwl.h",
+            "drivers/char/tpm",
+            "Documentation/devicetree/bindings/security/tpm",
         ],
     ],
-    ["scsi", ["drivers/scsi"]],
-    ["virtio", ["drivers/virtio", "include/uapi/linux/virtwl.h"]],
-    ["sysrq", ["drivers/tty/sysrq.c"]],
-    ["firmware/google", ["drivers/firmware/google"]],
     [
-        "tpm",
-        ["drivers/char/tpm", "Documentation/devicetree/bindings/security/tpm"],
-    ],
-    [
-        "lowmem",
+        "dts",
         [
-            "include/linux/low-mem-notify.h",
-            "mm/low-mem-notify.c",
-            "tools/mm/low-mem-test.c",
-            "drivers/char/mem.c",
-        ],
-    ],
-    ["mm", ["mm", "include/linux/mm_metrics.h", "include/linux/swapops.h"]],
-    ["scheduler", ["include/linux/sched", "kernel/sched"]],
-    ["cgroup", ["kernel/cgroup"]],
-    ["dts/qcom", ["arch/arm64/boot/dts/qcom"]],
-    [
-        "dts/mediatek",
-        [
+            "arch/arm64/boot/dts/qcom",
             "arch/arm64/boot/dts/mediatek",
             "Documentation/devicetree/bindings/display/mediatek",
             "Documentation/devicetree/bindings/soc/mediatek",
-            "Documentation/devicetree/bindings/arm/mediatek",
+            "Documentation/devicetree/bindings/arm/mediatek"
+            "arch/arm64/boot/dts/rockchip",
+            "include/dt-bindings/clock/qcom,gpucc-sc7180.h",
+            "arch/arm/boot/dts",
         ],
     ],
     ["acpi", ["drivers/acpi"]],
     [
-        "arcvm/container",
+        "arch",
         [
+            "arch",
+            "kernel",
+            "lib",
             "arch/arm64/configs/chromiumos-container-vm-arm64_defconfig",
             "arch/x86/configs/chromiumos-container-vm-x86_64_defconfig",
-            "arch/x86/configs/chromiumos-jail-vm-x86_64_defconfig",
             "arch/x86/configs/x86_64_arcvm_defconfig",
-            "arch/arm64/configs/arm64_arcvm_defconfig",
+            "virt/kvm",
         ],
     ],
-    ["cpufreq", ["drivers/cpufreq"]],
-    ["iommu", ["drivers/iommu"]],
-    ["drivers/soc", ["drivers/soc", "include/linux/soc"]],
-    ["arch/arm64", ["arch/arm64"]],
-    ["arch/arm", ["arch/arm"]],
-    ["arch/x86", ["arch/x86", "drivers/platform/x86"]],
+    [
+        "drivers",
+        [
+            "drivers",
+            "Documentation/mmc",
+            "include/linux/mmc",
+            "include/uapi/linux/mmc",
+            "include/linux/input",
+            "include/linux/mfd",
+            "Documentation/ABI",
+        ],
+    ],
     ["devicetree", ["Documentation/devicetree"]],
-    ["block", ["block"]],
-    ["kernel", ["kernel"]],
-    ["drivers", ["drivers"]],
-    ["tools", ["tools"]],
-    ["other", ["lib", "scripts", "init"]],
-]
-
-topiclist_consolidated = [
-    ["cros_ec", ["cros_ec/iio", "cros_ec/wilco", "cros_ec"]],
-    [
-        "drm",
-        [
-            "drm/amd",
-            "drm/i915",
-            "drm/mediatek",
-            "drm/qualcomm",
-            "drm/panel",
-            "drm/rockchip",
-            "gpu/other",
-            "arm/mali",
-        ],
-    ],
-    [
-        "virtio",
-        ["drm/virtio", "virtio", "media/virtio", "virt/kvm", "arcvm/container"],
-    ],
     [
         "other",
         [
-            "other",
-            "devicetree",
-            "acpi",
-            "cpufreq",
-            "firmware/google",
-            "devfreq",
-            "block",
-            "android",
-            "sysrq",
-            "scheduler",
+            "Documentation/x86",
+            "include/linux/sched",
+            "security",
+            "include/linux/alt-syscall.h",
+            "include/linux/syscalls.h",
+            "include/linux/nodemask.h",
+            "include/linux/swapops.h",
+            "include/linux/cgroup.h",
+            "include/trace",
             "tools",
         ],
     ],
-    ["dts", ["dts/arm", "dts/qcom", "dts/mediatek", "dts/rk3399"]],
-    [
-        "drivers",
-        [
-            "drivers",
-            "iio",
-            "input",
-            "usb",
-            "usb-gadget",
-            "mmc",
-            "drivers/mediatek",
-            "drivers/rockchip",
-            "iommu",
-            "mfd",
-            "devfreq",
-            "regulator",
-            "scsi",
-            "soundwire",
-            "video",
-        ],
-    ],
-    [
-        "sound",
-        ["sound/intel", "sound/other", "sound/mediatek", "sound/rockchip"],
-    ],
-    ["media", ["media/qcom", "media/other"]],
-    ["mm", ["cgroup", "lowmem", "mm"]],
-    ["arch", ["arch/x86", "arch/arm64", "arch/arm"]],
-    ["fs", ["fs/pstore", "fs/ecryptfs", "fs/other"]],
-    ["net", ["wireless", "net"]],
 ]
 
-topiclist_short = [
-    [
-        "discard",
-        [
-            "chromeos",
-            "fs/esdfs",
-            "arm/mali",
-            "dts/arm",
-            "dts/qcom",
-            "dts/mediatek",
-            "dts/rk3399",
-            "devicetree",
-        ],
-    ],
-    ["cros_ec", ["cros_ec/iio", "cros_ec/wilco", "cros_ec"]],
-    [
-        "drm",
-        [
-            "drm/amd",
-            "drm/i915",
-            "drm/mediatek",
-            "drm/qualcomm",
-            "drm/panel",
-            "drm/rockchip",
-        ],
-    ],
-    [
-        "virtio",
-        ["drm/virtio", "virtio", "media/virtio", "virt/kvm", "arcvm/container"],
-    ],
-    [
-        "other",
-        [
-            "other",
-            "acpi",
-            "firmware/google",
-            "block",
-            "android",
-            "sysrq",
-            "tools",
-        ],
-    ],
-    ["usb", ["usb", "usb-gadget"]],
-    [
-        "drivers",
-        [
-            "drivers",
-            "iio",
-            "input",
-            "mmc",
-            "mtd",
-            "drivers/mediatek",
-            "drivers/rockchip",
-            "iommu",
-            "mfd",
-            "devfreq",
-            "regulator",
-            "scsi",
-            "video",
-        ],
-    ],
-    [
-        "sound",
-        ["sound/intel", "sound/other", "sound/mediatek", "sound/rockchip"],
-    ],
-    ["media", ["media/qcom", "media/other"]],
-    ["mm", ["cgroup", "lowmem", "mm"]],
-    ["arch", ["arch/x86", "arch/arm64", "arch/arm"]],
-    ["fs", ["fs/pstore", "fs/ecryptfs", "fs/other"]],
-]
+# We haven't found much use for topiclist_consolidated and topiclist_short
+# due to a rather limited number of topics in the continuous rebase, hence
+# these two are automatically generated to map topiclist 1:1
+topiclist_consolidated = []
+topiclist_short = []
+for topic in topiclist:
+    topic_name = topic[0]
+    topiclist_consolidated.append([topic_name, [topic_name]])
+    topiclist_short.append([topic_name, [topic_name]])
 
 # Describe users/groups to share a spreadsheet with
 #
