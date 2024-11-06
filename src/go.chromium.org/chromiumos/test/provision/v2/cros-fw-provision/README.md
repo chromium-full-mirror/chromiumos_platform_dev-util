@@ -26,14 +26,13 @@ These example assume some vars are set in your shell:
 BOARD=myBoard
 MODEL=myModel
 DUT_HOSTNAME=192.168.0.0
+D=localhost:2222 # Forwarded ssh port
 ```
 
-Outside chroot
+Run the cros-dut server in the chroot
 ```
-cd ~/chromiumos
-cros workon --host start local-cft && cros_sdk -- sudo emerge local-cft
-
-gcloud auth application-default print-access-token >/dev/null || gcloud auth application-default login
+CACHE_SERVER=192.168.100.1
+~/chromiumos/src/platform/dev/fast_build.sh -b go.chromium.org/chromiumos/test/dut/cmd/cros-dut -o ~/go/bin/cros-dut && ~/go/bin/cros-dut -cache_address ${CACHE_SERVER?}:8082 -dut_address ${D?} -port 8123
 ```
 
 If you are running with a local dut, you will need a cache server. Then set
@@ -50,19 +49,12 @@ sudo ufw allow 8082 # Open the port in the linux firewall.
 ~/chromiumos/src/platform/dev/fast_build.sh -b go.chromium.org/chromiumos/prototytpe/cache/cmd/cacheserver -o ~/go/bin/cacheserver && ~/go/bin/cacheserver -port 8082
 ```
 
-Then run the local-cft binary to run the cros-dut server.
-```
-./chroot/usr/bin/local-cft -board ${BOARD?} -host ${DUT_HOSTNAME?} -stayalive -port cros-dut=8123
-# If you made changes in another service like cros-dut run
-# ./chroot/usr/bin/local-cft -board ${BOARD?} -host ${DUT_HOSTNAME?} -stayalive -port cros-dut=8123 --chroot ~/chromiumos/chroot --localservices cros-dut
-```
-
 To find the cache server on a lab machine:
 ```
 ssh $DUT_HOSTNAME 'for devserver in 192.168.100.1 100.115.168.190 10.128.176.210 100.115.21.212 100.115.245.199 100.115.245.200 100.115.219.131 100.115.219.132 100.115.219.133 100.115.219.134 100.115.219.137; do if curl -f --connect-timeout 3 "http://${devserver?}:8082/check_health" >/dev/null ; then echo CACHE_SERVER=${devserver?} ; fi; done'
 ```
 
-Inside chroot
+Run cros-fw-provision inside chroot
 ```
 FW_IMAGE=$(gsutil ls -l gs://chromeos-image-archive/firmware-{brya,glados,oak,${BOARD?}}*-branch/*/${BOARD?}/firmware_from_source.tar.bz2 | grep -v TOTAL | sort -k2 | tail -1 | awk '{print $3}')
 CACHE_SERVER=192.168.100.1
