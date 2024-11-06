@@ -631,7 +631,7 @@ func TestMismatchPostInstall(t *testing.T) {
 	gomock.InOrder(
 		getRunCmdCommand(sam, getVersion).Return("CHROMEOS_RELEASE_BUILDER_PATH=a/differentto/image", nil),
 	)
-	if _, _, err := st.Execute(ctx, log); err.Error() != "image could not be validated as correct post install, post install version does not match taregt image" {
+	if _, _, err := st.Execute(ctx, log); err.Error() != "image could not be validated as correct post install, post install version does not match target image" {
 		t.Fatalf("expected specific error, instead got: %v", err)
 	}
 }

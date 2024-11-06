@@ -40,7 +40,7 @@ func (c *CheckVersionMatches) Execute(log *log.Logger) error {
 		c.cs.UpdateCros = false
 	} else {
 		log.Printf("POST INSTALL DOES NOT MATCH.")
-		return errors.New("post install version does not match taregt image")
+		return errors.New("post install version does not match target image")
 	}
 	log.Printf("RUNNING CheckVersionMatches Success")
 
