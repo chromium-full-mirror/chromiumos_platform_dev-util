@@ -30,12 +30,11 @@ func NewVerifyInstallCommand(ctx context.Context, cs *service.FoilService) *Veri
 
 func (c *VerifyInstall) Execute(log *log.Logger) error {
 	log.Printf("Start VerifyInstall Execute")
-	// Currently hard coded as there is no actual build fetching avaliable yet.
+	log.Println("Checking S vs V", c.cs.CurrentBuild, c.cs.TargetBuild)
+
 	if !strings.Contains(c.cs.CurrentBuild, c.cs.TargetBuild) {
-		log.Println("Checking S vs V", c.cs.CurrentBuild, c.cs.TargetBuild)
 		return fmt.Errorf("Build post install does not match target")
 	}
-	log.Println("Checking S vs V", c.cs.CurrentBuild, c.cs.TargetBuild)
 
 	return nil
 }
@@ -44,9 +43,9 @@ func (c *VerifyInstall) Revert() error {
 }
 
 func (c *VerifyInstall) GetErrorMessage() string {
-	return "failed to VerifyInstall"
+	return "Image incorrect post OTA reboot"
 }
 
 func (c *VerifyInstall) GetStatus() api.InstallResponse_Status {
-	return api.InstallResponse_STATUS_PROVISIONING_FAILED
+	return api.InstallResponse_STATUS_IMAGE_MISMATCH_POST_PROVISION_UPDATE
 }

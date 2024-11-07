@@ -40,7 +40,7 @@ func (c *CheckForSkip) Revert() error {
 }
 
 func (c *CheckForSkip) GetErrorMessage() string {
-	return "failed to CheckForSkip"
+	return "failed to the checking version pre-provision"
 }
 
 func (c *CheckForSkip) GetStatus() api.InstallResponse_Status {

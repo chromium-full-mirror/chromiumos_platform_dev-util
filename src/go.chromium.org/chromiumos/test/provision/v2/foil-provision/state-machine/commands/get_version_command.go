@@ -42,9 +42,9 @@ func (c *GetVersion) Revert() error {
 }
 
 func (c *GetVersion) GetErrorMessage() string {
-	return "failed to GetVersion"
+	return "failed to GetVersion from device"
 }
 
 func (c *GetVersion) GetStatus() api.InstallResponse_Status {
-	return api.InstallResponse_STATUS_PROVISIONING_FAILED
+	return api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED
 }

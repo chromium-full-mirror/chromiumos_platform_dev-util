@@ -33,6 +33,7 @@ type Install struct {
 	ctx            context.Context
 	cs             *service.FoilService
 	RebootRequired bool
+	helperStatus   string
 }
 
 func NewInstall(ctx context.Context, cs *service.FoilService) *Install {
@@ -51,9 +52,10 @@ func (c *Install) Execute(log *log.Logger) error {
 	}
 	defer os.Remove(localImagePath)
 	log.Println("Image pulled from cache and stored at ", localImagePath)
-	installErr := install(log, c.cs.UpdateEnginePid, c.cs.DutIp, localImagePath)
+	status, installErr := install(log, c.cs.UpdateEnginePid, c.cs.DutIp, localImagePath)
 
 	if installErr != nil {
+		c.helperStatus = fmt.Sprintf("OTA EXIT STATUS: %s", status)
 		return fmt.Errorf("Unable to install over 1 atempts.")
 	}
 	return nil
@@ -86,14 +88,17 @@ func (c *Install) pullFromCache(log *log.Logger, path string) (string, error) {
 	log.Println("pulling from cache url : ", cacheUrl.String())
 	resp, err := client.Get(cacheUrl.String())
 	if err != nil {
-		return "", fmt.Errorf("failed to pull from cache server %v", err)
+		c.helperStatus = fmt.Sprintf("failed to pull from cache: %s", err)
+		return "", fmt.Errorf("FLEET: failed to pull from cache server %v", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
+		c.helperStatus = fmt.Sprintf("FLEET: error code while download: %v", resp.StatusCode)
 		return "", fmt.Errorf("error %s to download %q", resp.Status, cacheUrl.String())
 	}
 	out, err := os.CreateTemp(os.TempDir(), "image-*")
 	if err != nil {
+		c.helperStatus = "INFRA: unable to make tempfile on host"
 		return "", fmt.Errorf("failed to create a temp file %v", err)
 	}
 	log.Printf("created tmp file %v to store the pulled file", out.Name())
@@ -101,6 +106,7 @@ func (c *Install) pullFromCache(log *log.Logger, path string) (string, error) {
 	defer out.Close()
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
+		c.helperStatus = "INFRA: unable to copy cache to tempfile"
 		return "", fmt.Errorf("failed to copy request data to temp file %v", err)
 	}
 	return out.Name(), nil
@@ -111,14 +117,14 @@ func (c *Install) Revert() error {
 }
 
 func (c *Install) GetErrorMessage() string {
-	return "failed to install"
+	return c.helperStatus
 }
 
 func (c *Install) GetStatus() api.InstallResponse_Status {
 	return api.InstallResponse_STATUS_PROVISIONING_FAILED
 }
 
-func TestScanner(stream io.Reader, logger *log.Logger, harness string) bool {
+func TestScanner(stream io.Reader, logger *log.Logger, harness string) (bool, string) {
 	const maxCapacity = 4096 * 1024
 	scanner := bufio.NewScanner(stream)
 	completion := false
@@ -133,13 +139,25 @@ func TestScanner(stream io.Reader, logger *log.Logger, harness string) bool {
 		if strings.Contains(txt, "onPayloadApplicationComplete(ErrorCode::kSuccess") {
 			logger.Println("found status in: ", txt)
 			completion = true
+		} else if strings.Contains(txt, "onPayloadApplicationComplete(ErrorCode::") {
+			logger.Println("found status in: ", txt)
+			completion = false
+			re := regexp.MustCompile(`ErrorCode::(.*?) `)
+
+			// Find the matching substring
+			match := re.FindStringSubmatch(txt)
+			if len(match) > 1 {
+				return completion, match[1]
+			} else {
+				return completion, "unknown error during OTA"
+			}
 		}
 	}
 	if scanner.Err() != nil {
 		logger.Println("Failed to read pipe: ", scanner.Err())
 	}
 	logger.Println("Final completion status: ", completion)
-	return completion
+	return completion, "OTA completed"
 }
 
 func logcat(log *log.Logger, pid string, addr string) {
@@ -160,7 +178,7 @@ func readOutput(r io.Reader, ch chan string) {
 	close(ch)
 }
 
-func install(log *log.Logger, lcpid string, addr, localImagePath string) error {
+func install(log *log.Logger, lcpid string, addr, localImagePath string) (string, error) {
 	log.Printf("Install start")
 	// logcmd, logchan, err := logcat()
 
@@ -170,14 +188,14 @@ func install(log *log.Logger, lcpid string, addr, localImagePath string) error {
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("StderrPipe failed")
+		return "", fmt.Errorf("StderrPipe failed")
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("StdoutPipe failed")
+		return "", fmt.Errorf("StdoutPipe failed")
 	}
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to run Cmd: %v", err)
+		return "", fmt.Errorf("failed to run Cmd: %v", err)
 	}
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -185,14 +203,15 @@ func install(log *log.Logger, lcpid string, addr, localImagePath string) error {
 	const maxCapacity = 4096 * 1024
 	found1 := false
 	found2 := false
+	status := ""
 	go func() {
 		defer wg.Done()
-		found1 = TestScanner(stderr, log, "foil-prov:")
+		found1, status = TestScanner(stderr, log, "foil-prov:")
 	}()
 
 	go func() {
 		defer wg.Done()
-		found2 = TestScanner(stdout, log, "foil-prov")
+		found2, status = TestScanner(stdout, log, "foil-prov")
 	}()
 	wg.Wait()
 
@@ -206,8 +225,8 @@ func install(log *log.Logger, lcpid string, addr, localImagePath string) error {
 
 	if found1 == true || found2 == true {
 		log.Println("Found success status!")
-		return nil
+		return "", nil
 	}
 
-	return fmt.Errorf("unable to find successful status.")
+	return status, fmt.Errorf("unable to find successful status.")
 }

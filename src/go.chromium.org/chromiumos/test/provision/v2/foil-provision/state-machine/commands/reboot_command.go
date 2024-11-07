@@ -57,7 +57,7 @@ func (c *RebootCommand) Revert() error {
 }
 
 func (c *RebootCommand) GetErrorMessage() string {
-	return "failed to reboot DUT"
+	return "DUT did not boot after OTA"
 }
 
 func (c *RebootCommand) GetStatus() api.InstallResponse_Status {

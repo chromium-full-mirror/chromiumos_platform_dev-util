@@ -34,14 +34,13 @@ func (s FoilPostState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 	log.Printf("State: Execute FoilPostState")
 	comms := []common_utils.CommandInterface{
 		commands.NewGetVersionSetup(ctx, s.service),
-
 		commands.NewVerifyInstallCommand(ctx, s.service),
 	}
 
 	for _, comm := range comms {
 		err := comm.Execute(log)
 		if err != nil {
-			return nil, comm.GetStatus(), fmt.Errorf("%s, %s", comm.GetErrorMessage(), err)
+			return common_utils.WrapStringInAny(comm.GetErrorMessage()), comm.GetStatus(), fmt.Errorf("%s, %s", comm.GetErrorMessage(), err)
 		}
 	}
 	log.Printf("State: FoilPostState Completed")

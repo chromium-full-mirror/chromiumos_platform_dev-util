@@ -46,9 +46,9 @@ func (c *GetEnginePid) Revert() error {
 }
 
 func (c *GetEnginePid) GetErrorMessage() string {
-	return "failed to GetEnginePid"
+	return "failed to Update Engine GetEnginePid"
 }
 
 func (c *GetEnginePid) GetStatus() api.InstallResponse_Status {
-	return api.InstallResponse_STATUS_PROVISIONING_FAILED
+	return api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED
 }

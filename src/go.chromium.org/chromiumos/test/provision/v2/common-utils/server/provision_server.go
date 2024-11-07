@@ -22,6 +22,7 @@ import (
 	"go.chromium.org/chromiumos/config/go/longrunning"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 type ProvisionServer struct {
@@ -112,11 +113,22 @@ func (ps *ProvisionServer) Install(ctx context.Context, req *api.InstallRequest)
 	response := api.InstallResponse{}
 
 	installResp, md, err := ps.installTarget(ctx, req)
-	if err != nil {
+	if err != nil && installResp != api.InstallResponse_STATUS_SUCCESS {
 		ps.options.Log.Printf("failed provision, %s", err)
 	}
+
+	ps.options.Log.Printf("Raw Status: %s", md)
+	fv := ""
+	stringValue := &wrapperspb.StringValue{}
+	if err := md.UnmarshalTo(stringValue); err != nil {
+		ps.options.Log.Printf("Error unmarshalling:", err)
+		fv = "No Status"
+	} else {
+		fv = stringValue.GetValue()
+	}
+
 	response.Status = installResp
-	response.Metadata = md
+	response.Message = fv
 	ps.manager.SetResult(op.Name, &response)
 	ps.options.Log.Printf("Provision set OP Response to:%s ", &response)
 	// Note: Do not return the err here, as it causes the op response to not be set.

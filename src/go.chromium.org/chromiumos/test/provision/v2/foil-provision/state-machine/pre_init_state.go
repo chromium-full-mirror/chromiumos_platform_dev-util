@@ -32,7 +32,7 @@ func NewFoilPreInitState(service *service.FoilService) common_utils.ServiceState
 	}
 }
 
-// Execute executes the steps needed to support FoilPreInitState. Xheck if the chromeOS target == current, if so skip install.
+// Execute executes the steps needed to support FoilPreInitState. Check if the chromeOS target == current, if so skip install.
 func (s FoilPreInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Printf("State: Execute FoilPreInitState")
 	comms := []common_utils.CommandInterface{
@@ -45,11 +45,11 @@ func (s FoilPreInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	for _, comm := range comms {
 		err := comm.Execute(log)
 		if err != nil {
-			return nil, comm.GetStatus(), fmt.Errorf("%s, %s", comm.GetErrorMessage(), err)
+			return common_utils.WrapStringInAny(comm.GetErrorMessage()), comm.GetStatus(), fmt.Errorf("%s: %w", comm.GetErrorMessage(), err)
 		}
 	}
 
-	log.Printf("ALL DONE")
+	log.Printf("DONE WITH PRE_INIT")
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 

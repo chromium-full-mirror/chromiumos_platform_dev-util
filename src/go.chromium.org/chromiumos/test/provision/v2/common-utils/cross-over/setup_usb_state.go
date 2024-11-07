@@ -45,10 +45,10 @@ func (s SetupUSBState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 	// TODO: Move these two calls to servod into cros-servod as a composite API SetupUSBKey.
 	// TODO: Deprecate primitive callServod and Exec API.
 	if err := callServodRetry(ctx, log, "download_image_to_usb_dev", provisionImgCacheServerPath, s.params); err != nil {
-		return nil, api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
+		return common_utils.WrapStringInAny("INFRA: unable to download image to usb"), api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
 	}
 	if err := callServodRetry(ctx, log, "image_usbkey_mux", "dut_sees_usbkey", s.params); err != nil {
-		return nil, api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
+		return common_utils.WrapStringInAny("INFRA: unable to set USB to DUT"), api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
 	}
 	// Wait for some time for the dut_sees_usbkey to take affect.
 	time.Sleep(dutSeesUsbkeyWait)

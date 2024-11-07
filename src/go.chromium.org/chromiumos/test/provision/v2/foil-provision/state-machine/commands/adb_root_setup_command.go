@@ -50,9 +50,9 @@ func (c *AdbRoot) Revert() error {
 }
 
 func (c *AdbRoot) GetErrorMessage() string {
-	return "failed to AdbRoot"
+	return "failed to establish adb Root."
 }
 
 func (c *AdbRoot) GetStatus() api.InstallResponse_Status {
-	return api.InstallResponse_STATUS_PROVISIONING_FAILED
+	return api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED
 }

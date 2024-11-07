@@ -39,13 +39,13 @@ func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (
 	log.Printf("\nCalling stop servod with request %v.", req)
 	op, err := s.params.ServoNexusClient.StopServod(ctx, req)
 	if err != nil {
-		return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
+		return common_utils.WrapStringInAny("INFRA: could not stop servod post install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, err = common_utils.WaitLongRunningOp(ctx, log, op)
 	if err != nil {
-		return nil, api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
+		return common_utils.WrapStringInAny("INFRA: could not stop servod post install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 	}
 	log.Printf("\nStopped servod process")
 	// TODO: Code change to download the logs.

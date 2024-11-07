@@ -29,21 +29,21 @@ func NewRebootFromDiskState(params *CrossOverParameters) common_utils.ServiceSta
 func (s RebootFromDiskState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("Executing " + s.Name())
 	if err := callServodRetry(ctx, log, "power_state", "off", s.params); err != nil {
-		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
+		return common_utils.WrapStringInAny("INFRA: unable to set turn off power via servo"), api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
 	log.Printf("\nWaiting for the power state to turn off.")
 	// TODO: Instead of fixed wait time, use a poll based status checker. Refer WaitForPowerStates and GetECSystemPowerState in firmware code.
 	time.Sleep(waitForPowerOff)
 
 	if err := callServodRetry(ctx, log, "image_usbkey_direction", "servo_sees_usbkey", s.params); err != nil {
-		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
+		return common_utils.WrapStringInAny("INFRA: unable to set usb direction via servo"), api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
 	log.Printf("\nWaiting for the image_usbkey_direction.")
 	// TODO: Instead of fixed wait time, use a poll based status checker. Refer WaitForPowerStates and GetECSystemPowerState in firmware code.
 	time.Sleep(10 * time.Second)
 
 	if err := callServodRetry(ctx, log, "power_state", "on", s.params); err != nil {
-		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
+		return common_utils.WrapStringInAny("INFRA: unable to set turn on power via servo"), api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
 	log.Println("Waiting for power on. waiting for 2 minutes")
 	time.Sleep(2 * time.Minute)

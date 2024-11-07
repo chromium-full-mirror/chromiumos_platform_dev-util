@@ -6,7 +6,6 @@
 package common_utils
 
 import (
-	"go.chromium.org/chromiumos/test/execution/errors"
 	"context"
 	"fmt"
 	"io"
@@ -16,8 +15,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"go.chromium.org/chromiumos/test/execution/errors"
+
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // BucketJoin is equivalent to Path.Join(), but for gs buckets.
@@ -30,12 +32,23 @@ func BucketJoin(bucket string, append string) string {
 	return fmt.Sprintf("gs://%s", path.Join(bucket, append))
 }
 
+func WrapStringInAny(s string) *anypb.Any {
+	stringValue := wrapperspb.String(s)
+
+	// Pack the StringValue into an Any
+	anyValue, err := anypb.New(stringValue)
+	if err != nil {
+		return nil
+	}
+	return anyValue
+}
+
 // ExecuteStateMachine runs a specific state machine
 func ExecuteStateMachine(ctx context.Context, cs ServiceState, log *log.Logger) (api.InstallResponse_Status, *anypb.Any, error) {
 	var md *anypb.Any
 	for cs != nil {
 		if md, status, err := cs.Execute(ctx, log); err != nil {
-			return status, md, fmt.Errorf("failed provisioning on %s step, %s", cs.Name(), err)
+			return status, md, fmt.Errorf("failed provisioning on %s step, %w", cs.Name(), err)
 		}
 		cs = cs.Next()
 	}
