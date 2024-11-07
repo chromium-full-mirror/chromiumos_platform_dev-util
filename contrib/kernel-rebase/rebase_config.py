@@ -62,11 +62,13 @@ topic_patches["drivers"] = [
     "fixups/FROMGIT: xhci: check for a pending command completion during command timeout.patch",
     "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: f_audio_source: New gadget driver for audio output - string: Remove strlcpy.patch",
     "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: configfs: Add Uevent to notify userspace2.patch",
-    "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: f_audio_source: New gadget driver for audio output.patch",
     "fixups/FIXUP: CHROMIUM: usb: typec: Implement UCSI driver for ChromeOS.patch",
     "fixups/FIXUP: BACKPORT: FROMLIST: pwm: Add support for different PWM output types.patch",
     "fixups/FIXUP: Revert staging: remove ashmem - unmapped_area.patch",
     "fixups/FIXUP: CHROMIUM: usb: typec: Implement UCSI driver for ChromeOS-read.patch",
+    "fixups/FIXUP: CHROMIUM: platform:x86:intel:vsec: Add support for Meteor Lake ES0.patch",
+    "fixups/FIXUP: CHROMIUM: HID: multitouch: Scope mt_reset actions to haptic devices.patch",
+    "fixups/CHROMIUM: Revert usb: typec: ucsi: Remove unused fields from struct ucsi_connector_status.patch",
 ]
 
 topic_patches["bluetooth"] = [
@@ -279,6 +281,22 @@ disp_overwrite[
 disp_overwrite[
     "e38ee2af3e5f"
 ] = "drop" # FROMLIST: net: wwan: t7xx: PCIe reset rescan
+
+#
+# drivers
+#
+disp_overwrite[
+    "c7f3abf7e224"
+] = "drop"  #  CHROMIUM: HID: multitouch: skip driver reset for Zinitix device
+disp_overwrite[
+    "59e047f756be"
+] = "drop"  #  CHROMIUM: HID: multitouch: skip driver reset for elantech touchpad
+disp_overwrite[
+    "6cecbf77f5ac"
+] = "drop"  #  CHROMIUM: HID: multitouch: skip driver reset for elantech touchpad
+disp_overwrite[
+    "ca9e8243d508"
+] = "drop"  #  CHROMIUM: HID: multitouch: skip driver reset for pixart device
 
 #
 # uncategorized
