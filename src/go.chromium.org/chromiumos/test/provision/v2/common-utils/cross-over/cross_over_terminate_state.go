@@ -48,8 +48,14 @@ func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (
 		return common_utils.WrapStringInAny("INFRA: could not stop servod post install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 	}
 	log.Printf("\nStopped servod process")
+	var successMsg string
+	if strings.Contains(s.params.TargetImagePath.GetPath(), "android-build") {
+		successMsg = "INFRA: cross-over provision to ANDROID successful"
+	} else {
+		successMsg = "INFRA: cross-over provision to CROS successful"
+	}
 	// TODO: Code change to download the logs.
-	return nil, api.InstallResponse_STATUS_SUCCESS, nil
+	return common_utils.WrapStringInAny(successMsg), api.InstallResponse_STATUS_SUCCESS, nil
 }
 
 func (s CrossOverTerminateState) Next() common_utils.ServiceState {
