@@ -419,3 +419,6 @@ disp_overwrite[
 disp_overwrite[
     "d6bd2210f1f4"
 ] = "drop"  # CHROMIUM: kallsyms: Display differences between kallsyms passes
+disp_overwrite[
+    "dd3af47588d4"
+] = "drop"  # CHROMIUM: thermal: Add notifier call chain for hot/critical events
