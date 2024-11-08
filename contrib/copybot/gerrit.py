@@ -197,7 +197,7 @@ class GitRepo:
         exclude_file_patterns: Iterable[str] = (),
     ) -> "subprocess.CompletedProcess[str]":
         """Do a `git log`."""
-        extra_args = []
+        extra_args = ["--first-parent"]
         if fmt:
             extra_args.append(f"--format={fmt}")
         if num:
@@ -450,6 +450,7 @@ class GitRepo:
         cherry_pick_flag_list: Tuple[List[str], ...] = (
             [],
             ["-Xpatience"],
+            ["-m", "1"],
             ["-m", "2"],
         )
         if downstream_subtree or upstream_subtree or include_paths:
