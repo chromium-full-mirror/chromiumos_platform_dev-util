@@ -594,8 +594,8 @@
            name="chromiumos/third_party/optofidelity_TPPT_analysis"
            groups="notdefault,touch-firmware-tests" />
   <project path="src/third_party/pigweed"
-           name="external/pigweed/pigweed/pigweed"
-           revision="refs/heads/upstream/main" />
+           name="chromiumos/third_party/pigweed/pigweed"
+           revision="refs/heads/main" />
   <project path="src/third_party/poly-updater"
            name="chromiumos/third_party/poly-updater" />
   <project path="src/third_party/portage-stable"
