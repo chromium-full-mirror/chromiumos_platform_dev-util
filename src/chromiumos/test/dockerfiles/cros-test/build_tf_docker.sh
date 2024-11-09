@@ -88,6 +88,11 @@ while [[ $# -gt 0 ]]; do
       KEEP_TMP_FILES=1
       shift
       ;;
+    -t|--tag)
+      shift
+      DOCKER_TAG="$1"
+      shift
+      ;;
     *)
       echo "Unknown option $1"
       exit 1
@@ -160,17 +165,19 @@ fi
 
 # Build Docker image.
 if [[ "${INTERNAL_TF}" -eq 0 ]]; then
-  echo "Building AOSP docker image: ${DOCKER_TAG_AOSP}"
+  TAG=${DOCKER_TAG:-${DOCKER_TAG_AOSP}}
+  echo "Building AOSP docker image: ${TAG}"
   set -x
-  docker buildx build -f "${DOCKERFILE_AOSP}" --no-cache=true -t "${DOCKER_TAG_AOSP}" \
+  docker buildx build -f "${DOCKERFILE_AOSP}" --no-cache=true -t "${TAG}" \
     --build-arg TRADEFED_DIR="${TMPDIR_TF}" \
     --build-arg METADATA_DIR="${TMPDIR_METADATA}" \
     --build-arg ARTIFACT_DIR="${TMPDIR_ARTIFACTS}" .
   set +x
 else
-  echo "Building docker image: ${DOCKER_TAG_INTERNAL}"
+  TAG=${DOCKER_TAG:-${DOCKER_TAG_INTERNAL}}
+  echo "Building docker image: ${TAG}"
   set -x
-  docker buildx build -f "${DOCKERFILE_INTERNAL}" --no-cache=true -t "${DOCKER_TAG_INTERNAL}" \
+  docker buildx build -f "${DOCKERFILE_INTERNAL}" --no-cache=true -t "${TAG}" \
     --build-arg METADATA_DIR="${TMPDIR_METADATA}" .
   set +x
 fi
