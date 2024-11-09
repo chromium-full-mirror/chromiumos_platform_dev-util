@@ -7,6 +7,7 @@ package cross_over
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"regexp"
@@ -43,15 +44,13 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	config := GetSSHConfig()
 	dutAddress := fmt.Sprintf("%s:%v", s.params.Dut.GetChromeos().GetSsh().GetAddress(), s.params.Dut.GetChromeos().GetSsh().GetPort())
 	var client *ssh.Client
-	log.Println("Establishing ssh connection to dut on address: ", dutAddress)
-	client, err := ssh.Dial("tcp", dutAddress, config)
-	if err != nil {
-		log.Println("Failed to tcp dial: ", err)
-		return common_utils.WrapStringInAny("cannot SSH onto DUT booted from USB common provision image"), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
+	if client = checkSSH(log, dutAddress, config, bootWaitRetryCount, bootWaitRetryInterval); client == nil {
+		errMsg := "cannot SSH onto DUT booted from USB common provision image"
+		return common_utils.WrapStringInAny(errMsg), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, errors.New(errMsg)
 	}
 	defer client.Close()
 	var session *ssh.Session
-	session, err = client.NewSession()
+	session, err := client.NewSession()
 	if err != nil {
 		log.Println("Failed to create session: ", err)
 		return nil, api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err

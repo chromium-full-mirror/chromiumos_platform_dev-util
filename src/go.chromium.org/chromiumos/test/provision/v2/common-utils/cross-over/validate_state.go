@@ -74,10 +74,9 @@ func (s ValidateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 		}
 	} else {
 		log.Println("Calling force connect on cros-dut")
-		if _, err := s.params.DutClient.ForceReconnect(ctx, &api.ForceReconnectRequest{}); err != nil {
+		if err := retryForceReconnect(ctx, log, s.params.DutClient, bootWaitRetryCount, bootWaitRetryInterval); err != nil {
 			return common_utils.WrapStringInAny("PLATFORM: unable to connect to device post cros-install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 		}
-
 		osReleaseFile, err := common.GetFile(ctx, "/etc/os-release", s.params.DutClient)
 		if err != nil {
 			log.Printf("Could not fetch /etc/os-release : %s\n", err)
@@ -110,4 +109,17 @@ func (s ValidateState) Next() common_utils.ServiceState {
 
 func (s ValidateState) Name() string {
 	return "Validate State"
+}
+
+func retryForceReconnect(ctx context.Context, log *log.Logger, dutClient api.DutServiceClient, retryCount int, retryInterval time.Duration) error {
+	log.Println("Trying out ForceReconnect with retry count: ", retryCount)
+	var err error
+	for ; retryCount >= 0; retryCount-- {
+		_, err = dutClient.ForceReconnect(ctx, &api.ForceReconnectRequest{})
+		if err == nil {
+			return nil
+		}
+		time.Sleep(retryInterval)
+	}
+	return err
 }

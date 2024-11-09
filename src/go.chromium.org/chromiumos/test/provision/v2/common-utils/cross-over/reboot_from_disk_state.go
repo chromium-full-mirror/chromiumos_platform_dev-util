@@ -45,8 +45,6 @@ func (s RebootFromDiskState) Execute(ctx context.Context, log *log.Logger) (*any
 	if err := callServodRetry(ctx, log, "power_state", "on", s.params); err != nil {
 		return common_utils.WrapStringInAny("INFRA: unable to set turn on power via servo"), api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
-	log.Println("Waiting for power on. waiting for 2 minutes")
-	time.Sleep(2 * time.Minute)
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 

@@ -40,9 +40,6 @@ func (s RebootFromUSBState) Execute(ctx context.Context, log *log.Logger) (*anyp
 	if err := callServodRetry(ctx, log, "power_state", "rec", s.params); err != nil {
 		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
-	// TODO: Use better way to wait than a constant time.
-	log.Println("Waiting for power state rec 2 minutes.")
-	time.Sleep(2 * time.Minute)
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 

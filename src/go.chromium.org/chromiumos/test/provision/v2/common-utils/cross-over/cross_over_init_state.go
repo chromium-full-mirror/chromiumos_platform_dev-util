@@ -19,8 +19,10 @@ import (
 )
 
 const (
-	sshPort = ":22"
-	satlab  = "satlab"
+	sshPort               = ":22"
+	satlab                = "satlab"
+	bootWaitRetryCount    = 18
+	bootWaitRetryInterval = 5 * time.Second
 )
 
 type CrossOverParameters struct {
@@ -46,9 +48,6 @@ func (s CrossOverInitState) Execute(ctx context.Context, log *log.Logger) (*anyp
 	if err := startServod(ctx, log, s.params.ServoNexusClient, s.params.Dut); err != nil {
 		return common_utils.WrapStringInAny("INFRA: unable to start servod process"), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
 	}
-	log.Printf("\nStarted servod process. Waiting for 30 seconds for servo process to get ready.")
-	// TODO: use servodtool instance wait-for-active instead of waiting 30 seconds.
-	time.Sleep(30 * time.Second)
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 

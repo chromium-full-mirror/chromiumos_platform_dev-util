@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+const retryInterval = 1 * time.Second
+
 func KillServer(logger *log.Logger) {
 	outStr, _ := AdbCmd([]string{"kill-server"}, logger)
 	logger.Println(outStr)
@@ -71,6 +73,7 @@ func RetrySetupAdb(log *log.Logger, addr string, timeout time.Duration) error {
 
 			return nil
 		}
+		time.Sleep(retryInterval)
 	}
 	log.Println("Device offline")
 

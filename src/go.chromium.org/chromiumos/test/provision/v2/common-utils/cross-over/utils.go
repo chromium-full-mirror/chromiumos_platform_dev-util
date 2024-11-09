@@ -54,21 +54,20 @@ func connectWithTimeout(addr string, config *ssh.ClientConfig, timeout time.Dura
 	}
 }
 
-func checkSSH(logger *log.Logger, dutAddress string, config *ssh.ClientConfig, retryCount int, retryInterval time.Duration) bool {
+func checkSSH(logger *log.Logger, dutAddress string, config *ssh.ClientConfig, retryCount int, retryInterval time.Duration) *ssh.Client {
 	logger.Println("Checking for ssh connection. w. retry count: ", retryCount)
 	for ; retryCount >= 0; retryCount-- {
 		logger.Println("attempting to SSH dail the device")
 
-		_, err := connectWithTimeout(dutAddress, config, 5*time.Second)
+		client, err := connectWithTimeout(dutAddress, config, 5*time.Second)
 		if err == nil {
 			logger.Println("SSH dail the device successfull")
-
-			return true
+			return client
 		}
 		logger.Println("Got error while ssh. Retrying...:", retryInterval)
 		time.Sleep(retryInterval)
 	}
-	return false
+	return nil
 }
 
 func checkADB(logger *log.Logger, dutAddress string, timeout time.Duration) bool {
@@ -101,7 +100,8 @@ func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
 	logger.Println("Detecting OS type")
 	config := GetSSHConfig()
 	// Perform fast connection check.
-	if checkSSH(logger, dutAddress, config, 2, 2*time.Second) {
+	if client := checkSSH(logger, dutAddress, config, 2, 2*time.Second); client != nil {
+		defer client.Close()
 		return CROS, nil
 	}
 	if checkADB(logger, dutAddress, 5*time.Second) {
@@ -109,7 +109,8 @@ func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
 	}
 
 	// Perform long connection check.
-	if checkSSH(logger, dutAddress, config, 5, 10*time.Second) {
+	if client := checkSSH(logger, dutAddress, config, 5, 10*time.Second); client != nil {
+		defer client.Close()
 		return CROS, nil
 	}
 	if checkADB(logger, dutAddress, 15*time.Second) {
