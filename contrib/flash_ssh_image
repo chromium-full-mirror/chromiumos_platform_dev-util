@@ -1,0 +1,86 @@
+#!/bin/bash
+#
+# Copyright 2024 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+#
+# flash_ssh_image - Grab a disk image over ssh and write it to a removable disk
+#
+# A handy little bash script that does all this in one shot (and in parallel):
+# - Grab a disk image from a remote host (via ssh)
+# - Decompress it
+# - Write it to a block device
+#
+# To help you, if you don't specify a block device this will list found
+# removable block devices (using "lsblk") and let you choose one.
+#
+# WARNING: In case it's not incredibly obvious, this script will overwrite
+# whichever block device you point it at. Make sure you intend to do this.
+
+set -e
+
+function die() {
+  echo "$@" 1>&2
+  exit 1
+}
+
+if [[ "$1" == "--help" ]] || [[ $# -lt 1 ]]; then
+  die "Usage: $(basename "$0") ssh_host remote_image_path [disk]"
+fi
+
+REMOTE_HOST="$1"
+IMAGE_PATH="$2"
+DISK="$3"
+
+if [[ -z "${DISK}" ]]; then
+  # Run sudo right away to get the password before it's confusing.
+  sudo echo "Choose a removable disk to flash to. IT WILL BE ERASED!"
+
+  mapfile -t disks < \
+    <(lsblk -Q 'TYPE == "disk" && RM == 1 && SIZE != "0"' -o "NAME,SIZE" -n)
+
+  select opt in "${disks[@]}"; do
+    DISK="${opt}";
+    if [[ -n "${DISK}" ]]; then
+      break;
+    fi
+  done
+  IFS=" " read -r -a ARR <<< "${opt}"
+  DISK="/dev/${ARR[0]}"
+else
+  if [[ ! -b "${DISK}" ]]; then
+    die "${DISK} must be a block device"
+  fi
+
+  # Run sudo right away to get the password before it's confusing.
+  sudo echo "Are you sure you want to ERASE ${DISK}?"
+  read -r -p "[y/n] " choice
+  if [[ "${choice}" != "y" ]] && [[ "${choice}" != "Y" ]]; then
+    die "OK, cancelling"
+  fi
+fi
+
+if [[ "${IMAGE_PATH}" == *.tar.zst ]]; then
+  die "TODO: tar/zst (would assume 1 file in the tar)"
+elif [[ "${IMAGE_PATH}" == *.zst ]]; then
+  cmd="pzstd -d -c"
+elif [[ "${IMAGE_PATH}" == *.tgz ]] || [[ "${IMAGE_PATH}" == *.tar.gz ]]; then
+  die "TODO: tar/gz (would assume 1 file in the tar)"
+elif [[ "${IMAGE_PATH}" == *.gz ]]; then
+  cmd="gzip -d -c"
+elif [[ "${IMAGE_PATH}" == *.bin ]]; then
+  cmd="cat"
+else
+  die "Unrecognized extension"
+fi
+
+# shellcheck disable=SC2029
+ssh "${REMOTE_HOST}" \
+  "if [[ ! -e '${IMAGE_PATH}' ]]; then
+     echo '${IMAGE_PATH} not found' 1>&2;
+   else
+     cat '${IMAGE_PATH}';
+   fi" | ${cmd} |
+  sudo dd of="${DISK}" \
+    bs=4M iflag=fullblock oflag=direct conv=nocreat,fdatasync status=progress
