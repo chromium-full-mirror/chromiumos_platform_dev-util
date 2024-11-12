@@ -166,3 +166,118 @@ func TestIsBuildPartnerVisible(t *testing.T) {
 		So(isPartnerVisible, ShouldBeFalse)
 	})
 }
+
+func TestPartnerVMRealm(t *testing.T) {
+	t.Parallel()
+
+	Convey("Get partner vm realm for a base vm build", t, func() {
+		testResult := &artifact.TestResult{
+			TestInvocation: &artifact.TestInvocation{
+				PrimaryExecutionInfo: &artifact.ExecutionInfo{
+					BuildInfo: &artifact.BuildInfo{
+						Board: "betty",
+						Name:  "betty-release/R100.0.0",
+					},
+					DutInfo: &artifact.DutInfo{
+						Dut: &labpb.Dut{
+							DutType: &labpb.Dut_Chromeos{
+								Chromeos: &labpb.Dut_ChromeOS{},
+							},
+						},
+					},
+				},
+			},
+		}
+		realm := partnerVMRealm(testResult)
+		So(realm, ShouldResemble, ChromeOSPartnerVMRealm)
+	})
+
+	Convey("Get partner vm realm for an allowlisted vm variant build", t, func() {
+		testResult := &artifact.TestResult{
+			TestInvocation: &artifact.TestInvocation{
+				PrimaryExecutionInfo: &artifact.ExecutionInfo{
+					BuildInfo: &artifact.BuildInfo{
+						Board: "betty-arc-r",
+						Name:  "betty-arc-r/R100.0.0",
+					},
+					DutInfo: &artifact.DutInfo{
+						Dut: &labpb.Dut{
+							DutType: &labpb.Dut_Chromeos{
+								Chromeos: &labpb.Dut_ChromeOS{},
+							},
+						},
+					},
+				},
+			},
+		}
+		realm := partnerVMRealm(testResult)
+		So(realm, ShouldResemble, ChromeOSPartnerVMRealm)
+	})
+
+	Convey("Get partner vm realm for a non-allowlisted vm variant build", t, func() {
+		testResult := &artifact.TestResult{
+			TestInvocation: &artifact.TestInvocation{
+				PrimaryExecutionInfo: &artifact.ExecutionInfo{
+					BuildInfo: &artifact.BuildInfo{
+						// "foo" is not in the allowlist.
+						Board: "foo",
+						Name:  "foo/R100.0.0",
+					},
+					DutInfo: &artifact.DutInfo{
+						Dut: &labpb.Dut{
+							DutType: &labpb.Dut_Chromeos{
+								Chromeos: &labpb.Dut_ChromeOS{},
+							},
+						},
+					},
+				},
+			},
+		}
+		realm := partnerVMRealm(testResult)
+		So(realm, ShouldBeEmpty)
+	})
+
+	Convey("Get partner vm realm for a staging vm build", t, func() {
+		testResult := &artifact.TestResult{
+			TestInvocation: &artifact.TestInvocation{
+				PrimaryExecutionInfo: &artifact.ExecutionInfo{
+					BuildInfo: &artifact.BuildInfo{
+						Board: "betty",
+						Name:  "staging-betty/R100.0.0",
+					},
+					DutInfo: &artifact.DutInfo{
+						Dut: &labpb.Dut{
+							DutType: &labpb.Dut_Chromeos{
+								Chromeos: &labpb.Dut_ChromeOS{},
+							},
+						},
+					},
+				},
+			},
+		}
+		realm := partnerVMRealm(testResult)
+		So(realm, ShouldBeEmpty)
+	})
+
+	Convey("Get partner vm realm for a test result with missing board or image", t, func() {
+		testResult := &artifact.TestResult{
+			TestInvocation: &artifact.TestInvocation{
+				PrimaryExecutionInfo: &artifact.ExecutionInfo{
+					BuildInfo: &artifact.BuildInfo{
+						Board: "",
+						Name:  "betty-release/R100.0.0",
+					},
+					DutInfo: &artifact.DutInfo{
+						Dut: &labpb.Dut{
+							DutType: &labpb.Dut_Chromeos{
+								Chromeos: &labpb.Dut_ChromeOS{},
+							},
+						},
+					},
+				},
+			},
+		}
+		realm := partnerVMRealm(testResult)
+		So(realm, ShouldBeEmpty)
+	})
+}

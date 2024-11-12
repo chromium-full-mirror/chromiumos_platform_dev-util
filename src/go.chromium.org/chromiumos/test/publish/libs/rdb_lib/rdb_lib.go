@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 
 	"go.chromium.org/chromiumos/test/publish/clients/rdb_client"
 	common_utils "go.chromium.org/chromiumos/test/publish/cmd/common-utils"
@@ -47,6 +48,11 @@ var (
 		"-manatee-kernelnext": true,
 		"-userdebug":          true,
 	}
+
+	baseVMBoardAllowlist = map[string]bool{
+		"amd64-generic": true,
+		"betty":         true,
+	}
 )
 
 const (
@@ -82,6 +88,9 @@ const (
 
 	// Realm config file path in infra/config repo on Gitiles
 	RealmConfigFilePath = "generated/realms.cfg"
+
+	// ChromeOS partner VM realm which is visible to all partners
+	ChromeOSPartnerVMRealm = "chromeos:partner-vmtest"
 )
 
 type RdbLib struct {
@@ -111,16 +120,11 @@ func (rdblib *RdbLib) UploadTestResults(ctx context.Context, rdbStreamConfig *rd
 		resultAdapterArgs = append(resultAdapterArgs, "-testhaus-base-url", rdbStreamConfig.TesthausBaseURL)
 	}
 
-	validRealms, err := validRealms(ctx)
-	if err != nil {
-		log.Printf("Failed to get the valid realm list due to the error: %s", err.Error())
-	} else {
-		realm := boardModelRealm(testResult, validRealms)
-		if realm != "" {
-			rdbStreamConfig.Include = true
-			rdbStreamConfig.Realm = realm
-			log.Printf("Successfully set the board.model realm: %q", realm)
-		}
+	realm := testResultRealm(ctx, testResult)
+	if realm != "" {
+		rdbStreamConfig.Include = true
+		rdbStreamConfig.Realm = realm
+		log.Printf("Successfully set the board.model realm: %q", realm)
 	}
 
 	resultAdapterArgs = append(resultAdapterArgs, "--", "echo")
@@ -140,6 +144,27 @@ func (rdblib *RdbLib) UploadTestResults(ctx context.Context, rdbStreamConfig *rd
 	}
 
 	return nil
+}
+
+// testResultRealm gets the luci realm for test results. Returns an empty value
+// if no valid realm is generated.
+func testResultRealm(ctx context.Context, testResult *artifact.TestResult) string {
+	if testResult == nil {
+		return ""
+	}
+
+	hostname := testResult.GetTestInvocation().GetDutTopology().GetId().GetValue()
+	if hostname == "vm" {
+		return partnerVMRealm(testResult)
+	}
+
+	validRealms, err := validRealms(ctx)
+	if err != nil {
+		log.Printf("Failed to get the valid realm list due to the error: %s", err.Error())
+		return ""
+	}
+	return boardModelRealm(testResult, validRealms)
+
 }
 
 // boardModelRealm gets the board-model realm for this test result.
@@ -180,6 +205,29 @@ func boardModelRealm(testResult *artifact.TestResult, validRealms map[string]boo
 	}
 
 	return "chromeos:" + boardModelRealm
+}
+
+// partnerVMRealm gets the partner vm realm for this test result. Returns an
+// empty value if the vm board is not allowed to share with partners.
+func partnerVMRealm(testResult *artifact.TestResult) string {
+	executionInfo := testResult.GetTestInvocation().GetPrimaryExecutionInfo()
+
+	// Returns early if vm test results are for staging testing.
+	image := executionInfo.GetBuildInfo().GetName()
+	parts := strings.Split(image, "-")
+	if strings.HasPrefix(image, "staging-") {
+		return ""
+	}
+
+	// Checks base vm boards (e.g. "betty") or vm board variants
+	// (e.g. "betty-arc-r").
+	board := executionInfo.GetBuildInfo().GetBoard()
+	parts = strings.Split(board, "-")
+	if baseVMBoardAllowlist[board] || (len(parts) > 0) && baseVMBoardAllowlist[parts[0]] {
+		return ChromeOSPartnerVMRealm
+	}
+
+	return ""
 }
 
 // validRealms gets the full list of valid realms from the ChromeOS infra config
