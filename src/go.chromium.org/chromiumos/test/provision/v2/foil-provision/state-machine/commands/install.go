@@ -128,6 +128,7 @@ func TestScanner(stream io.Reader, logger *log.Logger, harness string) (bool, st
 	const maxCapacity = 4096 * 1024
 	scanner := bufio.NewScanner(stream)
 	completion := false
+	errStr := "OTA completed"
 	// Expand the buffer size to avoid deadlocks on heavy logs
 	buf := make([]byte, maxCapacity)
 	scanner.Buffer(buf, maxCapacity)
@@ -140,16 +141,15 @@ func TestScanner(stream io.Reader, logger *log.Logger, harness string) (bool, st
 			logger.Println("found status in: ", txt)
 			completion = true
 		} else if strings.Contains(txt, "onPayloadApplicationComplete(ErrorCode::") {
-			logger.Println("found status in: ", txt)
+			logger.Println("found status in2: ", txt)
 			completion = false
 			re := regexp.MustCompile(`ErrorCode::(.*?) `)
-
 			// Find the matching substring
 			match := re.FindStringSubmatch(txt)
 			if len(match) > 1 {
-				return completion, match[1]
+				errStr = match[1]
 			} else {
-				return completion, "unknown error during OTA"
+				errStr = "unknown error during OTA"
 			}
 		}
 	}
@@ -157,7 +157,7 @@ func TestScanner(stream io.Reader, logger *log.Logger, harness string) (bool, st
 		logger.Println("Failed to read pipe: ", scanner.Err())
 	}
 	logger.Println("Final completion status: ", completion)
-	return completion, "OTA completed"
+	return completion, errStr
 }
 
 func logcat(log *log.Logger, pid string, addr string) {
