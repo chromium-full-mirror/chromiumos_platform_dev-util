@@ -31,6 +31,9 @@ logger = logging.getLogger(__name__)
 # Matches a full 40-character commit hash.
 _COMMIT_HASH_PATTERN = re.compile(r"\b[0-9a-f]{40}\b")
 
+# Matches a full 40-character parent commit hash.
+_PARENT_COMMIT_HASH_PATTERN = re.compile(r"parent\b[0-9a-f]{40}\b")
+
 
 class MergeConflictBehavior(enum.Enum):
     """How to behave on merge conflicts.
@@ -399,6 +402,21 @@ class GitRepo:
             worktree.add("", stage=True, force=True)
             return worktree.commit(old_message)
 
+    def is_merge_commit(
+        self,
+        rev: str = "HEAD",
+    ):
+        extra_args = ["-p"]
+        result = self._run_git("cat-file", rev, *extra_args)
+        return (
+            len(
+                re.findall(
+                    _PARENT_COMMIT_HASH_PATTERN, str(result.stdout.rstrip())
+                )
+            )
+            > 1
+        )
+
     def cherry_pick(
         self,
         rev: str,
@@ -450,9 +468,14 @@ class GitRepo:
         cherry_pick_flag_list: Tuple[List[str], ...] = (
             [],
             ["-Xpatience"],
-            ["-m", "1"],
-            ["-m", "2"],
         )
+        if self.is_merge_commit(rev):
+            cherry_pick_flag_list: Tuple[List[str], ...] = (
+                ["-m", "1"],
+                ["-m", "1", "-Xpatience"],
+                ["-m", "2"],
+                ["-m", "2", "-Xpatience"],
+            )
         if downstream_subtree or upstream_subtree or include_paths:
             cherry_pick_flag_list = ()
         for flags in cherry_pick_flag_list:
