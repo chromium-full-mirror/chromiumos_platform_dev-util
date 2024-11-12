@@ -7,6 +7,7 @@ package common_utils
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"log"
@@ -45,14 +46,20 @@ func WrapStringInAny(s string) *anypb.Any {
 
 // ExecuteStateMachine runs a specific state machine
 func ExecuteStateMachine(ctx context.Context, cs ServiceState, log *log.Logger) (api.InstallResponse_Status, *anypb.Any, error) {
-	var md *anypb.Any
-	for cs != nil {
-		if md, status, err := cs.Execute(ctx, log); err != nil {
+	if cs == nil {
+		msg := "input State cannot be empty in ExecuteStateMachine"
+		return api.InstallResponse_STATUS_PROVISIONING_FAILED, nil, stderrors.New(msg)
+	}
+	for {
+		md, status, err := cs.Execute(ctx, log)
+		if err != nil {
 			return status, md, fmt.Errorf("failed provisioning on %s step, %w", cs.Name(), err)
 		}
 		cs = cs.Next()
+		if cs == nil {
+			return api.InstallResponse_STATUS_SUCCESS, md, nil
+		}
 	}
-	return api.InstallResponse_STATUS_SUCCESS, md, nil
 }
 
 // CreateLogFile creates a file and its parent directory for logging purpose.
