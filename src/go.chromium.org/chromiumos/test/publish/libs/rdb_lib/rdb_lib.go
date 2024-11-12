@@ -30,6 +30,7 @@ var (
 	supportedResultAdapterFormats = map[string]bool{
 		"gtest":              true,
 		"json":               true,
+		"native":             true,
 		"single":             true,
 		"tast":               true,
 		"skylab-test-runner": true,
