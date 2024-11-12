@@ -468,6 +468,7 @@ class GitRepo:
         cherry_pick_flag_list: Tuple[List[str], ...] = (
             [],
             ["-Xpatience"],
+            ["--strategy=recursive", "-X", "theirs"],
         )
         if self.is_merge_commit(rev):
             cherry_pick_flag_list: Tuple[List[str], ...] = (
