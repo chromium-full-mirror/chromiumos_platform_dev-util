@@ -198,6 +198,7 @@ def find_commits_to_copy(
     exclude_file_patterns: Iterable[str] = (),
     filter_file_patterns: Iterable[str] = (),
     pending_changes: Optional[Dict[str, gerrit.GerritClInfo]] = None,
+    abandoned_changes: Optional[Dict[str, gerrit.GerritClInfo]] = None,
     skip_copybot_job_names: Iterable[str] = (),
     skip_author_emails: Iterable[str] = (),
     include_change_id: bool = False,
@@ -223,6 +224,7 @@ def find_commits_to_copy(
         filter_file_patterns: File paths that should be filtered out.
             CLs will be modified to drop these paths.
         pending_changes: Changes pending in downstream repo.
+        abandoned_changes: Changes abandoned in downstream repo.
         skip_copybot_job_names: Names of copybot jobs to not copy CLs from
         skip_author_emails: Emails of authors to not copy CLs from
         include_change_id: Bool specifying whether or not to
@@ -312,6 +314,10 @@ def find_commits_to_copy(
         # Increment counter after filtering Copybot-Job-Name CLs to treat
         # them as if they don't belong to the target repo.
         counter += 1
+
+        if abandoned_changes and rev in abandoned_changes:
+            logger.info("Skipping %s because it's abandoned", rev)
+            continue
 
         if pending_changes and rev in pending_changes:
             if "copybot-skip" in pending_changes[rev].hashtags:
@@ -562,7 +568,7 @@ def run_copybot(
         gerrit_inst = gerrit.Gerrit(
             f"{downstream_gob_host}-review.googlesource.com"
         )
-        pending_changes = gerrit_inst.find_pending_changes(
+        pending_changes, abandoned_changes = gerrit_inst.find_pending_changes(
             project=downstream_project,
             branch=downstream_branch,
             hashtags=[args.topic],
@@ -570,7 +576,9 @@ def run_copybot(
             exclude_paths=drop_paths,
         )
         logger.info(
-            "Found %s pending changes already on Gerrit", len(pending_changes)
+            "Found %s pending and %s abandoned changes already on Gerrit",
+            len(pending_changes),
+            len(abandoned_changes),
         )
     repo = gerrit.GitRepo.init(git_dir)
     try:
@@ -670,6 +678,7 @@ def run_copybot(
         exclude_file_patterns=drop_paths,
         filter_file_patterns=filter_file_patterns,
         pending_changes=pending_changes,
+        abandoned_changes=abandoned_changes,
         skip_copybot_job_names=args.skip_job_name,
         skip_author_emails=args.skip_author_email,
         upstream_history_length=upstream_history_length,

@@ -690,7 +690,7 @@ class Gerrit:
             current Change-Id on Gerrit and their associated hashtags.
         """
         query = [
-            "status:open",
+            "(status:open or status:abandoned)",
             f"project:{project}",
             f"branch:{branch}",
         ]
@@ -701,8 +701,10 @@ class Gerrit:
         if exclude_paths:
             for path in exclude_paths:
                 query.append(f"-directory:{path}")
+
         query_result = self.search(" ".join(query))
-        change_ids = {}
+        pending_change_ids = {}
+        abandoned_change_ids = {}
         for cl in query_result:
             change_id = cl["change_id"]
             current_revision_hash = cl["current_revision"]
@@ -718,12 +720,19 @@ class Gerrit:
                 ):
                     rev_id.append(commit_hash.group(0))
             for rev in rev_id:
-                change_ids[rev] = GerritClInfo(
-                    change_id,
-                    cl["hashtags"].copy(),
-                    current_revision_data["ref"],
-                )
-        return change_ids
+                if cl["status"] == "ABANDONED":
+                    abandoned_change_ids[rev] = GerritClInfo(
+                        change_id,
+                        cl["hashtags"].copy(),
+                        current_revision_data["ref"],
+                    )
+                else:
+                    pending_change_ids[rev] = GerritClInfo(
+                        change_id,
+                        cl["hashtags"].copy(),
+                        current_revision_data["ref"],
+                    )
+        return pending_change_ids, abandoned_change_ids
 
 
 def generate_change_id() -> str:
