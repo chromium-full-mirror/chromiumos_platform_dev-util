@@ -22,6 +22,7 @@ fi
 
 tmpfile=$(mktemp /tmp/parsed_fw_manifests.XXXXXX)
 for fm_path in "${src_path}"/private-overlays/chromeos-partner-overlay/chromeos-base/modemfwd-helpers-*/files/firmware_manifest.* \
+    "${src_path}"/private-overlays/overlay-*-private/chromeos-base/modemfwd-helpers/files/firmware_manifest.* \
     "${src_path}"/overlays/overlay-*/chromeos-base/modemfwd-helpers/files/firmware_manifest.*; do
   board=''
   # Extract the value of the `*` from the globs to set the board name
@@ -31,9 +32,15 @@ for fm_path in "${src_path}"/private-overlays/chromeos-partner-overlay/chromeos-
     board="${BASH_REMATCH[1]}"
   else
     #match second glob
-    [[ "${fm_path}" =~ overlays/overlay-([a-z]*)/chromeos-base/modemfwd-helpers ]]
+    [[ "${fm_path}" =~ private-overlays/overlay-([a-z]*)-private/chromeos-base/modemfwd-helpers ]]
     if [ -n "${BASH_REMATCH[1]}" ]; then
       board="${BASH_REMATCH[1]}"
+    else
+      #match third glob
+      [[ "${fm_path}" =~ overlays/overlay-([a-z]*)/chromeos-base/modemfwd-helpers ]]
+      if [ -n "${BASH_REMATCH[1]}" ]; then
+        board="${BASH_REMATCH[1]}"
+      fi
     fi
   fi
   ( \
