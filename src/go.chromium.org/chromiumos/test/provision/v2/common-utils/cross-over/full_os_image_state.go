@@ -46,7 +46,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	var client *ssh.Client
 	if client = checkSSH(log, dutAddress, config, bootWaitRetryCount, bootWaitRetryInterval); client == nil {
 		errMsg := "cannot SSH onto DUT booted from USB common provision image"
-		return common_utils.WrapStringInAny(errMsg), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, errors.New(errMsg)
+		return common_utils.WrapStringInAny(s.errStatus(errMsg)), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, errors.New(errMsg)
 	}
 	defer client.Close()
 	var session *ssh.Session
@@ -61,11 +61,11 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	if strings.Contains(targetImgPath, "android-build") {
 		buildId, err := targetBuild(targetImgPath)
 		if err != nil {
-			return common_utils.WrapStringInAny("INFRA: unable to parse image path from target"), api.InstallResponse_STATUS_INVALID_REQUEST, err
+			return common_utils.WrapStringInAny(s.errStatus("INFRA: unable to parse image path from target")), api.InstallResponse_STATUS_INVALID_REQUEST, err
 		}
 		launchTarget, err := extractTargetLaunch(targetImgPath)
 		if err != nil {
-			return common_utils.WrapStringInAny("INFRA: unable to parse image path from target"), api.InstallResponse_STATUS_INVALID_REQUEST, err
+			return common_utils.WrapStringInAny(s.errStatus("INFRA: unable to parse image path from target")), api.InstallResponse_STATUS_INVALID_REQUEST, err
 		}
 		installCommand = fmt.Sprintf("al-install android-build/builds/%s/%s/attempts/latest/artifacts/android-desktop_image.bin.gz %s", buildId, launchTarget, cacheServerAdd)
 	} else {
@@ -75,11 +75,18 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	if output, err := session.CombinedOutput(installCommand); err != nil {
 		log.Println("Failed to run installCommand: ", installCommand, err)
 		log.Println(string(output))
-		return common_utils.WrapStringInAny("FAILED TO RUN CROSOVER INSTALL COMMAND"), api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
+		return common_utils.WrapStringInAny(s.errStatus("FAILED TO RUN CROSOVER INSTALL COMMAND")), api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
 	} else {
 		log.Println(string(output))
 	}
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
+}
+
+func (s FullOSImageState) errStatus(curErr string) string {
+	if s.params.PrevError != "" {
+		return fmt.Sprintf("Flash and OTA failed: %s", s.params.PrevError)
+	}
+	return curErr
 }
 
 func (s FullOSImageState) Next() common_utils.ServiceState {

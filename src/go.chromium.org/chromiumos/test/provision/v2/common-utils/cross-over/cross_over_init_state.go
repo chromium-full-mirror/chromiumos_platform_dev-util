@@ -31,6 +31,7 @@ type CrossOverParameters struct {
 	DutClient          api.DutServiceClient
 	PostProvisionState common_utils.ServiceState
 	ServoNexusClient   api.ServodServiceClient
+	PrevError          string
 }
 
 // CrossOverInitState starts the servod process.

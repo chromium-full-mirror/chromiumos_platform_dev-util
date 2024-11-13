@@ -12,6 +12,7 @@ import (
 
 	api1 "go.chromium.org/chromiumos/config/go/test/lab/api"
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
+	cross_over "go.chromium.org/chromiumos/test/provision/v2/common-utils/cross-over"
 	"go.chromium.org/chromiumos/test/provision/v2/common-utils/metadata"
 
 	conf "go.chromium.org/chromiumos/config/go"
@@ -39,9 +40,15 @@ type FoilService struct {
 	CurrentBuild     string
 	TargetBuild      string
 	CacheServerUrl   url.URL
+	DutClient        api.DutServiceClient
+	ServoNexusAddr   string
+	Dut              *lab_api.Dut
+	Req              *api.InstallRequest
+	CrossOver        bool
+	Params           *cross_over.CrossOverParameters
 }
 
-func NewFoilService(dut *lab_api.Dut, req *api.InstallRequest) (*FoilService, error) {
+func NewFoilService(dut *lab_api.Dut, req *api.InstallRequest, dutClient api.DutServiceClient, servoNexusAddr string) (*FoilService, error) {
 	cacheServerAddr, err := ipEndpointToHostPort(dut.GetCacheServer().GetAddress())
 	if err != nil {
 		return nil, fmt.Errorf("invalid cache server address %v", err)
@@ -62,6 +69,10 @@ func NewFoilService(dut *lab_api.Dut, req *api.InstallRequest) (*FoilService, er
 		ImagePath: &conf.StoragePath{
 			Path: imagePath,
 		},
+		DutClient:      dutClient,
+		ServoNexusAddr: servoNexusAddr,
+		Dut:            dut,
+		Req:            req,
 	}, nil
 }
 

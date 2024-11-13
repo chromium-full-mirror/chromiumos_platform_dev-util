@@ -40,7 +40,7 @@ func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 		return crossOverProvisionState(dut, dutClient, servoNexusAddr, req)
 	}
 
-	cs, err := service.NewFoilService(dut, req)
+	cs, err := service.NewFoilService(dut, req, dutClient, servoNexusAddr)
 	if err != nil {
 		return nil, err
 	}
