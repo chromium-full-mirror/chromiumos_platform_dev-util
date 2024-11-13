@@ -6,7 +6,6 @@
 package cli
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -16,7 +15,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/dutssh"
 	"go.chromium.org/chromiumos/test/util/portdiscovery"
 )
 
@@ -109,11 +107,6 @@ func MainInternal() int {
 		logger.Fatalln("Failed to create a net listener: ", err)
 		return 2
 	}
-	ctx := context.Background()
-	conn, err := GetConnection(ctx, *dutName, *wiringAddress, logger)
-	if err != nil {
-		logger.Println("Failed to connect to DUT via SSH ", err)
-	}
 	// Log the port _after_ the conn is established server.
 	logger.Println("Started server on address ", l.Addr().String())
 	logger.Println("Continue")
@@ -124,7 +117,7 @@ func MainInternal() int {
 		logger.Println("Warning: error when writing to metadata file: ", err)
 	}
 
-	server, destructor := newDutServiceServer(l, logger, &dutssh.SSHClient{Client: conn}, *serializerPath, *protoChunkSize, *dutName, *wiringAddress, *cacheAddress)
+	server, destructor := newDutServiceServer(l, logger, nil, *serializerPath, *protoChunkSize, *dutName, *wiringAddress, *cacheAddress)
 	defer destructor()
 
 	err = server.Serve(l)

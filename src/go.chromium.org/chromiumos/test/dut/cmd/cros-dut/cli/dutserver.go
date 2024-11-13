@@ -69,7 +69,9 @@ func newDutServiceServer(l net.Listener, logger *log.Logger, conn dutssh.ClientI
 
 	server := grpc.NewServer()
 	destructor := func() {
-		s.connection.Close()
+		if s.connection != nil {
+			s.connection.Close()
+		}
 		s.manager.Close()
 	}
 	api.RegisterDutServiceServer(server, s)
@@ -85,7 +87,9 @@ func newDutServiceServer(l net.Listener, logger *log.Logger, conn dutssh.ClientI
 // Close closes DUT service.
 func (s *DutServiceServer) Close() {
 	s.manager.Close()
-	s.connection.Close()
+	if s.connection != nil {
+		s.connection.Close()
+	}
 }
 
 // ExecCommand remotely executes a command on the DUT.
@@ -499,12 +503,7 @@ func (s *DutServiceServer) reconnect(ctx context.Context) error {
 	s.logger.Printf("attempting to reconnect to DUT.")
 	var conn *ssh.Client
 	var err error
-	if common_util.IsCloudBot() {
-		s.logger.Printf("GetConnectionWithRetry connecting to dut through proxy")
-		conn, err = dutssh.CloudbotsDutProxyClient(ctx, s.dutName)
-	} else {
-		conn, err = GetConnection(ctx, s.dutName, s.wiringAddress, s.logger)
-	}
+	conn, err = GetConnection(ctx, s.dutName, s.wiringAddress, s.logger)
 	if err != nil {
 		s.logger.Printf("Failed to reconnect to DUT.")
 		return err
@@ -580,13 +579,7 @@ func GetConnectionWithRetry(ctx context.Context, dutIdentifier string, wiringAdd
 	for ; retryCount >= 0; retryCount-- {
 		err = nil
 		logger.Printf("GetConnectionWithRetry Calling GetConn!")
-
-		if common_util.IsCloudBot() {
-			logger.Printf("GetConnectionWithRetry connecting to dut through proxy")
-			client, err = dutssh.CloudbotsDutProxyClient(ctx, dutIdentifier)
-		} else {
-			client, err = GetConnection(ctx, dutIdentifier, wiringAddress, logger)
-		}
+		client, err = GetConnection(ctx, dutIdentifier, wiringAddress, logger)
 		if err == nil {
 			logger.Printf("GetConnectionWithRetry succeed with %d retries left.\n", retryCount)
 			return client, nil
@@ -603,7 +596,10 @@ func GetConnectionWithRetry(ctx context.Context, dutIdentifier string, wiringAdd
 // it resolves the dut name to ip address; otherwise, uses dutIdentifier as is.
 func GetConnection(ctx context.Context, dutIdentifier string, wiringAddress string, logger *log.Logger) (*ssh.Client, error) {
 	logger.Printf("GetConnection Start!")
-
+	if common_util.IsCloudBot() {
+		logger.Printf("CloudBot detected. Will connecting to dut through proxy.")
+		return dutssh.CloudbotsDutProxyClient(ctx, dutIdentifier)
+	}
 	var addr string
 	logger.Printf("GetConnection wiringAddress: %s", wiringAddress)
 
@@ -634,7 +630,7 @@ func (s *DutServiceServer) runCmd(cmd string, stdin io.Reader, combined bool) *a
 	s.logger.Printf("Running cmd %s", cmd)
 
 	s.logger.Printf("Checking Connection")
-	if !s.connection.IsAlive() {
+	if s.connection == nil || !s.connection.IsAlive() {
 		s.logger.Printf("Connection is not alive, trying to reconnect")
 		if err := s.reconnect(context.Background()); err != nil {
 			s.logger.Printf("failed to reconnect in runcmd %s\n", err)
@@ -681,7 +677,7 @@ func (s *DutServiceServer) runCmd(cmd string, stdin io.Reader, combined bool) *a
 // Overall this is a simplified version of runCmd which only returns output.
 func (s *DutServiceServer) runCmdOutput(cmd string) (string, string, error) {
 	s.logger.Printf("Checking Connection is alive.")
-	if !s.connection.IsAlive() {
+	if s.connection == nil || !s.connection.IsAlive() {
 		if err := s.reconnect(context.Background()); err != nil {
 			return "", "", fmt.Errorf("failed to reconnect after connection failure, %s", err)
 		}
