@@ -23,6 +23,10 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+const (
+	maxGRPCSize = 1024 * 1024 * 400 // 400MB
+)
+
 type RdbPublishServer struct {
 	options *metadata.ServerMetadata
 	manager *lro.Manager
@@ -58,7 +62,7 @@ func (ps *RdbPublishServer) Start() error {
 	ps.manager = lro.New()
 	defer ps.manager.Close()
 
-	ps.server = grpc.NewServer(grpc.MaxRecvMsgSize(1024*1024*32), grpc.MaxSendMsgSize(1024*1024*32))
+	ps.server = grpc.NewServer(grpc.MaxRecvMsgSize(maxGRPCSize), grpc.MaxSendMsgSize(maxGRPCSize))
 	api.RegisterGenericPublishServiceServer(ps.server, ps)
 	longrunning.RegisterOperationsServer(ps.server, ps.manager)
 	reflection.Register(ps.server)
