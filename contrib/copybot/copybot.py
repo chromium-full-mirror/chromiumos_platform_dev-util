@@ -440,7 +440,13 @@ def rewrite_commit_message(
         pseudoheaders["Change-Id"] = change_id
 
     commit_message = pseudoheaders.add_to_commit_message(commit_message)
-    repo.reword(commit_message, sign_off=sign_off)
+    orig_author = repo.get_author_email(rev=upstream_rev)
+    author, sym, domain = orig_author.rpartition("@")
+    orig_author_name = repo.get_author_name(rev=upstream_rev)
+    updated_author = (
+        orig_author_name + "<" + author + sym + domain + "-copybot-pick" + ">"
+    )
+    repo.reword(commit_message, sign_off=sign_off, update_author=updated_author)
 
 
 def get_push_refspec(args: argparse.Namespace, downstream_branch: str) -> str:

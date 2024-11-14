@@ -237,7 +237,12 @@ class GitRepo:
 
     def get_author_email(self, rev: str = "HEAD") -> str:
         """Get the authors email of a commit."""
-        result = self.log(revision_range=rev, num=1, fmt="%cE")
+        result = self.log(revision_range=rev, num=1, fmt="%aE")
+        return result.stdout.strip()
+
+    def get_author_name(self, rev: str = "HEAD") -> str:
+        """Get the authors name of a commit."""
+        result = self.log(revision_range=rev, num=1, fmt="%aN")
         return result.stdout.strip()
 
     def get_subject(self, rev: str = "HEAD") -> str:
@@ -287,6 +292,7 @@ class GitRepo:
         amend: bool = False,
         sign_off: bool = False,
         stage: bool = False,
+        update_author: str = "",
     ) -> str:
         """Create a commit.
 
@@ -294,6 +300,8 @@ class GitRepo:
             The commit hash.
         """
         extra_args = []
+        if update_author:
+            extra_args.extend(["--author", update_author])
         if stage:
             extra_args.append("--all")
         if amend:
@@ -303,13 +311,20 @@ class GitRepo:
         self._run_git("commit", *extra_args, "-m", message)
         return self.rev_parse()
 
-    def reword(self, new_message: str, sign_off: bool = False) -> str:
+    def reword(
+        self, new_message: str, sign_off: bool = False, update_author: str = ""
+    ) -> str:
         """Reword the commit at HEAD.
 
         Returns:
             The new commit hash.
         """
-        return self.commit(new_message, amend=True, sign_off=sign_off)
+        return self.commit(
+            new_message,
+            amend=True,
+            sign_off=sign_off,
+            update_author=update_author,
+        )
 
     def format_patch(
         self,
