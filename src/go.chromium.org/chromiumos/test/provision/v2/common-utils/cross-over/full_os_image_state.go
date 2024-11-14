@@ -12,12 +12,22 @@ import (
 	"log"
 	"regexp"
 	"strings"
+	"time"
 
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 	"golang.org/x/crypto/ssh"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/protobuf/types/known/anypb"
+)
+
+const (
+	// sshMsgIgnore is the SSH global message sent to ping the host.
+	// See RFC 4253 11.2, "Ignored Data Message".
+	sshMsgIgnore   = "SSH_MSG_IGNORE"
+	pingTimeout    = time.Second
+	pingRetryDelay = 2 * time.Second
+	pingRetryCount = 20
 )
 
 var launchTargetPatterns = []*regexp.Regexp{
@@ -41,10 +51,9 @@ func NewFullOSImageState(params *CrossOverParameters) common_utils.ServiceState 
 
 func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("Executing " + s.Name())
-	config := GetSSHConfig()
 	dutAddress := fmt.Sprintf("%s:%v", s.params.Dut.GetChromeos().GetSsh().GetAddress(), s.params.Dut.GetChromeos().GetSsh().GetPort())
 	var client *ssh.Client
-	if client = checkSSH(log, dutAddress, config, bootWaitRetryCount, bootWaitRetryInterval); client == nil {
+	if client = checkSSH(log, dutAddress, bootWaitRetryCount, bootWaitRetryInterval); client == nil {
 		errMsg := "cannot SSH onto DUT booted from USB common provision image"
 		return common_utils.WrapStringInAny(s.errStatus(errMsg)), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, errors.New(errMsg)
 	}
@@ -79,7 +88,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	} else {
 		log.Println(string(output))
 	}
-	return nil, api.InstallResponse_STATUS_SUCCESS, nil
+	return s.handleReboot(ctx, client, log)
 }
 
 func (s FullOSImageState) errStatus(curErr string) string {
@@ -90,11 +99,60 @@ func (s FullOSImageState) errStatus(curErr string) string {
 }
 
 func (s FullOSImageState) Next() common_utils.ServiceState {
-	return NewRebootFromDiskState(s.params)
+	return NewValidateState(s.params)
 }
 
 func (s FullOSImageState) Name() string {
 	return "Full OS Image State"
+}
+
+func (s FullOSImageState) handleReboot(ctx context.Context, sshClient *ssh.Client, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
+	if err := callServodRetry(ctx, log, "power_state", "off", s.params); err != nil {
+		return common_utils.WrapStringInAny("INFRA: unable to set turn off power via servo"), api.InstallResponse_STATUS_PROVISIONING_FAILED, err
+	}
+	if err := sshFailWait(sshClient, log); err != nil {
+		return common_utils.WrapStringInAny("INFRA: dut did not power off post provision image installation"), api.InstallResponse_STATUS_PROVISIONING_FAILED, err
+	}
+	log.Println("Device successfully powered off.")
+	if err := callServodRetry(ctx, log, "image_usbkey_direction", "servo_sees_usbkey", s.params); err != nil {
+		return common_utils.WrapStringInAny("INFRA: unable to set usb direction via servo"), api.InstallResponse_STATUS_PROVISIONING_FAILED, err
+	}
+	log.Printf("\nWaiting for the image_usbkey_direction.")
+	// TODO: Instead of fixed wait time, use a poll based status checker. Refer WaitForPowerStates and GetECSystemPowerState in firmware code.
+	time.Sleep(10 * time.Second)
+
+	if err := callServodRetry(ctx, log, "power_state", "on", s.params); err != nil {
+		return common_utils.WrapStringInAny("INFRA: unable to set turn on power via servo"), api.InstallResponse_STATUS_PROVISIONING_FAILED, err
+	}
+	return nil, api.InstallResponse_STATUS_SUCCESS, nil
+}
+
+// sshFailWait return nil, if the device cannot be sshed within 40 seconds.
+// If the device is alive even after 40 seconds, it returns error.
+func sshFailWait(sshClient *ssh.Client, log *log.Logger) error {
+	for attemp := 1; attemp < pingRetryCount; attemp++ {
+		log.Println("pinging device to check if its offline...")
+		if err := ping(sshClient, pingTimeout); err != nil {
+			return nil
+		}
+		time.Sleep(pingRetryDelay)
+	}
+	return errors.New("dut failed to become unreachable")
+}
+
+func ping(sshClient *ssh.Client, timeout time.Duration) error {
+	ch := make(chan error, 1)
+	go func() {
+		_, _, err := sshClient.SendRequest(sshMsgIgnore, true, []byte{})
+		ch <- err
+	}()
+
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(timeout):
+		return errors.New("timed out")
+	}
 }
 
 func extractTargetLaunch(path string) (string, error) {

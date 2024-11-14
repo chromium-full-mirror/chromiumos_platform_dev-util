@@ -54,8 +54,9 @@ func connectWithTimeout(addr string, config *ssh.ClientConfig, timeout time.Dura
 	}
 }
 
-func checkSSH(logger *log.Logger, dutAddress string, config *ssh.ClientConfig, retryCount int, retryInterval time.Duration) *ssh.Client {
+func checkSSH(logger *log.Logger, dutAddress string, retryCount int, retryInterval time.Duration) *ssh.Client {
 	logger.Println("Checking for ssh connection. w. retry count: ", retryCount)
+	config := GetSSHConfig()
 	for ; retryCount >= 0; retryCount-- {
 		logger.Println("attempting to SSH dail the device")
 
@@ -98,9 +99,8 @@ func IsCROS(ctx context.Context, logger *log.Logger, dutClient api.DutServiceCli
 
 func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
 	logger.Println("Detecting OS type")
-	config := GetSSHConfig()
 	// Perform fast connection check.
-	if client := checkSSH(logger, dutAddress, config, 2, 2*time.Second); client != nil {
+	if client := checkSSH(logger, dutAddress, 2, 2*time.Second); client != nil {
 		defer client.Close()
 		return CROS, nil
 	}
@@ -109,7 +109,7 @@ func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
 	}
 
 	// Perform long connection check.
-	if client := checkSSH(logger, dutAddress, config, 5, 10*time.Second); client != nil {
+	if client := checkSSH(logger, dutAddress, 5, 10*time.Second); client != nil {
 		defer client.Close()
 		return CROS, nil
 	}
