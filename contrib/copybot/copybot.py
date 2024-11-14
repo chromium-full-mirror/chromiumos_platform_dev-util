@@ -701,9 +701,46 @@ def run_copybot(
         )
         commits_to_copy = commits_to_copy[-args.limit :]
 
-    repo.checkout(downstream_rev)
-    for i, rev in enumerate(reversed(commits_to_copy)):
-        logger.info("(%s/%s) Cherry-pick %s", i + 1, len(commits_to_copy), rev)
+    # Determine if there is a pending change at the beginning of the stack.
+    #  If so, find the CL at the top of the pending stack.
+    #  If not, or if the copybot-rebase hashtag is used, revert to the
+    #    original default behavior of starting with ToT HEAD of the downstream
+    #    and cherry-picking from upstream.
+    pending_rev = None
+    cl_count = 0
+    for rev in reversed(commits_to_copy):
+        if rev not in pending_changes:
+            break
+        if "copybot-rebase" in pending_changes[rev].hashtags:
+            break
+        pending_rev = rev
+        cl_count += 1
+    if cl_count > 0:
+        logger.info(
+            "Found %d pending changes at the bottom of the stack.", cl_count
+        )
+        if cl_count == len(commits_to_copy):
+            logger.info("All found changes are pending.  Nothing to do!")
+            return
+        logger.info("Checking out the top change: %s.", pending_rev)
+        repo.fetch(
+            downstream_url,
+            pending_changes[pending_rev].current_ref,
+        )
+        repo.checkout("FETCH_HEAD")
+    else:
+        repo.checkout(downstream_rev)
+        cl_count = 0
+    updated_commits_to_copy = commits_to_copy[
+        : (len(commits_to_copy) - cl_count)
+    ]
+    for i, rev in enumerate(reversed(updated_commits_to_copy)):
+        logger.info(
+            "(%s/%s) Cherry-pick %s",
+            i + 1,
+            len(updated_commits_to_copy),
+            rev,
+        )
         pending_change = False
         reword_pending_change = False
         if rev in pending_changes:
