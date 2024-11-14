@@ -36,10 +36,13 @@ CACHE_SERVER=192.168.100.1
 ~/go/bin/cros-dut -cache_address ${CACHE_SERVER?}:8082 -dut_address ${D?} -port 8123
 ```
 
-Run the servo-nexus server in the chroot
+Run the servo-nexus server from infra repo (outside chroot)
 ```
-~/chromiumos/src/platform/dev/fast_build.sh -b go.chromium.org/chromiumos/test/servod/cmd/cros-servod -o ~/go/bin/cros-servod && \
-~/go/bin/cros-servod server -server_port 8124
+eval `~/infra/infra/go/env.py` && \
+cd ~/infra/infra/go/src/infra && \
+export CGO_ENABLED=0 && \
+go install infra/cros/cmd/cft/dut/cros-servod && \
+~/infra/infra/go/bin/cros-servod server -server_port 8124
 ```
 
 If you are running with a local dut, you will need a cache server. Then set
