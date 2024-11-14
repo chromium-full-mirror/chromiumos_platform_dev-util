@@ -49,8 +49,11 @@ const (
 	// File name for code sources under test
 	CodeSourcesJsonFileName = "sources.jsonpb"
 
-	// File path for the chromium test results
-	ChromiumResultJSONFilePath = "chromium/results/output.json"
+	// File path for the chromium test results in gtest format
+	ChromiumResultJSONFilePathForGtest = "chromium/results/output.json"
+
+	// File path for the chromium test results in native format
+	ChromiumResultJSONFilePathForNative = "results/native_results.jsonl"
 
 	// Result format for rdb
 	ResultAdapterResultFormat = "cros-test-result"
@@ -317,14 +320,20 @@ func chromiumTestRDBConfig(testResult *artifact.TestResult, baseTags map[string]
 
 	resultFormat := chromiumConfig["result_format"].(string)
 	resultFilePath := ""
-	if resultFormat == "tast" {
+	switch resultFormat {
+	case "tast":
 		// For tast, use the default ChromeOS result format and result file.
 		resultFormat = ResultAdapterResultFormat
 		resultFilePath = crosTestResultFile
-	} else {
+	case "gtest":
 		// For gtest, use the chromium result format and its result file.
 		resultFileDir := testResult.TestRuns[0].GetTestCaseInfo().GetTestCaseResult().GetResultDirPath().GetPath()
-		resultFilePath = path.Join(resultFileDir, ChromiumResultJSONFilePath)
+		resultFilePath = path.Join(resultFileDir, ChromiumResultJSONFilePathForGtest)
+	case "native":
+		// For native, use the chromium result format and its result file.
+		testCase := testResult.TestRuns[0].GetTestCaseInfo().GetTestCaseResult()
+		resultFileDir := path.Join(testCase.GetResultDirPath().GetPath(), testCase.GetTestCaseMetadata().GetTestCase().GetName())
+		resultFilePath = path.Join(resultFileDir, ChromiumResultJSONFilePathForNative)
 	}
 
 	config := &rdb_client.RdbStreamConfig{
