@@ -235,10 +235,11 @@ def find_commits_to_copy(
             downstream history.
 
     Returns:
-        Three values: a list of the commit hashes to copy, a
+        Four values: a list of the commit hashes to copy, a
         dictionary mapping commit hashes to the files that should be
-        included, and a dictionary mapping commit hashes to the files
-        that should be skipped.
+        included, a dictionary mapping commit hashes to the files
+        that should be skipped, and a list of the CLs found with the
+        copybot-skip hashtag.
 
     Raises:
         ValueError: If the provided last merged commit hash does not
@@ -247,6 +248,7 @@ def find_commits_to_copy(
     commits_to_copy = []
     commit_files_map = {}
     skipped_files_map = {}
+    copybot_skip_cls = []
     upstream_change_ids = {}
     upstream_hashes = repo.log_hashes(
         revision_range=upstream_rev,
@@ -322,6 +324,7 @@ def find_commits_to_copy(
         if pending_changes and rev in pending_changes:
             if "copybot-skip" in pending_changes[rev].hashtags:
                 logger.info("Skip %s due to copybot-skip hashtag", rev)
+                copybot_skip_cls.append(rev)
                 continue
 
         # If change is in pending list, allow relands
@@ -372,7 +375,12 @@ def find_commits_to_copy(
                 continue
         commits_to_copy.append(rev)
 
-    return commits_to_copy, commit_files_map, skipped_files_map
+    return (
+        commits_to_copy,
+        commit_files_map,
+        skipped_files_map,
+        copybot_skip_cls,
+    )
 
 
 def rewrite_commit_message(
@@ -666,7 +674,12 @@ def run_copybot(
     commit_files_map = {}
     skipped_files_map = {}
 
-    commits_to_copy, commit_files_map, skipped_files_map = find_commits_to_copy(
+    (
+        commits_to_copy,
+        commit_files_map,
+        skipped_files_map,
+        copybot_skip_cls,
+    ) = find_commits_to_copy(
         repo,
         upstream_rev,
         upstream_subtree,
@@ -706,15 +719,25 @@ def run_copybot(
     #  If not, or if the copybot-rebase hashtag is used, revert to the
     #    original default behavior of starting with ToT HEAD of the downstream
     #    and cherry-picking from upstream.
+    #  * Note - this operates on the assumption that there is a single stack
+    #    of CLs.  CLs in separate stacks beneath the lowest pending change are
+    #    effectively ignored.  Additionally, any pending copybot-skip changes
+    #    will cause the entire stack to be cherry-picked.
     pending_rev = None
     cl_count = 0
-    for rev in reversed(commits_to_copy):
-        if rev not in pending_changes:
-            break
-        if "copybot-rebase" in pending_changes[rev].hashtags:
-            break
-        pending_rev = rev
-        cl_count += 1
+    if not copybot_skip_cls:
+        for rev in reversed(commits_to_copy):
+            if rev not in pending_changes:
+                break
+            if any(
+                (
+                    tag in ("copybot-rebase", "copybot-reword")
+                    for tag in pending_changes[rev].hashtags
+                )
+            ):
+                break
+            pending_rev = rev
+            cl_count += 1
     if cl_count > 0:
         logger.info(
             "Found %d pending changes at the bottom of the stack.", cl_count
