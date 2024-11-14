@@ -34,11 +34,15 @@ IMAGE_PATH="$2"
 DISK="$3"
 
 if [[ -z "${DISK}" ]]; then
+  mapfile -t disks < \
+    <(lsblk -Q 'TYPE == "disk" && RM == 1 && SIZE != "0"' -o "NAME,SIZE,MODEL" -n)
+
+  if [[ ${#disks[@]} -eq 0 ]]; then
+    die "No removable disks found"
+  fi
+
   # Run sudo right away to get the password before it's confusing.
   sudo echo "Choose a removable disk to flash to. IT WILL BE ERASED!"
-
-  mapfile -t disks < \
-    <(lsblk -Q 'TYPE == "disk" && RM == 1 && SIZE != "0"' -o "NAME,SIZE" -n)
 
   select opt in "${disks[@]}"; do
     DISK="${opt}";
@@ -54,8 +58,11 @@ else
   fi
 
   # Run sudo right away to get the password before it's confusing.
-  sudo echo "Are you sure you want to ERASE ${DISK}?"
-  read -r -p "[y/n] " choice
+  # NOTE: It's expected that most people will not specify a block device
+  # directly and will use the `lsblk`-based menu. We'll give a big warning
+  # to let the user know.
+  sudo echo "Are you REALLY REALLY sure you want to ERASE '${DISK}'?"
+  read -r -p "NO VALIDATION WAS DONE TO ENSURE THIS IS A REASONABLE CHOICE [y/N] " choice
   if [[ "${choice}" != "y" ]] && [[ "${choice}" != "Y" ]]; then
     die "OK, cancelling"
   fi
