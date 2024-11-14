@@ -32,7 +32,14 @@ D=localhost:2222 # Forwarded ssh port
 Run the cros-dut server in the chroot
 ```
 CACHE_SERVER=192.168.100.1
-~/chromiumos/src/platform/dev/fast_build.sh -b go.chromium.org/chromiumos/test/dut/cmd/cros-dut -o ~/go/bin/cros-dut && ~/go/bin/cros-dut -cache_address ${CACHE_SERVER?}:8082 -dut_address ${D?} -port 8123
+~/chromiumos/src/platform/dev/fast_build.sh -b go.chromium.org/chromiumos/test/dut/cmd/cros-dut -o ~/go/bin/cros-dut && \
+~/go/bin/cros-dut -cache_address ${CACHE_SERVER?}:8082 -dut_address ${D?} -port 8123
+```
+
+Run the servo-nexus server in the chroot
+```
+~/chromiumos/src/platform/dev/fast_build.sh -b go.chromium.org/chromiumos/test/servod/cmd/cros-servod -o ~/go/bin/cros-servod && \
+~/go/bin/cros-servod server -server_port 8124
 ```
 
 If you are running with a local dut, you will need a cache server. Then set
@@ -65,6 +72,14 @@ cat >startup.json <<STARTUP
                         "dut_model": {
                                 "build_target": "${BOARD?}",
                                 "model_name": "${MODEL?}"
+                        },
+                        "servo": {
+                                "present": true,
+                                "servodAddress": {
+                                        "address": "localhost:${LOCAL_SERVO_SSH_PORT?}",
+                                        "port": ${SERVO_PORT?}
+                                },
+                                "serial": "${SERVO_SERIAL?}"
                         }
                 },
                 "cache_server": {
@@ -77,6 +92,10 @@ cat >startup.json <<STARTUP
         "dut_server": {
                 "address": "localhost",
                 "port": 8123
+        },
+        "servoNexusAddr": {
+                "address": "localhost",
+                "port": 8124
         }
 }
 STARTUP

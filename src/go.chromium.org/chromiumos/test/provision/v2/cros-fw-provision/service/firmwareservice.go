@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 	conf "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"gopkg.in/yaml.v3"
 )
 
@@ -71,10 +72,11 @@ type FirmwareService struct {
 
 	// DUTServer is the gRPC connection to the DUT.
 	DUTServer api.DutServiceClient
+	// servoClient is the gRPC connection to the Servo Nexus.
+	servoClient api.ServodServiceClient
+	servoConfig *labapi.Servo
 
 	useServo bool
-	// servoConfig provides dut-controls and programmer argument for flashing
-	servoConfig *servo_lib.ServoConfig
 	// wrapper around servoClient connection with extra servod-related functions
 	servoConnection servoadapter.ServoHostInterface
 	servoPort       int
@@ -93,7 +95,7 @@ type versionJSON struct {
 // NewFirmwareService initializes a FirmwareService.
 func NewFirmwareService(ctx context.Context, dutServer api.DutServiceClient,
 	servoClient api.ServodServiceClient, cacheServer url.URL, board, model string,
-	useServo bool, req *api.InstallRequest) (*FirmwareService, error) {
+	useServo bool, req *api.InstallRequest, servoConfig *labapi.Servo) (*FirmwareService, error) {
 	metadata := new(api.FirmwareProvisionInstallMetadata)
 	if req.GetMetadata().MessageIs(metadata) {
 		if err := req.GetMetadata().UnmarshalTo(metadata); err != nil {
@@ -106,6 +108,8 @@ func NewFirmwareService(ctx context.Context, dutServer api.DutServiceClient,
 	fws := FirmwareService{
 		connection:     dutAdapter,
 		DUTServer:      dutServer,
+		servoClient:    servoClient,
+		servoConfig:    servoConfig,
 		board:          board,
 		model:          model,
 		force:          false,
@@ -142,7 +146,6 @@ func NewFirmwareService(ctx context.Context, dutServer api.DutServiceClient,
 
 // Confirms that cros-servod connection is functional, and fills the following
 // fields in FirmwareService:
-//   - servoConfig
 //   - servoConnection
 //   - ecChip
 //   - servoPort
@@ -186,17 +189,6 @@ func (fws *FirmwareService) prepareServoConnection(ctx context.Context, servoCli
 		servoType = servo_lib.NewServoType(servoSubtypeStr)
 	}
 
-	serial, err := fws.servoConnection.GetVariable(ctx, servoType.GetSerialNumberOption())
-	if err != nil {
-		return UnreachablePreProvisionErr(errors.Wrap(err, "failed to get serial number variable")) // TODO: cros-servod is unreachable
-	}
-
-	// finally, get the correct config
-	fws.servoConfig, err = servo_lib.GetServoConfig(fws.board, serial, servoType)
-	if err != nil {
-		return UnreachablePreProvisionErr(errors.Wrap(err, "failed to get servo config")) // TODO: cros-servod is unreachable
-	}
-
 	fws.ecChip, err = fws.servoConnection.GetVariable(ctx, "ec_chip")
 	if err != nil {
 		return UnreachablePreProvisionErr(errors.Wrap(err, "failed to get ec_chip variable")) // TODO: cros-servod is unreachable
@@ -221,9 +213,6 @@ func (fws *FirmwareService) PrintRequestInfo() {
 	informationString += strings.Join(images, " and ") + " firmware"
 
 	flashMode := "SSH"
-	if fws.useServo {
-		flashMode = fmt.Sprintf("Servo %s", (fws.servoConfig.ServoType))
-	}
 	informationString += " over " + flashMode + ". "
 
 	informationString += "Board: " + fws.board + ". "
@@ -347,6 +336,27 @@ func (fws *FirmwareService) DeleteArchiveDirectories() error {
 	return nil
 }
 
+// ServoHostPath returns the ServoHostPath to pass to servoClient
+func (fws *FirmwareService) ServoHostPath() string {
+	host := fws.servoConfig.GetServodAddress().GetAddress()
+	if strings.Contains(host, ":") {
+		return host
+	}
+	if strings.HasSuffix(host, "-docker_servod") {
+		return ""
+	}
+	return fmt.Sprintf("%s:22", host)
+}
+
+// ServodDockerContainerName returns the ServodDockerContainerName to pass to servoClient
+func (fws *FirmwareService) ServodDockerContainerName() string {
+	host := fws.servoConfig.GetServodAddress().GetAddress()
+	if strings.HasSuffix(host, "-docker_servod") {
+		return host
+	}
+	return ""
+}
+
 // FlashWithFutility flashes the DUT using "futility" tool.
 // futility will be run with "--mode=recovery".
 // if |rwOnly| is true, futility will flash only RW regions.
@@ -361,10 +371,74 @@ func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, 
 	if err := fws.ExtractFirmwareVersions(ctx, rwOnly, futilityImageArgs, apImagePath); err != nil {
 		return errors.Wrap(err, "extract versions")
 	}
-	if fws.useServo {
-		return fws.servoFlash(ctx, rwOnly, futilityImageArgs)
+	err := fws.sshFlash(ctx, rwOnly, futilityImageArgs, ecImagePath)
+	if err != nil && strings.Contains(err.Error(), "CSME_LOCKED") {
+		if fws.servoClient != nil {
+			log.Printf("Attempting to unlock CSME via servo")
+			op, err := fws.servoClient.StartServod(ctx, &api.StartServodRequest{
+				ServoHostPath:             fws.ServoHostPath(),
+				ServodDockerContainerName: fws.ServodDockerContainerName(),
+				ServodPort:                fws.servoConfig.GetServodAddress().GetPort(),
+				SerialName:                fws.servoConfig.GetSerial(),
+				Board:                     fws.board,
+				Model:                     fws.model,
+			})
+			if err != nil {
+				return errors.Wrap(err, "failed to start servod")
+			}
+			waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			opAny, err := common_utils.WaitLongRunningOp(waitCtx, log.Default(), op)
+			if err != nil {
+				return errors.Wrap(err, "failed to start servod (lro)")
+			}
+			startResponse := new(api.StartServodResponse)
+			if err := opAny.UnmarshalTo(startResponse); err != nil {
+				return errors.Wrap(err, "failed to start servod (anypb)")
+			}
+			if startResponse.GetFailure() != nil {
+				return errors.Wrapf(err, "failed to start servod: %s", startResponse.GetFailure().GetErrorMessage())
+			}
+			tmpName := fmt.Sprintf("/var/tmp/bios_%d.bin", fws.servoConfig.GetServodAddress().GetPort())
+			defer func() {
+				out, err := fws.servoClient.ExecCmd(ctx, &api.ExecCmdRequest{
+					ServoHostPath:             fws.ServoHostPath(),
+					ServodDockerContainerName: fws.ServodDockerContainerName(),
+					Command:                   fmt.Sprintf("rm %s", fws.servoConfig.GetServodAddress().GetPort(), tmpName),
+				})
+				if err != nil {
+					log.Printf("Failed to rm temp file: %s", err)
+				} else if out.GetExitInfo().GetStatus() != 0 {
+					log.Printf("Failed to rm temp file, exit code %d: %s", out.GetExitInfo().GetStatus(), out.GetStderr())
+				}
+			}()
+			log.Printf("Reading BIOS")
+			out, err := fws.servoClient.ExecCmd(ctx, &api.ExecCmdRequest{
+				ServoHostPath:             fws.ServoHostPath(),
+				ServodDockerContainerName: fws.ServodDockerContainerName(),
+				Command:                   fmt.Sprintf("futility read --servo_port=%d %s", fws.servoConfig.GetServodAddress().GetPort(), tmpName),
+			})
+			if err != nil {
+				return errors.Wrap(err, "backup fw failed")
+			} else if out.GetExitInfo().GetStatus() != 0 {
+				return errors.Errorf("backup fw failed, exit code %d: %s", out.GetExitInfo().GetStatus(), out.GetStderr())
+			}
+			log.Printf("Writing BIOS")
+			out, err = fws.servoClient.ExecCmd(ctx, &api.ExecCmdRequest{
+				ServoHostPath:             fws.ServoHostPath(),
+				ServodDockerContainerName: fws.ServodDockerContainerName(),
+				Command:                   fmt.Sprintf("futility update --servo_port=%d --quirks=unlock_csme -i %s --mode=recovery --wp=0", fws.servoConfig.GetServodAddress().GetPort(), tmpName),
+			})
+			if err != nil {
+				return errors.Wrap(err, "update fw failed")
+			} else if out.GetExitInfo().GetStatus() != 0 {
+				return errors.Errorf("update fw failed, exit code %d: %s", out.GetExitInfo().GetStatus(), out.GetStderr())
+			}
+			// Try the ssh flash again
+			return fws.sshFlash(ctx, rwOnly, futilityImageArgs, ecImagePath)
+		}
 	}
-	return fws.sshFlash(ctx, rwOnly, futilityImageArgs, ecImagePath)
+	return err
 }
 
 // ExtractFirmwareVersions uses futility to get the version numbers from the images.
@@ -509,25 +583,6 @@ func (fws *FirmwareService) sshFlash(ctx context.Context, rwOnly bool, futilityI
 	return fws.runFutility(ctx, rwOnly, futilityImageArgs, ecImagePath)
 }
 
-func (fws *FirmwareService) servoFlash(ctx context.Context, rwOnly bool, futilityImageArgs []string) error {
-	dutOnErr := fws.servoConnection.RunAllDutControls(ctx, fws.servoConfig.DutOn)
-	if dutOnErr != nil {
-		return errors.Wrap(dutOnErr, "failed to run pre-flashing dut-controls")
-	}
-
-	flashErr := fws.runFutility(ctx, rwOnly, futilityImageArgs, "")
-
-	// Attempt to run post-flashing dut-controls regardless of flashErr.
-	dutOffErr := fws.servoConnection.RunAllDutControls(ctx, fws.servoConfig.DutOff)
-	if flashErr != nil {
-		return flashErr
-	}
-	if dutOffErr != nil {
-		return errors.Wrap(dutOffErr, "failed to run post-flashing dut-controls")
-	}
-	return nil
-}
-
 const (
 	// The character class \w is equivalent to [0-9A-Za-z_]. Leading equals sign is unsafe in zsh,
 	// see http://zsh.sourceforge.net/Doc/Release/Expansion.html#g_t_0060_003d_0027-expansion.
@@ -555,12 +610,6 @@ func (fws *FirmwareService) runFutility(ctx context.Context, rwOnly bool, futili
 
 	if fws.force {
 		futilityArgs = append(futilityArgs, "--force")
-	}
-
-	if fws.useServo {
-		futilityArgs = append(futilityArgs, "-p", fws.servoConfig.Programmer)
-		futilityArgs = append(futilityArgs, fws.servoConfig.ExtraArgs...)
-		// TODO(sfrolov): extra args from fw-config.json
 	}
 
 	fws.RestartRequired = true
@@ -602,6 +651,7 @@ with open("`)
 		}
 		startTime := time.Now()
 		exitCodeRe := regexp.MustCompile(`EXIT CODE: (-?\d+)`)
+		csmeLockedRe := regexp.MustCompile(`The CSME was already locked`)
 
 		// Poll every 10s for the log file to appear and have the "EXIT CODE:" string in it.
 		for time.Now().Sub(startTime) < 5*time.Minute {
@@ -615,7 +665,12 @@ with open("`)
 					continue
 				}
 			}
-			m := exitCodeRe.FindStringSubmatch(buf)
+			m := csmeLockedRe.FindStringSubmatch(buf)
+			if m != nil {
+				log.Printf("Futility output:\n%s", buf)
+				return errors.Errorf("CSME_LOCKED: %q", buf)
+			}
+			m = exitCodeRe.FindStringSubmatch(buf)
 			if m != nil {
 				log.Printf("Futility output:\n%s", buf)
 				if m[1] == "0" {

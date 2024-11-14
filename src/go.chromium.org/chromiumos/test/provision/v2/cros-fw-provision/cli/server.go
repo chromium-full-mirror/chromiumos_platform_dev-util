@@ -38,6 +38,7 @@ type FWProvisionServer struct {
 	// service. Its address may be specified either when server is created,
 	// or later in user's ProvisionFirmwareRequest
 	servoClient api.ServodServiceClient
+	servoConfig *api1.Servo
 
 	log        *log.Logger
 	listenPort int
@@ -127,6 +128,21 @@ func (ps *FWProvisionServer) StartUp(ctx context.Context, req *api.ProvisionStar
 		return &response, errors.New("ProvisionStartupRequest: cache_server_address must be visible from DUT, i.e. no localhost")
 	}
 
+	if req.ServoNexusAddr != nil && req.GetDut().GetChromeos().GetServo().GetPresent() {
+		servoServerAddr, err := ipEndpointToHostPort(req.ServoNexusAddr)
+		if err != nil {
+			response.Status = api.ProvisionStartupResponse_STATUS_INVALID_REQUEST
+			return &response, errors.Wrap(err, "failed to parse IpEndpoint of Servo Nexus")
+		}
+		servoClient, err := connectToCrosServod(servoServerAddr)
+		if err != nil {
+			response.Status = api.ProvisionStartupResponse_STATUS_STARTUP_FAILED
+			return &response, errors.Wrap(err, "connect to Servo Nexus")
+		}
+		ps.servoClient = servoClient
+		ps.servoConfig = req.GetDut().GetChromeos().GetServo()
+	}
+
 	response.Status = api.ProvisionStartupResponse_STATUS_SUCCESS
 	return &response, nil
 }
@@ -186,7 +202,7 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 	}()
 
 	fwService, err := firmwareservice.NewFirmwareService(ctx, ps.dutServer, ps.servoClient, ps.cacheServer,
-		ps.board, ps.model, false, req)
+		ps.board, ps.model, false, req, ps.servoConfig)
 	if err != nil {
 		response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
 		ps.log.Printf("Failed to initialize Firmware Service: %v", err)

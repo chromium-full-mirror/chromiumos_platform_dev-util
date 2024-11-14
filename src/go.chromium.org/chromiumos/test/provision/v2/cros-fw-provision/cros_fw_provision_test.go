@@ -261,7 +261,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			"test_board",
 			"test_model",
 			false,
-			req,
+			req, nil,
 		)
 		// Check if init error is expected/got.
 		if err != nil {
