@@ -37,8 +37,15 @@ func NewFoilProvisionExecutor(logger *log.Logger) (*FoilProvisionExecutor, error
 func (c *FoilProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, servoNexusAddr string, req *api.InstallRequest) (common_utils.ServiceState, error) {
 	crossOverRequired := c.crossOverRequired(dut, req)
 	if crossOverRequired {
-		return crossOverProvisionState(dut, dutClient, servoNexusAddr, req)
+		state, err := crossOverProvisionState(dut, dutClient, servoNexusAddr, req)
+		if err != nil {
+			c.Logger.Println("Unable to perform crossover due to ", err)
+		} else {
+			return state, err
+		}
 	}
+
+	c.Logger.Println("Attempting OTA update.")
 
 	cs, err := service.NewFoilService(dut, req, dutClient, servoNexusAddr)
 	if err != nil {
@@ -65,6 +72,8 @@ func crossOverProvisionState(dut *lab_api.Dut, dutClient api.DutServiceClient, s
 }
 
 func (c *FoilProvisionExecutor) crossOverRequired(dut *lab_api.Dut, req *api.InstallRequest) bool {
+	// Due to ongoing OTA issues; force the flash for now. b/378974495
+	return true
 	osType, err := cross_over.DetectOS(c.Logger, fmt.Sprintf("%v:%v", dut.GetChromeos().GetSsh().GetAddress(), dut.GetChromeos().GetSsh().GetPort()))
 	if err != nil {
 		c.Logger.Println("Could not detect the OS. Will perform CrossOver provision.")
