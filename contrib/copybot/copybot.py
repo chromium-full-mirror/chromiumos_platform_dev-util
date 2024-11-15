@@ -304,6 +304,10 @@ def find_commits_to_copy(
                 )
                 continue
 
+        # Increment counter after filtering Copybot-Job-Name CLs to treat
+        # them as if they don't belong to the target repo.
+        counter += 1
+
         commit_subject = repo.get_subject(rev=rev)
         if "marking set of ebuilds as stable" in commit_subject.lower():
             logger.info(
@@ -312,10 +316,6 @@ def find_commits_to_copy(
                 commit_subject,
             )
             continue
-
-        # Increment counter after filtering Copybot-Job-Name CLs to treat
-        # them as if they don't belong to the target repo.
-        counter += 1
 
         if abandoned_changes and rev in abandoned_changes:
             logger.info("Skipping %s because it's abandoned", rev)
