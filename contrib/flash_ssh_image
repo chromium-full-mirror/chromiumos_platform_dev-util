@@ -68,12 +68,32 @@ else
   fi
 fi
 
-if [[ "${IMAGE_PATH}" == *.tar.zst ]]; then
-  die "TODO: tar/zst (would assume 1 file in the tar)"
+if [[ "${IMAGE_PATH}" == *.tar ]]; then
+  # GNU tar doesn't do transparent decompression when being fed from a pipe
+  # We'll pay for an extra ssh session to check the format.
+  format="$(ssh "${REMOTE_HOST}" file -b "${IMAGE_PATH}")"
+
+  if [[ "${format}" == "cannot open"* ]]; then
+    die "Remote reported: ${format}"
+  elif [[ "${format}" == "XZ compressed data"* ]]; then
+    cmd="tar -xOvJ"
+  elif [[ "${format}" == "Zstandard compressed data"* ]]; then
+    cmd="tar -xOv -I pzstd"
+  elif [[ "${format}" == "gzip compressed data"* ]]; then
+    cmd="tar -xOvz"
+  elif [[ "${format}" == "POSIX tar archive"*  ]]; then
+    cmd="tar -xOv"
+  else
+    die "Unrecogized tar format: ${format}"
+  fi
+elif [[ "${IMAGE_PATH}" == *.tar.xz ]]; then
+  cmd="tar -xOvJ"
+elif [[ "${IMAGE_PATH}" == *.tar.zst ]]; then
+  cmd="tar -xOv -I pzstd"
+elif [[ "${IMAGE_PATH}" == *.tgz ]] || [[ "${IMAGE_PATH}" == *.tar.gz ]]; then
+  cmd="tar -xOvz"
 elif [[ "${IMAGE_PATH}" == *.zst ]]; then
   cmd="pzstd -d -c"
-elif [[ "${IMAGE_PATH}" == *.tgz ]] || [[ "${IMAGE_PATH}" == *.tar.gz ]]; then
-  die "TODO: tar/gz (would assume 1 file in the tar)"
 elif [[ "${IMAGE_PATH}" == *.gz ]]; then
   cmd="gzip -d -c"
 elif [[ "${IMAGE_PATH}" == *.bin ]]; then
