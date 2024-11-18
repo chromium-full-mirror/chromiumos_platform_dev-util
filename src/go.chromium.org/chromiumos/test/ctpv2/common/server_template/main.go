@@ -39,6 +39,7 @@ type args struct {
 
 type CommonFilterParams struct {
 	FirestoreDatabaseName string
+	Environment           string
 }
 
 // startServer is the entry point for running post-process (TestFinderService) in server mode.
@@ -50,6 +51,7 @@ func startServer(flagSet *flag.FlagSet, executor func(req *api.InternalTestplan,
 	flagSet.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
 	flagSet.IntVar(&a.port, "port", defaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", defaultPort))
 	flagSet.StringVar(&commonParams.FirestoreDatabaseName, "firestore", TestPlatformFireStore, fmt.Sprintf("Firestore database name to pull from. Default value is %s", TestPlatformFireStore))
+	flagSet.StringVar(&commonParams.Environment, "env", "prod", "Environment of the run. Default value is prod")
 
 	flagSet.Parse(os.Args[2:])
 
