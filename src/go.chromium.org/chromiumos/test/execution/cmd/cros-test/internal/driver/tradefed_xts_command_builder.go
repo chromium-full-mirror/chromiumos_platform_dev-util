@@ -201,6 +201,14 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 					cmd = append(cmd, "--invocation-data", "invocation-property=crystalball_ingest:yes")
 				}
 			}
+
+			// Also allow the flag to be passed in directly through the args.
+			for k, v := range args {
+				if k == "invocation-data" {
+					cmd = append(cmd, fmt.Sprintf("--%s", k), v)
+
+				}
+			}
 			extra_branch, _ := extractMetadataFlag(metadata, "extra_branch")
 			extra_target, _ := extractMetadataFlag(metadata, "extra_target")
 			extra_build, _ := extractMetadataFlag(metadata, "extra_build")
