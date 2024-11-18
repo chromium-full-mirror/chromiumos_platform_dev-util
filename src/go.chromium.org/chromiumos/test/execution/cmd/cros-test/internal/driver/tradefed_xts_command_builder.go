@@ -108,7 +108,7 @@ func extractMetadataFlag(metadata *api.ExecutionMetadata, flagName string) (stri
 }
 
 func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestCaseMetadata,
-	serials []string, metadata *api.ExecutionMetadata, board string) []string {
+	serials []string, metadata *api.ExecutionMetadata, board string, args map[string]string) []string {
 
 	cmd := []string{getTestRunner()}
 
@@ -194,6 +194,12 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			if atpName, err := extractMetadataFlag(metadata, "atp_test_name"); err == nil {
 				cmd = append(cmd, "--invocation-data", fmt.Sprintf("atp_test_name=%s", atpName))
 				logger.Printf("Got ATP test name: %s", atpName)
+			}
+			value, ok := args["crystalball_ingest"]
+			if ok {
+				if strings.ToLower(value) == "true" {
+					cmd = append(cmd, "--invocation-data", "invocation-property=crystalball_ingest:yes")
+				}
 			}
 			extra_branch, _ := extractMetadataFlag(metadata, "extra_branch")
 			extra_target, _ := extractMetadataFlag(metadata, "extra_target")
