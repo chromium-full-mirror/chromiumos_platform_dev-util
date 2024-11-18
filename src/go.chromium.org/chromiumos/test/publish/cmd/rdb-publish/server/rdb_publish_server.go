@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	maxGRPCSize = 1024 * 1024 * 400 // 400MB
+	maxGRPCSize = 1024 * 1024 * 4000 // 4000MB
 )
 
 type RdbPublishServer struct {
