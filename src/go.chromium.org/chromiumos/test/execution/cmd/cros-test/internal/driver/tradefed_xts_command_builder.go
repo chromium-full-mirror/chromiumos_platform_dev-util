@@ -24,9 +24,9 @@ const (
 	retryFailedRuns      = true
 	resultsUpload        = true
 	defaultGlobalLogPath = "/tmp"
-	GIT_MAIN_AL_DEV = "git_main-al-dev"
-	GIT_MAIN = "git_main"
-	DTS = "dts"
+	GIT_MAIN_AL_DEV      = "git_main-al-dev"
+	GIT_MAIN             = "git_main"
+	DTS                  = "dts"
 )
 
 var ctsSkipDownloadArtifacts = []string{"TESTS_ZIP", "DEVICE_IMAGE", "BASEBAND"}

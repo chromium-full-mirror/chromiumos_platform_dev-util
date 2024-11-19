@@ -40,55 +40,44 @@ func (md *MoblyDriver) Name() string {
 	return "mobly"
 }
 
-func buildMoblyCommand(logger *log.Logger, tests []*api.TestCaseMetadata, resultsPath string) []string {
+func buildMoblyCommand(logger *log.Logger, test *api.TestCaseMetadata, resultsPath string) *exec.Cmd {
+	parFile := test.GetTestCaseInfo().GetExtraInfo()
+	par, ok := parFile["executable_name"]
+	if !ok {
+		return nil
+	}
+	par = fmt.Sprintf("/usr/local/mobly/%s", par)
 	logger.Println("Building mobly command")
 	baseArgs := []string{
-		"local_mobly_runner.py",
-		"-p", "betocq_test_suite",
-		"-i",
-		"-c", "test_config.yml",
-		"-lp", resultsPath,
+		"--",
+		"-c", "/usr/local/mobly/test_config.yml",
+		// "-lp", resultsPath,
 	}
 
 	baseArgs = append(baseArgs, "--tests")
-	for _, test := range tests {
-		baseArgs = append(baseArgs, test.GetTestCase().GetName())
-	}
+	baseArgs = append(baseArgs, test.GetTestCase().GetName())
 
-	return baseArgs
+	cmd := exec.Command(par, baseArgs...)
+
+	return cmd
 }
 
 // Execute Mobly command against Omnilab Gateway Client and process test results
-func runMoblyTest(ctx context.Context, logger *log.Logger, tests []*api.TestCaseMetadata, serials []string, resultsPath string, metadata []*api.Arg) error {
-	err := c.SetupAdbConnections(logger, serials)
-	if err != nil {
-		return fmt.Errorf("setupAdb failed, %w", err)
-	}
-
-	exit := make(chan struct{})
-	defer func() {
-		exit <- struct{}{}
-		for _, s := range serials {
-			if err := c.TeardownAdb(logger, s); err != nil {
-				logger.Printf("Failed to tear down adb connection to %s: %s", s, err)
-			}
-		}
-	}()
-
+func runMoblyTest(ctx context.Context, logger *log.Logger, test *api.TestCaseMetadata, serials []string, resultsPath string, metadata []*api.Arg) error {
 	if err := GenerateMoblyConfig(logger, "/usr/local/mobly", serials, metadata); err != nil {
 		return fmt.Errorf("failed to generate mobly config, %w", err)
 	}
 
-	cmdArgs := buildMoblyCommand(logger, tests, resultsPath)
-	cmd := exec.Command("python3", cmdArgs...)
-	cmd.Dir = "/usr/local/mobly"
+	cmd := buildMoblyCommand(logger, test, resultsPath)
+	if cmd == nil {
+		return fmt.Errorf("failed to build mobly command")
+	}
 	logger.Println("Running Mobly: ", cmd.String())
 
-	c.KeepAdbAlive(logger, serials, exit)
 	return launchAndReadMobly(cmd, logger)
 }
 
-func buildMoblyResult(logger *log.Logger, resultsPath string) *api.CrosTestResponse {
+func buildMoblyResult(logger *log.Logger, resultsPath string, f *api.CrosTestResponse) *api.CrosTestResponse {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Println("found a panic")
@@ -96,9 +85,6 @@ func buildMoblyResult(logger *log.Logger, resultsPath string) *api.CrosTestRespo
 			logger.Println(string(debug.Stack()))
 		}
 	}()
-
-	logger.Println("building results")
-	f := &api.CrosTestResponse{}
 
 	logger.Println("reading file")
 	moblyResultBytes, err := os.ReadFile(resultsPath)
@@ -108,15 +94,15 @@ func buildMoblyResult(logger *log.Logger, resultsPath string) *api.CrosTestRespo
 		return nil
 	}
 
-	logger.Println("translating")
+	logger.Println("translating", moblyResultBytes)
 	testCaseResults, err := common.TranslateMoblyResults(moblyResultBytes)
-	logger.Println("translating done")
+	logger.Println("translating done", testCaseResults)
 	if err != nil {
 		logger.Printf("failed to translate mobly results, %s", err)
 		return nil
 	}
 
-	f.TestCaseResults = testCaseResults
+	f.TestCaseResults = append(f.TestCaseResults, testCaseResults...)
 
 	logger.Println("Got results:")
 	for _, result := range f.TestCaseResults {
@@ -128,7 +114,7 @@ func buildMoblyResult(logger *log.Logger, resultsPath string) *api.CrosTestRespo
 
 // RunTests drives a test framework to execute tests.
 func (md *MoblyDriver) RunTests(ctx context.Context, resultsDir string, req *api.CrosTestRequest, tlwAddr string, tests []*api.TestCaseMetadata) (*api.CrosTestResponse, error) {
-	allRspn := &api.CrosTestResponse{}
+	f := &api.CrosTestResponse{}
 
 	serials, err := device.DerviceSerials(req)
 	if err != nil {
@@ -143,16 +129,40 @@ func (md *MoblyDriver) RunTests(ctx context.Context, resultsDir string, req *api
 
 	metadata = append(metadata, common.ExtraArgs(req)...)
 
-	err = runMoblyTest(ctx, md.logger, tests, serials, resultsDir, metadata)
+	err = c.SetupAdbConnections(md.logger, serials)
 	if err != nil {
-		md.logger.Println(err)
-		return nil, err
+		return f, fmt.Errorf("setupAdb failed, %w", err)
 	}
 
-	resultsPath := path.Join(resultsDir, "betocq_test_suite", "LocalTestBed", "latest", "test_summary.yaml")
-	allRspn = buildMoblyResult(md.logger, resultsPath)
+	exit := make(chan struct{})
+	defer func() {
+		exit <- struct{}{}
+		for _, s := range serials {
+			if err := c.TeardownAdb(md.logger, s); err != nil {
+				md.logger.Printf("Failed to tear down adb connection to %s: %s", s, err)
+			}
+		}
+	}()
+	c.KeepAdbAlive(md.logger, serials, exit)
 
-	return allRspn, nil
+	// Currently, we will just loop each test execution and resutls processing; and continously build/append results.
+	for _, test := range tests {
+		resDir := path.Join("tmp", "logs", "mobly", test.GetTestCase().GetName())
+		os.Setenv("MOBLY_LOGPATH", resDir)
+
+		err = runMoblyTest(ctx, md.logger, test, serials, resultsDir, metadata)
+		if err != nil {
+			md.logger.Println(err)
+			return nil, err
+		}
+
+		resultsPath := path.Join(resDir, "LocalTestBed", "latest", "test_summary.yaml")
+
+		buildMoblyResult(md.logger, resultsPath, f)
+		md.logger.Println("Result after loop1: ", f)
+	}
+
+	return f, nil
 }
 
 func launchAndReadMobly(cmd *exec.Cmd, logger *log.Logger) error {

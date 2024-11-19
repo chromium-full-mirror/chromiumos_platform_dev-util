@@ -496,7 +496,7 @@ func TestDeviceSerials(t *testing.T) {
 		},
 	}
 
-	wanted := []string{"host1:5555", "ABC123"}
+	wanted := []string{"host1:22", "ABC123"}
 	got, err := DerviceSerials(req)
 	if err != nil {
 		t.Error("failed to call DerviceSerials mismatch", err)
