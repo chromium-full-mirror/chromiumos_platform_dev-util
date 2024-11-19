@@ -199,6 +199,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			if ok {
 				if strings.ToLower(value) == "true" {
 					cmd = append(cmd, "--invocation-data", "invocation-property=crystalball_ingest:yes")
+					cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation-property=run_target:%s", board))
 				}
 			}
 
@@ -206,6 +207,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			for k, v := range args {
 				if k == "invocation-data" {
 					cmd = append(cmd, fmt.Sprintf("--%s", k), v)
+					cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation-property=run_target:%s", board))
 
 				}
 			}
