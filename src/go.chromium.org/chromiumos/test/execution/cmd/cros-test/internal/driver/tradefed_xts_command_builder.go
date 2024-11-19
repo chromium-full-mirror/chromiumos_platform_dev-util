@@ -24,6 +24,9 @@ const (
 	retryFailedRuns      = true
 	resultsUpload        = true
 	defaultGlobalLogPath = "/tmp"
+	GIT_MAIN_AL_DEV = "git_main-al-dev"
+	GIT_MAIN = "git_main"
+	DTS = "dts"
 )
 
 var ctsSkipDownloadArtifacts = []string{"TESTS_ZIP", "DEVICE_IMAGE", "BASEBAND"}
@@ -53,6 +56,48 @@ func extractBuildInfoFromExecutionMetadata(metadata *api.ExecutionMetadata) (bra
 	}
 
 	return
+}
+
+func extractTestInfoFromExecutionMetadata(metadata *api.ExecutionMetadata) (branch string, target string, build string) {
+	if branchFlag, err := extractMetadataFlag(metadata, "extra_branch"); err == nil {
+		branch = branchFlag
+	}
+	if targetFlag, err := extractMetadataFlag(metadata, "extra_build_flavor"); err == nil {
+		target = targetFlag
+	}
+	if buildIdFlag, err := extractMetadataFlag(metadata, "extra_build"); err == nil {
+		build = buildIdFlag
+	}
+
+	return
+}
+
+// Ensure the metadata is correct. This is only needed for some backwards compatibility with configs
+func validPlan(branch string, target string, build string, plan string) bool {
+	if !(len(branch) > 0 && len(target) > 0 && len(build) > 0) {
+		return false
+	}
+	// DTS is built in git_main-al-dev, so this is a valid plan
+	if plan == DTS && branch == GIT_MAIN_AL_DEV {
+		return true
+	} else if plan != DTS && branch == GIT_MAIN {
+		// However, all other xTS is built in git_main, thus these must be declared part of the git_main branch.
+		return true
+	}
+	return false
+}
+
+func extractBuildInfo(test *api.TestCase, metadata *api.ExecutionMetadata, board string, plan string, logger *log.Logger) (branch string, target string, build string) {
+	branch, target, build = extractTestInfoFromExecutionMetadata(metadata)
+	if !validPlan(branch, target, build, plan) {
+		// Ensure the metadata is correct. This is only needed for some backwards compatibility with configs
+		logger.Println("Setting xTS build info from test metadata - branch/target/build: ", board, "/", target, "/", build)
+		return extractBuildInfoFromTest(test, metadata, board)
+	}
+	logger.Println("Setting xTS build info from build info - branch/target/build: ", board, "/", target, "/", build)
+
+	return
+
 }
 
 func extractBuildInfoFromTest(test *api.TestCase, metadata *api.ExecutionMetadata, board string) (branch string, target string, build string) {
@@ -259,7 +304,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 
 	for _, t := range tests {
 		testName := formatTestName(t.TestCase.Name)
-		ctsBranch, ctsTarget, ctsBuild := extractBuildInfoFromTest(t.TestCase, metadata, board)
+		ctsBranch, ctsTarget, ctsBuild := extractBuildInfo(t.TestCase, metadata, board, plan, logger)
 		if len(ctsBranch) > 0 && len(ctsTarget) > 0 && len(ctsBuild) > 0 && !buildInfoReported {
 			if !invocationInfoReported {
 				// if no build info is updated yet, then use test metadata build info to update them.
