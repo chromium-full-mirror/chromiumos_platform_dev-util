@@ -101,6 +101,9 @@ topic_patches["drm"] = [
     "fixups/FIXUP: CHROMIUM: drm img-rogue: Add 1.17 IMG PowerVR Rogue driver - thermal.patch",
     "fixups/FIXUP: CHROMIUM: drm mediatek: Add interface to allocate Mediatek GEM buffer.patch",
     "fixups/FIXUP: FROMLIST: drm vkms: Support multiple DRM objects crtcs, etc. per VKMS device.patch",
+    "fixups/FIXUP: BACKPORT: FROMGIT: drm: bridge: it6505: Disable IRQ when powered off.patch",
+    "fixups/FIXUP: CHROMIUM: drm: udl: Add cursor drm_plane support.patch",
+    "fixups/FIXUP: CHROMIUM: drm: udl: Implement cursor - makefile.patch",
 ]
 
 topic_patches["chromeos"] = [
@@ -677,3 +680,9 @@ disp_overwrite[
 disp_overwrite[
     "8025236810ae"
 ] = "drop"  # CHROMIUM: media: mtk-vpu: Ensure alignment of 8 for DTCM buffer
+disp_overwrite[
+    "6db105707a9e"
+] = "drop" # FROMGIT: drm/mediatek: Fix color format MACROs in OVL
+disp_overwrite[
+    "d83c1db3fde0"
+] = "drop" # CHROMIUM: drm/ttm: Remove wrong WARNING
