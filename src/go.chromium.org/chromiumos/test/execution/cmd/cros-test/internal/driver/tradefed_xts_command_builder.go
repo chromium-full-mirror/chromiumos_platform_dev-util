@@ -64,7 +64,11 @@ func extractBuildInfoFromTest(test *api.TestCase, metadata *api.ExecutionMetadat
 			target = strings.TrimPrefix(t.Value, "target:")
 		}
 		if strings.HasPrefix(t.Value, "build_id:") {
-			build = strings.TrimPrefix(t.Value, "build_id:")
+			if getArchFromBoard(board) == "arm" && branch == "git_main" {
+				build = "12681648"
+			} else {
+				build = strings.TrimPrefix(t.Value, "build_id:")
+			}
 		}
 	}
 	return
