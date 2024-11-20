@@ -219,10 +219,10 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			extra_target, _ := extractMetadataFlag(metadata, "extra_target")
 			extra_build, _ := extractMetadataFlag(metadata, "extra_build")
 			if extra_branch != "" && extra_target != "" && extra_build != "" {
-				extraBuilds := fmt.Sprintf(`'extra_builds=[{"build_id": "%s",`+
+				extraBuilds := fmt.Sprintf(`extra_builds=[{"build_id": "%s",`+
 					`"build_target": "%s", "build_flavor": "%s", "build_platform": "linux",`+
 					`"build_type": null, "branch": "%s", "build_alias": null, "attempt_id":`+
-					`"latest", "build_os": "linux"}]'`, extra_build, extra_target,
+					`"latest", "build_os": "linux"}]`, extra_build, extra_target,
 					extra_target, extra_branch)
 				cmd = append(cmd, "--invocation-data", extraBuilds)
 			}
