@@ -13,6 +13,7 @@ import (
 
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/chromiumos/config/go/test/api/metadata"
 	"go.chromium.org/chromiumos/config/go/test/artifact"
 	"go.chromium.org/chromiumos/test/publish/clients/rdb_client"
 )
@@ -958,5 +959,115 @@ func TestPopulateGSCInfo(t *testing.T) {
 
 		// Verify that the GSC devboard info is not populated.
 		So(testResult.TestRuns[0].TestCaseInfo.GscInfo, ShouldBeNil)
+	})
+}
+
+func TestNewRdbPublishService(t *testing.T) {
+	t.Parallel()
+
+	testResult := &artifact.TestResult{
+		TestInvocation: &artifact.TestInvocation{},
+		TestRuns: []*artifact.TestRun{
+			{
+				TestCaseInfo: &artifact.TestCaseInfo{
+					TestCaseResult: &api.TestCaseResult{
+						TestCaseId: &api.TestCase_Id{
+							Value: "tast.gscdevboard.GSCSysinfo",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// In this unit test, why the sizeCaches of the wantService and the goService are different?
+	Convey("Valid request", t, func() {
+		req := &api.PublishRequest{
+			Is_3DRun: true,
+			ArtifactDirPath: &_go.StoragePath{
+				HostType: _go.StoragePath_LOCAL,
+				Path:     "test/results/dir",
+			},
+		}
+		metadata := &metadata.PublishRdbMetadata{
+			CurrentInvocationId: "inv_id",
+			TestResult:          testResult,
+			TesthausUrl:         "https://tests.chromeos.goog/",
+			Sources: &metadata.PublishRdbMetadata_Sources{
+				GsPath: "gs://bucket/dir/metadata/sources.jsonpb",
+			},
+			BaseVariant: map[string]string{},
+		}
+		req.Metadata, _ = anypb.New(metadata)
+		m, _ := unpackMetadata(req)
+		wantService := &RdbPublishService{
+			CurrentInvocationId:  m.GetCurrentInvocationId(),
+			TestResultProto:      m.GetTestResult(),
+			TesthausURL:          m.GetTesthausUrl(),
+			Sources:              m.GetSources(),
+			BaseVariant:          m.GetBaseVariant(),
+			PostProcessResponses: m.GetPostProcessResponses(),
+			Is3DRun:              req.GetIs_3DRun(),
+		}
+
+		gotService, err := NewRdbPublishService(req)
+
+		So(err, ShouldBeNil)
+		So(gotService, ShouldResemble, wantService)
+	})
+
+	Convey("Valid request with retry count", t, func() {
+		req := &api.PublishRequest{
+			RetryCount: 2,
+			ArtifactDirPath: &_go.StoragePath{
+				HostType: _go.StoragePath_LOCAL,
+				Path:     "test/results/dir",
+			},
+		}
+		metadata := &metadata.PublishRdbMetadata{
+			CurrentInvocationId: "inv_id",
+			TestResult:          testResult,
+		}
+		req.Metadata, _ = anypb.New(metadata)
+
+		service, err := NewRdbPublishService(req)
+
+		So(err, ShouldBeNil)
+		So(service.RetryCount, ShouldEqual, 2)
+	})
+
+	Convey("Invalid metadata", t, func() {
+		req := &api.PublishRequest{}
+		req.Metadata, _ = anypb.New(&artifact.TestResult{}) // Incorrect type
+
+		service, err := NewRdbPublishService(req)
+
+		So(err, ShouldNotBeNil)
+		So(service, ShouldBeNil)
+	})
+
+	Convey("Missing invocation id", t, func() {
+		req := &api.PublishRequest{}
+		metadata := &metadata.PublishRdbMetadata{
+			TestResult: testResult,
+		}
+		req.Metadata, _ = anypb.New(metadata)
+
+		service, err := NewRdbPublishService(req)
+
+		So(err, ShouldNotBeNil)
+		So(service, ShouldBeNil)
+	})
+
+	Convey("Missing test result", t, func() {
+		req := &api.PublishRequest{}
+		metadata := &metadata.PublishRdbMetadata{
+			CurrentInvocationId: "inv_id",
+		}
+		req.Metadata, _ = anypb.New(metadata)
+		service, err := NewRdbPublishService(req)
+
+		So(err, ShouldNotBeNil)
+		So(service, ShouldBeNil)
 	})
 }

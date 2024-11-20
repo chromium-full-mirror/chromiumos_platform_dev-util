@@ -75,6 +75,7 @@ type RdbPublishService struct {
 	Sources              *metadata.PublishRdbMetadata_Sources
 	BaseVariant          map[string]string
 	PostProcessResponses *api.RunActivitiesResponse
+	Is3DRun              bool
 }
 
 // NewRdbPublishService creates a new ResultDB publish service to interact with
@@ -102,6 +103,7 @@ func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
 		Sources:              m.GetSources(),
 		BaseVariant:          m.GetBaseVariant(),
 		PostProcessResponses: m.GetPostProcessResponses(),
+		Is3DRun:              req.GetIs_3DRun(),
 	}, nil
 }
 
@@ -133,6 +135,7 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 
 	// Write test invocation proto to invocation-level properties file
 	testInv := testResult.GetTestInvocation()
+	testInv.Is_3DRun = rps.Is3DRun
 	invPropertiesFilePath := path.Join(rps.TempDirPath, InvPropertiesFile)
 	err = common_utils.WriteProtoJsonFile(ctx, invPropertiesFilePath, testInv)
 	if err != nil {
