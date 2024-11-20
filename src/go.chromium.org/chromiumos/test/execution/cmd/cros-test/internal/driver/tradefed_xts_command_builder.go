@@ -197,7 +197,9 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			"--google-device-setup:set-global-setting", "verifier_verify_adb_installs=0",
 			"--reporter-template", "template/reporters/subprocess-reporter",
 			"--template:map", "reporters=template/reporters/xml-reporter.xml",
-			"--metricsreporter:metrics-folder", logPath, "--max-run-time", maxRuntime)
+			"--metricsreporter:metrics-folder", logPath, "--max-run-time", maxRuntime,
+			"--google-device-setup:run-command", "am switch-user 10",
+		)
 
 		// Adding cts-params with prefix for each one.
 		ctsParams := []string{
@@ -205,7 +207,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			"--max-log-size", "62914560", "--max-tmp-logcat-file", "62914560",
 			"--logcat-on-failure", "--screenshot-on-failure", "--include-test-log-tags",
 			"--result-reporter:disable-result-posting", "--result-reporter:no-disable",
-			"--use-log-saver",
+			"--use-log-saver", `--post-boot-command "am switch-user 10"`,
 		}
 		if testType != "gts" && testType != "vts" {
 			ctsParams = append(ctsParams, "--property-check:no-throw-error")
