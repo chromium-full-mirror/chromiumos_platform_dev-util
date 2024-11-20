@@ -19,8 +19,8 @@ const (
 	planMetadataFlag     = "plan"
 	tfGoogleTestRunner   = "google/cts/google-cts-launcher-for-aosp"
 	tfAospTestRunner     = "common-compatibility-config"
-	invocationTimeout    = "10h"
-	maxRuntime           = "3h"
+	invocationTimeout    = "18h"
+	maxRuntime           = "18h"
 	retryFailedRuns      = true
 	resultsUpload        = true
 	defaultGlobalLogPath = "/tmp"
