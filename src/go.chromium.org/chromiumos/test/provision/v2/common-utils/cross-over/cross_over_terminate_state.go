@@ -30,24 +30,27 @@ func NewCrossOverTerminateState(params *CrossOverParameters) common_utils.Servic
 
 func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("Executing " + s.Name())
-	req := &api.StopServodRequest{}
-	req.ServodPort = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
-	req.ServoHostPath = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
-	if strings.Contains(req.ServoHostPath, satlab) {
-		req.ServodDockerContainerName = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
+
+	if s.params.StopServo {
+		req := &api.StopServodRequest{}
+		req.ServodPort = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
+		req.ServoHostPath = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
+		if strings.Contains(req.ServoHostPath, satlab) {
+			req.ServodDockerContainerName = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
+		}
+		log.Printf("\nCalling stop servod with request %v.", req)
+		op, err := s.params.ServoNexusClient.StopServod(ctx, req)
+		if err != nil {
+			return common_utils.WrapStringInAny("INFRA: could not stop servod post install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, err = common_utils.WaitLongRunningOp(ctx, log, op)
+		if err != nil {
+			return common_utils.WrapStringInAny("INFRA: could not stop servod post install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
+		}
+		log.Printf("\nStopped servod process")
 	}
-	log.Printf("\nCalling stop servod with request %v.", req)
-	op, err := s.params.ServoNexusClient.StopServod(ctx, req)
-	if err != nil {
-		return common_utils.WrapStringInAny("INFRA: could not stop servod post install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	_, err = common_utils.WaitLongRunningOp(ctx, log, op)
-	if err != nil {
-		return common_utils.WrapStringInAny("INFRA: could not stop servod post install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
-	}
-	log.Printf("\nStopped servod process")
 	var successMsg string
 	if strings.Contains(s.params.TargetImagePath.GetPath(), "android-build") {
 		successMsg = "INFRA: cross-over provision to ANDROID successful"

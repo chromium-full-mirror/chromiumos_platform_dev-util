@@ -8,6 +8,7 @@ package cross_over
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	storage_path "go.chromium.org/chromiumos/config/go"
@@ -23,6 +24,7 @@ const (
 	satlab                = "satlab"
 	bootWaitRetryCount    = 18
 	bootWaitRetryInterval = 5 * time.Second
+	jobRunning            = "Job is already running"
 )
 
 type CrossOverParameters struct {
@@ -32,6 +34,7 @@ type CrossOverParameters struct {
 	PostProvisionState common_utils.ServiceState
 	ServoNexusClient   api.ServodServiceClient
 	PrevError          string
+	StopServo          bool
 }
 
 // CrossOverInitState starts the servod process.
@@ -46,9 +49,14 @@ func NewCrossOverInitState(params *CrossOverParameters) common_utils.ServiceStat
 }
 
 func (s CrossOverInitState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
-	if err := startServod(ctx, log, s.params.ServoNexusClient, s.params.Dut); err != nil {
+	err := startServod(ctx, log, s.params.ServoNexusClient, s.params.Dut)
+	stopServo := true
+	if err != nil && strings.Contains(err.Error(), jobRunning) {
+		stopServo = false
+	} else if err != nil {
 		return common_utils.WrapStringInAny("INFRA: unable to start servod process"), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
 	}
+	s.params.StopServo = stopServo
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
