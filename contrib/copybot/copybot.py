@@ -581,6 +581,7 @@ def run_copybot(
         args.merge_conflict_behavior
     ]
     pending_changes = {}
+    abandoned_changes = {}
     gerrit_inst: Optional[gerrit.Gerrit] = None
     if (m := is_server_gob(str(downstream_url))) is not None:
         downstream_gob_host = m.group(1)
