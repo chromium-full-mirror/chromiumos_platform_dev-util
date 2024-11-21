@@ -276,7 +276,7 @@ class GitRepo:
     ) -> "subprocess.CompletedProcess[str]":
         """Apply a patch to the staging area."""
         extra_args = []
-        if path:
+        if path and str(path) != ".":
             extra_args.append(f"--directory={path}")
         if include_paths:
             extra_args.extend(f"--include={path}" for path in include_paths)
@@ -339,7 +339,7 @@ class GitRepo:
             Path of the output patch.
         """
         extra_args = []
-        if relative_path:
+        if relative_path and str(relative_path) != ".":
             extra_args.append(f"--relative={relative_path}")
         extra_args.extend([f"-{num}", rev, f"--output-directory={output_path}"])
 
@@ -743,13 +743,16 @@ class Gerrit:
             f"project:{project}",
             f"branch:{branch}",
         ]
+        _, subtree_ext = os.path.splitext(subtree)
         if hashtags:
             query.extend(f"hashtag:{hashtag}" for hashtag in hashtags)
-        if subtree:
+        if subtree and not subtree_ext:
             query.append(f"directory:{subtree}")
         if exclude_paths:
             for path in exclude_paths:
-                query.append(f"-directory:{path}")
+                _, path_ext = os.path.splitext(path)
+                if not path_ext:
+                    query.append(f"-directory:{path}")
 
         query_result = self.search(" ".join(query))
         pending_change_ids = {}
