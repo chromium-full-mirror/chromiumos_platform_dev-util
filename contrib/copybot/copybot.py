@@ -827,17 +827,27 @@ def run_copybot(
                 logger.warning("Committing %s with conflicts", rev)
                 if pending_change:
                     repo.fetch(downstream_url, pending_changes[rev].current_ref)
-                    repo.cherry_pick(rev="FETCH_HEAD", allow_conflict=True)
+                    try:
+                        repo.cherry_pick(rev="FETCH_HEAD", allow_conflict=True)
+                    except gerrit.EmptyCommitError:
+                        logger.warning("Skip cherry-pick due to empty commit")
+                        empty_revs.append(rev)
+                        continue
                 else:
-                    repo.cherry_pick(
-                        filtered_rev or rev,
-                        patch_dir=patch_dir,
-                        upstream_subtree=upstream_subtree,
-                        downstream_subtree=downstream_subtree,
-                        include_paths=args.include_downstream,
-                        exclude_paths=drop_paths,
-                        allow_conflict=True,
-                    )
+                    try:
+                        repo.cherry_pick(
+                            filtered_rev or rev,
+                            patch_dir=patch_dir,
+                            upstream_subtree=upstream_subtree,
+                            downstream_subtree=downstream_subtree,
+                            include_paths=args.include_downstream,
+                            exclude_paths=drop_paths,
+                            allow_conflict=True,
+                        )
+                    except gerrit.EmptyCommitError:
+                        logger.warning("Skip cherry-pick due to empty commit")
+                        empty_revs.append(rev)
+                        continue
                 if not pending_change or reword_pending_change:
                     change_id = (
                         pending_changes.get(rev)

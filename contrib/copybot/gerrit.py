@@ -517,13 +517,23 @@ class GitRepo:
         except subprocess.CalledProcessError as e:
             if not allow_conflict:
                 raise MergeConflictError() from e
+            if (
+                'No valid patches in input (allow with "--allow-empty")'
+                in e.stderr
+            ):
+                raise EmptyCommitError() from e
         self.add(downstream_subtree, stage=True, force=True)
-        self.commit(
-            self.get_commit_message(rev),
-            amend=False,
-            sign_off=False,
-            stage=True,
-        )
+        try:
+            self.commit(
+                self.get_commit_message(rev),
+                amend=False,
+                sign_off=False,
+                stage=True,
+            )
+        except subprocess.CalledProcessError as e:
+            if "nothing to commit, working tree clean" in e.stderr:
+                logger.info("Empty commit error")
+                raise EmptyCommitError() from e
         return
 
     def push(self, url: str, refspec: str, options: Iterable[str] = ()) -> None:
