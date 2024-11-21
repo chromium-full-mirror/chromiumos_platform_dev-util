@@ -84,8 +84,6 @@ topic_patches["cros_ec"] = [
 
 topic_patches["gpu/other"] = [
     "fixups/FIXUP: CHROMIUM: gpu: mali: Apply r40p0 EAC release.patch",
-    "patches/FIXUP: CHROMIUM: drm img-rogue: Add 1.17 IMG PowerVR Rogue driver.patch",
-    "fixups/FIXUP: CHROMIUM: drm img-rogue: Add 1.17 IMG PowerVR Rogue driver - remove.patch",
 ]
 
 topic_patches["drm"] = [
