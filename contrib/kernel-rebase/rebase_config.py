@@ -219,7 +219,10 @@ disp_overwrite[
 disp_overwrite[
     "89f5fb0eb30b"
 ] = "drop"  #  CHROMIUM: mm/mglru: discount potential refaults by gen size
-
+disp_overwrite["79555f7efc88"] = [
+    "move",
+    "mm",
+]  #  CHROMIUM: mm: do not leave lazy MMU mode in per-process reclaim
 
 #
 # bluetooth
