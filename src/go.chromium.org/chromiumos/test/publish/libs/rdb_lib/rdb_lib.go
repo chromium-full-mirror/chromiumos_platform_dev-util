@@ -215,7 +215,6 @@ func partnerVMRealm(testResult *artifact.TestResult) string {
 
 	// Returns early if vm test results are for staging testing.
 	image := executionInfo.GetBuildInfo().GetName()
-	parts := strings.Split(image, "-")
 	if strings.HasPrefix(image, "staging-") {
 		return ""
 	}
@@ -223,7 +222,7 @@ func partnerVMRealm(testResult *artifact.TestResult) string {
 	// Checks base vm boards (e.g. "betty") or vm board variants
 	// (e.g. "betty-arc-r").
 	board := executionInfo.GetBuildInfo().GetBoard()
-	parts = strings.Split(board, "-")
+	parts := strings.Split(board, "-")
 	if baseVMBoardAllowlist[board] || (len(parts) > 0) && baseVMBoardAllowlist[parts[0]] {
 		return ChromeOSPartnerVMRealm
 	}
