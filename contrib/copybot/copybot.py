@@ -64,6 +64,7 @@ def find_last_merged_rev(
     include_change_id: bool = False,
     upstream_history_length: int = 0,
     downstream_history_length: int = 0,
+    pending_changes: Optional[Dict[str, gerrit.GerritClInfo]] = None,
 ) -> Tuple[str, int]:
     """Find the last merged revision in a Git repo.
 
@@ -80,6 +81,7 @@ def find_last_merged_rev(
             upstream history.
         downstream_history_length: Number of CLs to consider as a part of the
             downstream history.
+        pending_changes: Changes pending in downstream repo.
 
     Returns:
         Two values,
@@ -127,6 +129,11 @@ def find_last_merged_rev(
             else:
                 continue
             return origin_revid or rev, counter
+
+    for rev in upstream_hashes:
+        if rev in pending_changes:
+            counter = upstream_hashes.index(rev)
+            return rev, counter
 
     raise ValueError(
         "Downstream has no GitOrigin-RevId commits, and upstream and "
@@ -626,25 +633,22 @@ def run_copybot(
     # Verify that the two repositories share a history
     num_cls_to_downstream = 0
     last_related_rev = ""
-    try:
-        last_related_rev, num_cls_to_downstream = find_last_merged_rev(
-            repo,
-            upstream_rev,
-            downstream_rev,
-            upstream_subtree,
-            downstream_subtree,
-            drop_paths,
-            related_repo,
-            upstream_history_length=upstream_history_length,
-            downstream_history_length=downstream_history_length,
-        )
-    except ValueError as e:
-        if not pending_changes:
-            raise e
-        else:
-            logger.info("Last related revision from pending changes!")
-    else:
-        logger.info("Last related revision: %s", last_related_rev)
+
+    last_related_rev, num_cls_to_downstream = find_last_merged_rev(
+        repo,
+        upstream_rev,
+        downstream_rev,
+        upstream_subtree,
+        downstream_subtree,
+        drop_paths,
+        related_repo,
+        pending_changes=pending_changes,
+        upstream_history_length=upstream_history_length,
+        downstream_history_length=downstream_history_length,
+    )
+    if last_related_rev in pending_changes:
+        logger.info("Last related revision from pending changes!")
+    logger.info("Last related revision: %s", last_related_rev)
 
     logger.info("Found: %s new changes to downstream", num_cls_to_downstream)
 
