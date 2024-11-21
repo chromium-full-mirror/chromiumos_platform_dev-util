@@ -301,6 +301,9 @@ disp_overwrite[
 disp_overwrite[
     "e38ee2af3e5f"
 ] = "drop"  # FROMLIST: net: wwan: t7xx: PCIe reset rescan
+disp_overwrite[
+    "0806c68cfea4"
+] = "drop" # CHROMIUM: net: wwan: t7xx Fix use-after-free in rescan logic
 
 #
 # drivers
