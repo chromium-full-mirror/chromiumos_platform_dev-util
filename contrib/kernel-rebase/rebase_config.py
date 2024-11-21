@@ -123,6 +123,10 @@ topic_patches["media"] = [
     "fixups/FIXUP: CHROMIUM: media: add camx drivers - vmalloc.patch",
     "fixups/FIXUP: CHROMIUM: mtk-mdp: add driver to probe mdp components.patch",
     "fixups/FIXUP: CHROMIUM: media: platform: mediatek: mdp3: add support for ISP direct-linked to MDP.patch.patch",
+    "fixups/0001-FIXUP-BACKPORT-FROMLIST-media-platform-mediatek-isp-Add-Mediatek-sen.patch",
+    "fixups/0002-FIXUP-BACKPORT-FROMLIST-media-i2c-Add-a-driver-for-the-Galaxycore-GC.patch",
+    "fixups/0003-FIXUP-BACKPORT-FROMLIST-media-platform-mediatek-isp-Add-Mediatek-CAM.patch",
+    "fixups/0001-FIXUP-CHROMIUM-media-camx-rework-client-refcount-han.patch",
 ]
 
 topic_patches["dts"] = [
