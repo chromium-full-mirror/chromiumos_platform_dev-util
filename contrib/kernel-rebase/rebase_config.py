@@ -218,6 +218,10 @@ disp_overwrite[
 disp_overwrite[
     "f57164f428fb"
 ] = "drop"  #  CHROMIUM: mm/mglru: slow down promotion through page tables
+disp_overwrite[
+    "89f5fb0eb30b"
+] = "drop"  #  CHROMIUM: mm/mglru: discount potential refaults by gen size
+
 
 #
 # bluetooth
