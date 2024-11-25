@@ -135,6 +135,8 @@ topic_patches["media"] = [
     "fixups/0002-FIXUP-BACKPORT-FROMLIST-media-i2c-Add-a-driver-for-the-Galaxycore-GC.patch",
     "fixups/0003-FIXUP-BACKPORT-FROMLIST-media-platform-mediatek-isp-Add-Mediatek-CAM.patch",
     "fixups/0001-FIXUP-CHROMIUM-media-camx-rework-client-refcount-han.patch",
+    "fixups/0001-FIXUP-update-remove-funcitions-definition.patch",
+    "fixups/0002-FIXUP-CHROMIUM-media-add-camx-drivers-fix-gpio_free_.patch",
 ]
 
 topic_patches["dts"] = [
