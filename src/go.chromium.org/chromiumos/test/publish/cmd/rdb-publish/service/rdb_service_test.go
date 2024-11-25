@@ -989,6 +989,7 @@ func TestNewRdbPublishService(t *testing.T) {
 				Path:     "test/results/dir",
 			},
 		}
+		testResult.TestInvocation.Is_3DRun = req.GetIs_3DRun()
 		metadata := &metadata.PublishRdbMetadata{
 			CurrentInvocationId: "inv_id",
 			TestResult:          testResult,

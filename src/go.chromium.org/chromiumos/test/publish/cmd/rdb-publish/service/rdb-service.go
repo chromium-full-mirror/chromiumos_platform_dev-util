@@ -95,15 +95,28 @@ func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
 		retryCount = int(req.GetRetryCount())
 	}
 
+	// Populate additional info in test results.
+	testResult := m.GetTestResult()
+	postProcessResponses := m.GetPostProcessResponses()
+	is3DRun := req.GetIs_3DRun()
+	if testResult != nil {
+		testInv := testResult.GetTestInvocation()
+		if testInv != nil {
+			testInv.Is_3DRun = is3DRun
+		}
+
+		ingestPostProcessResponses(testResult, postProcessResponses)
+	}
+
 	return &RdbPublishService{
 		RetryCount:           retryCount,
 		CurrentInvocationId:  m.GetCurrentInvocationId(),
-		TestResultProto:      m.GetTestResult(),
+		TestResultProto:      testResult,
 		TesthausURL:          m.GetTesthausUrl(),
 		Sources:              m.GetSources(),
 		BaseVariant:          m.GetBaseVariant(),
-		PostProcessResponses: m.GetPostProcessResponses(),
-		Is3DRun:              req.GetIs_3DRun(),
+		PostProcessResponses: postProcessResponses,
+		Is3DRun:              is3DRun,
 	}, nil
 }
 
@@ -121,11 +134,8 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 		rps.TempDirPath = dirPath
 	}
 
-	// Populate additional info in test results.
-	testResult := rps.TestResultProto
-	ingestPostProcessResponses(testResult, rps.PostProcessResponses)
-
 	// Write test result to file
+	testResult := rps.TestResultProto
 	testResultFilePath := path.Join(rps.TempDirPath, TestResultJsonFileName)
 	err := common_utils.WriteProtoJsonFile(ctx, testResultFilePath, testResult)
 	if err != nil {
@@ -135,7 +145,6 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 
 	// Write test invocation proto to invocation-level properties file
 	testInv := testResult.GetTestInvocation()
-	testInv.Is_3DRun = rps.Is3DRun
 	invPropertiesFilePath := path.Join(rps.TempDirPath, InvPropertiesFile)
 	err = common_utils.WriteProtoJsonFile(ctx, invPropertiesFilePath, testInv)
 	if err != nil {
