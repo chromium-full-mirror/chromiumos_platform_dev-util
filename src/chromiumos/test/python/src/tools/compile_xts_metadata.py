@@ -31,7 +31,12 @@ from google.protobuf import text_format
 
 
 def _test_case_factory(
-    case_data: dict, suite_name: str, branch: str, targets: list, build_id: str
+    case_data: dict,
+    suite_name: str,
+    branch: str,
+    targets: list,
+    build_id: str,
+    target_builds: list = [],
 ) -> tc_metadata_pb.TestCaseMetadata:
     """Factory method for build TestCase proto objects
 
@@ -41,6 +46,7 @@ def _test_case_factory(
         branch: string representing the 'branch' JSON field
         targets: list of string representing 'targets' JSON field
         build_id: string representing the 'build_id' JSON field
+        target_builds: list of target/build_id/abi objects
     """
     name = f'{suite_name}.{case_data["name"]}'
     tc_id = tc_pb.TestCase.Id(value=f"tradefed.{name}")
@@ -55,12 +61,24 @@ def _test_case_factory(
         ]
     )
     params.extend([tc_pb.TestCase.Tag(value=f"target:{t}") for t in targets])
-    params.extend(
-        [
-            tc_pb.TestCase.Tag(value=f"abi:{t}")
-            for t in case_data.get("abis", [])
-        ]
-    )
+    if len(target_builds) > 0:
+        params.extend(
+            [
+                tc_pb.TestCase.Tag(
+                    value=f"target_build=target:{tb['target']},"
+                    f"build_id:{tb['build_id']},"
+                    f"abi:{tb['abi']}"
+                )
+                for tb in target_builds
+            ]
+        )
+    else:
+        params.extend(
+            [
+                tc_pb.TestCase.Tag(value=f"abi:{t}")
+                for t in case_data.get("abis", [])
+            ]
+        )
     test_case = tc_pb.TestCase(
         id=tc_id, name=name, tags=params, dependencies=[]
     )
@@ -88,15 +106,23 @@ def _test_case_factory(
 
 def _test_case_list_factory(input_data: dict) -> list:
     """Factory method for batch building TestCaseMetadata objects"""
+    version = input_data["version"]
     suite_name = input_data["suite"]
     branch = input_data["branch"]
     targets = input_data["targets"]
     build_id = input_data["build_id"]
 
-    test_case_metadata = [
-        _test_case_factory(tc, suite_name, branch, targets, build_id)
-        for tc in input_data["modules"]
-    ]
+    if version == "1.5":
+        tb = input_data["target_builds"]
+        test_case_metadata = [
+            _test_case_factory(tc, suite_name, branch, targets, build_id, tb)
+            for tc in input_data["modules"]
+        ]
+    else:
+        test_case_metadata = [
+            _test_case_factory(tc, suite_name, branch, targets, build_id)
+            for tc in input_data["modules"]
+        ]
 
     return test_case_metadata
 
