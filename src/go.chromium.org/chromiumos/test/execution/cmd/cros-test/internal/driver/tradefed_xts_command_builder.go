@@ -157,7 +157,7 @@ func extractMetadataFlag(metadata *api.ExecutionMetadata, flagName string) (stri
 }
 
 func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestCaseMetadata,
-	serials []string, metadata *api.ExecutionMetadata, board string, args map[string]string) []string {
+	serials []string, metadata *api.ExecutionMetadata, board string, args map[string]string, model string) []string {
 
 	cmd := []string{getTestRunner()}
 
@@ -250,7 +250,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			if ok {
 				if strings.ToLower(value) == "true" {
 					cmd = append(cmd, "--invocation-data", "invocation-property=crystalball_ingest:yes")
-					cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation-property=run_target:%s", board))
+					cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation-property=run_target:%s_%s", board, model))
 				}
 			}
 
@@ -319,7 +319,6 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 				cmd = append(cmd, "--cts-branch", ctsBranch, "--cts-build-flavor", ctsTarget,
 					"--cts-build-id", ctsBuild)
 			}
-			logger.Println("Setting cts build info from test metadata - branch/target/build: ", ctsBranch, "/", ctsTarget, "/", ctsBuild)
 			buildInfoReported = true
 		}
 		logger.Println("Running provided test: ", testName)

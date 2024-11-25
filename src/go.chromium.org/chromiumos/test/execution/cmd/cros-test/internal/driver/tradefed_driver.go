@@ -101,12 +101,26 @@ func detectTestType(tests []*api.TestCaseMetadata) string {
 }
 
 func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestCaseMetadata,
-	serials []string, resultsPath string, metadata *api.ExecutionMetadata, board string, args map[string]string) error {
+	serials []string, resultsPath string, metadata *api.ExecutionMetadata, board string, args map[string]string,
+	model string) error {
 
 	for _, s := range serials {
 		if err := c.SetupAdb(logger, s); err != nil {
 			return fmt.Errorf("setupAdb failed for %s", s)
 		}
+		// Force the disablement of the test_harness setting to resolve bootloops.
+		_, err := c.AdbCmd([]string{"-s", adb.FmtAddr(s), "root"}, logger)
+
+		if err != nil {
+			logger.Println("Failed to establish ADB root post test")
+		}
+		err = c.RetrySetupAdb(logger, s, 15*time.Second)
+		if err != nil {
+			logger.Println("Failed to recoonec to ADB post test")
+		}
+		c.AdbShellCmd([]string{"echo", "demo", ">", "/sys/power/wake_lock"}, s, logger)
+
+		c.AdbShellCmd([]string{"cat", "/sys/power/wake_lock"}, s, logger)
 	}
 
 	exit := make(chan struct{})
@@ -116,6 +130,7 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 
 			// Force the disablement of the test_harness setting to resolve bootloops.
 			_, err := c.AdbCmd([]string{"-s", adb.FmtAddr(s), "root"}, logger)
+
 			if err != nil {
 				logger.Println("Failed to establish ADB root post test")
 			}
@@ -123,6 +138,7 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 			if err != nil {
 				logger.Println("Failed to recoonec to ADB post test")
 			}
+
 			c.AdbShellCmd([]string{"setprop", "persist.sys.test_harness", "0"}, s, logger)
 
 			if err := c.TeardownAdb(logger, s); err != nil {
@@ -135,7 +151,7 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 
 	// Using Google TradeFed console for CTS and DTS tests.
 	baseArgs := []string{"run", "commandAndExit"}
-	baseArgs = append(baseArgs, BuildXtsTestCommand(logger, testType, tests, serials, metadata, board, args)...)
+	baseArgs = append(baseArgs, BuildXtsTestCommand(logger, testType, tests, serials, metadata, board, args, model)...)
 	cmd = exec.Command(getTradefedBinary(), baseArgs...)
 
 	logger.Println("Running TF: ", cmd.String())
@@ -167,7 +183,8 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 
 	_ = runTradefedTest(ctx, td.logger, tests, serials, resultsDir, executionMD,
 		req.GetPrimary().GetDut().GetChromeos().GetDutModel().GetBuildTarget(),
-		args)
+		args,
+		req.GetPrimary().GetDut().GetChromeos().GetDutModel().GetModelName())
 	// TODO determine what we want to do with an error _and_ possibly having results
 	// In general I'd say just spit out the results.
 	// One difference between Tast/Autotest and this is that the test case given will likely result in many
