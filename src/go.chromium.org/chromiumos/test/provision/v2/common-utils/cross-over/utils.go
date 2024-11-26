@@ -32,6 +32,8 @@ const (
 const (
 	connectionResetErr = "connection reset by peer"
 	servoNexusLogPath  = "/tmp/servod/"
+	off                = "off"
+	on                 = "on"
 )
 
 func connectWithTimeout(addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error) {
@@ -123,19 +125,19 @@ func DetectOS(logger *log.Logger, dutAddress string) (OS_TYPE, error) {
 }
 
 func callServodRetry(ctx context.Context, log *log.Logger, key, value string, params *CrossOverParameters) error {
-	err := callServod(ctx, log, key, value, params)
+	err := callServodSET(ctx, log, key, value, params)
 	if err != nil && strings.Contains(err.Error(), connectionResetErr) {
 		log.Println("Got connection reset error in CallServod, restarting servod process and trying again. ", err)
 		if err = startServod(ctx, log, params.ServoNexusClient, params.Dut); err != nil && !strings.Contains(err.Error(), jobRunning) {
 			return fmt.Errorf("failed to restart servod %v", err)
 		}
 		params.StopServo = true
-		return callServod(ctx, log, key, value, params)
+		return callServodSET(ctx, log, key, value, params)
 	}
 	return err
 }
 
-func callServod(ctx context.Context, log *log.Logger, key, value string, params *CrossOverParameters) error {
+func callServodSET(ctx context.Context, log *log.Logger, key, value string, params *CrossOverParameters) error {
 	log.Println("Making CallServo with key " + key + " and value " + value)
 	req := &api.CallServodRequest{}
 	req.Method = api.CallServodRequest_SET
@@ -206,7 +208,7 @@ func startServod(ctx context.Context, log *log.Logger, servoNexusClient api.Serv
 // for provisioning. Therefore, failures in this function should not
 // block the provisioning process.
 func setPDRole(ctx context.Context, log *log.Logger, val string, params *CrossOverParameters) error {
-	err := callServod(ctx, log, "servo_pd_role", val, params)
+	err := callServodSET(ctx, log, "servo_pd_role", val, params)
 	if err != nil {
 		log.Println("Warning failed to set servo_pd_role to", val)
 	}
@@ -230,4 +232,57 @@ func saveServoLogs(ctx context.Context, log *log.Logger, servoNexusClient api.Se
 	}
 	log.Println("Saved logs successfully")
 	return nil
+}
+
+func callServodGET(ctx context.Context, log *log.Logger, key string, params *CrossOverParameters) (string, error) {
+	log.Println("Making CallServo with key " + key)
+	req := &api.CallServodRequest{}
+	req.Method = api.CallServodRequest_GET
+	req.Args = []*xmlrpc.Value{
+		{
+			ScalarOneof: &xmlrpc.Value_String_{
+				String_: key,
+			},
+		},
+	}
+	req.ServoHostPath = params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + servoSSHPort
+	if strings.Contains(req.ServoHostPath, satlab) {
+		req.ServodDockerContainerName = params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
+	}
+	req.ServodPort = params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
+	log.Printf("\nMaking CallServod Call with req %v", req)
+	response, err := params.ServoNexusClient.CallServod(ctx, req)
+	if err != nil {
+		return "", err
+	}
+	switch result := response.GetResult().(type) {
+	case *api.CallServodResponse_Failure_:
+		return "", fmt.Errorf("Call Servod failed error: " + result.Failure.ErrorMessage)
+	case *api.CallServodResponse_Success_:
+		output := result.Success.GetResult().GetString_()
+		replacer := strings.NewReplacer(`\n`, "\n", `\r`, "\r", `\t`, "\t")
+		output = replacer.Replace(output)
+		return output, nil
+	default:
+		return "", fmt.Errorf("unexpected result type for long running operation")
+	}
+}
+
+func collectUARTLogs(ctx context.Context, log *log.Logger, params *CrossOverParameters) {
+	// Uart logs are only enabled in ANDROID -eng img.
+	targetImgPath := params.TargetImagePath.GetPath()
+	if !strings.Contains(targetImgPath, androidBuild) || !strings.Contains(targetImgPath, engImg) {
+		log.Printf("info: UART logs are not outputted on the image %s", targetImgPath)
+		return
+	}
+	if err := callServodSET(ctx, log, cpuUartCapture, off, params); err != nil {
+		// Eat the error. Collecting logs is non critical.
+		log.Println("Warning: cpu_uart_capture off failed ", err)
+		return
+	}
+	output, err := callServodGET(ctx, log, "cpu_uart_stream", params)
+	if err != nil {
+		log.Println("Warning: Error while calling cpu_uart_stream ", err)
+	}
+	log.Println("Printing UART logs : ", output)
 }

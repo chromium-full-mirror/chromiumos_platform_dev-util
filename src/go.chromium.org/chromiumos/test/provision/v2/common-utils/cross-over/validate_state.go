@@ -21,6 +21,10 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+const (
+	adbTimeout = 15 * time.Minute
+)
+
 // ValidateState checks if the correct version was provisioned or not.
 type ValidateState struct {
 	params *CrossOverParameters
@@ -35,16 +39,18 @@ func NewValidateState(params *CrossOverParameters) common_utils.ServiceState {
 func (s ValidateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	// TODO: Refactor verfication logic into tow separate commands one for Android and another one for cros.
 	log.Println("Executing " + s.Name())
+
 	// TODO: Use TargetImagePath's HostType to identify installation type.
 	if strings.Contains(s.params.TargetImagePath.GetPath(), "android-build") {
 		log.Println("Performing validation check for AL.")
 		// Refer to b/382122013 for more details on why such a high timeout is needed.
 		dutAddress := fmt.Sprintf("%s:%v", s.params.Dut.GetChromeos().GetSsh().GetAddress(), "5555")
-		if err := adb.RetrySetupAdb(log, dutAddress, 15*time.Minute); err != nil {
-			log.Println("Error while testing adb connection ", err)
-			return common_utils.WrapStringInAny("PLATFORM: unable to connect to device post al-install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
+		if adberr := adb.RetrySetupAdb(log, dutAddress, adbTimeout); adberr != nil {
+			log.Println("Error while testing adb connection ", adberr)
+			collectUARTLogs(ctx, log, s.params)
+			return common_utils.WrapStringInAny("PLATFORM: unable to connect to device post al-install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, adberr
 		}
-
+		collectUARTLogs(ctx, log, s.params)
 		// As soon as we get the ADB connection, immediately set the keep awake settings.
 		c1, err := adb.AdbShellCmd([]string{"svc", "power", "stayon", "true"}, dutAddress, log)
 		if err != nil {

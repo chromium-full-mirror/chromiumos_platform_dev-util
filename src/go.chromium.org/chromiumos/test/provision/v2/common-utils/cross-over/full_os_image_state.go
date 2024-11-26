@@ -31,6 +31,9 @@ const (
 	networkWaitTime = 1 * time.Minute
 	powerResetDelay = 10 * time.Second
 	networkErrMsg   = "Network is unreachable"
+	cpuUartCapture  = "cpu_uart_capture"
+	engImg          = "-eng"
+	androidBuild    = "android-build"
 )
 
 var launchTargetPatterns = []*regexp.Regexp{
@@ -66,13 +69,12 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	cacheServerAdd := s.params.Dut.GetCacheServer().GetAddress().GetAddress()
 	installCommand := ""
 	targetImgPath := s.params.TargetImagePath.GetPath()
-	if strings.Contains(targetImgPath, "android-build") {
+	if strings.Contains(targetImgPath, androidBuild) {
 		fwBuildPath := ""
 		if partnerGCSBucket := s.params.PartnerMetadata.GetPartnerGcsBucket(); partnerGCSBucket != "" {
 			// Set the Firmware blob path for the given model (b/379953281)
 			fwBuildPath = fmt.Sprintf("%s/provision_images/al-fw-blobs", partnerGCSBucket)
 		}
-
 		buildId, err := targetBuild(targetImgPath)
 		if err != nil {
 			return common_utils.WrapStringInAny(s.errStatus("INFRA: unable to parse image path from target")), api.InstallResponse_STATUS_INVALID_REQUEST, err
@@ -81,15 +83,24 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		if err != nil {
 			return common_utils.WrapStringInAny(s.errStatus("INFRA: unable to parse image path from target")), api.InstallResponse_STATUS_INVALID_REQUEST, err
 		}
+		if strings.Contains(launchTarget, engImg) {
+			// Uart logs are only enabled in -eng img.
+			callServodSET(ctx, log, cpuUartCapture, on, s.params)
+		}
 		installCommand = fmt.Sprintf("al-install android-build/builds/%s/%s/attempts/latest/artifacts/android-desktop_image.bin.gz %s %s", buildId, launchTarget, cacheServerAdd, fwBuildPath)
 	} else {
 		installCommand = fmt.Sprintf("cros-install %s %s", targetImgPath[5:], cacheServerAdd)
 	}
 	if err := installCommandWithRetry(client, installCommand, log); err != nil {
 		log.Println("Failed to run installCommand: ", installCommand, err)
+		collectUARTLogs(ctx, log, s.params)
 		return common_utils.WrapStringInAny(s.errStatus("FAILED TO RUN CROSOVER INSTALL COMMAND")), api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
 	}
-	return s.handleReboot(ctx, client, log)
+	errStatus, responseStatus, err := s.handleReboot(ctx, client, log)
+	if err != nil {
+		collectUARTLogs(ctx, log, s.params)
+	}
+	return errStatus, responseStatus, err
 }
 
 func (s FullOSImageState) errStatus(curErr string) string {
