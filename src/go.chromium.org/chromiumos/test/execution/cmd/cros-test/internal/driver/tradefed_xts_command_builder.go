@@ -102,13 +102,32 @@ func extractBuildInfo(test *api.TestCase, metadata *api.ExecutionMetadata, board
 
 func extractBuildInfoFromTest(test *api.TestCase, metadata *api.ExecutionMetadata, board string) (branch string, target string, build string) {
 	for _, t := range test.Tags {
+		if strings.HasPrefix(t.Value, "target_build=") {
+			tags := strings.Split(strings.TrimPrefix(t.Value, "target_build="), ",")
+			var targetCandidate, buildCandidate, abi string
+			for _, tag := range tags {
+				if strings.HasPrefix(tag, "target:") {
+					targetCandidate = strings.TrimPrefix(tag, "target:")
+				}
+				if strings.HasPrefix(tag, "build_id:") {
+					buildCandidate = strings.TrimPrefix(tag, "build_id:")
+				}
+				if strings.HasPrefix(tag, "abi:") {
+					abi = strings.TrimPrefix(tag, "abi:")
+				}
+			}
+			if abi != "" && strings.Contains(abi, getArchFromBoard(board)) {
+				build = buildCandidate
+				target = targetCandidate
+			}
+		}
 		if strings.HasPrefix(t.Value, "branch:") {
 			branch = strings.TrimPrefix(t.Value, "branch:")
 		}
-		if strings.HasPrefix(t.Value, "target:") && strings.Contains(t.Value, getArchFromBoard(board)) {
+		if strings.HasPrefix(t.Value, "target:") && strings.Contains(t.Value, getArchFromBoard(board)) && target == "" {
 			target = strings.TrimPrefix(t.Value, "target:")
 		}
-		if strings.HasPrefix(t.Value, "build_id:") {
+		if strings.HasPrefix(t.Value, "build_id:") && build == "" {
 			if getArchFromBoard(board) == "arm" && branch == "git_main" {
 				build = "12681648"
 			} else {

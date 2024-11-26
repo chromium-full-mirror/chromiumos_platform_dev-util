@@ -30,6 +30,18 @@ func createMetadataMessage(name string, tag string) *api.TestCaseMetadata {
 	}
 }
 
+func createTestCaseWithTags(tagValues []string) *api.TestCase {
+	tags := []*api.TestCase_Tag{}
+	for _, t := range tagValues {
+		tags = append(tags, &api.TestCase_Tag{Value: t})
+	}
+	return &api.TestCase{
+		Id:   &api.TestCase_Id{Value: "tradefed.TestCase"},
+		Name: "TestCase",
+		Tags: tags,
+	}
+}
+
 func TestMoveArtifacts(t *testing.T) {
 	t.Parallel()
 
@@ -212,6 +224,80 @@ func TestGetArchFromBoard(t *testing.T) {
 			Convey(tc.name, func() {
 				detectedArch := getArchFromBoard(tc.board)
 				So(detectedArch, ShouldEqual, tc.expectedArch)
+			})
+		}
+	})
+}
+
+func TestExtractBuildInfoFromTest(t *testing.T) {
+	t.Parallel()
+
+	Convey("Test extractBuildInfoFromTest", t, func() {
+		testCases := []struct {
+			name            string
+			board           string
+			tags            []string
+			expectedBranch  string
+			expectedTarget  string
+			expectedBuildId string
+		}{
+			{
+				name:            "Empty metadata",
+				board:           "",
+				tags:            []string{},
+				expectedBranch:  "",
+				expectedTarget:  "",
+				expectedBuildId: "",
+			},
+			{
+				name:            "1.0 metadata with x86 board",
+				board:           "brya",
+				tags:            []string{"branch:git_main", "target:target_x86_1", "build_id:12345"},
+				expectedBranch:  "git_main",
+				expectedTarget:  "target_x86_1",
+				expectedBuildId: "12345",
+			},
+			{
+				name:            "1.0 metadata with arm board",
+				board:           "corsola",
+				tags:            []string{"branch:git_main", "target:target_arm_1", "build_id:12345"},
+				expectedBranch:  "git_main",
+				expectedTarget:  "target_arm_1",
+				expectedBuildId: "12681648",
+			},
+			{
+				name:  "1.5 metadata with x86 board",
+				board: "brya",
+				tags: []string{
+					"branch:git_main",
+					"target_build=target:target_x86_1,build_id:12345,abi:x86_64",
+					"target_build=target:target_arm_1,build_id:54321,abi:arm8_64",
+				},
+				expectedBranch:  "git_main",
+				expectedTarget:  "target_x86_1",
+				expectedBuildId: "12345",
+			},
+			{
+				name:  "1.5 metadata with arm board",
+				board: "corsola",
+				tags: []string{
+					"branch:git_main",
+					"target_build=target:target_x86_1,build_id:12345,abi:x86_64",
+					"target_build=target:target_arm_1,build_id:54321,abi:arm8_64",
+				},
+				expectedBranch:  "git_main",
+				expectedTarget:  "target_arm_1",
+				expectedBuildId: "54321",
+			},
+		}
+
+		for _, tc := range testCases {
+			Convey(tc.name, func() {
+				testCase := createTestCaseWithTags(tc.tags)
+				branch, target, build := extractBuildInfoFromTest(testCase, nil, tc.board)
+				So(branch, ShouldEqual, tc.expectedBranch)
+				So(target, ShouldEqual, tc.expectedTarget)
+				So(build, ShouldEqual, tc.expectedBuildId)
 			})
 		}
 	})
