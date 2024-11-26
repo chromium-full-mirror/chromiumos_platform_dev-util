@@ -258,7 +258,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			for k, v := range args {
 				if k == "invocation-data" {
 					cmd = append(cmd, fmt.Sprintf("--%s", k), v)
-					cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation-property=run_target:%s", board))
+					cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation-property=run_target:%s_%s", board, model))
 
 				}
 			}
