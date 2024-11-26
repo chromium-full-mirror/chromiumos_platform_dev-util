@@ -404,10 +404,10 @@ func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, 
 				out, err := fws.servoClient.ExecCmd(ctx, &api.ExecCmdRequest{
 					ServoHostPath:             fws.ServoHostPath(),
 					ServodDockerContainerName: fws.ServodDockerContainerName(),
-					Command:                   fmt.Sprintf("rm %s", fws.servoConfig.GetServodAddress().GetPort(), tmpName),
+					Command:                   fmt.Sprintf("rm %s", tmpName),
 				})
 				if err != nil {
-					log.Printf("Failed to rm temp file: %s", err)
+					log.Printf("Failed to rm temp file: %s, exit code %d: %s", err, out.GetExitInfo().GetStatus(), out.GetStderr())
 				} else if out.GetExitInfo().GetStatus() != 0 {
 					log.Printf("Failed to rm temp file, exit code %d: %s", out.GetExitInfo().GetStatus(), out.GetStderr())
 				}
@@ -419,7 +419,7 @@ func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, 
 				Command:                   fmt.Sprintf("futility read --servo_port=%d %s", fws.servoConfig.GetServodAddress().GetPort(), tmpName),
 			})
 			if err != nil {
-				return errors.Wrap(err, "backup fw failed")
+				return errors.Wrapf(err, "backup fw failed, exit code %d: %s", out.GetExitInfo().GetStatus(), out.GetStderr())
 			} else if out.GetExitInfo().GetStatus() != 0 {
 				return errors.Errorf("backup fw failed, exit code %d: %s", out.GetExitInfo().GetStatus(), out.GetStderr())
 			}
@@ -430,7 +430,7 @@ func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, 
 				Command:                   fmt.Sprintf("futility update --servo_port=%d --quirks=unlock_csme -i %s --mode=recovery --wp=0", fws.servoConfig.GetServodAddress().GetPort(), tmpName),
 			})
 			if err != nil {
-				return errors.Wrap(err, "update fw failed")
+				return errors.Wrapf(err, "update fw failed, exit code %d: %s", out.GetExitInfo().GetStatus(), out.GetStderr())
 			} else if out.GetExitInfo().GetStatus() != 0 {
 				return errors.Errorf("update fw failed, exit code %d: %s", out.GetExitInfo().GetStatus(), out.GetStderr())
 			}
