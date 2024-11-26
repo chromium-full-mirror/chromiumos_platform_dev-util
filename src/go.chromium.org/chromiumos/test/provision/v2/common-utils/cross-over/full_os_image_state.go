@@ -24,10 +24,11 @@ import (
 const (
 	// sshMsgIgnore is the SSH global message sent to ping the host.
 	// See RFC 4253 11.2, "Ignored Data Message".
-	sshMsgIgnore   = "SSH_MSG_IGNORE"
-	pingTimeout    = time.Second
-	pingRetryDelay = 2 * time.Second
-	pingRetryCount = 20
+	sshMsgIgnore    = "SSH_MSG_IGNORE"
+	pingTimeout     = time.Second
+	pingRetryDelay  = 2 * time.Second
+	pingRetryCount  = 20
+	networkWaitTime = 1 * time.Minute
 )
 
 var launchTargetPatterns = []*regexp.Regexp{
@@ -54,9 +55,15 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	dutAddress := fmt.Sprintf("%s:%v", s.params.Dut.GetChromeos().GetSsh().GetAddress(), s.params.Dut.GetChromeos().GetSsh().GetPort())
 	var client *ssh.Client
 	if client = checkSSH(log, dutAddress, bootWaitRetryCount, bootWaitRetryInterval); client == nil {
+		setPDRole(ctx, log, "src", s.params)
 		errMsg := "cannot SSH onto DUT booted from USB common provision image"
 		return common_utils.WrapStringInAny(s.errStatus(errMsg)), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, errors.New(errMsg)
 	}
+	if err := setPDRole(ctx, log, "src", s.params); err != nil {
+		return common_utils.WrapStringInAny(s.errStatus("INFRA: unable to set servo_pd_role to src")), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
+	}
+	log.Println("Sleeping for 1 minute for the network to come up after setting servo_pd_role to src")
+	time.Sleep(networkWaitTime)
 	defer client.Close()
 	var session *ssh.Session
 	session, err := client.NewSession()

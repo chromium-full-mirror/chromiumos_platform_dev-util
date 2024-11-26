@@ -188,3 +188,11 @@ func startServod(ctx context.Context, log *log.Logger, servoNexusClient api.Serv
 	_, err = common_utils.WaitLongRunningOp(ctx, log, op)
 	return err
 }
+
+func setPDRole(ctx context.Context, log *log.Logger, val string, params *CrossOverParameters) error {
+	err := callServod(ctx, log, "servo_pd_role", val, params)
+	if err != nil {
+		log.Println("Warning failed to set servo_pd_role to %s", val)
+	}
+	return err
+}
