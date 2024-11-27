@@ -722,3 +722,6 @@ disp_overwrite["2e18aa079d2b"] = [
     "move",
     "drivers",
 ]  # CHROMIUM: virtwl: add virtwl driver
+disp_overwrite[
+    "d1a31b6250b7"
+] = "drop"  # CHROMIUM: gsmi: Log event for critical thermal thresholds
