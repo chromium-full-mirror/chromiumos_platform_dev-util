@@ -694,19 +694,19 @@ disp_overwrite[
 ] = "drop"  # CHROMIUM: media: mtk-vpu: Ensure alignment of 8 for DTCM buffer
 disp_overwrite[
     "6db105707a9e"
-] = "drop" # FROMGIT: drm/mediatek: Fix color format MACROs in OVL
+] = "drop"  # FROMGIT: drm/mediatek: Fix color format MACROs in OVL
 disp_overwrite[
     "d83c1db3fde0"
-] = "drop" # CHROMIUM: drm/ttm: Remove wrong WARNING
+] = "drop"  # CHROMIUM: drm/ttm: Remove wrong WARNING
 disp_overwrite[
     "c8df13e235ef"
-] = "drop" # CHROMIUM: arm64: dts: mediatek: mt8183: Add compatible and opp-core-mask
+] = "drop"  # CHROMIUM: arm64: dts: mediatek: mt8183: Add compatible and opp-core-mask
 disp_overwrite[
     "3948fca618e4"
-] = "drop" # CHROMIUM: arm64: dts: mt8186: Add thermal device nodes
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Add thermal device nodes
 disp_overwrite[
     "147e5871ff49"
-] = "drop" # CHROMIUM: arm64: mt8186: dts: Use legacy XHCI nodes
+] = "drop"  # CHROMIUM: arm64: mt8186: dts: Use legacy XHCI nodes
 disp_overwrite[
     "0e91fa96dd78"
-] = "drop" # CHROMIUM: arm64: dts: mt8186: Set thermal trip point_1 temperature
+] = "drop"  # CHROMIUM: arm64: dts: mt8186: Set thermal trip point_1 temperature
