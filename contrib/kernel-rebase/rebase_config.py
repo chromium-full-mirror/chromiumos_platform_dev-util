@@ -725,3 +725,105 @@ disp_overwrite["2e18aa079d2b"] = [
 disp_overwrite[
     "d1a31b6250b7"
 ] = "drop"  # CHROMIUM: gsmi: Log event for critical thermal thresholds
+disp_overwrite[
+    "e71a49e36931"
+] = "drop"  # CHROMIUM: drm/img-rogue: Add 1.17 IMG PowerVR Rogue driver
+disp_overwrite[
+    "e9f2ff6480f0"
+] = "drop"  # CHROMIUM: img-rogue/1.17: remove misleading warning in buffer_sync
+disp_overwrite[
+    "48e297466ab4"
+] = "drop"  # CHROMIUM: img-rogue/1.17: hide host trace buffer in release builds
+disp_overwrite[
+    "410de9affbf9"
+] = "drop"  # CHROMIUM: img-rogue/1.17: fix UAF in DevmemIntUnmapPMR
+disp_overwrite[
+    "d9a0f3330f91"
+] = "drop"  # CHROMIUM: img-rogue/1.17: security fixes in PMR related code
+disp_overwrite[
+    "e6ddd0772e09"
+] = "drop"  # CHROMIUM: img-rogue/1.17: fix for UAF race condition in DevmemIntAcquireRemoteCtx
+disp_overwrite[
+    "26acfdc72631"
+] = "drop"  # CHROMIUM: img-rogue/1.17: add refcounting for freelist's PMR resources
+disp_overwrite[
+    "0a02b878bebb"
+] = "drop"  # CHROMIUM: img-rogue/1.17: guard against integer overflows in RGXCreateFreelist path
+disp_overwrite[
+    "c14ec7bd4429"
+] = "drop"  # CHROMIUM: img-rogue/1.17: fix ref counting for ZS buffer resources
+disp_overwrite[
+    "6c1d65c7052f"
+] = "drop"  # CHROMIUM: img-rogue/1.17: Do not map read-only PMRs as read-write
+disp_overwrite[
+    "a5852aa5f570"
+] = "drop"  # CHROMIUM: img-rogue/1.17: Fix validation of ui32Log2DataPageSize
+disp_overwrite[
+    "cf75b05e4fb8"
+] = "drop"  # CHROMIUM: img-rogue/1.17: validate PhysmemNewRamBackedPMR Flags
+disp_overwrite[
+    "38ca4c54ded0"
+] = "drop"  # CHROMIUM: img-rogue/1.17: do not store pages if still referenced
+disp_overwrite[
+    "fd1f40df76f9"
+] = "drop"  # CHROMIUM: img-rogue/1.17: fix for possible KE during mmap
+disp_overwrite[
+    "25beb4a4736f"
+] = "drop"  # CHROMIUM: img-rogue/1.17: fix write OOB due to integer overflow
+disp_overwrite[
+    "79786fc523c1"
+] = "drop"  # CHROMIUM: img-rogue/1.17: validate mapping smaller than PMR page size
+disp_overwrite[
+    "e470ac077c41"
+] = "drop"  # CHROMIUM: img-rogue/1.17: potential UAF in Sparse memory handling
+disp_overwrite[
+    "36421f6d3104"
+] = "drop"  # CHROMIUM: img-rogue/1.17: fix for UAF in the DevMemX framework
+disp_overwrite[
+    "4e86fa4a7b60"
+] = "drop"  # CHROMIUM: img-rogue/1.17: improve validation in VA mapping calls
+disp_overwrite[
+    "b15899c241a1"
+] = "drop"  # CHROMIUM: img-rogue/1.17: validate bridge {in,out}_buffer sizes
+disp_overwrite[
+    "afb3794ce882"
+] = "drop"  # CHROMIUM: img-rogue/1.17: fix possible heap use-after-free condition
+disp_overwrite[
+    "0c8898a3f64c"
+] = "drop"  # CHROMIUM: img-rogue/1.17: BridgeHandleDestroy
+disp_overwrite[
+    "1977e750e7fd"
+] = "drop"  # CHROMIUM: img-rogue/1.17: fix potential kernel data leak
+disp_overwrite[
+    "04d3ff5ae710"
+] = "drop"  # CHROMIUM: img-rogue/1.17: Enable PVR_LINUX_PHYSMEM_ZERO_ALL_PAGES
+disp_overwrite[
+    "0ecbc55924a0"
+] = "drop"  # CHROMIUM: img-rogue: Mitigate OOB Kernel Write Vulnerability
+disp_overwrite[
+    "44beb64893c7"
+] = "drop"  # CHROMIUM: img-rogue: Prevent overriding PMR R/W permission flags
+disp_overwrite[
+    "38e4c2574cc9"
+] = "drop"  # CHROMIUM: img-rogue/1.17: hold the mmap lock when calling find_vma
+disp_overwrite[
+    "faaa8f128461"
+] = "drop"  # CHROMIUM: img-rogue: Prevent Use-After-Free (UAF) Vulnerability
+disp_overwrite[
+    "b207b674631b"
+] = "drop"  # CHROMIUM: img-rogue: Enhance Parameter Validation to Prevent OOB
+disp_overwrite[
+    "a7de0b00a0c0"
+] = "drop"  # CHROMIUM: img-rogue: Fixed DIReadEntryKM refcount overflow
+disp_overwrite[
+    "1c6e16841d6a"
+] = "drop"  # CHROMIUM: img-rogue: Security fix for RGXCreateFreeList
+disp_overwrite[
+    "b5bb5f4ae32c"
+] = "drop"  # CHROMIUM: img-rogue/1.17: Remove SPARSE_REMAP_MEM support
+disp_overwrite[
+    "5c6bf9c2043c"
+] = "drop"  # CHROMIUM: img-rogue/1.17: Fix for LeftOverLocals
+disp_overwrite[
+    "592638e71b4b"
+] = "drop"  # CHROMIUM: img-rogue/1.17: Fix thermal zone name
