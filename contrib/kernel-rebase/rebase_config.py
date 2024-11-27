@@ -46,6 +46,10 @@ topic_patches = {}
 #    'fixups/platform: x86: add ACPI driver for ChromeOS.patch',
 # ]
 
+topic_patches["acpi"] = [
+    "fixups/0001-FIXUP-UPSTREAM-ACPI-video-force-native-for-Apple-Mac.patch",
+]
+
 topic_patches["block-fs"] = [
     "fixups/FIXUP: FROMLIST: overlayfs: handle XATTR_NOSECURITY flag for get xattr method.patch",
     "fixups/FIXUP: CHROMIUM: verity: bring over dm-verity-chromeos.c.patch",
@@ -710,3 +714,6 @@ disp_overwrite[
 disp_overwrite[
     "0e91fa96dd78"
 ] = "drop"  # CHROMIUM: arm64: dts: mt8186: Set thermal trip point_1 temperature
+disp_overwrite[
+    "a998670c8fea"
+] = "drop"  # FROMGIT: ACPI: video: force native for Apple MacbookPro11,2 and Air7,2
