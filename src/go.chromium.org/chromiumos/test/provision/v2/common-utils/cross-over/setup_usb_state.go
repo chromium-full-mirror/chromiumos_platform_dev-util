@@ -37,9 +37,7 @@ func NewSetupUSBState(params *CrossOverParameters) common_utils.ServiceState {
 
 func (s SetupUSBState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("Executing " + s.Name())
-	board := s.params.Dut.GetChromeos().GetDutModel().GetBuildTarget()
-	provisionOSImagePath := fmt.Sprintf("gs://chromeos-throw-away-bucket/kimjae/%s-provision-v3.bin", board)
-
+	provisionOSImagePath := s.getProvisionOSImagePath(ctx, log)
 	// TODO: Instead of passing cache server url, we should pass gs path and cros-servod should build cache url from it.
 	provisionImgCacheServerPath := fmt.Sprintf("http://%s:%v/download/%s", s.params.Dut.GetCacheServer().GetAddress().GetAddress(), s.params.Dut.GetCacheServer().GetAddress().GetPort(), provisionOSImagePath[5:])
 	// TODO: Move these two calls to servod into cros-servod as a composite API SetupUSBKey.
@@ -53,6 +51,20 @@ func (s SetupUSBState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 	// Wait for some time for the dut_sees_usbkey to take affect.
 	time.Sleep(dutSeesUsbkeyWait)
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
+}
+
+func (s SetupUSBState) getProvisionOSImagePath(ctx context.Context, log *log.Logger) string {
+	board := s.params.Dut.GetChromeos().GetDutModel().GetBuildTarget()
+	// TODO: chromeos-throw-away-bucket/kimjae is a private GCS bucket, we need a new home to
+	// store provision images.
+	imageFileName := fmt.Sprintf("%s-provision-v3.bin", board)
+	provisionOSImagePath := fmt.Sprintf("gs://chromeos-throw-away-bucket/kimjae/%s", imageFileName)
+	if partnerGCSBucket := s.params.PartnerMetadata.GetPartnerGcsBucket(); partnerGCSBucket != "" {
+		imageFileName := fmt.Sprintf("%s-provision-v4.bin", board)
+		provisionOSImagePath = fmt.Sprintf("gs://%s/provision_images/%s", partnerGCSBucket, imageFileName)
+	}
+
+	return provisionOSImagePath
 }
 
 func (s SetupUSBState) Next() common_utils.ServiceState {

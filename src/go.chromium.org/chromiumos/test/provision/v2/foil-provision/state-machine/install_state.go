@@ -49,6 +49,7 @@ func (s FoilInstallState) setupForCrosover(ctx context.Context, log *log.Logger,
 		TargetImagePath:  s.service.Req.GetImagePath(),
 		ServoNexusClient: servoNexusClient,
 		PrevError:        prevErr,
+		PartnerMetadata:  s.service.Req.GetPartnerMetadata(),
 	}
 	return nil
 }

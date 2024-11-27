@@ -35,6 +35,7 @@ type CrossOverParameters struct {
 	ServoNexusClient   api.ServodServiceClient
 	PrevError          string
 	StopServo          bool
+	PartnerMetadata    *api.PartnerMetadata
 }
 
 // CrossOverInitState starts the servod process.

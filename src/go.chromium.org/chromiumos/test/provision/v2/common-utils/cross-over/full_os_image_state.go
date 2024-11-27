@@ -75,6 +75,12 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	installCommand := ""
 	targetImgPath := s.params.TargetImagePath.GetPath()
 	if strings.Contains(targetImgPath, "android-build") {
+		fwBuildPath := ""
+		if partnerGCSBucket := s.params.PartnerMetadata.GetPartnerGcsBucket(); partnerGCSBucket != "" {
+			// Set the Firmware blob path for the given model (b/379953281)
+			fwBuildPath = fmt.Sprintf("%s/provision_images/al-fw-blobs", partnerGCSBucket)
+		}
+
 		buildId, err := targetBuild(targetImgPath)
 		if err != nil {
 			return common_utils.WrapStringInAny(s.errStatus("INFRA: unable to parse image path from target")), api.InstallResponse_STATUS_INVALID_REQUEST, err
@@ -83,7 +89,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		if err != nil {
 			return common_utils.WrapStringInAny(s.errStatus("INFRA: unable to parse image path from target")), api.InstallResponse_STATUS_INVALID_REQUEST, err
 		}
-		installCommand = fmt.Sprintf("al-install android-build/builds/%s/%s/attempts/latest/artifacts/android-desktop_image.bin.gz %s", buildId, launchTarget, cacheServerAdd)
+		installCommand = fmt.Sprintf("al-install android-build/builds/%s/%s/attempts/latest/artifacts/android-desktop_image.bin.gz %s %s", buildId, launchTarget, cacheServerAdd, fwBuildPath)
 	} else {
 		installCommand = fmt.Sprintf("cros-install %s %s", targetImgPath[5:], cacheServerAdd)
 	}

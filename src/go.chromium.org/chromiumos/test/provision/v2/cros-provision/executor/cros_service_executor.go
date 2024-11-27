@@ -50,6 +50,7 @@ func (c *CrOSProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.Du
 			TargetImagePath:    req.GetImagePath(),
 			PostProvisionState: crosProvisionState,
 			ServoNexusClient:   servoNexusClient,
+			PartnerMetadata:    req.GetPartnerMetadata(),
 		}
 		return cross_over.NewCrossOverInitState(params), nil
 	}
