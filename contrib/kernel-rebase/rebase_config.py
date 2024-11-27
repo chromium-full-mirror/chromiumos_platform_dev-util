@@ -69,6 +69,9 @@ topic_patches["drivers"] = [
     "fixups/FIXUP: CHROMIUM: platform:x86:intel:vsec: Add support for Meteor Lake ES0.patch",
     "fixups/FIXUP: CHROMIUM: HID: multitouch: Scope mt_reset actions to haptic devices.patch",
     "fixups/CHROMIUM: Revert usb: typec: ucsi: Remove unused fields from struct ucsi_connector_status.patch",
+    "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: f_audio_source: New gadget driver for audio output.patch",
+    "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: f_audio_source: New gadget driver for audio output 2.patch",
+    "fixups/FIXUP: FROMLIST: platform:x86: Add virtual PMC driver used for S2Idle.patch",
 ]
 
 topic_patches["bluetooth"] = [
