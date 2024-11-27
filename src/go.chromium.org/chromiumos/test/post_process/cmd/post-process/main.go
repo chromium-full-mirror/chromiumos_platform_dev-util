@@ -105,6 +105,17 @@ func parseAndRunCmds(req *api.Request, log *log.Logger, dutClient api.DutService
 				GetGscInfoResponse: cmdResp,
 			},
 		}, nil
+	case *api.Request_GetServoInfoRequest:
+		log.Println("GetServoInfo Task")
+		cmdResp, err := commands.ServoInfo(log, testResult)
+		if err != nil {
+			return nil, err
+		}
+		return &api.RunActivityResponse{
+			Response: &api.RunActivityResponse_GetServoInfoResponse{
+				GetServoInfoResponse: cmdResp,
+			},
+		}, nil
 	default:
 		log.Println("None")
 		return nil, fmt.Errorf("can only be one of registered types")
