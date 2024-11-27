@@ -76,6 +76,7 @@ topic_patches["drivers"] = [
     "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: f_audio_source: New gadget driver for audio output.patch",
     "fixups/FIXUP: NOUPSTREAM: ANDROID: usb: gadget: f_audio_source: New gadget driver for audio output 2.patch",
     "fixups/FIXUP: FROMLIST: platform:x86: Add virtual PMC driver used for S2Idle.patch",
+    "fixups/FIXUP-CHROMIUM-virtwl-add-virtwl-driver.patch",
 ]
 
 topic_patches["bluetooth"] = [
@@ -717,3 +718,7 @@ disp_overwrite[
 disp_overwrite[
     "a998670c8fea"
 ] = "drop"  # FROMGIT: ACPI: video: force native for Apple MacbookPro11,2 and Air7,2
+disp_overwrite["2e18aa079d2b"] = [
+    "move",
+    "drivers",
+]  # CHROMIUM: virtwl: add virtwl driver
