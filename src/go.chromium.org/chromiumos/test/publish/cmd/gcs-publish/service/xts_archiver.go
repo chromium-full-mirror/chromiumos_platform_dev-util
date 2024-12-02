@@ -5,8 +5,12 @@
 package service
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -58,8 +62,8 @@ type ArchiveMetadata struct {
 }
 
 // archiveInfoForTest gets the list of XTS archive info for a test result file found under
-// the resultDir.
-func archiveInfoForTest(resultDir string, metadata ArchiveMetadata) ([]ArchiveInfo, error) {
+// the <resultDir>/<resultFilename>.
+func archiveInfoForTest(resultDir, resultFilename string, metadata ArchiveMetadata) ([]ArchiveInfo, error) {
 	var infos []ArchiveInfo
 	harness, packageName, timestamp, err := parseJobResultsFilePath(resultDir)
 	if err != nil {
@@ -82,7 +86,14 @@ func archiveInfoForTest(resultDir string, metadata ArchiveMetadata) ([]ArchiveIn
 		log.Printf("Skipping XTS results upload to APFE gs:// bucket for package: %s", packageName)
 	}
 
-	// TODO - b/379711782: Add result archive infos
+	// Add results archive info
+	resultsInfos, err := resultsInfo(resultDir, resultFilename, filePrefix, metadata)
+	if err != nil {
+		log.Printf("Failed to get result infos: %v", err)
+	} else {
+		infos = append(infos, resultsInfos...)
+	}
+
 	return infos, nil
 }
 
@@ -117,6 +128,111 @@ func apfeInfo(resultDir, filePrefix string, metadata ArchiveMetadata) ([]Archive
 	}
 
 	return infos, nil
+}
+
+// resultsInfo gets the list of info for archiving results to results GCS bucket. It scans
+// the resultDir for files with resultFilename and converts them to .gz files prior to upload.
+func resultsInfo(resultDir, resultFilename, filePrefix string, metadata ArchiveMetadata) ([]ArchiveInfo, error) {
+	resultFiles, err := filepath.Glob(filepath.Join(resultDir, resultFilename))
+	if err != nil {
+		return nil, err
+	}
+
+	infos := make([]ArchiveInfo, 0, len(resultFiles))
+	for _, resultFile := range resultFiles {
+		// Extract .xml file from tgz file
+		if filepath.Ext(resultFile) == ".tgz" {
+			xmlFilename := strings.TrimSuffix(filepath.Base(resultFile), ".tgz")
+			err := extractXMLFromTGZ(resultDir, resultFile, xmlFilename)
+			if err != nil {
+				log.Println("Error extracting XML result file from tgz file:", err)
+				continue
+			}
+
+			resultFile = filepath.Join(resultDir, xmlFilename)
+		}
+
+		resultFileGZ := resultFile + ".gz"
+		err := gzipFile(resultFile, resultFileGZ)
+		if err != nil {
+			log.Println("Error gzipping file:", err)
+			continue
+		}
+
+		resultGCSPath := fmt.Sprintf("%s/%s/", metadata.ResultGCSBucket, filePrefix)
+		infos = append(infos, ArchiveInfo{
+			Name:        "results:" + filePrefix,
+			Source:      resultFileGZ,
+			Destination: resultGCSPath,
+		})
+	}
+
+	return infos, nil
+}
+
+// extractXMLFromTGZ extracts the xmlFilename from tgzFilepath in the resultDir.
+func extractXMLFromTGZ(resultDir, tgzFilepath, xmlFilename string) error {
+	file, err := os.Open(tgzFilepath)
+	if err != nil {
+		return fmt.Errorf("opening tgz file: %w", err)
+	}
+	defer file.Close()
+
+	gzr, err := gzip.NewReader(file)
+	if err != nil {
+		return fmt.Errorf("creating gzip reader: %w", err)
+	}
+	defer gzr.Close()
+
+	tr := tar.NewReader(gzr)
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("reading tar header: %w", err)
+		}
+
+		if header.Name == xmlFilename {
+			outFile, err := os.Create(filepath.Join(resultDir, header.Name))
+			if err != nil {
+				return fmt.Errorf("creating output file: %w", err)
+			}
+			defer outFile.Close()
+
+			if _, err := io.Copy(outFile, tr); err != nil {
+				return fmt.Errorf("extracting file: %w", err)
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("XML file: %s not found in tgz file: %s", xmlFilename, tgzFilepath)
+}
+
+// gzipFile writes src file to dst gzip file.
+func gzipFile(src, dst string) error {
+	reader, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("opening source file: %w", err)
+	}
+	defer reader.Close()
+
+	writer, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("creating destination file: %w", err)
+	}
+	defer writer.Close()
+
+	archiver := gzip.NewWriter(writer)
+	defer archiver.Close()
+
+	if _, err := io.Copy(archiver, reader); err != nil {
+		return fmt.Errorf("running gzip on file: %w", err)
+	}
+
+	return nil
 }
 
 // parseJobResultsFilePath parses the path to extract test harness, package and timestamp information
