@@ -16,6 +16,131 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func TestArchiveInfos(t *testing.T) {
+	Convey("Test archive info", t, func() {
+		tempDir := t.TempDir()
+		testCases := []struct {
+			name             string
+			rootDir          string
+			resultFileDir    string
+			metadata         ArchiveMetadata
+			wantInstr        []ArchiveInfo
+			wantErr          error
+			createZipFile    bool
+			createResultFile bool
+			createTGZFile    bool
+		}{
+			{
+				name:          "success with GTS",
+				rootDir:       filepath.Join(tempDir, "cros-test", "result", "tauto"),
+				resultFileDir: filepath.Join(tempDir, "cros-test", "result", "tauto", "results-1-cheets_GTS_12.internal.all.android.dpi", "cheets_GTS_12.android.dpi", "results", "cts-results", "2024.11.17_11.51.17.458_8891"),
+				metadata: ArchiveMetadata{
+					APFEGCSBucket:   "gs://apfe-bucket",
+					ResultGCSBucket: "gs://result-bucket",
+					Build:           "brya-release/R100-14543.0.0",
+					Product:         "brya.brya",
+					ParentJobID:     "parent_job_id",
+				},
+				createZipFile:    true,
+				createResultFile: true,
+				createTGZFile:    true,
+				wantInstr: []ArchiveInfo{
+					{
+						Name:        "apfe:brya.brya-release/R100-14543.0.0/parent_job_id/cheets_GTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891",
+						Source:      filepath.Join(tempDir, "cros-test", "result", "tauto", "results-1-cheets_GTS_12.internal.all.android.dpi", "cheets_GTS_12.android.dpi", "results", "cts-results", "2024.11.17_11.51.17.458_8891.zip"),
+						Destination: "gs://apfe-bucket/brya.brya-release/R100-14543.0.0/parent_job_id/cheets_GTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891/",
+					},
+					{
+						Name:        "results:cheets_GTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891",
+						Source:      filepath.Join(tempDir, "cros-test", "result", "tauto", "results-1-cheets_GTS_12.internal.all.android.dpi", "cheets_GTS_12.android.dpi", "results", "cts-results", "2024.11.17_11.51.17.458_8891", "test_result.xml.gz"),
+						Destination: "gs://result-bucket/cheets_GTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891/",
+					}, {
+						Name:        "results:cheets_GTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891",
+						Source:      filepath.Join(tempDir, "cros-test", "result", "tauto", "results-1-cheets_GTS_12.internal.all.android.dpi", "cheets_GTS_12.android.dpi", "results", "cts-results", "2024.11.17_11.51.17.458_8891", "test_result.xml.gz"),
+						Destination: "gs://result-bucket/cheets_GTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891/",
+					},
+				},
+			},
+			{
+				name:          "success with CTS",
+				rootDir:       filepath.Join(tempDir, "cros-test", "result", "tauto"),
+				resultFileDir: filepath.Join(tempDir, "cros-test", "result", "tauto", "results-1-cheets_CTS_12.internal.all.android.dpi", "cheets_CTS_12.android.dpi", "results", "cts-results", "2024.11.17_11.51.17.458_8891"),
+				metadata: ArchiveMetadata{
+					APFEGCSBucket:   "gs://apfe-bucket",
+					ResultGCSBucket: "gs://result-bucket",
+					Build:           "brya-release/R100-14543.0.0",
+					Product:         "brya.brya",
+					ParentJobID:     "parent_job_id",
+				},
+				createZipFile:    true,
+				createResultFile: true,
+				createTGZFile:    true,
+				wantInstr: []ArchiveInfo{
+					{
+						Name:        "apfe:brya.brya-release/R100-14543.0.0/parent_job_id/cheets_CTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891",
+						Source:      filepath.Join(tempDir, "cros-test", "result", "tauto", "results-1-cheets_CTS_12.internal.all.android.dpi", "cheets_CTS_12.android.dpi", "results", "cts-results", "2024.11.17_11.51.17.458_8891.zip"),
+						Destination: "gs://apfe-bucket/brya.brya-release/R100-14543.0.0/parent_job_id/cheets_CTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891/",
+					},
+					{
+						Name:        "results:cheets_CTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891",
+						Source:      filepath.Join(tempDir, "cros-test", "result", "tauto", "results-1-cheets_CTS_12.internal.all.android.dpi", "cheets_CTS_12.android.dpi", "results", "cts-results", "2024.11.17_11.51.17.458_8891", "test_result.xml.gz"),
+						Destination: "gs://result-bucket/cheets_CTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891/",
+					}, {
+						Name:        "results:cheets_CTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891",
+						Source:      filepath.Join(tempDir, "cros-test", "result", "tauto", "results-1-cheets_CTS_12.internal.all.android.dpi", "cheets_CTS_12.android.dpi", "results", "cts-results", "2024.11.17_11.51.17.458_8891", "test_result.xml.gz"),
+						Destination: "gs://result-bucket/cheets_CTS_12.android.dpi/tauto_2024.11.17_11.51.17.458_8891/",
+					},
+				},
+			},
+			{
+				name:    "non-release build",
+				rootDir: tempDir,
+				metadata: ArchiveMetadata{
+					APFEGCSBucket:   "gs://apfe-bucket",
+					ResultGCSBucket: "gs://result-bucket",
+					Build:           "brya-nonrelease/R100-14543.0.0",
+					Product:         "brya.brya",
+					ParentJobID:     "parent_job_id",
+				},
+				wantInstr: nil,
+				wantErr:   nil,
+			},
+		}
+		for _, tc := range testCases {
+			Convey(tc.name, func() {
+				if tc.createZipFile {
+					zipPath := fmt.Sprintf("%s.zip", tc.resultFileDir)
+					if err := os.MkdirAll(tc.resultFileDir, 0755); err != nil {
+						t.Fatalf("failed to create directory structure for file: %v", err)
+					}
+					if _, err := os.Create(zipPath); err != nil {
+						t.Fatalf("Failed to create test zip file: %v", err)
+					}
+				}
+
+				if tc.createResultFile {
+					resultPath := filepath.Join(tc.resultFileDir, XTS_RESULT_FILENAME)
+					createFile(t, resultPath)
+				}
+				if tc.createTGZFile {
+					tgzResultPath := filepath.Join(tc.resultFileDir, XTS_RESULT_FILENAME_COMPRESSED)
+					createTGZFile(t, tgzResultPath, XTS_RESULT_FILENAME)
+				}
+				defer os.RemoveAll(tc.resultFileDir)
+
+				instr, err := archiveInfo(tc.rootDir, tc.metadata)
+
+				if tc.wantErr != nil {
+					So(err, ShouldResemble, tc.wantErr)
+				} else {
+					So(err, ShouldBeNil)
+					So(instr, ShouldResemble, tc.wantInstr)
+				}
+			})
+		}
+	})
+}
+
 func TestArchiveInfoForTest(t *testing.T) {
 	Convey("Test archive info for test", t, func() {
 		tempDir := t.TempDir()
@@ -156,7 +281,7 @@ func TestArchiveInfoForTest(t *testing.T) {
 				}
 				defer os.RemoveAll(tc.resultDir)
 
-				instr, err := archiveInfoForTest(tc.resultDir, tc.resultFilename, tc.metadata)
+				instr, err := archiveInfoForTest(tc.resultDir, []string{tc.resultFilename}, tc.metadata)
 
 				if tc.wantError != nil {
 					So(err, ShouldResemble, tc.wantError)
@@ -404,4 +529,27 @@ func createTGZFile(t *testing.T, tgzFile, xmlFilename string) {
 	if _, err := tw.Write(xmlBytes); err != nil {
 		t.Fatalf("failed to write tar file contents for test xml file: %v", err)
 	}
+}
+
+func TestIsReleaseBuild(t *testing.T) {
+	Convey("Test isReleaseBuild", t, func() {
+		testCases := []struct {
+			build     string
+			isRelease bool
+		}{
+			{"brya-release/R99-12345.0.0", true},
+			{"brya-release/R99-12345.0.0-test", true},
+			{"a-very-long-board.name-release/R99-12345.0.0", true},
+			{"brya-release.staging/R99-12345.0.0", false},
+			{"trybot-brya-release/R99-12345.0.0", false},
+			{"brya-kernelnext/R99-12345.0.0", false},
+			{"brya/R99-12345.0.0", false},
+		}
+
+		for _, tc := range testCases {
+			Convey(tc.build, func() {
+				So(isReleaseBuild(tc.build), ShouldEqual, tc.isRelease)
+			})
+		}
+	})
 }
