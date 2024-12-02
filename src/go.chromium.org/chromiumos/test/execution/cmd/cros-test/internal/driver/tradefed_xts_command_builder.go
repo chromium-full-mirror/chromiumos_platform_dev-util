@@ -348,6 +348,12 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			cmd = append(cmd, "--cts-params", "--compatibility:include-filter", "--cts-params", testName)
 		}
 	}
+	value, ok := args["cts-params"]
+	if ok {
+		for _, val := range strings.Split(value, ",") {
+			cmd = append(cmd, "--cts-params", val)
+		}
+	}
 
 	// Add devices
 	for _, s := range serials {
