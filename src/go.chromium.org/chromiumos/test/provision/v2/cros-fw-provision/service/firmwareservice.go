@@ -60,7 +60,10 @@ type FirmwareService struct {
 	board, model string
 	// The name of the model's fw binary from config.yaml
 	CorebootName string
-	ECName       string
+	// StandaloneECName is the name of the ec binary for standalone (i.e. firmware-ec-Rxxx branches) builds.
+	StandaloneECName string
+	// LegacyECName is the name of the ec binary for legacy_fw (i.e. firmware-board branches) builds.
+	LegacyECName string
 
 	force bool
 
@@ -842,21 +845,30 @@ func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
 				fws.CorebootName = thisAPName
 			}
 			var thisECName string
+			var legacyECName string
 			// Bizarrely, zephyr builders use the coreboot name for the ec.bin file.
 			if config.Firmware.BuildTargets.ZephyrEC != "" {
-				thisECName = thisAPName
+				thisECName = config.Firmware.BuildTargets.ZephyrEC
+				legacyECName = thisAPName
 			} else {
 				thisECName = config.Firmware.BuildTargets.EC
+				legacyECName = config.Firmware.BuildTargets.EC
 			}
 			if thisECName != "" {
-				if fws.ECName != "" && fws.ECName != thisECName {
-					return errors.Errorf("ambiguous EC name for model %q sku %d, could be %q or %q", model, sku, fws.ECName, thisECName)
+				if fws.StandaloneECName != "" && fws.StandaloneECName != thisECName {
+					return errors.Errorf("ambiguous EC name for model %q sku %d, could be %q or %q", model, sku, fws.StandaloneECName, thisECName)
 				}
-				fws.ECName = thisECName
+				fws.StandaloneECName = thisECName
+			}
+			if legacyECName != "" {
+				if fws.LegacyECName != "" && fws.LegacyECName != legacyECName {
+					return errors.Errorf("ambiguous legacy EC name for model %q sku %d, could be %q or %q", model, sku, fws.LegacyECName, legacyECName)
+				}
+				fws.LegacyECName = legacyECName
 			}
 		}
 	}
-	log.Printf("config.yaml image names AP: %s EC: %s", fws.CorebootName, fws.ECName)
+	log.Printf("config.yaml image names AP: %s EC(legacy): %s EC(standalone): %s", fws.CorebootName, fws.LegacyECName, fws.StandaloneECName)
 	return nil
 }
 

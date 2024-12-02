@@ -160,51 +160,117 @@ func ExtractFile(ctx context.Context, dut api.DutServiceClient, url, destPath st
 	return false, err
 }
 
+type ImageCandidate struct {
+	GSURL     string
+	Filenames []string
+}
+
+// A url like gs://chromeos-image-archive/firmware-brya-14505.B-branch/R100-14505.832.0-1-8730368903603296945/brya/firmware_from_source.tar.bz2
+// becomes gs://firmware-image-archive/firmware-brya-14505.B/14505.832.0/omnigul.14505.832.0.tar.bz2
+var legacyUrlRe = regexp.MustCompile(`gs://chromeos-image-archive/(firmware-\S+-[\d\.]+\.B)-branch/R\d+-(\d+\.\d+\.\d+)[-\d]*/.*`)
+
+// GetAPCandidateURLs returns a list of urls and files to extract. Try them in order.
+func GetAPCandidateURLs(ctx context.Context, gsPath string, fws *FirmwareService) ([]ImageCandidate, error) {
+	candidates := []ImageCandidate{}
+
+	// If the url matches legacyUrlRe, and we have a coreboot name, try the single target tarfile
+	m := legacyUrlRe.FindStringSubmatch(gsPath)
+	if m != nil && fws.CorebootName != "" {
+		candidates = append(candidates, ImageCandidate{
+			GSURL:     fmt.Sprintf("gs://firmware-image-archive/%[1]s/%[2]s/%[3]s.%[2]s.tar.bz2", m[1], m[2], fws.CorebootName),
+			Filenames: []string{fmt.Sprintf("image-%v.bin", fws.CorebootName)},
+		})
+	}
+
+	// Then fallback to the giant tarball.
+	filenames := []string{}
+	if fws.CorebootName != "" {
+		filenames = append(filenames, fmt.Sprintf("image-%v.bin", fws.CorebootName))
+	}
+	if len(fws.GetModel()) > 0 {
+		filenames = append(filenames, fmt.Sprintf("image-%v.bin", fws.GetModel()))
+	}
+	if len(fws.GetBoard()) > 0 {
+		filenames = append(filenames, fmt.Sprintf("image-%v.bin", fws.GetBoard()))
+	}
+	filenames = append(filenames, "image.bin")
+	filenames = append(filenames, "bios.bin")
+	candidates = append(candidates, ImageCandidate{
+		GSURL:     gsPath,
+		Filenames: filenames,
+	})
+	return candidates, nil
+}
+
+// GetECCandidateURLs returns a list of urls and files to extract. Try them in order.
+func GetECCandidateURLs(ctx context.Context, gsPath string, fws *FirmwareService) ([]ImageCandidate, error) {
+	candidates := []ImageCandidate{}
+
+	// If the url matches legacyUrlRe, and we have a legacy ec name, try the single target tarfile
+	m := legacyUrlRe.FindStringSubmatch(gsPath)
+	if m != nil && fws.LegacyECName != "" {
+		candidates = append(candidates, ImageCandidate{
+			GSURL:     fmt.Sprintf("gs://firmware-image-archive/%[1]s/%[2]s/%[3]s.EC.%[2]s.tar.bz2", m[1], m[2], fws.LegacyECName),
+			Filenames: []string{"ec.bin"},
+		})
+	}
+
+	// Then fallback to the giant tarball.
+	filenames := []string{}
+	if fws.LegacyECName != "" {
+		filenames = append(filenames, path.Join(fws.LegacyECName, "ec.bin"))
+	}
+	if len(fws.GetModel()) > 0 {
+		filenames = append(filenames, path.Join(fws.GetModel(), "ec.bin"))
+	}
+	if len(fws.GetBoard()) > 0 {
+		filenames = append(filenames, path.Join(fws.GetBoard(), "ec.bin"))
+	}
+	filenames = append(filenames, "ec.bin")
+	candidates = append(candidates, ImageCandidate{
+		GSURL:     gsPath,
+		Filenames: filenames,
+	})
+	return candidates, nil
+}
+
 // PickAndExtractMainImage uses provided list of |filesInArchive| to pick a main
 // image to use, extracts only it, and returns a path to extracted image.
 // board and model(aka variant) are optional.
 func PickAndExtractMainImage(ctx context.Context, dut api.DutServiceClient, imageMetadata ImageArchiveMetadata, gsPath string, fws *FirmwareService) (string, error) {
-	log.Printf("Staging %q", gsPath)
-	url := createStageURL(ctx, gsPath, fws.CacheServer)
-	args := []string{"-f", "-S", fmt.Sprintf("'%s'", url.String())}
-	_, out, err := RunDUTCommand(ctx, dut, curlExtractTimeout, "curl", args, nil)
+	candidates, err := GetAPCandidateURLs(ctx, gsPath, fws)
 	if err != nil {
-		log.Printf("Failed to stage %q: %v\n%s", gsPath, err, string(out))
-		return "", errors.Wrapf(err, "failed to stage %q", url.String())
+		log.Printf("Failed to calculate candidates: %v", err)
+		return "", errors.Wrap(err, "failed to calculate candidates")
 	}
-	log.Printf("Stage of %q success: %s", gsPath, string(out))
-	candidates := []string{}
-	if fws.CorebootName != "" {
-		filePath := path.Join(fmt.Sprintf("image-%v.bin", fws.CorebootName))
-		candidates = append(candidates, filePath)
-	}
-	if len(fws.GetModel()) > 0 {
-		filePath := path.Join(fmt.Sprintf("image-%v.bin", fws.GetModel()))
-		candidates = append(candidates, filePath)
-	}
-	if len(fws.GetBoard()) > 0 {
-		filePath := path.Join(fmt.Sprintf("image-%v.bin", fws.GetBoard()))
-		candidates = append(candidates, filePath)
-	}
-	candidates = append(candidates, path.Join("image.bin"))
-	candidates = append(candidates, path.Join("bios.bin"))
-
-	for i := 0; i < len(candidates); i++ {
-		log.Printf("Trying %q", candidates[i])
-		url, err := createExtractURL(ctx, gsPath, candidates[i], fws.CacheServer)
+	for _, candidate := range candidates {
+		log.Printf("Staging %q", candidate.GSURL)
+		url := createStageURL(ctx, candidate.GSURL, fws.CacheServer)
+		args := []string{"-f", "-S", fmt.Sprintf("'%s'", url.String())}
+		_, out, err := RunDUTCommand(ctx, dut, curlExtractTimeout, "curl", args, nil)
 		if err != nil {
-			return "", errors.Wrapf(err, "no url for %q", candidates[i])
+			log.Printf("Failed to stage %q: %v\n%s", candidate.GSURL, err, string(out))
+			return "", errors.Wrapf(err, "failed to stage %q", url.String())
 		}
-		destPath := fmt.Sprintf("%s/bios.bin", imageMetadata.ArchiveDir)
-		if ok, err := ExtractFile(ctx, dut, url.String(), destPath); err != nil {
-			return "", errors.Wrapf(err, "extract %q", candidates[i])
-		} else if !ok {
-			log.Printf("%q not found", candidates[i])
-			continue
+		log.Printf("Stage of %q success: %s", candidate.GSURL, string(out))
+		for _, filename := range candidate.Filenames {
+			log.Printf("Trying %q", filename)
+			url, err := createExtractURL(ctx, candidate.GSURL, filename, fws.CacheServer)
+			if err != nil {
+				return "", errors.Wrapf(err, "no url for %q", filename)
+			}
+			destPath := fmt.Sprintf("%s/bios.bin", imageMetadata.ArchiveDir)
+			if ok, err := ExtractFile(ctx, dut, url.String(), destPath); err != nil {
+				return "", errors.Wrapf(err, "extract %q", filename)
+			} else if !ok {
+				log.Printf("%q not found", filename)
+				continue
+			}
+			return destPath, nil
 		}
-		return destPath, nil
 	}
-	return "", fmt.Errorf(`could not find an AP image named any of: %v.
+
+	return "", fmt.Errorf(`could not find an AP image in any of: %v.
 Specifying board and model may help`, candidates)
 }
 
@@ -212,57 +278,49 @@ Specifying board and model may help`, candidates)
 // image to use, extracts only it, and returns a path to extracted image.
 // board and model(aka variant) are optional.
 func PickAndExtractECImage(ctx context.Context, dut api.DutServiceClient, imageMetadata ImageArchiveMetadata, gsPath string, fws *FirmwareService) (string, error) {
-	log.Printf("Staging %q", gsPath)
-	url := createStageURL(ctx, gsPath, fws.CacheServer)
-	args := []string{"-f", "-S", fmt.Sprintf("'%s'", url.String())}
-	_, out, err := RunDUTCommand(ctx, dut, curlExtractTimeout, "curl", args, nil)
+	candidates, err := GetECCandidateURLs(ctx, gsPath, fws)
 	if err != nil {
-		log.Printf("Failed to stage %q: %s", gsPath, string(out))
-		return "", errors.Wrapf(err, "failed to stage %q", url.String())
+		log.Printf("Failed to calculate candidates: %v", err)
+		return "", errors.Wrap(err, "failed to calculate candidates")
 	}
-	log.Printf("Stage of %q success: %s", gsPath, string(out))
-	candidates := []string{}
-	if fws.ECName != "" {
-		filePath := path.Join(fmt.Sprintf("%v/ec.bin", fws.ECName))
-		candidates = append(candidates, filePath)
-	}
-	if len(fws.GetModel()) > 0 {
-		filePath := path.Join(fws.GetModel(), "ec.bin")
-		candidates = append(candidates, filePath)
-	}
-	if len(fws.GetBoard()) > 0 {
-		filePath := path.Join(fws.GetBoard(), "ec.bin")
-		candidates = append(candidates, filePath)
-	}
-	candidates = append(candidates, path.Join("ec.bin"))
-
-	for i := 0; i < len(candidates); i++ {
-		log.Printf("Trying %q", candidates[i])
-		url, err := createExtractURL(ctx, gsPath, candidates[i], fws.CacheServer)
+	for _, candidate := range candidates {
+		log.Printf("Staging %q", candidate.GSURL)
+		url := createStageURL(ctx, candidate.GSURL, fws.CacheServer)
+		args := []string{"-f", "-S", fmt.Sprintf("'%s'", url.String())}
+		_, out, err := RunDUTCommand(ctx, dut, curlExtractTimeout, "curl", args, nil)
 		if err != nil {
-			return "", errors.Wrapf(err, "no url for %q", candidates[i])
+			log.Printf("Failed to stage %q: %s", candidate.GSURL, string(out))
+			return "", errors.Wrapf(err, "failed to stage %q", url.String())
 		}
-		destPath := fmt.Sprintf("%s/ec.bin", imageMetadata.ArchiveDir)
-		if ok, err := ExtractFile(ctx, dut, url.String(), destPath); err != nil {
-			return "", errors.Wrapf(err, "extract %q", candidates[i])
-		} else if !ok {
-			log.Printf("%q not found", candidates[i])
-			continue
+		log.Printf("Stage of %q success: %s", candidate.GSURL, string(out))
+		for _, filename := range candidate.Filenames {
+			log.Printf("Trying %q", filename)
+			url, err := createExtractURL(ctx, candidate.GSURL, filename, fws.CacheServer)
+			if err != nil {
+				return "", errors.Wrapf(err, "no url for %q", filename)
+			}
+			destPath := fmt.Sprintf("%s/ec.bin", imageMetadata.ArchiveDir)
+			if ok, err := ExtractFile(ctx, dut, url.String(), destPath); err != nil {
+				return "", errors.Wrapf(err, "extract %q", filename)
+			} else if !ok {
+				log.Printf("%q not found", filename)
+				continue
+			}
+			// Try to get npcx_monitor.bin also
+			npcxCandidate := strings.Replace(filename, "ec.bin", "npcx_monitor.bin", 1)
+			log.Printf("Trying %q", npcxCandidate)
+			url, err = createExtractURL(ctx, candidate.GSURL, npcxCandidate, fws.CacheServer)
+			if err != nil {
+				return "", errors.Wrapf(err, "no url for %q", npcxCandidate)
+			}
+			npcxPath := fmt.Sprintf("%s/npcx_monitor.bin", imageMetadata.ArchiveDir)
+			if ok, err := ExtractFile(ctx, dut, url.String(), npcxPath); err != nil {
+				return "", errors.Wrapf(err, "extract %q", npcxCandidate)
+			} else if !ok {
+				log.Printf("%q not found", npcxCandidate)
+			}
+			return destPath, nil
 		}
-		// Try to get npcx_monitor.bin also
-		npcxCandidate := strings.Replace(candidates[i], "ec.bin", "npcx_monitor.bin", 1)
-		log.Printf("Trying %q", npcxCandidate)
-		url, err = createExtractURL(ctx, gsPath, npcxCandidate, fws.CacheServer)
-		if err != nil {
-			return "", errors.Wrapf(err, "no url for %q", npcxCandidate)
-		}
-		npcxPath := fmt.Sprintf("%s/npcx_monitor.bin", imageMetadata.ArchiveDir)
-		if ok, err := ExtractFile(ctx, dut, url.String(), npcxPath); err != nil {
-			return "", errors.Wrapf(err, "extract %q", npcxCandidate)
-		} else if !ok {
-			log.Printf("%q not found", npcxCandidate)
-		}
-		return destPath, nil
 	}
 	return "", fmt.Errorf(`could not find an EC image named any of: %v.
 Specifying board and model may help`, candidates)
