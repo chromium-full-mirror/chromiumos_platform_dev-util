@@ -27,7 +27,7 @@ const (
 	tfStageLogsPath      = "/tmp/stage-android-build-api/stub"
 	tfStageResultPattern = "subprocess-test_result.xml_*.xml.gz"
 	tfAospResultPattern  = "android-%s/results/latest/test_result.xml"
-	incompleteError      = "Module is missing from results."
+	incompleteError      = "Module is missing from results or skipped by exclude filter"
 )
 
 //--------------------------------------------------------------
@@ -272,12 +272,12 @@ func generateTestCaseResult(logger *log.Logger, testType string, R Result, req *
 	}
 	for moduleName := range modulesFromReq {
 		allTestCases = append(allTestCases,
-			buildTcResult(moduleName, "INCOMPLETE", startTime, 1, incompleteError))
+			buildTcResult(moduleName, "SKIPPED", startTime, 1, incompleteError))
 		givenTestCases = append(givenTestCases,
 			&api.CrosTestResponse_GivenTestResult{
 				ParentTest: moduleName,
 				ChildTestCaseResults: []*api.TestCaseResult{
-					buildTcResult(moduleName, "INCOMPLETE", startTime, 1, incompleteError),
+					buildTcResult(moduleName, "SKIPPED", startTime, 1, incompleteError),
 				},
 			})
 	}
