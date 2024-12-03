@@ -47,7 +47,7 @@ topic_patches = {}
 # ]
 
 topic_patches["acpi"] = [
-    "fixups/0001-FIXUP-UPSTREAM-ACPI-video-force-native-for-Apple-Mac.patch",
+    "fixups/0001-UPSTREAM-ACPI-video-force-native-for-Apple-MacbookPr.patch",
 ]
 
 topic_patches["block-fs"] = [
