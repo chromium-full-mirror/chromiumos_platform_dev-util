@@ -35,7 +35,8 @@ const (
 //--------------------------------------------------------------
 
 type TradeFedTestFailure struct {
-	Message string `xml:"message,attr"`
+	Message    string `xml:"message,attr"`
+	StackTrace string `xml:"StackTrace"`
 }
 
 type TradeFedTest struct {
@@ -260,11 +261,15 @@ func generateTestCaseResult(logger *log.Logger, testType string, R Result, req *
 		for _, testcase := range module.TestCases {
 			for _, test := range testcase.Tests {
 				fullTestName := fmt.Sprintf("tradefed.%s.%s#%s#%s", testType, module.Name, testcase.Name, test.Name)
+				errorMessage := test.Failure.Message
+				if len(test.Failure.StackTrace) > 0 {
+					errorMessage += "\n" + test.Failure.StackTrace
+				}
 				allTestCases = append(allTestCases,
-					buildTcResult(fullTestName, test.Result, startTime, testDur, test.Failure.Message))
+					buildTcResult(fullTestName, test.Result, startTime, testDur, errorMessage))
 				testName := fmt.Sprintf("%s#%s", testcase.Name, test.Name)
 				childTestCases = append(childTestCases,
-					buildTcResult(testName, test.Result, startTime, testDur, test.Failure.Message))
+					buildTcResult(testName, test.Result, startTime, testDur, errorMessage))
 			}
 		}
 		givenTestCase.ChildTestCaseResults = childTestCases
