@@ -77,7 +77,7 @@ func runMoblyTest(ctx context.Context, logger *log.Logger, test *api.TestCaseMet
 	return launchAndReadMobly(cmd, logger)
 }
 
-func buildMoblyResult(logger *log.Logger, resultsPath string, f *api.CrosTestResponse) *api.CrosTestResponse {
+func buildMoblyResult(logger *log.Logger, resultsPath, resultsDir string, f *api.CrosTestResponse) *api.CrosTestResponse {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Println("found a panic")
@@ -95,7 +95,7 @@ func buildMoblyResult(logger *log.Logger, resultsPath string, f *api.CrosTestRes
 	}
 
 	logger.Println("translating", moblyResultBytes)
-	testCaseResults, err := common.TranslateMoblyResults(moblyResultBytes)
+	testCaseResults, err := common.TranslateMoblyResults(moblyResultBytes, resultsDir)
 	logger.Println("translating done", testCaseResults)
 	if err != nil {
 		logger.Printf("failed to translate mobly results, %s", err)
@@ -145,7 +145,7 @@ func (md *MoblyDriver) RunTests(ctx context.Context, resultsDir string, req *api
 	}()
 	c.KeepAdbAlive(md.logger, serials, exit)
 
-	// Currently, we will just loop each test execution and resutls processing; and continously build/append results.
+	// Currently, we will just loop each test execution and result processing; and continuously build/append results.
 	for _, test := range tests {
 		resDir := path.Join("tmp", "logs", "mobly", test.GetTestCase().GetName())
 		os.Setenv("MOBLY_LOGPATH", resDir)
@@ -156,9 +156,11 @@ func (md *MoblyDriver) RunTests(ctx context.Context, resultsDir string, req *api
 			return nil, err
 		}
 
-		resultsPath := path.Join(resDir, "LocalTestBed", "latest", "test_summary.yaml")
+		// Override resultsDir to the latest directory.
+		resultsDir = path.Join(resDir, "LocalTestBed", "latest")
+		resultsPath := path.Join(resultsDir, "test_summary.yaml")
 
-		buildMoblyResult(md.logger, resultsPath, f)
+		buildMoblyResult(md.logger, resultsPath, resultsDir, f)
 		md.logger.Println("Result after loop1: ", f)
 	}
 

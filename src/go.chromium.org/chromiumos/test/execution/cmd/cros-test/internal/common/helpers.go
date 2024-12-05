@@ -19,6 +19,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"gopkg.in/yaml.v3"
 
+	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
 
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
@@ -134,7 +135,7 @@ func Companions(devices []*api.CrosTestRequest_Device) (chromeOSCompanions []*de
 
 // TranslateMoblyResults translate a mobly test result yaml output
 // to test results.
-func TranslateMoblyResults(moblyYaml []byte) ([]*api.TestCaseResult, error) {
+func TranslateMoblyResults(moblyYaml []byte, resultsRootDir string) ([]*api.TestCaseResult, error) {
 	reader := bytes.NewReader(moblyYaml)
 	decoder := yaml.NewDecoder(reader)
 	var results []*api.TestCaseResult
@@ -147,7 +148,7 @@ func TranslateMoblyResults(moblyYaml []byte) ([]*api.TestCaseResult, error) {
 		if err != nil {
 			return nil, errors.New("failed to parse yaml file")
 		}
-		result, err := parseResult(&node)
+		result, err := parseResult(&node, resultsRootDir)
 		if err != nil {
 			// Current document does not contain results.
 			continue
@@ -157,7 +158,7 @@ func TranslateMoblyResults(moblyYaml []byte) ([]*api.TestCaseResult, error) {
 	return results, nil
 }
 
-func parseResult(node *yaml.Node) (*api.TestCaseResult, error) {
+func parseResult(node *yaml.Node, resultsRootDir string) (*api.TestCaseResult, error) {
 	if node.Kind != yaml.DocumentNode {
 		// Results are in document block.
 		// Return an error if it is not a document node.
@@ -173,13 +174,13 @@ func parseResult(node *yaml.Node) (*api.TestCaseResult, error) {
 			// Ignore map that we cannot parse.
 			continue
 		}
-		return fillTestCaseResult(result)
+		return fillTestCaseResult(result, resultsRootDir)
 	}
 	return nil, errors.New("document does not contain results")
 
 }
 
-func fillTestCaseResult(raw map[string]interface{}) (*api.TestCaseResult, error) {
+func fillTestCaseResult(raw map[string]interface{}, resultsRootDir string) (*api.TestCaseResult, error) {
 	const (
 		testClassKey = "Test Class"
 		testNameKey  = "Test Name"
@@ -248,6 +249,11 @@ func fillTestCaseResult(raw map[string]interface{}) (*api.TestCaseResult, error)
 		TestCaseId: &api.TestCase_Id{Value: testID},
 		StartTime:  protoStartTime,
 		Duration:   protoDuration,
+		ResultDirPath: &_go.StoragePath{
+			HostType: _go.StoragePath_LOCAL,
+			Path:     resultsRootDir,
+		},
+
 		TestHarness: &api.TestHarness{
 			TestHarnessType: &api.TestHarness_Mobly_{
 				Mobly: &api.TestHarness_Mobly{},

@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
+	_go "go.chromium.org/chromiumos/config/go"
 	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -178,11 +179,15 @@ func TestTranslateMoblyResults(t *testing.T) {
 	endTime2 := time.Unix(0, 1726178525575)
 	startTimeProto2, _ := ptypes.TimestampProto(startTime2)
 	duration2 := endTime2.Sub(startTime2)
-
+	resultsRootDir := "resultsRootDir"
 	expected := []*api.TestCaseResult{
 		{
 			TestCaseId: &api.TestCase_Id{Value: "MultiDeviceTest.test_hello"},
-			Verdict:    &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
+			ResultDirPath: &_go.StoragePath{
+				HostType: _go.StoragePath_LOCAL,
+				Path:     resultsRootDir,
+			},
+			Verdict: &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			TestHarness: &api.TestHarness{
 				TestHarnessType: &api.TestHarness_Mobly_{
 					Mobly: &api.TestHarness_Mobly{},
@@ -193,7 +198,11 @@ func TestTranslateMoblyResults(t *testing.T) {
 		},
 		{
 			TestCaseId: &api.TestCase_Id{Value: "MultiDeviceTest.test_multidevice"},
-			Verdict:    &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
+			ResultDirPath: &_go.StoragePath{
+				HostType: _go.StoragePath_LOCAL,
+				Path:     resultsRootDir,
+			},
+			Verdict: &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			TestHarness: &api.TestHarness{
 				TestHarnessType: &api.TestHarness_Mobly_{
 					Mobly: &api.TestHarness_Mobly{},
@@ -204,7 +213,7 @@ func TestTranslateMoblyResults(t *testing.T) {
 		},
 	}
 
-	got, err := TranslateMoblyResults([]byte(moblyResultYaml))
+	got, err := TranslateMoblyResults([]byte(moblyResultYaml), resultsRootDir)
 	if err != nil {
 		t.Errorf("Cannot translate mobly result: %s", err)
 	}
