@@ -163,12 +163,18 @@ if [ $? -ne 0 ]; then
         # No signoff used in FSP repo
         git commit
 
+        if [[ $? -eq 0 ]]; then
+          COMMIT_ARGS="--amend --no-edit"
+        else
+          COMMIT_ARGS="-s"
+        fi
+
         git diff -a chrome-internal-tot.."${STAGING_NAME}"-"${VERSION}" > /tmp/merge-to-tag.patch
         patch -p1 < /tmp/merge-to-tag.patch
         rm /tmp/merge-to-tag.patch
         git add .
-        git commit --amend --no-edit
 
+        git commit ${COMMIT_ARGS}
         break
         ;;
 
