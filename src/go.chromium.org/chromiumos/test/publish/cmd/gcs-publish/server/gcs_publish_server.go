@@ -78,7 +78,7 @@ func (ps *GcsPublishServer) Publish(ctx context.Context, req *api.PublishRequest
 		ps.manager.SetResult(op.Name, out)
 	}()
 
-	gps, err := service.NewGcsPublishService(req)
+	gps, err := service.NewGcsPublishService(ctx, req)
 	if err != nil {
 		log.Printf("failed to create new gcs publish service: %s", err)
 		out.Status = api.PublishResponse_STATUS_INVALID_REQUEST
@@ -86,11 +86,20 @@ func (ps *GcsPublishServer) Publish(ctx context.Context, req *api.PublishRequest
 		return op, fmt.Errorf("failed to create new gcs publish service: %s", err)
 	}
 
-	if err := gps.UploadToGS(context.Background()); err != nil {
+	if err := gps.UploadToGS(ctx); err != nil {
 		log.Printf("upload to gs failed: %s", err)
 		out.Status = api.PublishResponse_STATUS_FAILURE
 		out.Message = fmt.Sprintf("failed upload to gs: %s", err.Error())
 		return op, fmt.Errorf("failed upload to gs: %s", err)
+	}
+
+	if gps.EnableXTSArchiver {
+		if err := gps.ArchiveXTSResults(ctx); err != nil {
+			log.Printf("XTS archiver failed: %s", err)
+			out.Status = api.PublishResponse_STATUS_FAILURE
+			out.Message = fmt.Sprintf("failed to archive XTS results: %s", err.Error())
+			return op, fmt.Errorf("failed to archive XTS results: %s", err)
+		}
 	}
 
 	log.Println("Finished Successfuly!")

@@ -6,16 +6,17 @@
 package cli
 
 import (
-	"go.chromium.org/chromiumos/test/publish/cmd/common-utils/metadata"
-	"go.chromium.org/chromiumos/test/publish/cmd/gcs-publish/constants"
-	"go.chromium.org/chromiumos/test/publish/cmd/gcs-publish/server"
 	"flag"
 	"fmt"
 	"log"
 	"strings"
+
+	"go.chromium.org/chromiumos/test/publish/cmd/common-utils/metadata"
+	"go.chromium.org/chromiumos/test/publish/cmd/gcs-publish/constants"
+	"go.chromium.org/chromiumos/test/publish/cmd/gcs-publish/server"
 )
 
-// ServerCommand executed the provisioning as a Server
+// ServerCommand executed the GCS publish as a Server
 type ServerCommand struct {
 	metadata    *metadata.ServerMetadata
 	logFileName string

@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
 func TestArchiveInfos(t *testing.T) {
@@ -23,7 +24,7 @@ func TestArchiveInfos(t *testing.T) {
 			name             string
 			rootDir          string
 			resultFileDir    string
-			metadata         ArchiveMetadata
+			metadata         *api.XtsArchiverMetadata
 			wantInstr        []ArchiveInfo
 			wantErr          error
 			createZipFile    bool
@@ -34,12 +35,12 @@ func TestArchiveInfos(t *testing.T) {
 				name:          "success with GTS",
 				rootDir:       filepath.Join(tempDir, "cros-test", "result", "tauto"),
 				resultFileDir: filepath.Join(tempDir, "cros-test", "result", "tauto", "results-1-cheets_GTS_12.internal.all.android.dpi", "cheets_GTS_12.android.dpi", "results", "cts-results", "2024.11.17_11.51.17.458_8891"),
-				metadata: ArchiveMetadata{
-					APFEGCSBucket:   "gs://apfe-bucket",
-					ResultGCSBucket: "gs://result-bucket",
-					Build:           "brya-release/R100-14543.0.0",
-					Product:         "brya.brya",
-					ParentJobID:     "parent_job_id",
+				metadata: &api.XtsArchiverMetadata{
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					ResultsGcsPrefix:     "gs://result-bucket",
+					Build:                "brya-release/R100-14543.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
 				},
 				createZipFile:    true,
 				createResultFile: true,
@@ -65,12 +66,12 @@ func TestArchiveInfos(t *testing.T) {
 				name:          "success with CTS",
 				rootDir:       filepath.Join(tempDir, "cros-test", "result", "tauto"),
 				resultFileDir: filepath.Join(tempDir, "cros-test", "result", "tauto", "results-1-cheets_CTS_12.internal.all.android.dpi", "cheets_CTS_12.android.dpi", "results", "cts-results", "2024.11.17_11.51.17.458_8891"),
-				metadata: ArchiveMetadata{
-					APFEGCSBucket:   "gs://apfe-bucket",
-					ResultGCSBucket: "gs://result-bucket",
-					Build:           "brya-release/R100-14543.0.0",
-					Product:         "brya.brya",
-					ParentJobID:     "parent_job_id",
+				metadata: &api.XtsArchiverMetadata{
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					ResultsGcsPrefix:     "gs://result-bucket",
+					Build:                "brya-release/R100-14543.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
 				},
 				createZipFile:    true,
 				createResultFile: true,
@@ -95,12 +96,12 @@ func TestArchiveInfos(t *testing.T) {
 			{
 				name:    "non-release build",
 				rootDir: tempDir,
-				metadata: ArchiveMetadata{
-					APFEGCSBucket:   "gs://apfe-bucket",
-					ResultGCSBucket: "gs://result-bucket",
-					Build:           "brya-nonrelease/R100-14543.0.0",
-					Product:         "brya.brya",
-					ParentJobID:     "parent_job_id",
+				metadata: &api.XtsArchiverMetadata{
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					ResultsGcsPrefix:     "gs://result-bucket",
+					Build:                "brya-nonrelease/R100-14543.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
 				},
 				wantInstr: nil,
 				wantErr:   nil,
@@ -148,7 +149,7 @@ func TestArchiveInfoForTest(t *testing.T) {
 			name             string
 			resultDir        string
 			resultFilename   string
-			metadata         ArchiveMetadata
+			metadata         *api.XtsArchiverMetadata
 			wantInstr        []ArchiveInfo
 			wantError        error
 			createZipFile    bool
@@ -158,12 +159,12 @@ func TestArchiveInfoForTest(t *testing.T) {
 				name:           "success",
 				resultDir:      filepath.Join(tempDir, "tauto", "results-1-cheets_CTS_12.android.api", "cheets_CTS.android.dpi", "results", "cts-results", "2024.11.17_15.15.51.364_5161"),
 				resultFilename: "test_result.xml.tgz",
-				metadata: ArchiveMetadata{
-					APFEGCSBucket:   "gs://apfe-bucket",
-					ResultGCSBucket: "gs://result-bucket",
-					Build:           "brya-release/R133-16103.0.0",
-					Product:         "brya.brya",
-					ParentJobID:     "parent_job_id",
+				metadata: &api.XtsArchiverMetadata{
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					ResultsGcsPrefix:     "gs://result-bucket",
+					Build:                "brya-release/R133-16103.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
 				},
 				createZipFile:    true,
 				createResultFile: true,
@@ -184,12 +185,12 @@ func TestArchiveInfoForTest(t *testing.T) {
 				name:           "success with tgz result file",
 				resultDir:      filepath.Join(tempDir, "tauto", "results-1-cheets_CTS_12.android.api", "cheets_CTS.android.dpi", "results", "cts-results", "2024.11.17_15.15.51.364_5161"),
 				resultFilename: "test_result.xml.tgz",
-				metadata: ArchiveMetadata{
-					APFEGCSBucket:   "gs://apfe-bucket",
-					ResultGCSBucket: "gs://result-bucket",
-					Build:           "brya-release/R133-16103.0.0",
-					Product:         "brya.brya",
-					ParentJobID:     "parent_job_id",
+				metadata: &api.XtsArchiverMetadata{
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					ResultsGcsPrefix:     "gs://result-bucket",
+					Build:                "brya-release/R133-16103.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
 				},
 				createZipFile:    true,
 				createResultFile: true,
@@ -210,13 +211,13 @@ func TestArchiveInfoForTest(t *testing.T) {
 				name:           "isALRun, skip apfe upload",
 				resultDir:      filepath.Join(tempDir, "tauto", "results-1-cheets_CTS_12.android.api", "cheets_CTS.android.dpi", "results", "cts-results", "2024.11.17_15.15.51.364_5161"),
 				resultFilename: "test_result.xml",
-				metadata: ArchiveMetadata{
-					APFEGCSBucket:   "gs://apfe-bucket",
-					ResultGCSBucket: "gs://result-bucket",
-					Build:           "brya-release/R133-16103.0.0",
-					Product:         "brya.brya",
-					ParentJobID:     "parent_job_id",
-					IsALRun:         true,
+				metadata: &api.XtsArchiverMetadata{
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					ResultsGcsPrefix:     "gs://result-bucket",
+					Build:                "brya-release/R133-16103.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
+					AlRun:                true,
 				},
 				createZipFile:    false,
 				createResultFile: true,
@@ -233,24 +234,24 @@ func TestArchiveInfoForTest(t *testing.T) {
 				resultDir:        filepath.Join(tempDir, "tauto", "results-1-cheets_CTS_12.android.api", "cheets_CTS.android.dpi", "results", "cts-results", "2024.11.17_15.15.51.364_5161"),
 				resultFilename:   "test_result.xml",
 				createResultFile: false,
-				metadata: ArchiveMetadata{
-					APFEGCSBucket:   "gs://apfe-bucket",
-					ResultGCSBucket: "gs://result-bucket",
-					Build:           "brya-release/R133-16103.0.0",
-					Product:         "brya.brya",
-					ParentJobID:     "parent_job_id",
+				metadata: &api.XtsArchiverMetadata{
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					ResultsGcsPrefix:     "gs://result-bucket",
+					Build:                "brya-release/R133-16103.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
 				},
 				createZipFile: false,
 			},
 			{
 				name:      "invalid result dir",
 				resultDir: filepath.Join("invalid", "path"),
-				metadata: ArchiveMetadata{
-					APFEGCSBucket:   "gs://apfe-bucket",
-					ResultGCSBucket: "gs://result-bucket",
-					Build:           "brya-release/R133-16103.0.0",
-					Product:         "brya.brya",
-					ParentJobID:     "parent_job_id",
+				metadata: &api.XtsArchiverMetadata{
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					ResultsGcsPrefix:     "gs://result-bucket",
+					Build:                "brya-release/R133-16103.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
 				},
 				wantError: fmt.Errorf("invalid tauto path: %s", filepath.Join("invalid", "path")),
 			},
@@ -308,7 +309,7 @@ func TestApfeInfo(t *testing.T) {
 		testCases := []struct {
 			name          string
 			filePrefix    string
-			metadata      ArchiveMetadata
+			metadata      *api.XtsArchiverMetadata
 			createZipFile bool
 			wantInstr     []ArchiveInfo
 			wantError     error
@@ -316,11 +317,11 @@ func TestApfeInfo(t *testing.T) {
 			{
 				name:       "success",
 				filePrefix: "test_prefix",
-				metadata: ArchiveMetadata{
-					APFEGCSBucket: "gs://apfe-bucket",
-					Build:         "brya-release/R133-16103.0.0",
-					Product:       "brya.brya",
-					ParentJobID:   "parent_job_id",
+				metadata: &api.XtsArchiverMetadata{
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					Build:                "brya-release/R133-16103.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
 				},
 				createZipFile: true,
 				wantInstr: []ArchiveInfo{
@@ -334,22 +335,22 @@ func TestApfeInfo(t *testing.T) {
 			{
 				name:       "no zip files",
 				filePrefix: "test_prefix",
-				metadata: ArchiveMetadata{
-					APFEGCSBucket: "gs://apfe-bucket",
-					Build:         "brya.brya-release/R133-16103.0.0",
-					Product:       "brya.brya",
-					ParentJobID:   "parent_job_id",
+				metadata: &api.XtsArchiverMetadata{
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					Build:                "brya.brya-release/R133-16103.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
 				},
 				wantInstr: []ArchiveInfo{},
 			},
 			{
 				name:       "invalid build string",
 				filePrefix: "test_prefix",
-				metadata: ArchiveMetadata{
-					APFEGCSBucket: "gs://apfe-bucket",
-					Build:         "invalid-build",
-					Product:       "brya.brya",
-					ParentJobID:   "parent_job_id",
+				metadata: &api.XtsArchiverMetadata{
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					Build:                "invalid-build",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
 				},
 				wantError: fmt.Errorf("failed to parse build string: invalid-build"),
 			},
@@ -382,10 +383,10 @@ func TestResultsInfo(t *testing.T) {
 	Convey("Test result info", t, func() {
 		resultDir := t.TempDir()
 		filePrefix := "test_prefix"
-		metadata := ArchiveMetadata{
-			ResultGCSBucket: "gs://result-bucket",
+		metadata := &api.XtsArchiverMetadata{
+			ResultsGcsPrefix: "gs://result-bucket",
 		}
-		destination := fmt.Sprintf("%s/%s/", metadata.ResultGCSBucket, filePrefix)
+		destination := fmt.Sprintf("%s/%s/", metadata.ResultsGcsPrefix, filePrefix)
 
 		testCases := []struct {
 			name           string
@@ -549,6 +550,58 @@ func TestIsReleaseBuild(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.build, func() {
 				So(isReleaseBuild(tc.build), ShouldEqual, tc.isRelease)
+			})
+		}
+	})
+}
+
+func TestValidateXTSArchiverMetadata(t *testing.T) {
+	Convey("Test validateXTSArchiverMetadata", t, func() {
+		testCases := []struct {
+			name     string
+			metadata *api.XtsArchiverMetadata
+			wantErr  error
+		}{
+			{
+				name: "success",
+				metadata: &api.XtsArchiverMetadata{
+					Build:            "build",
+					ResultsGcsPrefix: "results_gcs_prefix",
+					ApfeGcsPrefix:    "apfe_gcs_prefix",
+				},
+				wantErr: nil,
+			},
+			{
+				name: "missing build",
+				metadata: &api.XtsArchiverMetadata{
+					ResultsGcsPrefix: "results_gcs_prefix",
+					ApfeGcsPrefix:    "apfe_gcs_prefix",
+				},
+				wantErr: fmt.Errorf("Build is required in metadata for XTS archiver"),
+			},
+			{
+				name: "missing results gcs prefix",
+				metadata: &api.XtsArchiverMetadata{
+					Build:         "build",
+					ApfeGcsPrefix: "apfe_gcs_prefix",
+				},
+				wantErr: fmt.Errorf("Results GCS prefix is required in metadata for XTS archiver"),
+			},
+			{
+				name: "missing apfe gcs prefix",
+				metadata: &api.XtsArchiverMetadata{
+					Build:            "build",
+					ResultsGcsPrefix: "results_gcs_prefix",
+				},
+				wantErr: fmt.Errorf("APFE GCS prefix is required in metadata for XTS archiver"),
+			},
+		}
+
+		for _, tc := range testCases {
+			tc := tc
+			Convey(tc.name, func() {
+				err := validateXTSArchiverMetadata(tc.metadata)
+				So(err, ShouldResemble, tc.wantErr)
 			})
 		}
 	})

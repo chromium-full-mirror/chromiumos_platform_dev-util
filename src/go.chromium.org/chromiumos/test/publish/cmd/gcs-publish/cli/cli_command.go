@@ -6,9 +6,6 @@
 package cli
 
 import (
-	common_utils "go.chromium.org/chromiumos/test/publish/cmd/common-utils"
-	"go.chromium.org/chromiumos/test/publish/cmd/gcs-publish/constants"
-	"go.chromium.org/chromiumos/test/publish/cmd/gcs-publish/service"
 	"context"
 	"errors"
 	"flag"
@@ -18,11 +15,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	common_utils "go.chromium.org/chromiumos/test/publish/cmd/common-utils"
+	"go.chromium.org/chromiumos/test/publish/cmd/gcs-publish/constants"
+	"go.chromium.org/chromiumos/test/publish/cmd/gcs-publish/service"
+
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// CLI command executed the provisioning as a CLI
+// CLI command executed the GCS publish  as a CLI
 type CLICommand struct {
 	logFileName string
 	inputFile   string
@@ -93,7 +94,8 @@ func (cc *CLICommand) Run() error {
 	}
 	defer saveCLIOutput(cc.outputFile, out)
 
-	ps, err := service.NewGcsPublishService(cc.inputProto)
+	ctx := context.Background()
+	ps, err := service.NewGcsPublishService(ctx, cc.inputProto)
 	if err != nil {
 		log.Printf("failed to create new gcs publish service: %s", err)
 		out.Status = api.PublishResponse_STATUS_INVALID_REQUEST
@@ -101,12 +103,22 @@ func (cc *CLICommand) Run() error {
 		return fmt.Errorf("failed to create new gcs publish service: %s", err)
 	}
 
-	if err := ps.UploadToGS(context.Background()); err != nil {
+	if err := ps.UploadToGS(ctx); err != nil {
 		log.Printf("upload to gs failed: %s", err)
 		out.Status = api.PublishResponse_STATUS_FAILURE
 		out.Message = fmt.Sprintf("failed upload to gs: %s", err.Error())
 		return fmt.Errorf("failed upload to gs: %s", err)
 	}
+
+	if ps.EnableXTSArchiver {
+		if err := ps.ArchiveXTSResults(ctx); err != nil {
+			log.Printf("XTS archiver failed: %s", err)
+			out.Status = api.PublishResponse_STATUS_FAILURE
+			out.Message = fmt.Sprintf("failed to archive XTS results: %s", err.Error())
+			return fmt.Errorf("failed to archive XTS results: %s", err)
+		}
+	}
+
 	log.Println("Finished Successfuly!")
 	return nil
 }

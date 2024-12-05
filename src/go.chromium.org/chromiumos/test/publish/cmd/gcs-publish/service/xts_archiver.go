@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"go.chromium.org/chromiumos/config/go/test/api"
 )
 
 const (
@@ -45,34 +47,12 @@ type ArchiveInfo struct {
 	Destination string
 }
 
-// ArchiveMetadata defines the metadata for archiving XTS results.
-type ArchiveMetadata struct {
-	// The path to GCS bucket for APFE upload.
-	APFEGCSBucket string
-
-	// The path to GCS bucket for result upload.
-	ResultGCSBucket string
-
-	// The full build name. It includes the release info.
-	// e.g. brya-release/R133-16103.0.0 for ChromeOS.
-	Build string
-
-	// The product/device name used to construct the upload path.
-	Product string
-
-	// The build parent job/task ID used to construct the upload path.
-	ParentJobID string
-
-	// Whether the build is for AL project.
-	IsALRun bool
-}
-
 // archiveInfo gets the XTS archive infos for the overall test run.
 // It scans the result dir from metadata to find the relevant XML result files and prepares
 // them for upload with a list of archive instructions.
-func archiveInfo(resultDir string, metadata ArchiveMetadata) ([]ArchiveInfo, error) {
-	if !isReleaseBuild(metadata.Build) {
-		log.Printf("Skipping the XTS archive process for non-release build: %s", metadata.Build)
+func archiveInfo(resultDir string, metadata *api.XtsArchiverMetadata) ([]ArchiveInfo, error) {
+	if !isReleaseBuild(metadata.GetBuild()) {
+		log.Printf("Skipping the XTS archive process for non-release build: %s", metadata.GetBuild())
 		return nil, nil
 	}
 
@@ -118,7 +98,7 @@ func archiveInfo(resultDir string, metadata ArchiveMetadata) ([]ArchiveInfo, err
 
 // archiveInfoForTest gets the list of XTS archive info for a test result file found under
 // the <resultDir>/<resultFilename>.
-func archiveInfoForTest(resultDir string, resultFilenames []string, metadata ArchiveMetadata) ([]ArchiveInfo, error) {
+func archiveInfoForTest(resultDir string, resultFilenames []string, metadata *api.XtsArchiverMetadata) ([]ArchiveInfo, error) {
 	var infos []ArchiveInfo
 	harness, packageName, timestamp, err := parseJobResultsFilePath(resultDir)
 	if err != nil {
@@ -129,7 +109,7 @@ func archiveInfoForTest(resultDir string, resultFilenames []string, metadata Arc
 
 	// Add APFE archive info, skipping collect-test packages and AL runs.
 	// TODO: b/379711782 - Support APFE upload for AL runs if needed.
-	if !metadata.IsALRun && !strings.Contains(packageName, TEST_LIST_COLLECTOR) {
+	if !metadata.GetAlRun() && !strings.Contains(packageName, TEST_LIST_COLLECTOR) {
 		log.Printf("Fetching XTS APFE archive info for package: %s", packageName)
 		apfeInfo, err := apfeInfo(resultDir, filePrefix, metadata)
 		if err != nil {
@@ -158,17 +138,17 @@ func archiveInfoForTest(resultDir string, resultFilenames []string, metadata Arc
 // apfeInfo gets the list info for archiving results to APFE GCS bucket. It scans
 // the local dir for zip file that has the same name as the resultDir and constructs
 // the upload name based on filePrefix and metadata.
-func apfeInfo(resultDir, filePrefix string, metadata ArchiveMetadata) ([]ArchiveInfo, error) {
+func apfeInfo(resultDir, filePrefix string, metadata *api.XtsArchiverMetadata) ([]ArchiveInfo, error) {
 	// Extract the build version from the build, a success match would have size of 2, one
 	// for the entire string and one for the capturing clause.
-	buildMatch := BUILD_VERSION_REGEX.FindStringSubmatch(metadata.Build)
+	buildMatch := BUILD_VERSION_REGEX.FindStringSubmatch(metadata.GetBuild())
 	if len(buildMatch) != 2 {
-		return nil, fmt.Errorf("failed to parse build string: %s", metadata.Build)
+		return nil, fmt.Errorf("failed to parse build string: %s", metadata.GetBuild())
 	}
 
-	buildFormat := fmt.Sprintf("%s-release/%s", metadata.Product, buildMatch[1])
-	prefix := fmt.Sprintf("%s/%s/%s", buildFormat, metadata.ParentJobID, filePrefix)
-	apfeGCSPath := fmt.Sprintf("%s/%s/", metadata.APFEGCSBucket, prefix)
+	buildFormat := fmt.Sprintf("%s-release/%s", metadata.GetProduct(), buildMatch[1])
+	prefix := fmt.Sprintf("%s/%s/%s", buildFormat, metadata.GetParentSwarmingTaskId(), filePrefix)
+	apfeGCSPath := fmt.Sprintf("%s/%s/", metadata.GetApfeGcsPrefix(), prefix)
 
 	// Find all the zip files in the XTS result dir
 	zipFiles, err := filepath.Glob(fmt.Sprintf("%s.zip", resultDir))
@@ -190,7 +170,7 @@ func apfeInfo(resultDir, filePrefix string, metadata ArchiveMetadata) ([]Archive
 
 // resultsInfo gets the list of info for archiving results to results GCS bucket. It scans
 // the resultDir for files with resultFilename and converts them to .gz files prior to upload.
-func resultsInfo(resultDir, resultFilename, filePrefix string, metadata ArchiveMetadata) ([]ArchiveInfo, error) {
+func resultsInfo(resultDir, resultFilename, filePrefix string, metadata *api.XtsArchiverMetadata) ([]ArchiveInfo, error) {
 	resultFiles, err := filepath.Glob(filepath.Join(resultDir, resultFilename))
 	if err != nil {
 		return nil, err
@@ -217,7 +197,7 @@ func resultsInfo(resultDir, resultFilename, filePrefix string, metadata ArchiveM
 			continue
 		}
 
-		resultGCSPath := fmt.Sprintf("%s/%s/", metadata.ResultGCSBucket, filePrefix)
+		resultGCSPath := fmt.Sprintf("%s/%s/", metadata.GetResultsGcsPrefix(), filePrefix)
 		infos = append(infos, ArchiveInfo{
 			Name:        "results:" + filePrefix,
 			Source:      resultFileGZ,
@@ -314,4 +294,21 @@ func isReleaseBuild(build string) bool {
 		return false
 	}
 	return RELEASE_BUILD_REGEX.MatchString(build)
+}
+
+// validateXTSArchiverMetadata validates XTS archiver metadata.
+func validateXTSArchiverMetadata(metadata *api.XtsArchiverMetadata) error {
+	if metadata.GetBuild() == "" {
+		return fmt.Errorf("Build is required in metadata for XTS archiver")
+	}
+
+	if metadata.GetResultsGcsPrefix() == "" {
+		return fmt.Errorf("Results GCS prefix is required in metadata for XTS archiver")
+	}
+
+	if metadata.GetApfeGcsPrefix() == "" {
+		return fmt.Errorf("APFE GCS prefix is required in metadata for XTS archiver")
+	}
+
+	return nil
 }

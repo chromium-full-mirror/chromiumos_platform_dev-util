@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/mock_storage"
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
 
@@ -31,7 +32,7 @@ func TestArchiveXTSResults(t *testing.T) {
 			name              string
 			localArtifactPath string
 			resultDir         string
-			metadata          ArchiveMetadata
+			metadata          *api.XtsArchiverMetadata
 			createZipFile     bool
 			createResultFile  bool
 			wantErr           error
@@ -41,13 +42,13 @@ func TestArchiveXTSResults(t *testing.T) {
 				name:              "success ChromeOS run",
 				localArtifactPath: tempDir,
 				resultDir:         filepath.Join(tempDir, "test_prefix", "cros-test", "results", "tauto", "results-1-cheets_CTS_12.internal.all.android.dpi", "cheets_CTS_12.android.dpi", "results", "cts-results", "2024.11.17_11.51.17.458_8891"),
-				metadata: ArchiveMetadata{
-					IsALRun:         false,
-					APFEGCSBucket:   "gs://apfe-bucket",
-					ResultGCSBucket: "gs://result-bucket",
-					Build:           "brya-release/R100-14543.0.0",
-					Product:         "brya.brya",
-					ParentJobID:     "parent_job_id",
+				metadata: &api.XtsArchiverMetadata{
+					AlRun:                false,
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					ResultsGcsPrefix:     "gs://result-bucket",
+					Build:                "brya-release/R100-14543.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
 				},
 				createZipFile:    true,
 				createResultFile: true,
@@ -87,10 +88,12 @@ func TestArchiveXTSResults(t *testing.T) {
 				defer os.RemoveAll(tc.resultDir)
 
 				gs := &GcsPublishService{
+					Client:                      gsClient,
 					LocalArtifactPath:           tc.localArtifactPath,
 					ServiceAccountCredsFilePath: "/path/to/credentials",
+					XtsArchiverMetadata:         tc.metadata,
 				}
-				err := gs.ArchiveXTSResults(ctx, gsClient, tc.metadata)
+				err := gs.ArchiveXTSResults(ctx)
 
 				gomock.InOrder(tc.wantMockCalls...)
 				So(err, ShouldResemble, tc.wantErr)
