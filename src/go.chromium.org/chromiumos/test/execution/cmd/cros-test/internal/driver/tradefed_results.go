@@ -221,6 +221,7 @@ func generateTestCaseResult(logger *log.Logger, testType string, R Result, req *
 	for _, module := range R.Modules {
 		moduleName := fmt.Sprintf("tradefed.%s.%s", testType, module.Name)
 		logger.Println("Parsing Module: ", module.Name)
+
 		delete(modulesFromReq, moduleName)
 		nTests, _ := strconv.Atoi(module.Total_Tests)
 		runTime, _ := strconv.Atoi(module.Runtime)
@@ -296,7 +297,9 @@ func getAllModulesFromReq(req *api.CrosTestRequest) map[string]struct{} {
 	}
 	for _, suites := range req.GetTestSuites() {
 		for _, testCaseIds := range suites.GetTestCaseIds().GetTestCaseIds() {
-			modules[testCaseIds.GetValue()] = struct{}{}
+			// Split on a space, incase the request is module + class.
+			// We need to get back to just the module to make a result for the "parent"
+			modules[moduleNameFromID(testCaseIds.GetValue())] = struct{}{}
 		}
 	}
 	return modules

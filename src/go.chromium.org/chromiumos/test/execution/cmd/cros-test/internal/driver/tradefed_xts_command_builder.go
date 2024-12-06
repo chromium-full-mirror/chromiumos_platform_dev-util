@@ -27,6 +27,7 @@ const (
 	GIT_MAIN_AL_DEV      = "git_main-al-dev"
 	GIT_MAIN             = "git_main"
 	DTS                  = "dts"
+	tfprefix             = "tradefed."
 )
 
 var ctsSkipDownloadArtifacts = []string{"TESTS_ZIP", "DEVICE_IMAGE", "BASEBAND"}
@@ -148,20 +149,13 @@ func getTestRunner() string {
 
 func formatTestName(fqTestName string) string {
 	testName := fqTestName
-
+	testName = strings.TrimPrefix(testName, tfprefix)
 	// First, trim test suite prefix for all known suites.
 	for _, suite := range knownSuites {
 		testName = strings.TrimPrefix(testName, suite+".")
 	}
-
-	// Then, check if we need to split the test class from the module name,
-	// i.e. "CtsModule#com.android.test.Class#testCase" is converted to
-	// "CtsModule com.android.test.Class#testCase"
-	if strings.Contains(testName, "#") {
-		return strings.Replace(testName, "#", " ", 1)
-	} else {
-		return testName
-	}
+	// We do not need to strip any other info as we force the naming schema via test-finder.
+	return fmt.Sprintf("\"%s\"", testName)
 }
 
 func extractMetadataFlag(metadata *api.ExecutionMetadata, flagName string) (string, error) {
@@ -324,7 +318,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 	}
 
 	for _, t := range tests {
-		testName := formatTestName(t.TestCase.Name)
+		testName := formatTestName(t.GetTestCase().GetId().GetValue())
 		ctsBranch, ctsTarget, ctsBuild := extractBuildInfo(t.TestCase, metadata, board, plan, logger)
 		if len(ctsBranch) > 0 && len(ctsTarget) > 0 && len(ctsBuild) > 0 && !buildInfoReported {
 			if !invocationInfoReported {
@@ -345,6 +339,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 		if isAospTradefed() {
 			cmd = append(cmd, "--include-filter", testName)
 		} else {
+			// Format the name in a quote, incase there is a space in it (ie a class execution)
 			cmd = append(cmd, "--cts-params", "--compatibility:include-filter", "--cts-params", testName)
 		}
 	}

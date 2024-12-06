@@ -282,3 +282,11 @@ func launchAndRead(cmd *exec.Cmd, logger *log.Logger) error {
 	wg.Wait()
 	return nil
 }
+
+func moduleNameFromID(id string) string {
+	sections := strings.Split(id, " ")
+	if len(sections) > 0 {
+		return sections[0]
+	}
+	return id
+}

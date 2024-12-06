@@ -8,8 +8,10 @@ package finder
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"google.golang.org/protobuf/proto"
 )
 
 type tagMatcher struct {
@@ -32,6 +34,7 @@ func newTagMatcher(criteria *api.TestSuite_TestCaseTagCriteria) *tagMatcher {
 	for _, testName := range criteria.TestNames {
 		testNames[testName] = struct{}{}
 	}
+
 	testNameExcludes := make(map[string]struct{})
 	for _, testNameExclude := range criteria.TestNameExcludes {
 		testNameExcludes[testNameExclude] = struct{}{}
@@ -44,6 +47,24 @@ func newTagMatcher(criteria *api.TestSuite_TestCaseTagCriteria) *tagMatcher {
 	}
 }
 
+// Only should be used in the case of special names which we expect partial matches for.
+func (tm *tagMatcher) matchAndreturn(md *api.TestCaseMetadata) []string {
+	matches := []string{}
+	for test := range tm.testNames {
+		newMatcher := &tagMatcher{
+			tags:             tm.tags,
+			excludes:         tm.excludes,
+			testNames:        map[string]struct{}{test: {}},
+			testNameExcludes: tm.testNameExcludes,
+		}
+		if newMatcher.match(md) {
+			matches = append(matches, test)
+
+		}
+
+	}
+	return matches
+}
 func (tm *tagMatcher) match(md *api.TestCaseMetadata) bool {
 	if len(md.TestCase.Tags) < len(tm.tags) {
 		return false
@@ -67,10 +88,13 @@ func (tm *tagMatcher) match(md *api.TestCaseMetadata) bool {
 			matchedTags[tag.Value] = struct{}{}
 		}
 	}
+
 	// If the ANY names are provided, and the test matches ANY name, include it
 	matchTestNames := len(tm.testNames) == 0
 	for testName := range tm.testNames {
-		if matched, _ := filepath.Match(testName, md.TestCase.Id.Value); matched {
+		// Just match the the name pre " ". We only want to match up to the first given space (for now)
+		tName := getfirstName(testName)
+		if matched, _ := filepath.Match(tName, md.TestCase.Id.Value); matched {
 			matchTestNames = true
 			break
 		}
@@ -80,13 +104,17 @@ func (tm *tagMatcher) match(md *api.TestCaseMetadata) bool {
 
 // MatchedTestsForSuites finds all test metadata that match the specified suites.
 func MatchedTestsForSuites(metadataList []*api.TestCaseMetadata, suites []*api.TestSuite) (tmList []*api.TestCaseMetadata, err error) {
-	tests := make(map[string]struct{})
+	// We will allow one metadata object to point to several tests.
+	// this is for the case where we only know about a module level test, and not the children.
+	tests := make(map[string][]string)
 	var tagMatchers []*tagMatcher
 	for _, s := range suites {
 		tcIds := s.GetTestCaseIds()
 		if tcIds != nil {
 			for _, t := range tcIds.TestCaseIds {
-				tests[t.Value] = struct{}{}
+				// Here is the given name.
+				clean := getfirstName(t.Value)
+				tests[clean] = []string{t.Value}
 			}
 		}
 		criteria := s.GetTestCaseTagCriteria()
@@ -98,9 +126,22 @@ func MatchedTestsForSuites(metadataList []*api.TestCaseMetadata, suites []*api.T
 	defer func() {
 		// Get all the metadata for matched tests.
 		for _, tm := range metadataList {
-			if _, ok := tests[tm.TestCase.Id.Value]; ok {
-				tmList = append(tmList, tm)
-				delete(tests, tm.TestCase.Id.Value)
+			// Here we build up the list from the MD, based on the testMatch
+			if mappedCases, ok := tests[tm.GetTestCase().GetId().GetValue()]; ok {
+				// In the normal case, this is not going to change much (1 request > 1 test)
+				// In the case where several requests come in for 1 known entry, we need to copy the MD
+				// and point the "ID" at the full value.
+				for _, test := range mappedCases {
+					copyRequired := tm.GetTestCase().GetId().GetValue() != test
+					if copyRequired {
+						md := proto.Clone(tm).(*api.TestCaseMetadata)
+						md.TestCase.Id.Value = test
+						tmList = append(tmList, md)
+					} else {
+						tmList = append(tmList, tm)
+					}
+				}
+				delete(tests, tm.GetTestCase().GetId().GetValue())
 			}
 		}
 		if len(tests) > 0 {
@@ -115,18 +156,41 @@ func MatchedTestsForSuites(metadataList []*api.TestCaseMetadata, suites []*api.T
 	if len(tagMatchers) == 0 {
 		return tmList, nil
 	}
+
 	for _, tm := range metadataList {
-		if _, ok := tests[tm.TestCase.Id.Value]; ok {
+		clean := tm.GetTestCase().GetId().GetValue()
+		if _, ok := tests[clean]; ok {
 			// The test has already been included.
 			continue
 		}
 		for _, matcher := range tagMatchers {
-			if matcher.match(tm) {
-				tests[tm.TestCase.Id.Value] = struct{}{}
+			// AL tests can come in like this:
+			// names = ["module1 class1#case1", "module1 class1#case2"], where both can map back to the metadata for just
+			// "module1". Thus we need to keep a map of [module1] = ["module1 class1#case1", "module1 class1#case2"]
+			if ALSpecial(matcher.testNames) {
+				matches := matcher.matchAndreturn(tm)
+				tests[tm.GetTestCase().GetId().GetValue()] = matches
+			} else {
+				if matcher.match(tm) {
+					tests[tm.GetTestCase().GetId().GetValue()] = []string{tm.GetTestCase().GetId().GetValue()}
+				}
 				break
 			}
 		}
 	}
-
 	return tmList, nil
+}
+
+// Get the first name when a name has a " "(space) in it.
+func getfirstName(id string) string {
+	return strings.Split(id, " ")[0]
+}
+
+func ALSpecial(testNames map[string]struct{}) bool {
+	for testName := range testNames {
+		if testName != getfirstName(testName) {
+			return true
+		}
+	}
+	return false
 }

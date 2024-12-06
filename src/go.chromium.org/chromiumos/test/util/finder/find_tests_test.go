@@ -139,6 +139,72 @@ func TestMatchedTestsForSuites(t *testing.T) {
 	}
 }
 
+// TestMatchedTestsForSuites makes sure MatchedTestsForSuites return all expected metadata.
+func TestPartialMatch(t *testing.T) {
+	testMetadataLocal := []*api.TestCaseMetadata{
+		{
+			TestCase: &api.TestCase{
+				Id: &api.TestCase_Id{
+					Value: "tast.test.001",
+				},
+				Name: "test001",
+				Tags: []*api.TestCase_Tag{
+					{Value: "attr1"},
+					{Value: "attr2"},
+				},
+			},
+		},
+		{
+			TestCase: &api.TestCase{
+				Id: &api.TestCase_Id{
+					Value: "tast.test.002",
+				},
+				Name: "test001",
+				Tags: []*api.TestCase_Tag{
+					{Value: "attr1"},
+					{Value: "attr2"},
+				},
+			},
+		},
+	}
+
+	suites := []*api.TestSuite{
+		{
+			Name: "suite1",
+			Spec: &api.TestSuite_TestCaseTagCriteria_{
+				TestCaseTagCriteria: &api.TestSuite_TestCaseTagCriteria{
+					TestNames: []string{"tast.test.001 foo", "tast.test.001 bar", "tast.test.002 bar", "tast.test.003 bar"},
+				},
+			},
+		},
+	}
+	expectedTests := map[string]bool{
+		"tast.test.001 foo": false,
+		"tast.test.001 bar": false,
+		"tast.test.002 bar": false,
+	}
+	matchedMdList, err := MatchedTestsForSuites(testMetadataLocal, suites)
+	if err != nil {
+		t.Fatal("Failed to call MatchedTestsTestsForSuites: ", err)
+	}
+	for _, md := range matchedMdList {
+		found, ok := expectedTests[md.TestCase.Id.Value]
+		if !ok {
+			t.Errorf("Unexpected metadata: %+v", md)
+		}
+		if found {
+			t.Errorf("Duplicate metadata: %+v", md)
+		}
+		expectedTests[md.TestCase.Id.Value] = true
+	}
+
+	for test, found := range expectedTests {
+		if !found {
+			t.Errorf("Failed to find test: %v", test)
+		}
+	}
+}
+
 // TestMatchedTestsForSuitesMissing make sure MatchedTestsForSuite return
 // error when there is missing metadata..
 func TestMatchedTestsForSuitesMissing(t *testing.T) {
@@ -182,7 +248,6 @@ func TestMatchedTestsForTestNameInSuites(t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to call MatchedTestsTestsForSuites: ", err)
 	}
-
 	for _, md := range matchedMdList {
 		found, ok := expectedTests[md.TestCase.Id.Value]
 		if !ok {
@@ -296,7 +361,7 @@ func TestNameMatch(t *testing.T) {
 	md := &api.TestCaseMetadata{
 		TestCase: &api.TestCase{
 			Id: &api.TestCase_Id{
-				Value: "tast.example.Pass",
+				Value: "tast.example",
 			},
 			Name: "test001",
 			Tags: []*api.TestCase_Tag{
@@ -306,9 +371,7 @@ func TestNameMatch(t *testing.T) {
 		},
 	}
 	tm := newTagMatcher(&api.TestSuite_TestCaseTagCriteria{
-		Tags:        []string{"attr1"},
-		TagExcludes: []string{"attr3"},
-		TestNames:   []string{"tast.example*", "tauto.stub_Pass"},
+		TestNames: []string{"tast.example foo#bar", "tast.example foo#bar2"},
 	})
 	if !tm.match(md) {
 		t.Fatal("tagMatcher failed to match a matching test metadata")

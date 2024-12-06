@@ -5,12 +5,13 @@
 package test_finder
 
 import (
-	"go.chromium.org/chromiumos/test/test_finder/centralizedsuite"
 	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"go.chromium.org/chromiumos/test/test_finder/centralizedsuite"
 
 	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -367,6 +368,39 @@ func metadataMapsAreEqual(mapA, mapB map[string]*api.TestCaseMetadata) bool {
 	return true
 }
 
+func TestPartialName(t *testing.T) {
+	metadataList := []*api.TestCaseMetadata{
+		{
+			TestCase: &api.TestCase{
+				Id:   &api.TestCase_Id{Value: "tradefed.cts.demo"},
+				Name: "test001",
+			},
+		},
+	}
+
+	suites := []*api.TestSuite{
+		{
+			Name: "suite1",
+			Spec: &api.TestSuite_TestCaseTagCriteria_{
+				TestCaseTagCriteria: &api.TestSuite_TestCaseTagCriteria{
+					TestNames: []string{"tradefed.cts.demo foo#bar"},
+				},
+			},
+		},
+	}
+
+	expReq := &api.CrosTestFinderRequest{
+		TestSuites: suites}
+	_, b, err := getSelectedTestMetadata(nil, metadataList, expReq)
+	if err != nil {
+		t.Errorf("failed on err: %v", err)
+	}
+
+	g := metadataToTestSuite("foo", b, false)
+	if g.GetTestCases().GetTestCases()[0].GetId().GetValue() != "tradefed.cts.demo foo#bar" {
+		t.Errorf("incorrect name found")
+	}
+}
 func TestGetSelectedTestMetadata(t *testing.T) {
 	suiteSetList := &api.SuiteSetList{
 		SuiteSets: []*api.SuiteSet{
