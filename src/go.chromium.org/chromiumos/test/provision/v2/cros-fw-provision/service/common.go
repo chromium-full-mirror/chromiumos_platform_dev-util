@@ -100,13 +100,11 @@ func RunDUTCommand(ctx context.Context, dut api.DutServiceClient, timeout time.D
 		}
 		stream, err := dut.ExecCommand(ctx, &req)
 		if err != nil {
-			log.Printf("RunDUTCommand FAILED: %s", err)
 			ch <- execCmdResult{err: fmt.Errorf("execution fail: %w", err)}
 			return
 		}
 		// Expecting single stream result
 		execCmdResponse, err := stream.Recv()
-		log.Printf("RunDUTCommand RECV: %s %s\n", execCmdResponse, err)
 		if err != nil {
 			ch <- execCmdResult{err: fmt.Errorf("execution single stream result: %w", err)}
 			return
@@ -114,18 +112,13 @@ func RunDUTCommand(ctx context.Context, dut api.DutServiceClient, timeout time.D
 		if execCmdResponse.ExitInfo.Status != 0 {
 			err = fmt.Errorf("status:%v message:%v", execCmdResponse.ExitInfo.Status, execCmdResponse.ExitInfo.ErrorMessage)
 		}
-		if string(execCmdResponse.Stderr) != "" {
-			log.Printf("execution finished with stderr: %s\n", string(execCmdResponse.Stderr))
-		}
 		ch <- execCmdResult{response: string(execCmdResponse.Stdout), stderr: string(execCmdResponse.Stderr), err: err}
 	}()
 
 	select {
 	case <-ctxTimeout.Done():
-		log.Printf("RunDUTCommand TIMEOUT: %s", timeout)
 		return "", "", fmt.Errorf("timeout %s reached", timeout)
 	case result := <-ch:
-		log.Printf("RunDUTCommand DONE: %s %s %v", result.response, result.stderr, result.err)
 		return result.response, result.stderr, result.err
 	}
 }

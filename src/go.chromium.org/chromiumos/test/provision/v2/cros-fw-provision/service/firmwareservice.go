@@ -657,12 +657,16 @@ with open("`)
 		csmeLockedRe := regexp.MustCompile(`The CSME was already locked`)
 
 		// Poll every 10s for the log file to appear and have the "EXIT CODE:" string in it.
-		for time.Now().Sub(startTime) < 5*time.Minute {
+		for time.Now().Sub(startTime) < 10*time.Minute {
 			time.Sleep(10 * time.Second)
-			buf, err := connection.RunCmd(ctx, "cat", []string{fmt.Sprintf("'%s'", logFile)})
+			catCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+			buf, err := connection.RunCmd(catCtx, "cat", []string{fmt.Sprintf("'%s'", logFile)})
 			if err != nil {
 				log.Printf("failed to download %q: %v", logFile, err)
-				buf, err = connection.RunCmd(ctx, "cat", []string{fmt.Sprintf("'%s'", startupLogFile)})
+				catCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+				defer cancel()
+				buf, err = connection.RunCmd(catCtx, "cat", []string{fmt.Sprintf("'%s'", startupLogFile)})
 				if err != nil {
 					log.Printf("failed to download %q: %v", startupLogFile, err)
 					continue
