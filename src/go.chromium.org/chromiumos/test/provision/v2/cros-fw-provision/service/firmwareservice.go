@@ -834,7 +834,9 @@ func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
 	for _, config := range configYaml.ChromeOS.Configs {
 		// Wilco devices have _signed suffixes on the model name.
 		if config.Name == model || config.Name == model+"_signed" {
-			if sku >= 0 && config.Identity.SKUID >= 0 && config.Identity.SKUID != sku {
+			// Treat config.Identity.SKUID <= 0 as a wildcard that matches any SKU.
+			if sku >= 0 && config.Identity.SKUID > 0 && config.Identity.SKUID != sku {
+				log.Printf("Incorrect SKU: sku=%+v config.Identity.SKUID=%+v", sku, config.Identity.SKUID)
 				continue
 			}
 			log.Printf("config entry: %+v", config)
