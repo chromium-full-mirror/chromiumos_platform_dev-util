@@ -66,8 +66,8 @@ ssh $DUT_HOSTNAME 'for devserver in 192.168.100.1 100.115.168.190 10.128.176.210
 
 Run cros-fw-provision inside chroot
 ```
-FW_IMAGE=$(gsutil ls -l gs://chromeos-image-archive/firmware-{brya,glados,oak,${BOARD?}}*-branch/*/${BOARD?}/firmware_from_source.tar.bz2 | grep -v TOTAL | sort -k2 | tail -1 | awk '{print $3}')
 CACHE_SERVER=192.168.100.1
+FW_IMAGE=$(gsutil ls -l gs://chromeos-image-archive/firmware-{brya,glados,oak,${BOARD?}}*-branch/*/${BOARD?}/firmware_from_source.tar.bz2 | grep -v TOTAL | sort -k2 | tail -1 | awk '{print $3}')
 cat >startup.json <<STARTUP
 {
         "dut": {

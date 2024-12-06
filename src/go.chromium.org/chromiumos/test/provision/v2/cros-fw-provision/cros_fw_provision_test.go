@@ -290,6 +290,9 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		if testCase.configYAML == "" {
 			gomock.InOrder(
 				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "true",
+				}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
 					Command: "crosid",
 				}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
 				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
@@ -310,6 +313,9 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 				t.Fatal("Failed to read config.yaml.tar.gz: ", err)
 			}
 			gomock.InOrder(
+				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+					Command: "true",
+				}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),
 				dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
 					Command: "crosid",
 				}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil),

@@ -242,6 +242,26 @@ func (fws *FirmwareService) GetBoard() string {
 	return fws.board
 }
 
+// WaitForReconnect attempts to ssh to the DUT until it connects
+func (fws *FirmwareService) WaitForReconnect(ctx context.Context) error {
+	// Attempts to run `true` on the DUT over SSH until |reconnectRetries| attempts.
+	const reconnectRetries = 10
+	const reconnectAttemptWait = 10 * time.Second
+	const reconnectFailPause = 10 * time.Second
+	var connectErr error
+	for i := 0; i < reconnectRetries; i++ {
+		reconnectCtx, reconnCancel := context.WithTimeout(ctx, reconnectAttemptWait)
+		defer reconnCancel()
+		_, connectErr = fws.connection.RunCmd(reconnectCtx, "true", nil)
+		if connectErr == nil {
+			return nil
+		}
+		time.Sleep(reconnectFailPause)
+	}
+	log.Printf("Timed out waiting for DUT to connect: %v\n", connectErr)
+	return connectErr
+}
+
 // RestartDut restarts the DUT using one of the available mechanisms.
 // Preferred restart method is to send "power_state:reset" command to servod.
 // If servod restarting failed/not available in the environment,
@@ -249,26 +269,6 @@ func (fws *FirmwareService) GetBoard() string {
 // if |requireServoReset| is false. If |requireServoReset| is True, restart over
 // SSH will not be attempted, and the function will return an error.
 func (fws *FirmwareService) RestartDut(ctx context.Context, requireServoReset bool) error {
-	waitForReconnect := func(conn common_utils.ServiceAdapterInterface) error {
-		// Attempts to run `true` on the DUT over SSH until |reconnectRetries| attempts.
-		const reconnectRetries = 10
-		const reconnectAttemptWait = 10 * time.Second
-		const reconnectFailPause = 10 * time.Second
-		var restartErr error
-		for i := 0; i < reconnectRetries; i++ {
-			reconnectCtx, reconnCancel := context.WithTimeout(ctx, reconnectAttemptWait)
-			defer reconnCancel()
-			_, restartErr = conn.RunCmd(reconnectCtx, "true", nil)
-			if restartErr == nil {
-				log.Println("[FW Provisioning: Restart DUT] reestablished connection to the DUT after restart.")
-				return nil
-			}
-			time.Sleep(reconnectFailPause)
-		}
-		log.Printf("[FW Provisioning: Restart DUT] timed out waiting for DUT to restart: %v\n", restartErr)
-		return restartErr
-	}
-
 	if requireServoReset && fws.servoConnection == nil {
 		return errors.New("servo restart is required but servo connection not available")
 	}
@@ -279,7 +279,7 @@ func (fws *FirmwareService) RestartDut(ctx context.Context, requireServoReset bo
 		if servoRestartErr == nil {
 			if fws.connection != nil {
 				// If SSH connection to DUT was available, wait until it's back up again.
-				return waitForReconnect(fws.connection)
+				return fws.WaitForReconnect(ctx)
 			}
 			waitDuration := 30 * time.Second
 			log.Printf("[FW Provisioning: Restart DUT] waiting for %v for DUT to finish rebooting.\n", waitDuration.String())
@@ -302,7 +302,7 @@ func (fws *FirmwareService) RestartDut(ctx context.Context, requireServoReset bo
 	if fws.connection != nil {
 		log.Printf("[FW Provisioning: Restart DUT] restarting DUT over SSH.")
 		fws.connection.Restart(ctx)
-		return waitForReconnect(fws.connection)
+		return fws.WaitForReconnect(ctx)
 	}
 	return errors.New("failed to restart: no SSH connection to the DUT")
 }
