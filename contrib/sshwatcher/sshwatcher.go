@@ -69,7 +69,9 @@ var fmtString string
 
 func sshConnectionLoop(param hostPortPair, message chan messageType) {
 	const waitBetweenSSHTries = 1 * time.Second
-	const sleepCommand = "sleep 8h" // Command to run on remote host to keep connection.
+	const errorRetriesCountLimit = 60 // Try for 60 seconds and if it doesn't reconnect, something is probably going wrong.
+	const sleepCommand = "sleep 8h"   // Command to run on remote host to keep connection.
+	numRetries := errorRetriesCountLimit
 
 	for {
 		message <- messageType{
@@ -79,7 +81,6 @@ func sshConnectionLoop(param hostPortPair, message chan messageType) {
 		board, osVersion, arcVersion, err := getOsVersion(param.host)
 		if err != nil {
 			time.Sleep(waitBetweenSSHTries)
-			// try again.
 			continue
 		}
 		message <- messageType{
@@ -96,9 +97,22 @@ func sshConnectionLoop(param hostPortPair, message chan messageType) {
 			sleepCommand,
 		}
 		out, err := exec.Command("ssh", arg...).CombinedOutput()
-		message <- messageType{
-			host: param.host,
-			m:    fmt.Sprintf("%-10v\t %-7v\t disconnected with %v (%s)", param.host, param.port, err, out),
+		if err != nil {
+			numRetries = numRetries - 1
+			if numRetries < 0 {
+				message <- messageType{
+					host: param.host,
+					m:    fmt.Sprintf("%-10v\t %-7v\t giving up with %v (%s)", param.host, param.port, err, out),
+				}
+				return
+			} else {
+				message <- messageType{
+					host: param.host,
+					m:    fmt.Sprintf("%-10v\t %-7v\t disconnected with %v (%s)", param.host, param.port, err, out),
+				}
+			}
+		} else {
+			numRetries = errorRetriesCountLimit
 		}
 		time.Sleep(waitBetweenSSHTries)
 	}
