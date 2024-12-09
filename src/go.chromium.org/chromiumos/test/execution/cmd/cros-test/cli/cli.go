@@ -232,6 +232,11 @@ func MainInternal(ctx context.Context) int {
 	case runVersion:
 		log.Printf("executionservice version: %s", Version)
 		return 0
+	case runHelp:
+		log.Printf("cros-test help|cli|server|-version\nRun cli -help or server -help for more information.\n")
+		return 0
+	default:
+		log.Printf("Unknown run mode: %q", runMode)
+		return 1
 	}
-	return 0
 }
