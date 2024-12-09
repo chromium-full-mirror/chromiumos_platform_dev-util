@@ -29,6 +29,7 @@ const (
 	pingRetryDelay  = 2 * time.Second
 	pingRetryCount  = 20
 	networkWaitTime = 1 * time.Minute
+	powerResetDelay = 10 * time.Second
 )
 
 var launchTargetPatterns = []*regexp.Regexp{
@@ -135,7 +136,13 @@ func (s FullOSImageState) handleReboot(ctx context.Context, sshClient *ssh.Clien
 	time.Sleep(10 * time.Second)
 
 	if err := callServodRetry(ctx, log, "power_state", "on", s.params); err != nil {
-		return common_utils.WrapStringInAny("INFRA: unable to set turn on power via servo"), api.InstallResponse_STATUS_PROVISIONING_FAILED, err
+		// reset might be needed if power on failed: b/381982169
+		log.Println("Warning: unable to set turn on power via servo ", err)
+		log.Println("Waiting for 10 seconds before trying power resetting.")
+		time.Sleep(powerResetDelay)
+		if err := callServodRetry(ctx, log, "power_state", "reset", s.params); err != nil {
+			return common_utils.WrapStringInAny("INFRA: unable to reset power via servo"), api.InstallResponse_STATUS_PROVISIONING_FAILED, err
+		}
 	}
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
