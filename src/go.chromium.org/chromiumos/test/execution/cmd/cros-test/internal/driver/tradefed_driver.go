@@ -19,6 +19,7 @@ import (
 	"go.chromium.org/chromiumos/test/util/adb"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
+	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/common"
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
 )
@@ -101,7 +102,7 @@ func detectTestType(tests []*api.TestCaseMetadata) string {
 
 func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestCaseMetadata,
 	serials []string, resultsPath string, metadata *api.ExecutionMetadata, board string, args map[string]string,
-	model string) error {
+	model string, servo *labapi.Servo) error {
 
 	for _, s := range serials {
 		if err := adb.SetupAdb(logger, s); err != nil {
@@ -150,7 +151,7 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 
 	// Using Google TradeFed console for CTS and DTS tests.
 	baseArgs := []string{"run", "commandAndExit"}
-	baseArgs = append(baseArgs, BuildXtsTestCommand(logger, testType, tests, serials, metadata, board, args, model)...)
+	baseArgs = append(baseArgs, BuildXtsTestCommand(logger, testType, tests, serials, metadata, board, args, model, servo)...)
 	cmd = exec.Command(getTradefedBinary(), baseArgs...)
 
 	logger.Println("Running TF: ", cmd.String())
@@ -183,7 +184,8 @@ func (td *TradefedDriver) RunTests(ctx context.Context, resultsDir string, req *
 	_ = runTradefedTest(ctx, td.logger, tests, serials, resultsDir, executionMD,
 		req.GetPrimary().GetDut().GetChromeos().GetDutModel().GetBuildTarget(),
 		args,
-		req.GetPrimary().GetDut().GetChromeos().GetDutModel().GetModelName())
+		req.GetPrimary().GetDut().GetChromeos().GetDutModel().GetModelName(),
+		req.GetPrimary().GetDut().GetChromeos().GetServo())
 	// TODO determine what we want to do with an error _and_ possibly having results
 	// In general I'd say just spit out the results.
 	// One difference between Tast/Autotest and this is that the test case given will likely result in many

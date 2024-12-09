@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
+	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 )
 
 const (
@@ -170,7 +171,8 @@ func extractMetadataFlag(metadata *api.ExecutionMetadata, flagName string) (stri
 }
 
 func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestCaseMetadata,
-	serials []string, metadata *api.ExecutionMetadata, board string, args map[string]string, model string) []string {
+	serials []string, metadata *api.ExecutionMetadata, board string, args map[string]string, model string,
+	servo *labapi.Servo) []string {
 
 	cmd := []string{getTestRunner()}
 
@@ -353,6 +355,14 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 	// Add devices
 	for _, s := range serials {
 		cmd = append(cmd, "-s", s)
+	}
+
+	// Add servod arguments
+	if servo != nil && servo.ServodAddress != nil && servo.ServodAddress.Address != "" && servo.ServodAddress.Port != 0 {
+		cmd = append(cmd,
+			"--cts-params", fmt.Sprintf("--test-arg=com.android.tradefed.testtype.HostTest:set-option:servo_host:%s", servo.ServodAddress.Address),
+			"--cts-params", fmt.Sprintf("--test-arg=com.android.tradefed.testtype.HostTest:set-option:servo_port:%d", servo.ServodAddress.Port),
+		)
 	}
 
 	return cmd
