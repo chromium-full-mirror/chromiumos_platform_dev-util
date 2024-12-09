@@ -577,7 +577,7 @@ func TestValidateXTSArchiverMetadata(t *testing.T) {
 					ResultsGcsPrefix: "results_gcs_prefix",
 					ApfeGcsPrefix:    "apfe_gcs_prefix",
 				},
-				wantErr: fmt.Errorf("Build is required in metadata for XTS archiver"),
+				wantErr: fmt.Errorf("build is required in metadata for XTS archiver"),
 			},
 			{
 				name: "missing results gcs prefix",
@@ -585,7 +585,7 @@ func TestValidateXTSArchiverMetadata(t *testing.T) {
 					Build:         "build",
 					ApfeGcsPrefix: "apfe_gcs_prefix",
 				},
-				wantErr: fmt.Errorf("Results GCS prefix is required in metadata for XTS archiver"),
+				wantErr: fmt.Errorf("results GCS prefix is required in metadata for XTS archiver"),
 			},
 			{
 				name: "missing apfe gcs prefix",

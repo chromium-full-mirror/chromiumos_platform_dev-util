@@ -299,11 +299,11 @@ func isReleaseBuild(build string) bool {
 // validateXTSArchiverMetadata validates XTS archiver metadata.
 func validateXTSArchiverMetadata(metadata *api.XtsArchiverMetadata) error {
 	if metadata.GetBuild() == "" {
-		return fmt.Errorf("Build is required in metadata for XTS archiver")
+		return fmt.Errorf("build is required in metadata for XTS archiver")
 	}
 
 	if metadata.GetResultsGcsPrefix() == "" {
-		return fmt.Errorf("Results GCS prefix is required in metadata for XTS archiver")
+		return fmt.Errorf("results GCS prefix is required in metadata for XTS archiver")
 	}
 
 	if metadata.GetApfeGcsPrefix() == "" {
