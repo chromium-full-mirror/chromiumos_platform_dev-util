@@ -67,15 +67,16 @@ const (
 )
 
 type RdbPublishService struct {
-	RetryCount           int
-	CurrentInvocationId  string
-	TestResultProto      *artifact.TestResult
-	TesthausURL          string
-	TempDirPath          string
-	Sources              *metadata.PublishRdbMetadata_Sources
-	BaseVariant          map[string]string
-	PostProcessResponses *api.RunActivitiesResponse
-	Is3DRun              bool
+	RetryCount                int
+	CurrentInvocationId       string
+	TestResultProto           *artifact.TestResult
+	TesthausURL               string
+	TempDirPath               string
+	Sources                   *metadata.PublishRdbMetadata_Sources
+	BaseVariant               map[string]string
+	PostProcessResponses      *api.RunActivitiesResponse
+	FirmwareProvisionResponse *api.FirmwareProvisionResponse
+	Is3DRun                   bool
 }
 
 // NewRdbPublishService creates a new ResultDB publish service to interact with
@@ -98,6 +99,7 @@ func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
 	// Populate additional info in test results.
 	testResult := m.GetTestResult()
 	postProcessResponses := m.GetPostProcessResponses()
+	fwProvisionResponse := m.GetFirmwareProvisionResponse()
 	is3DRun := req.GetIs_3DRun()
 	if testResult != nil {
 		testInv := testResult.GetTestInvocation()
@@ -105,18 +107,27 @@ func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
 			testInv.Is_3DRun = is3DRun
 		}
 
+		// Fetches the existing build metadata if available in the test result.
+		buildMetadata := testResult.GetTestInvocation().GetPrimaryExecutionInfo().GetBuildInfo().GetBuildMetadata()
+		if buildMetadata == nil {
+			buildMetadata = &artifact.BuildMetadata{}
+			testResult.TestInvocation.PrimaryExecutionInfo.BuildInfo.BuildMetadata = buildMetadata
+		}
+
 		ingestPostProcessResponses(testResult, postProcessResponses)
+		ingestFirmwareProvisionResponse(buildMetadata, fwProvisionResponse)
 	}
 
 	return &RdbPublishService{
-		RetryCount:           retryCount,
-		CurrentInvocationId:  m.GetCurrentInvocationId(),
-		TestResultProto:      testResult,
-		TesthausURL:          m.GetTesthausUrl(),
-		Sources:              m.GetSources(),
-		BaseVariant:          m.GetBaseVariant(),
-		PostProcessResponses: postProcessResponses,
-		Is3DRun:              is3DRun,
+		RetryCount:                retryCount,
+		CurrentInvocationId:       m.GetCurrentInvocationId(),
+		TestResultProto:           testResult,
+		TesthausURL:               m.GetTesthausUrl(),
+		Sources:                   m.GetSources(),
+		BaseVariant:               m.GetBaseVariant(),
+		PostProcessResponses:      postProcessResponses,
+		FirmwareProvisionResponse: fwProvisionResponse,
+		Is3DRun:                   is3DRun,
 	}, nil
 }
 
@@ -375,11 +386,6 @@ func ingestPostProcessResponses(testResult *artifact.TestResult, postProcessResp
 	log.Printf("start to ingest post process responses: %s", postProcessResps)
 
 	buildMetadata := testResult.GetTestInvocation().GetPrimaryExecutionInfo().GetBuildInfo().GetBuildMetadata()
-	if buildMetadata == nil {
-		buildMetadata = &artifact.BuildMetadata{}
-		testResult.TestInvocation.PrimaryExecutionInfo.BuildInfo.BuildMetadata = buildMetadata
-	}
-
 	for _, resp := range postProcessResps.Responses {
 		switch resp.GetResponse().(type) {
 		case *api.RunActivityResponse_GetFwInfoResponse:
@@ -400,6 +406,35 @@ func ingestPostProcessResponses(testResult *artifact.TestResult, postProcessResp
 	log.Printf("successfully ingested post process responses: %s", postProcessResps)
 }
 
+// ingestFirmwareProvisionResponse ingests the response of the firmware
+// provision service into the test result.
+func ingestFirmwareProvisionResponse(buildMetadata *artifact.BuildMetadata, fwProvisionResponse *api.FirmwareProvisionResponse) {
+	if fwProvisionResponse == nil {
+		log.Printf("firmware provision response is empty")
+		return
+	}
+
+	log.Printf("start to ingest firmware provision response: %s", fwProvisionResponse)
+
+	// Fetches the existing firmware info if available in the build metadata.
+	firmware := buildMetadata.GetFirmware()
+	if firmware == nil {
+		firmware = &artifact.BuildMetadata_Firmware{}
+	}
+
+	if fwProvisionResponse.GetApRoVersion() != "" {
+		firmware.ApRoVersion = fwProvisionResponse.GetApRoVersion()
+	}
+
+	if fwProvisionResponse.GetApRwVersion() != "" {
+		firmware.ApRwVersion = fwProvisionResponse.GetApRwVersion()
+	}
+
+	buildMetadata.Firmware = firmware
+
+	log.Printf("successfully populated AP firmware info from firmware provision response: %s", fwProvisionResponse)
+}
+
 // populateFirmwareInfo populates firmware info and kernel version.
 func populateFirmwareInfo(buildMetadata *artifact.BuildMetadata, fwInfoResp *api.GetFWInfoResponse) {
 	if fwInfoResp == nil {
@@ -409,7 +444,12 @@ func populateFirmwareInfo(buildMetadata *artifact.BuildMetadata, fwInfoResp *api
 
 	log.Printf("start to populate firmware info: %s", fwInfoResp)
 
-	firmware := &artifact.BuildMetadata_Firmware{}
+	// Fetches the existing firmware info if available in the build metadata.
+	firmware := buildMetadata.GetFirmware()
+	if firmware == nil {
+		firmware = &artifact.BuildMetadata_Firmware{}
+	}
+
 	if fwInfoResp.GetRoFwid() != "" {
 		firmware.RoVersion = fwInfoResp.GetRoFwid()
 	}

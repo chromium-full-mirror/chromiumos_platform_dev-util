@@ -966,7 +966,13 @@ func TestNewRdbPublishService(t *testing.T) {
 	t.Parallel()
 
 	testResult := &artifact.TestResult{
-		TestInvocation: &artifact.TestInvocation{},
+		TestInvocation: &artifact.TestInvocation{
+			PrimaryExecutionInfo: &artifact.ExecutionInfo{
+				BuildInfo: &artifact.BuildInfo{
+					BuildMetadata: &artifact.BuildMetadata{},
+				},
+			},
+		},
 		TestRuns: []*artifact.TestRun{
 			{
 				TestCaseInfo: &artifact.TestCaseInfo{
@@ -1002,13 +1008,14 @@ func TestNewRdbPublishService(t *testing.T) {
 		req.Metadata, _ = anypb.New(metadata)
 		m, _ := unpackMetadata(req)
 		wantService := &RdbPublishService{
-			CurrentInvocationId:  m.GetCurrentInvocationId(),
-			TestResultProto:      m.GetTestResult(),
-			TesthausURL:          m.GetTesthausUrl(),
-			Sources:              m.GetSources(),
-			BaseVariant:          m.GetBaseVariant(),
-			PostProcessResponses: m.GetPostProcessResponses(),
-			Is3DRun:              req.GetIs_3DRun(),
+			CurrentInvocationId:       m.GetCurrentInvocationId(),
+			TestResultProto:           m.GetTestResult(),
+			TesthausURL:               m.GetTesthausUrl(),
+			Sources:                   m.GetSources(),
+			BaseVariant:               m.GetBaseVariant(),
+			PostProcessResponses:      m.GetPostProcessResponses(),
+			FirmwareProvisionResponse: m.GetFirmwareProvisionResponse(),
+			Is3DRun:                   req.GetIs_3DRun(),
 		}
 
 		gotService, err := NewRdbPublishService(req)
@@ -1070,5 +1077,52 @@ func TestNewRdbPublishService(t *testing.T) {
 
 		So(err, ShouldNotBeNil)
 		So(service, ShouldBeNil)
+	})
+}
+
+func TestIngestFirmwareProvisionResponse(t *testing.T) {
+	t.Parallel()
+
+	Convey("Ingest firmware provision response", t, func() {
+		buildMetadata := &artifact.BuildMetadata{}
+
+		// Create a firmware provision response proto.
+		fwProvisionResponse := &api.FirmwareProvisionResponse{
+			ApRoVersion: "Google_Voema.13672.224.0",
+			ApRwVersion: "Google_Voema.13672.224.1",
+		}
+
+		// Call ingestFirmwareProvisionResponse.
+		ingestFirmwareProvisionResponse(buildMetadata, fwProvisionResponse)
+
+		// Verify that the firmware info is populated correctly.
+		wantFirmware := &artifact.BuildMetadata_Firmware{
+			ApRoVersion: "Google_Voema.13672.224.0",
+			ApRwVersion: "Google_Voema.13672.224.1",
+		}
+		So(buildMetadata.Firmware, ShouldResembleProto, wantFirmware)
+	})
+
+	Convey("Ingest firmware provision response with empty values", t, func() {
+		buildMetadata := &artifact.BuildMetadata{}
+
+		// Create a firmware provision response proto with empty values.
+		fwProvisionResponse := &api.FirmwareProvisionResponse{}
+
+		// Call ingestFirmwareProvisionResponse.
+		ingestFirmwareProvisionResponse(buildMetadata, fwProvisionResponse)
+
+		// Verify that the firmware info is populated correctly.
+		So(buildMetadata.Firmware, ShouldResembleProto, &artifact.BuildMetadata_Firmware{})
+	})
+
+	Convey("Skip if the response is nil", t, func() {
+		buildMetadata := &artifact.BuildMetadata{}
+
+		// Call ingestFirmwareProvisionResponse.
+		ingestFirmwareProvisionResponse(buildMetadata, nil)
+
+		// Verify no value is populated.
+		So(buildMetadata.Firmware, ShouldBeNil)
 	})
 }
