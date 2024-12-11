@@ -6,9 +6,13 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"path/filepath"
+	"time"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/chromiumos/test/post_process/cmd/post-process/common"
 	"go.chromium.org/luci/common/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -16,15 +20,19 @@ import (
 
 // GenericFilterServiceServer ...
 type GenericFilterServiceServer struct {
-	logger       *log.Logger
+	logPath      string
+	name         string
+	serverLogger *log.Logger
 	commonParams *CommonFilterParams
 	executor     func(req *api.InternalTestplan, log *log.Logger, commonParams *CommonFilterParams) (*api.InternalTestplan, error)
 }
 
 // NewServer creates an execution server.
-func NewServer(logger *log.Logger, commonParams *CommonFilterParams, executor func(req *api.InternalTestplan, log *log.Logger, commonParams *CommonFilterParams) (*api.InternalTestplan, error)) (*grpc.Server, func()) {
+func NewServer(logger *log.Logger, logPath, name string, commonParams *CommonFilterParams, executor func(req *api.InternalTestplan, log *log.Logger, commonParams *CommonFilterParams) (*api.InternalTestplan, error)) (*grpc.Server, func()) {
 	s := &GenericFilterServiceServer{
-		logger:       logger,
+		logPath:      logPath,
+		name:         name,
+		serverLogger: logger,
 		commonParams: commonParams,
 		executor:     executor,
 	}
@@ -47,13 +55,25 @@ func NewServer(logger *log.Logger, commonParams *CommonFilterParams, executor fu
 
 // Execute executes s.executor() with the req. The executor method must be provided on startup to NewServer.
 func (s *GenericFilterServiceServer) Execute(ctx context.Context, req *api.InternalTestplan) (*api.InternalTestplan, error) {
-	s.logger.Printf("Received Request: %s", req)
+	t := time.Now()
+	logPath := filepath.Join(s.logPath, req.GetSuiteInfo().GetSuiteRequest().GetTestSuite().GetName(), s.name, t.Format("20060102-150405"))
+	s.serverLogger.Printf("Creating Log File at %s", logPath)
+	logFile, err := common.CreateLogFile(logPath)
+	if err != nil {
+		err = fmt.Errorf("failed to create log file: %s", err)
+		s.serverLogger.Println(err.Error())
+		return req, err
+	}
+	defer logFile.Close()
+	logger := common.NewLogger(logFile)
 
-	rspn, err := s.executor(req, s.logger, s.commonParams)
+	logger.Printf("Received Request: %s", req)
+
+	rspn, err := s.executor(req, logger, s.commonParams)
 	if err != nil {
 		return nil, errors.Annotate(err, "Executor: failed to run").Err()
 	}
-	s.logger.Printf("Execute RPC Command was successful")
+	logger.Printf("Execute RPC Command was successful")
 
 	return rspn, nil
 }

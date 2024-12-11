@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	defaultRootPath       = "/tmp/filters/%s"
+	DefaultLogPath        = "/tmp/filters"
 	TestPlatformFireStore = "test-platform-store"
 )
 
@@ -47,15 +47,14 @@ func startServer(flagSet *flag.FlagSet, executor func(req *api.InternalTestplan,
 	a := args{}
 	commonParams := CommonFilterParams{}
 	t := time.Now()
-	defaultLogPath := filepath.Join(fmt.Sprintf(defaultRootPath, name), t.Format("20060102-150405"))
-	flagSet.StringVar(&a.logPath, "log", defaultLogPath, fmt.Sprintf("Path to record finder logs. Default value is %s", defaultLogPath))
+	flagSet.StringVar(&a.logPath, "log", DefaultLogPath, fmt.Sprintf("Base path to record logs. Default value is %s", DefaultLogPath))
 	flagSet.IntVar(&a.port, "port", defaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", defaultPort))
 	flagSet.StringVar(&commonParams.FirestoreDatabaseName, "firestore", TestPlatformFireStore, fmt.Sprintf("Firestore database name to pull from. Default value is %s", TestPlatformFireStore))
 	flagSet.StringVar(&commonParams.Environment, "env", "prod", "Environment of the run. Default value is prod")
 
 	flagSet.Parse(os.Args[2:])
 
-	logFile, err := common.CreateLogFile(a.logPath)
+	logFile, err := common.CreateLogFile(filepath.Join(a.logPath, name, t.Format("20060102-150405")))
 	if err != nil {
 		return fmt.Errorf("failed to create log file: %s", err)
 	}
@@ -72,7 +71,7 @@ func startServer(flagSet *flag.FlagSet, executor func(req *api.InternalTestplan,
 	if err != nil {
 		return fmt.Errorf("failed to write metadata port: %s", err)
 	}
-	server, closer := NewServer(logger, &commonParams, executor)
+	server, closer := NewServer(logger, a.logPath, name, &commonParams, executor)
 	defer closer()
 
 	err = server.Serve(l)
