@@ -14,5 +14,8 @@ const (
 // ServiceAccountPath specifies the service account key path to be used by staging filter
 func ServiceAccountPath() string {
 	saPath := os.Getenv(ServiceAccountKeyPathEnv)
+	if saPath == "" {
+		saPath = DefaultServiceAccountKeyPath
+	}
 	return saPath
 }

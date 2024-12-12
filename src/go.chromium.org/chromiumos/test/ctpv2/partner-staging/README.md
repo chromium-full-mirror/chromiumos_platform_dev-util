@@ -125,11 +125,11 @@ go test -v go.chromium.org/chromiumos/test/ctpv2/partner-staging
 - Build binary
 - Build docker image:
 ```bash
-docker build --file ../../../chromiumos/test/dockerfiles/partner-staging/Dockerfile -t us-docker.pkg.dev/cros-registry/test-services/partner-staging .
+docker build --file ../../../chromiumos/test/dockerfiles/partner-staging/Dockerfile -t us-docker.pkg.dev/cros-registry/partner-test-services/partner-staging .
 ```
 - Push docker image:
 ```bash
-docker push us-docker.pkg.dev/cros-registry/test-services/partner-staging
+docker push us-docker.pkg.dev/cros-registry/partner-test-services/partner-staging
 ```
 - Get request json from one of the CTPv2 jobs. E.G.:
 ```bash
@@ -147,7 +147,7 @@ led get-build b8731269999534234785 > request.json
         "name": "partner-staging",
         "repository": {
         "hostname": "us-docker.pkg.dev",
-        "project": "cros-registry/test-services"
+        "project": "cros-registry/partner-test-services"
         },
         "tags": [
           "latest"
@@ -162,3 +162,10 @@ led get-build b8731269999534234785 > request.json
 cat request.json | led launch
 ```
 - Check the [logs](https://screenshot.googleplex.com/97rd7jercDAxuHX) of the job.
+
+## Run with docker
+- [Build docker image](#Run-with-LUCI)
+- Run container:
+```bash
+docker run --rm -it -v ~/service_account/chromeos-distributed-fleet-s4p.json:/creds/service_accounts/service-account-chromeos.json -v ~/.cftmeta:/root/.cftmeta -p $SERVICE_PORT:$SERVICE_PORT us-docker.pkg.dev/cros-registry/partner-test-services/partner-staging /usr/bin/partner-staging server --port $SERVICE_PORT
+```

@@ -60,6 +60,7 @@ func StageImageToBucket(ctx context.Context, moblabClient MoblabClient, stageIma
 
 	log.Printf("Staging: %s, Filter: %s\n", artifactName, stageImageParams.BuildType.String())
 	if _, err := moblabClient.StageBuild(ctx, stageReq); err != nil {
+		log.Printf("Failed to stage %s: %v\n", artifactName, err)
 		return err
 	}
 

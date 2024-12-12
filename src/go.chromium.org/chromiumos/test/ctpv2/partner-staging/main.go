@@ -153,10 +153,10 @@ func stageChromeOSBuild(ctx context.Context, moblabClient tools.MoblabClient, bu
 }
 
 // parseChromeOSBuild parses the Chrome OS build string to extract the board and version.
-// The build string is expected to be in the format "{board}-release/{version}".
-// It returns the board and version, and an error if the build string is not formatted correctly.
+// The build string is expected to be in the format "{board}-release/R{milestone}-{release}".
+// It returns the board and release, and an error if the build string is not formatted correctly.
 func parseChromeOSBuild(build string) (string, string, error) {
-	re := regexp.MustCompile(`(.*)-release/R?(\d+.*)`)
+	re := regexp.MustCompile(`(.*)-release/R?(?:\d+-)?(\d+.*)`)
 	matches := re.FindStringSubmatch(build)
 
 	if len(matches) < 3 {
