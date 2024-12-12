@@ -1,0 +1,61 @@
+# Copyright 2024 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+ARG BASE_CONTAINER="."
+FROM ${BASE_CONTAINER}
+
+ARG ARTIFACT_DIR="."
+ARG METADATA_DIR="."
+USER root
+# Install gsutil (Google Cloud Storage utility)
+RUN echo \
+    "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] \
+    http://packages.cloud.google.com/apt cloud-sdk main" | \
+    tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
+    apt-key --keyring /usr/share/keyrings/cloud.google.gpg  \
+    add - && apt-get update -y && apt-get install google-cloud-sdk -y
+
+# Create user 'chromeos-test' and grant privileges
+RUN useradd -m chromeos-test
+RUN echo 'chromeos-test ALL=NOPASSWD:ALL' > /etc/sudoers.d/chromeos-test
+
+# Create group 'nobody'
+RUN groupadd nobody
+
+# Copy 'cros-test' binary
+COPY --chown=chromeos-test:chromeos-test cros-test /usr/bin/
+
+# ###############################################################################
+# Everything above this point should not be changing often (ie not every build)
+# Everything below this point is possible/likely to change per build
+# ###############################################################################
+
+# Install the GRTE binary
+COPY --chown=chromeos-test:chromeos-test ${ARTIFACT_DIR}/grte*.deb /tmp/
+RUN dpkg -i /tmp/grte*.deb && rm /tmp/grte*.deb
+
+# Copy Mobly PAR files
+RUN mkdir -p /usr/local/mobly
+COPY --chown=chromeos-test:chromeos-test ${ARTIFACT_DIR}/*.par /usr/local/mobly/
+
+# Copy metadata files (.txtpb)
+RUN mkdir -p /tmp/test/metadata
+COPY --chown=chromeos-test:chromeos-test ${METADATA_DIR}/*.txtpb /tmp/test/metadata/
+
+# Set permissions and ownership
+RUN chown -R chromeos-test:chromeos-test /usr/local/mobly
+RUN chmod -R 755 /usr/local/mobly
+RUN chown -R chromeos-test:chromeos-test /tmp/test/metadata
+RUN chmod -R 755 /tmp/test/metadata
+RUN chmod -R a+rwx /tradefed
+RUN chown -R chromeos-test:chromeos-test /tradefed
+
+# Switch to 'chromeos-test' user
+USER chromeos-test
+
+# Set environment variables (adjust if needed)
+ENV PATH=/usr/local/mobly:$PATH
+ENV USE_HOST_ADB=true
+ENTRYPOINT []
