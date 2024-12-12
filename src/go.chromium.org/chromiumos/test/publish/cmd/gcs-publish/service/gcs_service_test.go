@@ -15,13 +15,15 @@ import (
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/mock_storage"
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
+	"go.chromium.org/luci/common/clock/testclock"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestArchiveXTSResults(t *testing.T) {
-	Convey("Test ArchiveXTSResults", t, func() {
+	Convey("Test ArchiveXTSResults with ChromeOS result", t, func() {
 		ctx := context.Background()
+		ctx, _ = testclock.UseTime(ctx, testclock.TestTimeUTC)
 		mockCtrl := gomock.NewController(t)
 		defer mockCtrl.Finish()
 
@@ -100,5 +102,49 @@ func TestArchiveXTSResults(t *testing.T) {
 
 			})
 		}
+	})
+
+	Convey("Test ArchiveXTSResults with AL result", t, func() {
+		ctx := context.Background()
+		ctx, _ = testclock.UseTime(ctx, testclock.TestTimeUTC)
+		mockCtrl := gomock.NewController(t)
+		defer mockCtrl.Finish()
+
+		mockStorage := mock_storage.NewMockStorageClientInterface(mockCtrl)
+		gsClient := storage.NewGSTestClient(mockStorage)
+		tempDir := t.TempDir()
+		resultDir := filepath.Join(tempDir, "test_prefix", "cros-test", "results", "tradefed")
+		gs := &GcsPublishService{
+			Client:                      gsClient,
+			LocalArtifactPath:           tempDir,
+			ServiceAccountCredsFilePath: "/path/to/credentials",
+			XtsArchiverMetadata: &api.XtsArchiverMetadata{
+				AlRun:                true,
+				ApfeGcsPrefix:        "gs://apfe-bucket",
+				ResultsGcsPrefix:     "gs://result-bucket",
+				Build:                "brya-release/R100-14543.0.0",
+				Product:              "brya.brya",
+				ParentSwarmingTaskId: "parent_job_id",
+			},
+		}
+		wantMockCalls := []*gomock.Call{
+			mockStorage.EXPECT().Write(
+				gomock.Any(), filepath.Join(resultDir, "test_result.xml.gz"),
+				storage.GSObject{
+					Bucket: "result-bucket",
+					Object: fmt.Sprintf("al_project/tradefed_%s/test_result.xml.gz", testclock.TestTimeUTC.Format(AL_PACKAGE_TIMESTAMP_FORMAT)),
+				}).Return(nil)}
+
+		if err := os.MkdirAll(resultDir, 0755); err != nil {
+			t.Fatalf("failed to create directory structure for file: %v", err)
+		}
+		resultPath := filepath.Join(resultDir, "test_result.xml")
+		createFile(t, resultPath)
+		defer os.RemoveAll(resultDir)
+
+		err := gs.ArchiveXTSResults(ctx)
+
+		So(err, ShouldBeNil)
+		gomock.InOrder(wantMockCalls...)
 	})
 }

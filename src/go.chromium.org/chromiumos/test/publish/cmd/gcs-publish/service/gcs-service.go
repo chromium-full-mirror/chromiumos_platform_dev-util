@@ -15,6 +15,7 @@ import (
 	"go.chromium.org/chromiumos/test/publish/cmd/publishserver/storage"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/luci/common/clock"
 )
 
 type GcsPublishService struct {
@@ -95,8 +96,9 @@ func (gs *GcsPublishService) ArchiveXTSResults(ctx context.Context) error {
 	}
 
 	var infos []ArchiveInfo
+	now := clock.Now(ctx).UTC()
 	for _, dir := range dirs {
-		archiveInfos, err := archiveInfo(dir, gs.XtsArchiverMetadata)
+		archiveInfos, err := archiveInfo(dir, gs.XtsArchiverMetadata, now)
 		if err != nil {
 			fmt.Printf("Error in archive info for dir %s: %s", dir, err)
 			continue

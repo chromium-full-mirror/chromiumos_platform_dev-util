@@ -15,10 +15,13 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"go.chromium.org/luci/common/clock/testclock"
 )
 
 func TestArchiveInfos(t *testing.T) {
 	Convey("Test archive info", t, func() {
+		now := testclock.TestTimeUTC
+		nowStr := now.Format(AL_PACKAGE_TIMESTAMP_FORMAT)
 		tempDir := t.TempDir()
 		testCases := []struct {
 			name             string
@@ -94,6 +97,28 @@ func TestArchiveInfos(t *testing.T) {
 				},
 			},
 			{
+				name:          "success with AL run",
+				rootDir:       filepath.Join(tempDir, "cros-test", "result", "tradefed"),
+				resultFileDir: filepath.Join(tempDir, "cros-test", "result", "tradefed"),
+				metadata: &api.XtsArchiverMetadata{
+					AlRun:                true,
+					ApfeGcsPrefix:        "gs://apfe-bucket",
+					ResultsGcsPrefix:     "gs://result-bucket",
+					Build:                "brya-release/R100-14543.0.0",
+					Product:              "brya.brya",
+					ParentSwarmingTaskId: "parent_job_id",
+				},
+				createResultFile: true,
+				createZipFile:    true,
+				wantInstr: []ArchiveInfo{
+					{
+						Name:        fmt.Sprintf("results:al_project/tradefed_%s", nowStr),
+						Source:      filepath.Join(tempDir, "cros-test", "result", "tradefed", "test_result.xml.gz"),
+						Destination: fmt.Sprintf("gs://result-bucket/al_project/tradefed_%s/", nowStr),
+					},
+				},
+			},
+			{
 				name:    "non-release build",
 				rootDir: tempDir,
 				metadata: &api.XtsArchiverMetadata{
@@ -129,7 +154,7 @@ func TestArchiveInfos(t *testing.T) {
 				}
 				defer os.RemoveAll(tc.resultFileDir)
 
-				instr, err := archiveInfo(tc.rootDir, tc.metadata)
+				instr, err := archiveInfo(tc.rootDir, tc.metadata, now)
 
 				if tc.wantErr != nil {
 					So(err, ShouldResemble, tc.wantErr)
@@ -144,6 +169,8 @@ func TestArchiveInfos(t *testing.T) {
 
 func TestArchiveInfoForTest(t *testing.T) {
 	Convey("Test archive info for test", t, func() {
+		now := testclock.TestTimeUTC
+		nowStr := now.Format(AL_PACKAGE_TIMESTAMP_FORMAT)
 		tempDir := t.TempDir()
 		testCases := []struct {
 			name             string
@@ -209,7 +236,7 @@ func TestArchiveInfoForTest(t *testing.T) {
 			},
 			{
 				name:           "isALRun, skip apfe upload",
-				resultDir:      filepath.Join(tempDir, "tauto", "results-1-cheets_CTS_12.android.api", "cheets_CTS.android.dpi", "results", "cts-results", "2024.11.17_15.15.51.364_5161"),
+				resultDir:      filepath.Join(tempDir, "tradefed"),
 				resultFilename: "test_result.xml",
 				metadata: &api.XtsArchiverMetadata{
 					ApfeGcsPrefix:        "gs://apfe-bucket",
@@ -223,9 +250,9 @@ func TestArchiveInfoForTest(t *testing.T) {
 				createResultFile: true,
 				wantInstr: []ArchiveInfo{
 					{
-						Name:        "results:cheets_CTS.android.dpi/tauto_2024.11.17_15.15.51.364_5161",
-						Source:      filepath.Join(tempDir, "tauto", "results-1-cheets_CTS_12.android.api", "cheets_CTS.android.dpi", "results", "cts-results", "2024.11.17_15.15.51.364_5161", "test_result.xml.gz"),
-						Destination: "gs://result-bucket/cheets_CTS.android.dpi/tauto_2024.11.17_15.15.51.364_5161/",
+						Name:        fmt.Sprintf("results:al_project/tradefed_%s", nowStr),
+						Source:      filepath.Join(tempDir, "tradefed", "test_result.xml.gz"),
+						Destination: fmt.Sprintf("gs://result-bucket/al_project/tradefed_%s/", nowStr),
 					},
 				},
 			},
@@ -282,7 +309,7 @@ func TestArchiveInfoForTest(t *testing.T) {
 				}
 				defer os.RemoveAll(tc.resultDir)
 
-				instr, err := archiveInfoForTest(tc.resultDir, []string{tc.resultFilename}, tc.metadata)
+				instr, err := archiveInfoForTest(tc.resultDir, []string{tc.resultFilename}, tc.metadata, now)
 
 				if tc.wantError != nil {
 					So(err, ShouldResemble, tc.wantError)
@@ -455,9 +482,11 @@ func TestResultsInfo(t *testing.T) {
 
 func TestParseJobResultsFilePath(t *testing.T) {
 	Convey("Test parse job results filepath", t, func() {
+		now := testclock.TestTimeUTC
 		testCases := []struct {
 			name        string
 			path        string
+			isALRun     bool
 			wantHarness string
 			wantPkg     string
 			wantTs      string
@@ -475,11 +504,25 @@ func TestParseJobResultsFilePath(t *testing.T) {
 				path:      "cros-test/results/tauto/results-1-cheets_GTS_12.internal.all.WvtsDeviceTestCases",
 				wantError: fmt.Errorf("invalid tauto path: cros-test/results/tauto/results-1-cheets_GTS_12.internal.all.WvtsDeviceTestCases"),
 			},
+			{
+				name:        "tradefed path",
+				path:        "/cros-test/results/tradefed",
+				isALRun:     true,
+				wantHarness: "tradefed",
+				wantPkg:     AL_PROJECT_PREFIX,
+				wantTs:      now.Format(AL_PACKAGE_TIMESTAMP_FORMAT),
+			},
+			{
+				name:      "invalid tradefed path: empty",
+				path:      "",
+				isALRun:   true,
+				wantError: fmt.Errorf("invalid tradefed path: "),
+			},
 		}
 
 		for _, tc := range testCases {
 			Convey(tc.name, func() {
-				harness, packageName, timestamp, err := parseJobResultsFilePath(tc.path)
+				harness, packageName, timestamp, err := parseJobResultsFilePath(tc.path, tc.isALRun, now)
 
 				if tc.wantError != nil {
 					So(err, ShouldResemble, tc.wantError)
