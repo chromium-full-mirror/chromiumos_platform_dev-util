@@ -31,9 +31,10 @@ const (
 	tradefedGlobalLogs   = "tradefed_global_log_*.txt"
 )
 
-// List of xTS test suites supported by this driver.
+// List of xTS & non-xTS test suites supported by this driver.
 // Not all suites are supported for each Tradefed type.
-var knownSuites = []string{"cts", "dts", "gts", "vts"}
+var knownSuites = []string{"cts", "dts", "gts", "vts", "general"}
+var nonXtsSuites = []string{"general"}
 
 var testType = "cts"
 var tradefedType = "aosp"
@@ -80,18 +81,27 @@ func isTestTypeSupported(test string) bool {
 	return false
 }
 
+func isNonXtsTest(testType string) bool {
+	for _, suite := range nonXtsSuites {
+		if testType == suite {
+			return true
+		}
+	}
+	return false
+}
+
 func detectTestType(tests []*api.TestCaseMetadata) string {
 	for _, test := range tests {
 		testName := test.GetTestCase().GetName()
 		// Check for test name prefix, i.e. "xts.TestModule"
-		if len(testName) > 4 && string(testName[3]) == "." && isTestTypeSupported(testName) {
-			return testName[:3]
+		if strings.Index(testName, ".") > 1 && isTestTypeSupported(testName) {
+			return testName[:strings.Index(testName, ".")]
 		}
 		// Check for suite tags, i.e. "suite:xts"
 		for _, tag := range test.GetTestCase().GetTags() {
 			tagVal := tag.GetValue()
-			if strings.HasPrefix(tagVal, "suite:") && isTestTypeSupported(tagVal[6:9]) {
-				return tagVal[6:9]
+			if strings.HasPrefix(tagVal, "suite:") && isTestTypeSupported(tagVal[6:]) {
+				return tagVal[6:]
 			}
 		}
 	}
@@ -151,7 +161,13 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 
 	// Using Google TradeFed console for CTS and DTS tests.
 	baseArgs := []string{"run", "commandAndExit"}
-	baseArgs = append(baseArgs, BuildXtsTestCommand(logger, testType, tests, serials, metadata, board, args, model, servo)...)
+	if isNonXtsTest(testType) {
+		baseArgs = append(baseArgs, BuildNonXtsTestCommand(logger, testType, tests,
+			serials, metadata, board, args, model, servo)...)
+	} else {
+		baseArgs = append(baseArgs, BuildXtsTestCommand(logger, testType, tests,
+			serials, metadata, board, args, model, servo)...)
+	}
 	cmd = exec.Command(getTradefedBinary(), baseArgs...)
 
 	logger.Println("Running TF: ", cmd.String())

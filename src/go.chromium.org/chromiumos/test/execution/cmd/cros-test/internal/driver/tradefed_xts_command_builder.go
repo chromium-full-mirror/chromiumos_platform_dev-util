@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -17,62 +16,11 @@ import (
 )
 
 const (
-	planMetadataFlag     = "plan"
-	tfGoogleTestRunner   = "google/cts/google-cts-launcher-for-aosp"
-	tfAospTestRunner     = "common-compatibility-config"
-	invocationTimeout    = "18h"
-	maxRuntime           = "18h"
-	retryFailedRuns      = true
-	resultsUpload        = true
-	defaultGlobalLogPath = "/tmp"
-	GIT_MAIN_AL_DEV      = "git_main-al-dev"
-	GIT_MAIN             = "git_main"
-	DTS                  = "dts"
-	tfprefix             = "tradefed."
+	planMetadataFlag   = "plan"
+	tfGoogleTestRunner = "google/cts/google-cts-launcher-for-aosp"
+	tfAospTestRunner   = "common-compatibility-config"
+	DTS                = "dts"
 )
-
-var ctsSkipDownloadArtifacts = []string{"TESTS_ZIP", "DEVICE_IMAGE", "BASEBAND"}
-
-// TODO: find better way to discover or pass in board's architecture.
-var armBoards = []string{"corsola"}
-
-func getArchFromBoard(targetBoard string) string {
-	arch := "x86"
-	for _, board := range armBoards {
-		if strings.Contains(strings.ToLower(targetBoard), board) {
-			arch = "arm"
-		}
-	}
-	return arch
-}
-
-func extractBuildInfoFromExecutionMetadata(metadata *api.ExecutionMetadata) (branch string, target string, build string) {
-	if branchFlag, err := extractMetadataFlag(metadata, "branch"); err == nil {
-		branch = branchFlag
-	}
-	if targetFlag, err := extractMetadataFlag(metadata, "build_flavor"); err == nil {
-		target = targetFlag
-	}
-	if buildIdFlag, err := extractMetadataFlag(metadata, "build_id"); err == nil {
-		build = buildIdFlag
-	}
-
-	return
-}
-
-func extractTestInfoFromExecutionMetadata(metadata *api.ExecutionMetadata) (branch string, target string, build string) {
-	if branchFlag, err := extractMetadataFlag(metadata, "extra_branch"); err == nil {
-		branch = branchFlag
-	}
-	if targetFlag, err := extractMetadataFlag(metadata, "extra_build_flavor"); err == nil {
-		target = targetFlag
-	}
-	if buildIdFlag, err := extractMetadataFlag(metadata, "extra_build"); err == nil {
-		build = buildIdFlag
-	}
-
-	return
-}
 
 // Ensure the metadata is correct. This is only needed for some backwards compatibility with configs
 func validPlan(branch string, target string, build string, plan string) bool {
@@ -102,72 +50,12 @@ func extractBuildInfo(test *api.TestCase, metadata *api.ExecutionMetadata, board
 
 }
 
-func extractBuildInfoFromTest(test *api.TestCase, metadata *api.ExecutionMetadata, board string) (branch string, target string, build string) {
-	for _, t := range test.Tags {
-		if strings.HasPrefix(t.Value, "target_build=") {
-			tags := strings.Split(strings.TrimPrefix(t.Value, "target_build="), ",")
-			var targetCandidate, buildCandidate, abi string
-			for _, tag := range tags {
-				if strings.HasPrefix(tag, "target:") {
-					targetCandidate = strings.TrimPrefix(tag, "target:")
-				}
-				if strings.HasPrefix(tag, "build_id:") {
-					buildCandidate = strings.TrimPrefix(tag, "build_id:")
-				}
-				if strings.HasPrefix(tag, "abi:") {
-					abi = strings.TrimPrefix(tag, "abi:")
-				}
-			}
-			if abi != "" && strings.Contains(abi, getArchFromBoard(board)) {
-				build = buildCandidate
-				target = targetCandidate
-			}
-		}
-		if strings.HasPrefix(t.Value, "branch:") {
-			branch = strings.TrimPrefix(t.Value, "branch:")
-		}
-		if strings.HasPrefix(t.Value, "target:") && strings.Contains(t.Value, getArchFromBoard(board)) && target == "" {
-			target = strings.TrimPrefix(t.Value, "target:")
-		}
-		if strings.HasPrefix(t.Value, "build_id:") && build == "" {
-			if getArchFromBoard(board) == "arm" && branch == "git_main" {
-				build = "12681648"
-			} else {
-				build = strings.TrimPrefix(t.Value, "build_id:")
-			}
-		}
-	}
-	return
-}
-
 func getTestRunner() string {
 	if isAospTradefed() {
 		return tfAospTestRunner
 	} else {
 		return tfGoogleTestRunner
 	}
-}
-
-func formatTestName(fqTestName string) string {
-	testName := fqTestName
-	testName = strings.TrimPrefix(testName, tfprefix)
-	// First, trim test suite prefix for all known suites.
-	for _, suite := range knownSuites {
-		testName = strings.TrimPrefix(testName, suite+".")
-	}
-	// We do not need to strip any other info as we force the naming schema via test-finder.
-	return fmt.Sprintf("\"%s\"", testName)
-}
-
-func extractMetadataFlag(metadata *api.ExecutionMetadata, flagName string) (string, error) {
-	if metadata != nil && len(metadata.Args) > 0 {
-		for _, arg := range metadata.Args {
-			if arg.Flag == flagName {
-				return arg.Value, nil
-			}
-		}
-	}
-	return "", fmt.Errorf("flag %s for found in test metadata", flagName)
 }
 
 func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestCaseMetadata,
@@ -232,71 +120,11 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 		}
 
 		// Adding a list of artifacts to skip downloading by the CTS runner.
-		for _, artifact := range ctsSkipDownloadArtifacts {
+		for _, artifact := range skipDownloadArtifacts {
 			cmd = append(cmd, "--skip-download", artifact)
 		}
 
-		uploadToAnts := true
-		if skipAntsUploadFlag, err := extractMetadataFlag(metadata, "skip_ants_upload"); err == nil {
-			logger.Printf("Skip upload to AnTS: %s", skipAntsUploadFlag)
-			if b, err := strconv.ParseBool(skipAntsUploadFlag); err == nil && b {
-				uploadToAnts = false
-			}
-		}
-
-		if resultsUpload && uploadToAnts {
-			cmd = append(cmd, "--ants-result-reporter:create-local-invocation",
-				"--ants-result-reporter:save-metric-file")
-
-			// Extract AnTS invocation id and WorkUnit ID from execution metadata.
-			if AnTsInvID, err := extractMetadataFlag(metadata, "ants_invocation_id"); err == nil {
-				cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation_id=%s", AnTsInvID))
-				logger.Printf("Got invocation id: %s", AnTsInvID)
-			}
-			if AnTsWorkUnitID, err := extractMetadataFlag(metadata, "ants_work_unit_id"); err == nil {
-				cmd = append(cmd, "--invocation-data", fmt.Sprintf("work_unit_id=%s", AnTsWorkUnitID))
-				logger.Printf("Got work unit id: %s", AnTsWorkUnitID)
-			}
-			if atpName, err := extractMetadataFlag(metadata, "atp_test_name"); err == nil {
-				cmd = append(cmd, "--invocation-data", fmt.Sprintf("atp_test_name=%s", atpName))
-				logger.Printf("Got ATP test name: %s", atpName)
-			}
-			value, ok := args["crystalball_ingest"]
-			if ok {
-				if strings.ToLower(value) == "true" {
-					cmd = append(cmd, "--invocation-data", "invocation-property=crystalball_ingest:yes")
-					cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation-property=run_target:%s_%s", board, model))
-				}
-			}
-
-			// Also allow the flag to be passed in directly through the args.
-			for k, v := range args {
-				if k == "invocation-data" {
-					cmd = append(cmd, fmt.Sprintf("--%s", k), v)
-					cmd = append(cmd, "--invocation-data", fmt.Sprintf("invocation-property=run_target:%s_%s", board, model))
-
-				}
-			}
-			extra_branch, _ := extractMetadataFlag(metadata, "extra_branch")
-			extra_target, _ := extractMetadataFlag(metadata, "extra_target")
-			extra_build, _ := extractMetadataFlag(metadata, "extra_build")
-			if extra_branch != "" && extra_target != "" && extra_build != "" {
-				extraBuilds := fmt.Sprintf(`extra_builds=[{"build_id": "%s",`+
-					`"build_target": "%s", "build_flavor": "%s", "build_platform": "linux",`+
-					`"build_type": null, "branch": "%s", "build_alias": null, "attempt_id":`+
-					`"latest", "build_os": "linux"}]`, extra_build, extra_target,
-					extra_target, extra_branch)
-				cmd = append(cmd, "--invocation-data", extraBuilds)
-			}
-		}
-
-		if envName, err := extractMetadataFlag(metadata, "android-build-environment"); err == nil {
-			cmd = append(cmd, "--invocation-data", fmt.Sprintf("android-build-environment=%s", envName))
-			logger.Printf("Got Android build environment: %s", envName)
-		} else {
-			// Use production build env as default, if not specified otherwise.
-			cmd = append(cmd, "--invocation-data", "android-build-environment=prod")
-		}
+		cmd = append(cmd, buildResultReportingArgs(logger, metadata, args, board, model)...)
 	}
 
 	if retryFailedRuns {
