@@ -10,9 +10,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/luci/common/errors"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // RunCli runs publish service as execution by CLI.
@@ -66,9 +66,10 @@ func (s *PublishService) saveCliOutput(outputPath string, out *api.CrosPublishRe
 	}
 	defer w.Close()
 
-	marshaler := jsonpb.Marshaler{}
-	if err := marshaler.Marshal(w, out); err != nil {
+	if json, err := protojson.Marshal(out); err != nil {
 		return errors.Annotate(err, "Save output for CLI: failed to marshal output").Err()
+	} else {
+		w.Write(json)
 	}
 
 	s.logger.Printf("Successfully wrote response to the output file: %s\n", outputPath)

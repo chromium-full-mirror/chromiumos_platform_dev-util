@@ -11,11 +11,11 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/golang/protobuf/jsonpb"
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	lab "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"go.chromium.org/chromiumos/test/local-cft/internal/utils"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -186,9 +186,7 @@ func (starter *SetupCrosProvision) createProvisionMetadata() error {
 		},
 	}
 
-	marshaler := jsonpb.Marshaler{}
-
-	metaDataJson, err := marshaler.MarshalToString(metadata)
+	metaDataJson, err := protojson.Marshal(metadata)
 	if err != nil {
 		return fmt.Errorf("failed to marshal provision request, %s", err)
 	}

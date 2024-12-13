@@ -13,8 +13,8 @@ import (
 
 	"go.chromium.org/chromiumos/test/test_finder/centralizedsuite"
 
-	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -47,8 +47,7 @@ func TestReadInput(t *testing.T) {
 		},
 	}
 
-	m := jsonpb.Marshaler{}
-	encodedData, err := m.MarshalToString(expReq)
+	encodedData, err := protojson.Marshal(expReq)
 	if err != nil {
 		t.Fatal("Failed to marshall request")
 	}
@@ -59,7 +58,7 @@ func TestReadInput(t *testing.T) {
 
 	defer os.RemoveAll(td)
 	fn := filepath.Join(td, "t.json")
-	if err := ioutil.WriteFile(fn, []byte(encodedData), 0644); err != nil {
+	if err := ioutil.WriteFile(fn, encodedData, 0644); err != nil {
 		t.Fatalf("Failed to write file %v: %v", fn, err)
 	}
 	req, err := readInput(fn)
@@ -98,12 +97,12 @@ func TestWriteOutput(t *testing.T) {
 	if err := writeOutput(fn, &expectedRspn); err != nil {
 		t.Fatalf("Failed to write file %v: %v", fn, err)
 	}
-	f, err := os.Open(fn)
+	f, err := os.ReadFile(fn)
 	if err != nil {
 		t.Fatalf("Failed to read response from file %v: %v", fn, err)
 	}
 	rspn := api.CrosTestFinderResponse{}
-	if err := jsonpb.Unmarshal(f, &rspn); err != nil {
+	if err := protojson.Unmarshal(f, &rspn); err != nil {
 		t.Fatalf("Failed to unmarshall data from file %v: %v", fn, err)
 	}
 

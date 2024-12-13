@@ -12,9 +12,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
 	buildapi "go.chromium.org/chromiumos/config/go/build/api"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -251,11 +251,8 @@ func (starter *SetupCTR) fetchImageData() error {
 		return err
 	}
 
-	reader := strings.NewReader(string(catOut))
-
 	metadata := &buildapi.ContainerMetadata{}
-	unmarshaler := jsonpb.Unmarshaler{}
-	unmarshaler.Unmarshal(reader, metadata)
+	protojson.Unmarshal(catOut, metadata)
 	starter.ctr.manager.images = metadata.Containers[starter.ctr.manager.Board].Images // Add to Manager
 
 	return nil

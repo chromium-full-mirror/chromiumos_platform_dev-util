@@ -14,9 +14,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/lab/api"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func getTopology(t *testing.T, options *Options) *api.DutTopology {
@@ -82,8 +82,8 @@ func TestInventoryServer_DutAddressOption(t *testing.T) {
 func TestInventoryServer_DutTopologyConfigOption(t *testing.T) {
 	dutAddress := "fake-hostname"
 	tmpFile, _ := ioutil.TempFile(os.TempDir(), "fakeduttopoconfig-")
-	marshal := &jsonpb.Marshaler{EmitDefaults: true, Indent: "  "}
-	jsonOutput, _ := marshal.MarshalToString(&api.DutTopology{
+	marshal := &protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
+	dutTopoConfig, _ := marshal.Marshal(&api.DutTopology{
 		Duts: []*api.Dut{
 			{
 				DutType: &api.Dut_Chromeos{
@@ -97,7 +97,6 @@ func TestInventoryServer_DutTopologyConfigOption(t *testing.T) {
 		},
 	})
 
-	dutTopoConfig := []byte(jsonOutput)
 	tmpFile.Write(dutTopoConfig)
 	tmpFile.Close()
 

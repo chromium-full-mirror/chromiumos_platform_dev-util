@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"go.chromium.org/chromiumos/config/go/test/api"
+	"google.golang.org/protobuf/proto"
 )
 
 // TestReadDir makes to ReadDir read all metadata files in a directory without errors.

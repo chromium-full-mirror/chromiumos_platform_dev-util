@@ -19,8 +19,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/grpc"
@@ -141,9 +141,10 @@ func saveCLIOutput(outputPath string, out *api.CrosProvisionResponse) error {
 		}
 		defer w.Close()
 
-		marshaler := jsonpb.Marshaler{}
-		if err := marshaler.Marshal(w, out); err != nil {
+		if json, err := protojson.Marshal(out); err != nil {
 			return fmt.Errorf("save output: failed to marshal output")
+		} else {
+			w.Write(json)
 		}
 	}
 	return nil

@@ -9,10 +9,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"go.chromium.org/luci/common/errors"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // runCLI runs provision as execution by CLI.
@@ -54,9 +54,10 @@ func saveCLIOutput(outputPath string, out *api.CrosProvisionResponse) error {
 		}
 		defer w.Close()
 
-		marshaler := jsonpb.Marshaler{}
-		if err := marshaler.Marshal(w, out); err != nil {
+		if json, err := protojson.Marshal(out); err != nil {
 			return errors.Annotate(err, "save output: failed to marshal output").Err()
+		} else {
+			w.Write(json)
 		}
 	}
 	return nil

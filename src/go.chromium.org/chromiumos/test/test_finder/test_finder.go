@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"golang.org/x/exp/maps"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"go.chromium.org/chromiumos/test/execution/errors"
 	"go.chromium.org/chromiumos/test/test_finder/centralizedsuite"
@@ -64,15 +64,13 @@ func newLogger(logFile *os.File) *log.Logger {
 
 // readInput reads a CrosTestFinderRequest jsonproto file and returns a pointer to RunTestsRequest.
 func readInput(fileName string) (*api.CrosTestFinderRequest, error) {
-	f, err := os.Open(fileName)
+	f, err := os.ReadFile(fileName)
 	if err != nil {
 		return nil, errors.NewStatusError(errors.IOAccessError,
 			fmt.Errorf("fail to read file %v: %v", fileName, err))
 	}
 	req := api.CrosTestFinderRequest{}
-	umrsh := jsonpb.Unmarshaler{}
-	umrsh.AllowUnknownFields = true
-	if err := umrsh.Unmarshal(f, &req); err != nil {
+	if err := protojson.Unmarshal(f, &req); err != nil {
 		return nil, errors.NewStatusError(errors.UnmarshalError,
 			fmt.Errorf("fail to unmarshal file %v: %v", fileName, err))
 	}
@@ -86,10 +84,11 @@ func writeOutput(output string, resp *api.CrosTestFinderResponse) error {
 		return errors.NewStatusError(errors.IOCreateError,
 			fmt.Errorf("fail to create file %v: %v", output, err))
 	}
-	m := jsonpb.Marshaler{}
-	if err := m.Marshal(f, resp); err != nil {
+	if json, err := protojson.Marshal(resp); err != nil {
 		return errors.NewStatusError(errors.MarshalError,
 			fmt.Errorf("failed to marshall response to file %v: %v", output, err))
+	} else {
+		f.Write(json)
 	}
 	return nil
 }

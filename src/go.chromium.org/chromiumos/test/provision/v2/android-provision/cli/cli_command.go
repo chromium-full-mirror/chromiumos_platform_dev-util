@@ -14,11 +14,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/common"
 	"go.chromium.org/chromiumos/test/provision/v2/android-provision/service"
@@ -195,9 +195,10 @@ func (cc *CLICommand) saveResponse(out *api.AndroidProvisionCLIResponse) error {
 		}
 		defer w.Close()
 
-		m := jsonpb.Marshaler{}
-		if err := m.Marshal(w, out); err != nil {
+		if json, err := protojson.Marshal(out); err != nil {
 			return fmt.Errorf("save output: failed to marshal output")
+		} else {
+			w.Write(json)
 		}
 	}
 	return nil

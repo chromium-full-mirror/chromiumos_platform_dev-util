@@ -6,16 +6,15 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"io/ioutil"
 	"log"
 	"net"
 
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
 	"go.chromium.org/chromiumos/config/go/test/lab/api"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // InventoryServer implementation of inventory_service.proto
@@ -39,7 +38,7 @@ func readJsonpb(path string, m proto.Message) error {
 	if err != nil {
 		return err
 	}
-	return jsonpb.Unmarshal(bytes.NewReader(b), m)
+	return protojson.Unmarshal(b, m)
 }
 
 // newInventoryServer creates a new inventory service server to listen to rpc requests.

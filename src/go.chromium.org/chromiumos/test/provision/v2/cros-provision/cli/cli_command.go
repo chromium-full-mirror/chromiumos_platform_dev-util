@@ -19,11 +19,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var statusToResult = map[api.InstallResponse_Status]api.InstallFailure_Reason{
@@ -173,11 +173,11 @@ func saveCLIOutput(outputPath string, out *api.CrosProvisionResponse, log *log.L
 		}
 		defer w.Close()
 
-		marshaler := jsonpb.Marshaler{}
-		if err := marshaler.Marshal(w, out); err != nil {
-
+		if json, err := protojson.Marshal(out); err != nil {
 			log.Printf("Marshal Error")
 			return fmt.Errorf("save output: failed to marshal output")
+		} else {
+			w.Write(json)
 		}
 	} else {
 		log.Printf("saveCLIOutput NO OUTPATH")

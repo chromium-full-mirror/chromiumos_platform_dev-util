@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
 
 	"go.chromium.org/chromiumos/test/execution/errors"
@@ -24,6 +23,8 @@ import (
 	"go.chromium.org/chromiumos/test/pre_process/cmd/pre-process/structs"
 
 	"go.chromium.org/chromiumos/test/util/helpers"
+
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -41,15 +42,13 @@ type Filter struct {
 }
 
 func readInput(fileName string) (*api.FilterFlakyRequest, error) {
-	f, err := os.Open(fileName)
+	f, err := os.ReadFile(fileName)
 	if err != nil {
 		return nil, errors.NewStatusError(errors.IOAccessError,
 			fmt.Errorf("fail to read file %v: %v", fileName, err))
 	}
 	req := api.FilterFlakyRequest{}
-	umrsh := jsonpb.Unmarshaler{}
-	umrsh.AllowUnknownFields = true
-	if err := umrsh.Unmarshal(f, &req); err != nil {
+	if err := protojson.Unmarshal(f, &req); err != nil {
 		return nil, errors.NewStatusError(errors.UnmarshalError,
 			fmt.Errorf("fail to unmarshal file %v: %v", fileName, err))
 	}
@@ -64,10 +63,11 @@ func writeOutput(output string, resp *api.FilterFlakyResponse) error {
 		return errors.NewStatusError(errors.IOCreateError,
 			fmt.Errorf("fail to create file %v: %v", output, err))
 	}
-	m := jsonpb.Marshaler{}
-	if err := m.Marshal(f, resp); err != nil {
+	if json, err := protojson.Marshal(resp); err != nil {
 		return errors.NewStatusError(errors.MarshalError,
 			fmt.Errorf("failed to marshall response to file %v: %v", output, err))
+	} else {
+		f.Write(json)
 	}
 	return nil
 }

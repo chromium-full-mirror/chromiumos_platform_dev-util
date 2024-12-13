@@ -16,10 +16,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"go.chromium.org/luci/common/errors"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -101,14 +101,12 @@ func (a args) validate(expectProvisionState bool) (*api.CrosProvisionRequest, er
 // readInput reads input request data from the input file.
 func readInput(path string) (*api.CrosProvisionRequest, error) {
 	in := &api.CrosProvisionRequest{}
-	r, err := os.Open(path)
+	r, err := os.ReadFile(path)
 	if err != nil {
 		return nil, errors.Annotate(err, "read input").Err()
 	}
 
-	umrsh := jsonpb.Unmarshaler{}
-	umrsh.AllowUnknownFields = true
-	err = umrsh.Unmarshal(r, in)
+	err = protojson.Unmarshal(r, in)
 	return in, errors.Annotate(err, "read input").Err()
 }
 

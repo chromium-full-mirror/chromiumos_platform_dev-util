@@ -16,8 +16,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/google/subcommands"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -57,14 +57,12 @@ func newLogger(logFile *os.File) *log.Logger {
 
 // readInput reads a CrosTestReadyConfig jsonproto file and returns a pointer to RunTestsRequest.
 func readInput(fileName string) (*api.CrosTestReadyConfig, error) {
-	f, err := os.Open(fileName)
+	f, err := os.ReadFile(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("fail to read file %v: %v", fileName, err)
 	}
 	req := api.CrosTestReadyConfig{}
-	umrsh := jsonpb.Unmarshaler{}
-	umrsh.AllowUnknownFields = true
-	if err := umrsh.Unmarshal(f, &req); err != nil {
+	if err := protojson.Unmarshal(f, &req); err != nil {
 		return nil, fmt.Errorf("fail to unmarshal file %v: %v", fileName, err)
 	}
 	return &req, nil
