@@ -107,10 +107,7 @@ func parseAndRunCmds(req *api.Request, log *log.Logger, dutClient api.DutService
 		}, nil
 	case *api.Request_GetServoInfoRequest:
 		log.Println("GetServoInfo Task")
-		cmdResp, err := commands.ServoInfo(log, testResult)
-		if err != nil {
-			return nil, err
-		}
+		cmdResp := commands.ServoInfo(log, testResult)
 		return &api.RunActivityResponse{
 			Response: &api.RunActivityResponse_GetServoInfoResponse{
 				GetServoInfoResponse: cmdResp,
