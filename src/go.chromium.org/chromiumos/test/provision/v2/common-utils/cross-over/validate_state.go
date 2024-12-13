@@ -38,8 +38,9 @@ func (s ValidateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 	// TODO: Use TargetImagePath's HostType to identify installation type.
 	if strings.Contains(s.params.TargetImagePath.GetPath(), "android-build") {
 		log.Println("Performing validation check for AL.")
+		// Refer to b/382122013 for more details on why such a high timeout is needed.
 		dutAddress := fmt.Sprintf("%s:%v", s.params.Dut.GetChromeos().GetSsh().GetAddress(), "22")
-		if err := adb.RetrySetupAdb(log, dutAddress, 3*time.Minute); err != nil {
+		if err := adb.RetrySetupAdb(log, dutAddress, 15*time.Minute); err != nil {
 			log.Println("Error while testing adb connection ", err)
 			return common_utils.WrapStringInAny("PLATFORM: unable to connect to device post al-install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 		}
