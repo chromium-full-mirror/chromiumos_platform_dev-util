@@ -7,7 +7,6 @@ package tests
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -95,7 +94,7 @@ func TestGSDownloadFile(t *testing.T) {
 
 // createTempUploadDir creates fake files to "upload"
 func createTempUploadDir() (string, error) {
-	root, err := ioutil.TempDir("/tmp", "upload_unit_test_dir")
+	root, err := os.MkdirTemp("/tmp", "upload_unit_test_dir")
 	if err != nil {
 		return "", err
 	}

@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -81,7 +80,7 @@ func TestInventoryServer_DutAddressOption(t *testing.T) {
 // InventoryServer handles DutTopology config from file
 func TestInventoryServer_DutTopologyConfigOption(t *testing.T) {
 	dutAddress := "fake-hostname"
-	tmpFile, _ := ioutil.TempFile(os.TempDir(), "fakeduttopoconfig-")
+	tmpFile, _ := os.CreateTemp(os.TempDir(), "fakeduttopoconfig-")
 	marshal := &protojson.MarshalOptions{EmitUnpopulated: true, Indent: "  "}
 	dutTopoConfig, _ := marshal.Marshal(&api.DutTopology{
 		Duts: []*api.Dut{

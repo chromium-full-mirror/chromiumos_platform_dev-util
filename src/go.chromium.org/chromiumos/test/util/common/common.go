@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -162,7 +161,7 @@ func (f *FetchFile) getFile() (string, error) {
 }
 
 func (f *FetchFile) makeOutputTmpFile() error {
-	tmpDir, err := ioutil.TempDir("", "")
+	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		return fmt.Errorf("GetFile: Failed to create local tmpdir: %q, err :%s", tmpDir, err)
 	}

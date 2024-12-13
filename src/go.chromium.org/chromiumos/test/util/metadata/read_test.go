@@ -5,7 +5,6 @@
 package metadata
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +18,7 @@ import (
 // TestReadDir makes to ReadDir read all metadata files in a directory without errors.
 func TestReadDir(t *testing.T) {
 
-	tmpDir, err := ioutil.TempDir("", "cros-test_TestReadDir_*")
+	tmpDir, err := os.MkdirTemp("", "cros-test_TestReadDir_*")
 	if err != nil {
 		t.Fatal("Failed to create tmpdir: ", err)
 	}
@@ -124,7 +123,7 @@ func writeMetadata(mdList *api.TestCaseMetadataList, tmpDir, name string) error 
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(tmpDir, name, name+".pb"), b, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, name, name+".pb"), b, 0644); err != nil {
 		return err
 	}
 	return nil

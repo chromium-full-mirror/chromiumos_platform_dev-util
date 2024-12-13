@@ -8,7 +8,6 @@ package services
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -103,7 +102,7 @@ func WriteLogs(service *ServiceBase) {
 		service.LocalLogger.Printf("Failed to create output directory, %s\n", err)
 	}
 
-	if err := ioutil.WriteFile(fmt.Sprintf("%s/%s/%s.log", service.BaseDir, LOGS_PATH, service.Name), service.loggerBuf.Bytes(), FILE_PERMISSION); err != nil {
+	if err := os.WriteFile(fmt.Sprintf("%s/%s/%s.log", service.BaseDir, LOGS_PATH, service.Name), service.loggerBuf.Bytes(), FILE_PERMISSION); err != nil {
 		service.LocalLogger.Printf("Failed to write %s output to file, %s\n", service.Name, err)
 	}
 }

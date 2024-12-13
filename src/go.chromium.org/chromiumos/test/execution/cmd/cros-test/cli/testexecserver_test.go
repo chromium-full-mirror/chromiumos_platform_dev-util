@@ -6,7 +6,6 @@ package cli
 
 import (
 	"bytes"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -101,17 +100,17 @@ func TestReadInput(t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to marshall request")
 	}
-	td, err := ioutil.TempDir("", "cros-test_TestReadInput_*")
+	td, err := os.MkdirTemp("", "cros-test_TestReadInput_*")
 	if err != nil {
 		t.Fatal("Failed to create temporary dictectory: ", err)
 	}
 
 	defer os.RemoveAll(td)
 	fn := filepath.Join(td, "t.json")
-	if err := ioutil.WriteFile(fn, encodedData, 0644); err != nil {
+	if err := os.WriteFile(fn, encodedData, 0644); err != nil {
 		t.Fatalf("Failed to write file %v: %v", fn, err)
 	}
-	ioutil.WriteFile("/tmp/t.json", encodedData, 0644)
+	os.WriteFile("/tmp/t.json", encodedData, 0644)
 	req, err := readInput(fn)
 	if err != nil {
 		t.Fatalf("Failed to read input file %v: %v", fn, err)
@@ -157,7 +156,7 @@ func TestWriteOutput(t *testing.T) {
 			},
 		},
 	}
-	td, err := ioutil.TempDir("", "faketestrunner_TestWriteOutput_*")
+	td, err := os.MkdirTemp("", "faketestrunner_TestWriteOutput_*")
 	if err != nil {
 		t.Fatal("Failed to create temporary dictectory: ", err)
 	}

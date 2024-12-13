@@ -5,7 +5,6 @@
 package tautoresults
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -65,7 +64,7 @@ func TestTestsReports(t *testing.T) {
 	  "endtime": "1650319496"
 	}]
 	}`
-	td, err := ioutil.TempDir("", "example")
+	td, err := os.MkdirTemp("", "example")
 	if err != nil {
 		t.Fatal("Failed to create temporary directory: ", err)
 	}
@@ -411,7 +410,7 @@ func TestTestsReports_BadJson(t *testing.T) {
 func TestAbortedResults(t *testing.T) {
 	testJSON := `
 	{"tests": [{"verdict": "Abort", "testname": "stub_ServerToClientPass", "errmsg": "client job was aborted", "resultspath": "/tmp/test/results/tauto/results-1-stub_ServerToClientPass", "starttime": "1670062681", "endtime": "1670062718"}]}`
-	td, err := ioutil.TempDir("", "example")
+	td, err := os.MkdirTemp("", "example")
 	if err != nil {
 		t.Fatal("Failed to create temporary dictectory: ", err)
 	}
@@ -525,7 +524,7 @@ func TestAbortedResults(t *testing.T) {
 func TestMalformedResults(t *testing.T) {
 	testJSON := `
 	{"tests": [{"verdict": "UNKOWN", "testname": "stub_ServerToClientPass", "errmsg": "someCrash", "resultspath": "/tmp/test/results/tauto/results-1-stub_ServerToClientPass", "starttime": "1670062681", "endtime": "1670062718"}]}`
-	td, err := ioutil.TempDir("", "example")
+	td, err := os.MkdirTemp("", "example")
 	if err != nil {
 		t.Fatal("Failed to create temporary dictectory: ", err)
 	}

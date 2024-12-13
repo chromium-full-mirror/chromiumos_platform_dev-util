@@ -7,9 +7,9 @@ package main
 
 import (
 	"errors"
-	"io/ioutil"
 	"log"
 	"net"
+	"os"
 
 	"go.chromium.org/chromiumos/config/go/test/lab/api"
 	"google.golang.org/grpc"
@@ -34,7 +34,7 @@ type Options struct {
 
 // readJsonpb reads the jsonpb at path into m.
 func readJsonpb(path string, m proto.Message) error {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}

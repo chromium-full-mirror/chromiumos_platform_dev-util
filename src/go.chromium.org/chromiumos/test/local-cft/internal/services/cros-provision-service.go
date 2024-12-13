@@ -7,7 +7,6 @@ package services
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 
@@ -195,7 +194,7 @@ func (starter *SetupCrosProvision) createProvisionMetadata() error {
 		return fmt.Errorf("error creating cros-provision folder, %s", err)
 	}
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/cros-provision/in.json", starter.cp.BaseDir), []byte(metaDataJson), 0644)
+	err = os.WriteFile(fmt.Sprintf("%s/cros-provision/in.json", starter.cp.BaseDir), metaDataJson, 0644)
 	if err != nil {
 		return fmt.Errorf("error writing provision request to file, %s", err)
 	}

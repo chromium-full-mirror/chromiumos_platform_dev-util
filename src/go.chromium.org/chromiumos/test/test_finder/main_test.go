@@ -6,7 +6,6 @@ package test_finder
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -51,14 +50,14 @@ func TestReadInput(t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to marshall request")
 	}
-	td, err := ioutil.TempDir("", "cros-test-finder_TestReadInput_*")
+	td, err := os.MkdirTemp("", "cros-test-finder_TestReadInput_*")
 	if err != nil {
 		t.Fatal("Failed to create temporary dictectory: ", err)
 	}
 
 	defer os.RemoveAll(td)
 	fn := filepath.Join(td, "t.json")
-	if err := ioutil.WriteFile(fn, encodedData, 0644); err != nil {
+	if err := os.WriteFile(fn, encodedData, 0644); err != nil {
 		t.Fatalf("Failed to write file %v: %v", fn, err)
 	}
 	req, err := readInput(fn)
@@ -88,7 +87,7 @@ func TestWriteOutput(t *testing.T) {
 			},
 		},
 	}
-	td, err := ioutil.TempDir("", "faketestrunner_TestWriteOutput_*")
+	td, err := os.MkdirTemp("", "faketestrunner_TestWriteOutput_*")
 	if err != nil {
 		t.Fatal("Failed to create temporary dictectory: ", err)
 	}

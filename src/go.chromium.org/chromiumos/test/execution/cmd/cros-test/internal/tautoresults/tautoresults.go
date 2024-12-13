@@ -9,8 +9,8 @@ import (
 	"go.chromium.org/chromiumos/test/execution/errors"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -50,7 +50,7 @@ type test struct {
 
 // loadJSON unmarshals the json into the Report.RawResults struct.
 func (r *Report) loadJSON(resultsDir string) error {
-	plan, _ := ioutil.ReadFile(filepath.Join(resultsDir, "results.json"))
+	plan, _ := os.ReadFile(filepath.Join(resultsDir, "results.json"))
 	err := json.Unmarshal(plan, &r.RawResults)
 	if err != nil {
 		return errors.NewStatusError(errors.UnmarshalError,

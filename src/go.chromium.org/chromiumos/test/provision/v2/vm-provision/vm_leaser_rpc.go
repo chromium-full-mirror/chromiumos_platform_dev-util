@@ -8,8 +8,8 @@ import (
 	"go.chromium.org/chromiumos/lro"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 
 	"go.chromium.org/chromiumos/config/go/longrunning"
@@ -151,7 +151,7 @@ func (s *VMLeaserServiceServer) handleReleaseVMRequest(_ context.Context, op *lo
 
 // readAuthToken reads the authorization token required for calling vm leaser service
 func readAuthToken(authTokenFilePath string) (string, error) {
-	content, err := ioutil.ReadFile(authTokenFilePath)
+	content, err := os.ReadFile(authTokenFilePath)
 	if err != nil {
 		return "", err
 	}

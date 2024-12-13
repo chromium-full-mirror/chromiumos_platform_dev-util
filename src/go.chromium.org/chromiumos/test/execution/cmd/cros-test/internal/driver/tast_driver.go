@@ -8,7 +8,6 @@ package driver
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -606,12 +605,12 @@ func genHostInfoYAML(dut *device.DutInfo) (string, error) {
 		return "", err
 	}
 
-	file, err := ioutil.TempFile("/tmp", "hostinfoyaml")
+	file, err := os.CreateTemp("/tmp", "hostinfoyaml")
 	if err != nil {
 		return "", err
 	}
 
-	err = ioutil.WriteFile(file.Name(), yamlData, 0644)
+	err = os.WriteFile(file.Name(), yamlData, 0644)
 	if err != nil {
 		return "", err
 	}

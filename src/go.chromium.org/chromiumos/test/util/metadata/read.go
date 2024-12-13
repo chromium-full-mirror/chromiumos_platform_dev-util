@@ -7,7 +7,6 @@ package metadata
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -28,7 +27,7 @@ func ReadDir(dir string) (metadataList *api.TestCaseMetadataList, err error) {
 		if info.IsDir() {
 			return nil
 		}
-		buf, err := ioutil.ReadFile(path)
+		buf, err := os.ReadFile(path)
 		if err != nil {
 			return errors.NewStatusError(errors.IOAccessError,
 				fmt.Errorf("failed to read file %v: %w", path, err))

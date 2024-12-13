@@ -5,7 +5,6 @@ package driver
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -463,7 +462,7 @@ func TestGenHostInfoYAML(t *testing.T) {
 
 	fmt.Println(fn)
 	defer os.Remove(fn)
-	yfile, err := ioutil.ReadFile(fn)
+	yfile, err := os.ReadFile(fn)
 
 	if err != nil {
 		t.Error(err)
