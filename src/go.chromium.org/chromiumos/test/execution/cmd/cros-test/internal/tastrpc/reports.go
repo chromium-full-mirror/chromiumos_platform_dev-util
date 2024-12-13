@@ -14,10 +14,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"go.chromium.org/chromiumos/test/execution/errors"
 
@@ -48,7 +48,7 @@ func (s *ReportsServer) LogStream(stream protocol.Reports_LogStreamServer) error
 	for {
 		_, err := stream.Recv()
 		if err == io.EOF {
-			return stream.SendAndClose(&empty.Empty{})
+			return stream.SendAndClose(&emptypb.Empty{})
 		}
 		if err != nil {
 			return err

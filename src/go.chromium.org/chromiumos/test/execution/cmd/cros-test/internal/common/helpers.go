@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"gopkg.in/yaml.v3"
 
 	_go "go.chromium.org/chromiumos/config/go"
@@ -24,6 +23,9 @@ import (
 
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
 	testerrors "go.chromium.org/chromiumos/test/execution/errors"
+
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // TestScanner makes a scanner to read from test streams.
@@ -239,11 +241,8 @@ func fillTestCaseResult(raw map[string]interface{}, resultsRootDir string) (*api
 	}
 
 	duration := endTime.Sub(startTime)
-	protoStartTime, err := ptypes.TimestampProto(startTime)
-	if err != nil {
-		return nil, fmt.Errorf("fail to convert start time to protobuf: %v", err)
-	}
-	protoDuration := ptypes.DurationProto(duration)
+	protoStartTime := timestamppb.New(startTime)
+	protoDuration := durationpb.New(duration)
 
 	r := &api.TestCaseResult{
 		TestCaseId: &api.TestCase_Id{Value: testID},

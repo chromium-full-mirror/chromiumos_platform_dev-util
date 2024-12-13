@@ -14,12 +14,13 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/golang/protobuf/jsonpb"
 	"go.chromium.org/chromiumos/config/go/test/api"
 
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/driver"
 	statuserrors "go.chromium.org/chromiumos/test/execution/errors"
 	"go.chromium.org/chromiumos/test/util/finder"
+
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // driverToTestsMapping builds a map between test and its driver.
@@ -114,15 +115,14 @@ func runTests(ctx context.Context, logger *log.Logger, resultRootDir, tlwAddr st
 
 // readInput reads an execution_service json file and returns a pointer to RunTestsRequest.
 func readInput(fileName string) (*api.CrosTestRequest, error) {
-	f, err := os.Open(fileName)
+	f, err := os.ReadFile(fileName)
 	if err != nil {
 		return nil, statuserrors.NewStatusError(statuserrors.IOAccessError,
 			fmt.Errorf("failed to read file %v: %v", fileName, err))
 	}
 	req := api.CrosTestRequest{}
 
-	umrsh := jsonpb.Unmarshaler{}
-	umrsh.AllowUnknownFields = true
+	umrsh := protojson.UnmarshalOptions{DiscardUnknown: true}
 	if err := umrsh.Unmarshal(f, &req); err != nil {
 		return nil, statuserrors.NewStatusError(statuserrors.UnmarshalError,
 			fmt.Errorf("failed to unmarshal file %v: %v", fileName, err))
@@ -132,30 +132,28 @@ func readInput(fileName string) (*api.CrosTestRequest, error) {
 
 // writeMetadata writes a TestCaseMetadataList json.
 func writeMetadata(outputPath string, mdList *api.TestCaseMetadataList) error {
-	f, err := os.Create(outputPath)
+	json, err := protojson.Marshal(mdList)
 	if err != nil {
-		return statuserrors.NewStatusError(statuserrors.IOCreateError,
-			fmt.Errorf("failed to create file %v: %v", outputPath, err))
-	}
-	m := jsonpb.Marshaler{}
-	if err := m.Marshal(f, mdList); err != nil {
 		return statuserrors.NewStatusError(statuserrors.MarshalError,
-			fmt.Errorf("failed to marshall metadata list to file %v: %v", outputPath, err))
+			fmt.Errorf("failed to marshall metadata list: %v", err))
+	}
+	if err := os.WriteFile(outputPath, json, 0666); err != nil {
+		return statuserrors.NewStatusError(statuserrors.IOCreateError,
+			fmt.Errorf("failed to write file %v: %v", outputPath, err))
 	}
 	return nil
 }
 
 // writeOutput writes a RunTestsResponse json.
 func writeOutput(output string, resp *api.CrosTestResponse) error {
-	f, err := os.Create(output)
+	json, err := protojson.Marshal(resp)
 	if err != nil {
-		return statuserrors.NewStatusError(statuserrors.IOCreateError,
-			fmt.Errorf("fail to create file %v: %v", output, err))
-	}
-	m := jsonpb.Marshaler{}
-	if err := m.Marshal(f, resp); err != nil {
 		return statuserrors.NewStatusError(statuserrors.MarshalError,
-			fmt.Errorf("failed to marshall response to file %v: %v", output, err))
+			fmt.Errorf("failed to marshall response: %v", err))
+	}
+	if err := os.WriteFile(output, json, 0666); err != nil {
+		return statuserrors.NewStatusError(statuserrors.IOCreateError,
+			fmt.Errorf("failed to write file %v: %v", output, err))
 	}
 	return nil
 }

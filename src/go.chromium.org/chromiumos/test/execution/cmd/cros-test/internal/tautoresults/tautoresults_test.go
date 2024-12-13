@@ -5,7 +5,6 @@
 package tautoresults
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,8 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -80,12 +80,9 @@ func TestTestsReports(t *testing.T) {
 
 	f.WriteString(testJSON)
 
-	EXPECTSTARTTIME, err := ptypes.TimestampProto(time.Unix(1650319391, 0))
-	if err != nil {
-		fmt.Printf("!!!! ERR %v", err)
-	}
-	DURATION0 := ptypes.DurationProto(time.Second * time.Duration(0))
-	DURATION105 := ptypes.DurationProto(time.Second * time.Duration(105))
+	EXPECTSTARTTIME := timestamppb.New(time.Unix(1650319391, 0))
+	DURATION0 := durationpb.New(time.Second * time.Duration(0))
+	DURATION105 := durationpb.New(time.Second * time.Duration(105))
 
 	resultsDir := td
 	expectedResults := []*api.TestCaseResult{
@@ -429,11 +426,8 @@ func TestAbortedResults(t *testing.T) {
 
 	f.WriteString(testJSON)
 
-	EXPECTSTARTTIME, err := ptypes.TimestampProto(time.Unix(1670062681, 0))
-	if err != nil {
-		fmt.Printf("!!!! ERR %v", err)
-	}
-	DURATION105 := ptypes.DurationProto(time.Second * time.Duration(37))
+	EXPECTSTARTTIME := timestamppb.New(time.Unix(1670062681, 0))
+	DURATION105 := durationpb.New(time.Second * time.Duration(37))
 
 	resultsDir := td
 	expectedResults := []*api.TestCaseResult{
@@ -546,11 +540,8 @@ func TestMalformedResults(t *testing.T) {
 
 	f.WriteString(testJSON)
 
-	EXPECTSTARTTIME, err := ptypes.TimestampProto(time.Unix(1670062681, 0))
-	if err != nil {
-		fmt.Printf("!!!! ERR %v", err)
-	}
-	DURATION105 := ptypes.DurationProto(time.Second * time.Duration(37))
+	EXPECTSTARTTIME := timestamppb.New(time.Unix(1670062681, 0))
+	DURATION105 := durationpb.New(time.Second * time.Duration(37))
 
 	resultsDir := td
 	expectedResults := []*api.TestCaseResult{

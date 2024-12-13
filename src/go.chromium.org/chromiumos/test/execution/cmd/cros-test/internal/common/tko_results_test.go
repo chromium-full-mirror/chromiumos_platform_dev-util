@@ -10,7 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -19,11 +20,8 @@ import (
 // TestTestsReports verify results can be parsed and returned in the expected fmt.
 func TestTestsReports(t *testing.T) {
 
-	EXPECTSTARTTIME, err := ptypes.TimestampProto(time.Unix(1670923418, 0))
-	if err != nil {
-		fmt.Printf("!!!! ERR %v", err)
-	}
-	DURATION105 := ptypes.DurationProto(time.Second * time.Duration(105))
+	EXPECTSTARTTIME := timestamppb.New(time.Unix(1670923418, 0))
+	DURATION105 := durationpb.New(time.Second * time.Duration(105))
 
 	testResults := []*api.TestCaseResult{
 		{

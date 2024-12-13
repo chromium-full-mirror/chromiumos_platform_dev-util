@@ -10,11 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"go.chromium.org/tast/core/framework/protocol"
 )
@@ -197,29 +198,20 @@ func TestReportsServer_ReportResult(t *testing.T) {
 			},
 		},
 	}
-	testTimePassedTest, err := ptypes.TimestampProto(time.Time{})
-	if err != nil {
-		t.Error("Failed to create start time for PassedTest", err)
-	}
-	testTimeFailedTest, err := ptypes.TimestampProto(time.Time{}.Add(1))
-	if err != nil {
-		t.Error("Failed to create start time for FailedTest", err)
-	}
-	testTimeSkippedTest, err := ptypes.TimestampProto(time.Time{}.Add(2))
-	if err != nil {
-		t.Error("Failed to create start time for FailedTest", err)
-	}
+	testTimePassedTest := timestamppb.New(time.Time{})
+	testTimeFailedTest := timestamppb.New(time.Time{}.Add(1))
+	testTimeSkippedTest := timestamppb.New(time.Time{}.Add(2))
 
 	requests := []*protocol.ReportResultRequest{
 		{
 			Test:      "PassedTest",
 			StartTime: testTimePassedTest,
-			Duration:  ptypes.DurationProto(time.Second),
+			Duration:  durationpb.New(time.Second),
 		},
 		{
 			Test:      "PassedTestWithNoMetadata",
 			StartTime: testTimePassedTest,
-			Duration:  ptypes.DurationProto(time.Second),
+			Duration:  durationpb.New(time.Second),
 		},
 		{
 			Test: "FailedTest",
@@ -233,13 +225,13 @@ func TestReportsServer_ReportResult(t *testing.T) {
 				},
 			},
 			StartTime: testTimeFailedTest,
-			Duration:  ptypes.DurationProto(time.Second),
+			Duration:  durationpb.New(time.Second),
 		},
 		{
 			Test:       "SkippedTest",
 			SkipReason: "intentionally skipped",
 			StartTime:  testTimeSkippedTest,
-			Duration:   ptypes.DurationProto(0),
+			Duration:   durationpb.New(0),
 		},
 	}
 
@@ -257,7 +249,7 @@ func TestReportsServer_ReportResult(t *testing.T) {
 				},
 			},
 			StartTime:        testTimePassedTest,
-			Duration:         ptypes.DurationProto(time.Second),
+			Duration:         durationpb.New(time.Second),
 			TestCaseMetadata: testNamesToMetadata[tests[0]],
 		},
 		{
@@ -273,7 +265,7 @@ func TestReportsServer_ReportResult(t *testing.T) {
 				},
 			},
 			StartTime:        testTimePassedTest,
-			Duration:         ptypes.DurationProto(time.Second),
+			Duration:         durationpb.New(time.Second),
 			TestCaseMetadata: nil,
 		},
 		{
@@ -290,7 +282,7 @@ func TestReportsServer_ReportResult(t *testing.T) {
 				},
 			},
 			StartTime:        testTimeFailedTest,
-			Duration:         ptypes.DurationProto(time.Second),
+			Duration:         durationpb.New(time.Second),
 			TestCaseMetadata: testNamesToMetadata[tests[2]],
 		},
 		{
@@ -307,7 +299,7 @@ func TestReportsServer_ReportResult(t *testing.T) {
 				},
 			},
 			StartTime:        testTimeSkippedTest,
-			Duration:         ptypes.DurationProto(0),
+			Duration:         durationpb.New(0),
 			TestCaseMetadata: testNamesToMetadata[tests[3]],
 		},
 	}
@@ -465,27 +457,15 @@ func TestReportsServer_ReportResultRetry(t *testing.T) {
 			},
 		},
 	}
-	testTimePassedTest, err := ptypes.TimestampProto(time.Time{})
-	if err != nil {
-		t.Error("Failed to create start time for PassedTest", err)
-	}
-	testTimeFailedTest, err := ptypes.TimestampProto(time.Time{}.Add(1))
-	if err != nil {
-		t.Error("Failed to create start time for FailededTest", err)
-	}
-	testTimeSkippedTest, err := ptypes.TimestampProto(time.Time{}.Add(2))
-	if err != nil {
-		t.Error("Failed to create start time for FailedTest", err)
-	}
-	testTimeFailedTestRetry, err := ptypes.TimestampProto(time.Time{}.Add(3))
-	if err != nil {
-		t.Error("Failed to create start time for FailedTestRetry", err)
-	}
+	testTimePassedTest := timestamppb.New(time.Time{})
+	testTimeFailedTest := timestamppb.New(time.Time{}.Add(1))
+	testTimeSkippedTest := timestamppb.New(time.Time{}.Add(2))
+	testTimeFailedTestRetry := timestamppb.New(time.Time{}.Add(3))
 	requests := []*protocol.ReportResultRequest{
 		{
 			Test:      "PassedTest",
 			StartTime: testTimePassedTest,
-			Duration:  ptypes.DurationProto(time.Second),
+			Duration:  durationpb.New(time.Second),
 		},
 		{
 			Test: "FailedTest",
@@ -499,18 +479,18 @@ func TestReportsServer_ReportResultRetry(t *testing.T) {
 				},
 			},
 			StartTime: testTimeFailedTest,
-			Duration:  ptypes.DurationProto(time.Second),
+			Duration:  durationpb.New(time.Second),
 		},
 		{
 			Test:       "SkippedTest",
 			SkipReason: "intentionally skipped",
 			StartTime:  testTimeSkippedTest,
-			Duration:   ptypes.DurationProto(0),
+			Duration:   durationpb.New(0),
 		},
 		{
 			Test:      "FailedTest",
 			StartTime: testTimeFailedTestRetry,
-			Duration:  ptypes.DurationProto(time.Second),
+			Duration:  durationpb.New(time.Second),
 		},
 	}
 
@@ -528,7 +508,7 @@ func TestReportsServer_ReportResultRetry(t *testing.T) {
 				},
 			},
 			StartTime:        testTimePassedTest,
-			Duration:         ptypes.DurationProto(time.Second),
+			Duration:         durationpb.New(time.Second),
 			TestCaseMetadata: testNamesToMetadata[tests[0]],
 		},
 		{
@@ -545,7 +525,7 @@ func TestReportsServer_ReportResultRetry(t *testing.T) {
 				},
 			},
 			StartTime:        testTimeSkippedTest,
-			Duration:         ptypes.DurationProto(0),
+			Duration:         durationpb.New(0),
 			TestCaseMetadata: testNamesToMetadata[tests[2]],
 		},
 		{
@@ -561,7 +541,7 @@ func TestReportsServer_ReportResultRetry(t *testing.T) {
 				},
 			},
 			StartTime:        testTimeFailedTestRetry,
-			Duration:         ptypes.DurationProto(time.Second),
+			Duration:         durationpb.New(time.Second),
 			TestCaseMetadata: testNamesToMetadata[tests[1]],
 		},
 	}

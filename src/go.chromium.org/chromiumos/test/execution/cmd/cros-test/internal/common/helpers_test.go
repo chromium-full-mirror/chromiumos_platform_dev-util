@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/go-cmp/cmp"
 	_go "go.chromium.org/chromiumos/config/go"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
@@ -173,11 +174,11 @@ func TestTranslateMoblyResults(t *testing.T) {
 	startTime1 := time.Unix(0, 1726178525229)
 	endTime1 := time.Unix(0, 1726178525573)
 	duration1 := endTime1.Sub(startTime1)
-	startTimeProto1, _ := ptypes.TimestampProto(startTime1)
+	startTimeProto1 := timestamppb.New(startTime1)
 
 	startTime2 := time.Unix(0, 1726178525574)
 	endTime2 := time.Unix(0, 1726178525575)
-	startTimeProto2, _ := ptypes.TimestampProto(startTime2)
+	startTimeProto2 := timestamppb.New(startTime2)
 	duration2 := endTime2.Sub(startTime2)
 	resultsRootDir := "resultsRootDir"
 	expected := []*api.TestCaseResult{
@@ -194,7 +195,7 @@ func TestTranslateMoblyResults(t *testing.T) {
 				},
 			},
 			StartTime: startTimeProto1,
-			Duration:  ptypes.DurationProto(duration1),
+			Duration:  durationpb.New(duration1),
 		},
 		{
 			TestCaseId: &api.TestCase_Id{Value: "MultiDeviceTest.test_multidevice"},
@@ -209,7 +210,7 @@ func TestTranslateMoblyResults(t *testing.T) {
 				},
 			},
 			StartTime: startTimeProto2,
-			Duration:  ptypes.DurationProto(duration2),
+			Duration:  durationpb.New(duration2),
 		},
 	}
 

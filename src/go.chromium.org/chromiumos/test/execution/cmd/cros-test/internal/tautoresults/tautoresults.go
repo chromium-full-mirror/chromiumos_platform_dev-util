@@ -16,7 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -118,13 +119,10 @@ func GenerateReport(test test, testID string, resultsDir string, testCaseMetadat
 	}
 	startTime := getTime(test.StartTime)
 	if startTime != time.Unix(0, 0) {
-		startProtoTime, err := ptypes.TimestampProto(startTime)
-		// Only add times if there was no err in conversion.
-		if err == nil {
-			durationProtoTime := ptypes.DurationProto(GetDuration(test))
-			testResult.StartTime = startProtoTime
-			testResult.Duration = durationProtoTime
-		}
+		startProtoTime := timestamppb.New(startTime)
+		durationProtoTime := durationpb.New(GetDuration(test))
+		testResult.StartTime = startProtoTime
+		testResult.Duration = durationProtoTime
 	}
 
 	// Change result to fail/err as needed.

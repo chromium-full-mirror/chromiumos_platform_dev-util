@@ -12,10 +12,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/golang/protobuf/jsonpb"
 	_go "go.chromium.org/chromiumos/config/go"
 	"go.chromium.org/chromiumos/config/go/test/api"
 	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -97,8 +97,7 @@ func TestReadInput(t *testing.T) {
 		Metadata: tastMetadata,
 	}
 
-	m := jsonpb.Marshaler{}
-	encodedData, err := m.MarshalToString(expReq)
+	encodedData, err := protojson.Marshal(expReq)
 	if err != nil {
 		t.Fatal("Failed to marshall request")
 	}
@@ -109,10 +108,10 @@ func TestReadInput(t *testing.T) {
 
 	defer os.RemoveAll(td)
 	fn := filepath.Join(td, "t.json")
-	if err := ioutil.WriteFile(fn, []byte(encodedData), 0644); err != nil {
+	if err := ioutil.WriteFile(fn, encodedData, 0644); err != nil {
 		t.Fatalf("Failed to write file %v: %v", fn, err)
 	}
-	ioutil.WriteFile("/tmp/t.json", []byte(encodedData), 0644)
+	ioutil.WriteFile("/tmp/t.json", encodedData, 0644)
 	req, err := readInput(fn)
 	if err != nil {
 		t.Fatalf("Failed to read input file %v: %v", fn, err)
@@ -167,12 +166,12 @@ func TestWriteOutput(t *testing.T) {
 	if err := writeOutput(fn, &expectedRspn); err != nil {
 		t.Fatalf("Failed to write file %v: %v", fn, err)
 	}
-	f, err := os.Open(fn)
+	f, err := os.ReadFile(fn)
 	if err != nil {
 		t.Fatalf("Failed to read response from file %v: %v", fn, err)
 	}
 	rspn := api.CrosTestResponse{}
-	if err := jsonpb.Unmarshal(f, &rspn); err != nil {
+	if err := protojson.Unmarshal(f, &rspn); err != nil {
 		t.Fatalf("Failed to unmarshall data from file %v: %v", fn, err)
 	}
 	if !proto.Equal(&rspn, &expectedRspn) {
