@@ -13,13 +13,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/uuid"
 	"go.chromium.org/chromiumos/config/go/api/test/tls/dependencies/longrunning"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // operation is used by Manager to hold extra metadata.
@@ -132,7 +132,7 @@ func (m *Manager) SetResult(name string, resp proto.Message) error {
 	if m.operations[name].op.Done {
 		return fmt.Errorf("lro SetResult: name %s is already done", name)
 	}
-	a, err := ptypes.MarshalAny(resp)
+	a, err := anypb.New(resp)
 	if err != nil {
 		return err
 	}
@@ -187,12 +187,12 @@ func (m *Manager) GetOperation(ctx context.Context, req *longrunning.GetOperatio
 }
 
 // DeleteOperation deletes the longrunning.Operation if managed.
-func (m *Manager) DeleteOperation(ctx context.Context, req *longrunning.DeleteOperationRequest) (*empty.Empty, error) {
+func (m *Manager) DeleteOperation(ctx context.Context, req *longrunning.DeleteOperationRequest) (*emptypb.Empty, error) {
 	name := req.Name
 	if err := m.delete(name); err != nil {
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("failed to delete name %s, %s", name, err))
 	}
-	return &empty.Empty{}, nil
+	return &emptypb.Empty{}, nil
 }
 
 func (m *Manager) getOperationChannel(name string) (chan struct{}, bool) {
