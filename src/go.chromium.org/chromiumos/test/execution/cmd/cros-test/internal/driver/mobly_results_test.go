@@ -73,7 +73,7 @@ func TestToSessionRequest(t *testing.T) {
 			t.Errorf("Failed to jsonDiff: %v \n", err)
 		}
 		if diff != "" {
-			t.Errorf(diff)
+			t.Errorf("%s", diff)
 		}
 	}
 }
@@ -121,7 +121,7 @@ func TestBuildTestCaseResult(t *testing.T) {
 			tc.input.reason)
 
 		if diff := cmp.Diff(actual, tc.expected, cmpOpts); diff != "" {
-			t.Errorf(fmt.Sprintf("%v: results not the same: %v", tc.input.verdict, diff))
+			t.Errorf("%s", fmt.Sprintf("%v: results not the same: %v", tc.input.verdict, diff))
 		}
 	}
 }
@@ -310,7 +310,7 @@ func TestBuildTestCaseResultFromSessionResponse(t *testing.T) {
 			tc.input.response)
 
 		if diff := cmp.Diff(actual, tc.expected, cmpOpts); diff != "" {
-			t.Errorf(fmt.Sprintf("%v: results not the same: %v", tc.input.test.TestCase.Name, diff))
+			t.Errorf("%s", fmt.Sprintf("%v: results not the same: %v", tc.input.test.TestCase.Name, diff))
 		}
 	}
 

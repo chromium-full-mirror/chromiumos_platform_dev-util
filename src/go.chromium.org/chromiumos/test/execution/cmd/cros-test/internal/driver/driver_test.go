@@ -146,7 +146,7 @@ func TestNamesToIds(t *testing.T) {
 				t.Errorf("Expected id '%s' does not match actual id '%s'", tc.Id.Value, id)
 			}
 		} else {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 	}
 }

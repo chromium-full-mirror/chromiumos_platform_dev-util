@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Package driver implements drivers to execute tests.
 package driver
 
 import (
@@ -11,7 +10,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"runtime/debug"
 	"sync"
 
@@ -22,17 +21,14 @@ import (
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/device"
 )
 
-// MoblyDriver runs mobly and report its results.
+// MoblyDriver runs Mobly tests.
 type MoblyDriver struct {
-	// logger provides logging service.
 	logger *log.Logger
 }
 
-// NewMoblyTestDriver creates a new driver to run tests.
+// NewMoblyDriver creates a new Mobly driver.
 func NewMoblyDriver(logger *log.Logger) *MoblyDriver {
-	return &MoblyDriver{
-		logger: logger,
-	}
+	return &MoblyDriver{logger: logger}
 }
 
 // Name returns the name of the driver.
@@ -40,158 +36,147 @@ func (md *MoblyDriver) Name() string {
 	return "mobly"
 }
 
-func buildMoblyCommand(logger *log.Logger, test *api.TestCaseMetadata, resultsPath string) *exec.Cmd {
-	parFile := test.GetTestCaseInfo().GetExtraInfo()
-	par, ok := parFile["executable_name"]
+// buildMoblyCommand constructs the Mobly execution command.
+func buildMoblyCommand(logger *log.Logger, test *api.TestCaseMetadata) (*exec.Cmd, error) {
+	parFile, ok := test.GetTestCaseInfo().GetExtraInfo()["executable_name"]
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("missing 'executable_name' in test metadata")
 	}
-	par = fmt.Sprintf("/usr/local/mobly/%s", par)
-	logger.Println("Building mobly command")
-	baseArgs := []string{
+
+	par := filepath.Join("/usr/local/mobly", parFile)
+	args := []string{
 		"--",
 		"-c", "/usr/local/mobly/test_config.yml",
-		// "-lp", resultsPath,
+		"--tests", test.GetTestCase().GetName(),
 	}
 
-	baseArgs = append(baseArgs, "--tests")
-	baseArgs = append(baseArgs, test.GetTestCase().GetName())
-
-	cmd := exec.Command(par, baseArgs...)
-
-	return cmd
+	cmd := exec.Command(par, args...)
+	return cmd, nil
 }
 
-// Execute Mobly command against Omnilab Gateway Client and process test results
-func runMoblyTest(ctx context.Context, logger *log.Logger, test *api.TestCaseMetadata, serials []string, resultsPath string, metadata []*api.Arg) error {
+// runMoblyTest executes a Mobly test.
+func runMoblyTest(ctx context.Context, logger *log.Logger, test *api.TestCaseMetadata, serials []string, metadata []*api.Arg) error {
 	if err := GenerateMoblyConfig(logger, "/usr/local/mobly", serials, metadata); err != nil {
-		return fmt.Errorf("failed to generate mobly config, %w", err)
+		return fmt.Errorf("generating Mobly config: %w", err)
 	}
 
-	cmd := buildMoblyCommand(logger, test, resultsPath)
-	if cmd == nil {
-		return fmt.Errorf("failed to build mobly command")
+	cmd, err := buildMoblyCommand(logger, test)
+	if err != nil {
+		return fmt.Errorf("building Mobly command: %w", err)
 	}
-	logger.Println("Running Mobly: ", cmd.String())
 
+	logger.Printf("Running Mobly: %s", cmd.String())
 	return launchAndReadMobly(cmd, logger)
 }
 
-func buildMoblyResult(logger *log.Logger, resultsPath, resultsDir string, f *api.CrosTestResponse) *api.CrosTestResponse {
+// processMoblyResults processes the results of a Mobly test.
+func (md *MoblyDriver) processMoblyResults(resultsDir, testName string, resp *api.CrosTestResponse) error {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Println("found a panic")
-			logger.Printf("Error: %+v", fmt.Errorf("%v", r))
-			logger.Println(string(debug.Stack()))
+			md.logger.Printf("Panic during Mobly result processing: %v\n%s", r, debug.Stack())
 		}
 	}()
 
-	logger.Println("reading file")
+	rd := filepath.Join(resultsDir, "LocalTestBed")
+	resultsPath := filepath.Join(rd, "latest", "test_summary.yaml")
+
 	moblyResultBytes, err := os.ReadFile(resultsPath)
-	logger.Println("reading file done")
 	if err != nil {
-		logger.Printf("failed to read %s, %s", resultsPath, err)
-		return nil
+		return fmt.Errorf("reading Mobly results: %w", err)
 	}
 
-	logger.Println("translating", moblyResultBytes)
-	testCaseResults, err := common.TranslateMoblyResults(moblyResultBytes, resultsDir)
-	logger.Println("translating done", testCaseResults)
+	testCaseResults, err := common.TranslateMoblyResults(moblyResultBytes, rd)
 	if err != nil {
-		logger.Printf("failed to translate mobly results, %s", err)
-		return nil
+		return fmt.Errorf("translating Mobly results: %w", err)
 	}
+	resp.TestCaseResults = append(resp.TestCaseResults, testCaseResults...)
+	return nil
 
-	f.TestCaseResults = append(f.TestCaseResults, testCaseResults...)
-
-	logger.Println("Got results:")
-	for _, result := range f.TestCaseResults {
-		logger.Println(result.String())
-	}
-
-	return f
 }
 
-// RunTests drives a test framework to execute tests.
+// RunTests executes Mobly tests.
 func (md *MoblyDriver) RunTests(ctx context.Context, resultsDir string, req *api.CrosTestRequest, tlwAddr string, tests []*api.TestCaseMetadata) (*api.CrosTestResponse, error) {
-	f := &api.CrosTestResponse{}
+	resp := &api.CrosTestResponse{}
 
 	serials, err := device.DerviceSerials(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call DeviceSerials: %s", err)
+		return nil, fmt.Errorf("getting device serials: %w", err)
 	}
 
 	metadata, _, err := common.UnpackMetadata(req)
 	if err != nil {
-		md.logger.Println(err)
-		return nil, err
+		return nil, fmt.Errorf("unpacking metadata: %w", err)
 	}
-
 	metadata = append(metadata, common.ExtraArgs(req)...)
 
-	err = c.SetupAdbConnections(md.logger, serials)
-	if err != nil {
-		return f, fmt.Errorf("setupAdb failed, %w", err)
+	if err := c.SetupAdbConnections(md.logger, serials); err != nil {
+		return nil, fmt.Errorf("setting up ADB connections: %w", err)
 	}
-
-	exit := make(chan struct{})
 	defer func() {
-		exit <- struct{}{}
 		for _, s := range serials {
 			if err := c.TeardownAdb(md.logger, s); err != nil {
-				md.logger.Printf("Failed to tear down adb connection to %s: %s", s, err)
+				md.logger.Printf("Tearing down ADB connection to %s: %s", s, err)
 			}
 		}
 	}()
+	exit := make(chan struct{})
+	defer close(exit)
 	c.KeepAdbAlive(md.logger, serials, exit)
 
-	// Currently, we will just loop each test execution and result processing; and continuously build/append results.
 	for _, test := range tests {
-		resDir := path.Join("tmp", "logs", "mobly", test.GetTestCase().GetName())
+		resDir := filepath.Join("/tmp", "test", "results", "mobly", test.GetTestCase().GetName())
 		os.Setenv("MOBLY_LOGPATH", resDir)
 
-		err = runMoblyTest(ctx, md.logger, test, serials, resultsDir, metadata)
-		if err != nil {
-			md.logger.Println(err)
-			return nil, err
+		if err := runMoblyTest(ctx, md.logger, test, serials, metadata); err != nil {
+			return nil, fmt.Errorf("running Mobly test: %w", err)
 		}
 
-		// Override resultsDir to the latest directory.
-		resultsDir = path.Join(resDir, "LocalTestBed", "latest")
-		resultsPath := path.Join(resultsDir, "test_summary.yaml")
-
-		buildMoblyResult(md.logger, resultsPath, resultsDir, f)
-		md.logger.Println("Result after loop1: ", f)
+		if err := md.processMoblyResults(resDir, test.GetTestCase().GetName(), resp); err != nil {
+			return nil, fmt.Errorf("processing Mobly Results: %w", err)
+		}
 	}
 
-	return f, nil
+	return resp, nil
 }
 
+// moveArtifacts moves artifacts from source to destination.
+func (md *MoblyDriver) moveArtifacts(resultsDir, artifactsDir string) {
+	mvCmd := exec.Command("mv", artifactsDir, resultsDir)
+	md.logger.Printf("Moving artifacts from: %q to: %q", artifactsDir, resultsDir)
+
+	out, err := mvCmd.CombinedOutput()
+	if err != nil {
+		md.logger.Printf("Error moving artifacts: %s: %s", err, string(out))
+	} else {
+		md.logger.Printf("Successfully moved artifacts")
+	}
+}
+
+// launchAndReadMobly launches a Mobly command and reads its output.
 func launchAndReadMobly(cmd *exec.Cmd, logger *log.Logger) error {
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("StderrPipe failed")
+		return fmt.Errorf("getting stderr pipe: %w", err)
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("StdoutPipe failed")
+		return fmt.Errorf("getting stdout pipe: %w", err)
 	}
+
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to run Tauto: %v", err)
+		return fmt.Errorf("starting Mobly command: %w", err)
 	}
+
 	var wg sync.WaitGroup
 	wg.Add(2)
-
 	go func() {
 		defer wg.Done()
 		common.TestScanner(stderr, logger, "Mobly")
 	}()
-
 	go func() {
 		defer wg.Done()
 		common.TestScanner(stdout, logger, "Mobly")
 	}()
-
 	wg.Wait()
-	return nil
+	return cmd.Wait() // Return the error from cmd.Wait()
 }
