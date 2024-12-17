@@ -139,6 +139,73 @@ func TestMatchedTestsForSuites(t *testing.T) {
 	}
 }
 
+func TestPartialMatchDeQP(t *testing.T) {
+	testMetadataLocal := []*api.TestCaseMetadata{
+		{
+			TestCase: &api.TestCase{
+				Id: &api.TestCase_Id{
+					Value: "tradefed.cts.CtsDeqpTestCases",
+				},
+				Name: "test001",
+				Tags: []*api.TestCase_Tag{
+					{Value: "attr1"},
+					{Value: "attr2"},
+				},
+			},
+		},
+		{
+			TestCase: &api.TestCase{
+				Id: &api.TestCase_Id{
+					Value: "tradefed.cts.Other",
+				},
+				Name: "test001",
+				Tags: []*api.TestCase_Tag{
+					{Value: "attr1"},
+					{Value: "attr2"},
+				},
+			},
+		},
+	}
+
+	suites := []*api.TestSuite{
+		{
+			Name: "suite1",
+			Spec: &api.TestSuite_TestCaseIds{
+				TestCaseIds: &api.TestCaseIdList{
+					TestCaseIds: []*api.TestCase_Id{
+						{Value: "tradefed.cts.CtsDeqpTestCases dEQP-GLES31.info#*"},
+						{Value: "tradefed.cts.CtsDeqpTestCases dEQP-GLES2.info#*"},
+					},
+				},
+			},
+		},
+	}
+	expectedTests := map[string]bool{
+		"tradefed.cts.CtsDeqpTestCases dEQP-GLES31.info#*": false,
+		"tradefed.cts.CtsDeqpTestCases dEQP-GLES2.info#*":  false,
+	}
+	matchedMdList, err := MatchedTestsForSuites(testMetadataLocal, suites)
+	if err != nil {
+		t.Fatal("Failed to call MatchedTestsTestsForSuites: ", err)
+	}
+	for _, md := range matchedMdList {
+		found, ok := expectedTests[md.TestCase.Id.Value]
+		if !ok {
+			t.Errorf("Unexpected metadata: %+v", md)
+		}
+		if found {
+			t.Errorf("Duplicate metadata: %+v", md)
+		}
+		expectedTests[md.TestCase.Id.Value] = true
+	}
+
+	for test, found := range expectedTests {
+		if !found {
+			t.Errorf("Failed to find test: %v", test)
+		}
+	}
+}
+
 // TestMatchedTestsForSuites makes sure MatchedTestsForSuites return all expected metadata.
 func TestPartialMatch(t *testing.T) {
 	testMetadataLocal := []*api.TestCaseMetadata{

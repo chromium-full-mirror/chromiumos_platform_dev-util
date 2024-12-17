@@ -110,11 +110,17 @@ func MatchedTestsForSuites(metadataList []*api.TestCaseMetadata, suites []*api.T
 	var tagMatchers []*tagMatcher
 	for _, s := range suites {
 		tcIds := s.GetTestCaseIds()
+		fmt.Println("looking for tcIds", tcIds)
 		if tcIds != nil {
 			for _, t := range tcIds.TestCaseIds {
 				// Here is the given name.
 				clean := getfirstName(t.Value)
-				tests[clean] = []string{t.Value}
+				value, found := tests[clean]
+				if !found {
+					tests[clean] = []string{t.Value}
+				} else {
+					tests[clean] = append(value, t.Value)
+				}
 			}
 		}
 		criteria := s.GetTestCaseTagCriteria()
