@@ -284,6 +284,7 @@ def find_commits_to_copy(
     for rev in upstream_hashes:
         # Early exit if limit reached to avoid inadvertent continuation
         if counter > upstream_limit and upstream_limit != 0:
+            logger.info("Hit upstream limit of %s", upstream_limit)
             break
 
         # Check if this is a filtered commit.
@@ -341,6 +342,7 @@ def find_commits_to_copy(
                     "Found pending change that has already merged: %s", rev
                 )
             else:
+                logger.info("Skip %s because it has already merged", rev)
                 continue
 
         commit_files = repo.commit_file_list(rev)
@@ -661,7 +663,6 @@ def run_copybot(
         ):
             pending_modifications = True
             break
-
     if not num_cls_to_downstream and not pending_modifications:
         # No CLs to downstream, and no modifications to pending CLs
         logger.info("Nothing to do!")
