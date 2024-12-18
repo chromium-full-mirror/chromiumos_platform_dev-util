@@ -80,7 +80,7 @@ func (d *Dialer) DefaultCommand(ctx context.Context) *exec.Cmd {
 		"-oBatchMode=yes",
 		"-oUserKnownHostsFile=/dev/null",
 		"-oStrictHostKeyChecking=no",
-		"-oConnectTimeout=10",
+		"-oConnectTimeout=20",
 		"-oServerAliveInterval=1",
 		"-oUser=root",
 	)

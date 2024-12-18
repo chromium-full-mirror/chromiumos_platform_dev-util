@@ -23,7 +23,7 @@ func GetBootId(ctx context.Context, c *ssh.Client) (string, error) {
 // GetRebootingBootId attempts to connect to host using the system SSH command.
 // Then returns the unique boot ID of the host.
 func GetRebootingBootId(ctx context.Context, dialer *ssh.Dialer, host string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 22*time.Second)
 	defer cancel()
 
 	cmd := dialer.DefaultCommand(ctx)
