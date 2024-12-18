@@ -5,6 +5,7 @@
 FROM gcr.io/dockerized-tradefed/tradefed:latest
 
 ARG METADATA_DIR="."
+ARG ARTIFACT_DIR="."
 
 USER root
 
@@ -39,6 +40,11 @@ RUN echo 'chromeos-test ALL=NOPASSWD:ALL' > /etc/sudoers.d/chromeos-test
 # Cros-test binary is static across boards.
 COPY --chown=chromeos-test:chromeos-test cros-test /usr/bin/
 
+RUN groupadd nobody
+
+# Install the GRTE binary
+COPY --chown=chromeos-test:chromeos-test ${ARTIFACT_DIR}/grte*.deb /tmp/
+RUN dpkg -i /tmp/grte*.deb && rm /tmp/grte*.deb
 # ###############################################################################
 # Everything above this point should not be changing often (ie not every build)
 # Everything below this point is possible/likely to change per build
@@ -46,17 +52,25 @@ COPY --chown=chromeos-test:chromeos-test cros-test /usr/bin/
 
 RUN mkdir -p /tmp/test/metadata
 RUN mkdir -p /tmp/test/logs
+
 # Bring in metadata to 1 location (Can be different per board.)
 COPY --chown=chromeos-test:chromeos-test ${METADATA_DIR}/*.pb /tmp/test/metadata/
+COPY --chown=chromeos-test:chromeos-test ${METADATA_DIR}/*.txtpb /tmp/test/metadata/
 
 
 # Do a final chmod and chown
 RUN chmod 755 /usr/bin/cros-test
+RUN chmod -R 755 /tmp/test/metadata
 RUN chown -R chromeos-test:chromeos-test /tmp/test/
 RUN chmod -R a+rwx /tradefed
 RUN chown -R chromeos-test:chromeos-test /tradefed
 COPY --chown=chromeos-test:chromeos-test tradefed_runner.sh /tradefed
 
+# Copy Mobly PAR files and chown/own things
+RUN mkdir -p /usr/local/mobly
+COPY --chown=chromeos-test:chromeos-test ${ARTIFACT_DIR}/*.par /usr/local/mobly/
+RUN chown -R chromeos-test:chromeos-test /usr/local/mobly
+RUN chmod -R 755 /usr/local/mobly
 USER chromeos-test
 
 # Configure TradeFed environment.
@@ -69,4 +83,6 @@ ENV TF_GLOBAL_CONFIG_SERVER_CONFIG=google/atp/gcs-lab-config-server-config
 ENV GLOBAL_LOG_PATH=/tmp/test/logs
 
 ENV PATH=/tradefed:$PATH
+ENV PATH=/usr/local/mobly:$PATH
+
 ENTRYPOINT []

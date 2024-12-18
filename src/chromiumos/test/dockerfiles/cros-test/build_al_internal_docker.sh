@@ -20,7 +20,7 @@ KEEP_TMP_FILES=0
 TRADEFED_ZIP="tradefed.zip"
 
 DOCKERFILE_AOSP="Dockerfile_TF_AOSP"
-DOCKERFILE_INTERNAL="Dockerfile_TF"
+DOCKERFILE_INTERNAL="Dockerfile_AL_INTERNAL"
 
 DOCKER_TAG_AOSP="us-docker.pkg.dev/cros-registry/test-services/cros-test:prodAospTF"
 DOCKER_TAG_INTERNAL="us-docker.pkg.dev/cros-registry/test-services/cros-test:prodTF"
@@ -100,10 +100,15 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# ###############################################################################
+# Handle Tradefed metadata and tests
+# ###############################################################################
+
+
 TMPDIR_METADATA=$(mktemp -d -p . -t tf_metadata_XXXXXXXXXX) || exit 1
+TMPDIR_ARTIFACTS=$(mktemp -d -p . -t tf_artifacts_XXXXXXXXXX) || exit 1
 if [[ "${INTERNAL_TF}" -eq 0 ]]; then
   TMPDIR_TF=$(mktemp -d -p . -t tf_dir_XXXXXXXXXX) || exit 1
-  TMPDIR_ARTIFACTS=$(mktemp -d -p . -t tf_artifacts_XXXXXXXXXX) || exit 1
 fi
 
 if [[ "${#METADATA[@]}" -eq 0 ]]; then
@@ -154,6 +159,27 @@ if [[ "${INTERNAL_TF}" -eq 0 ]]; then
   rm platform-tools.zip
 fi
 
+
+# ###############################################################################
+# Handle Mobly metadata and tests
+# ###############################################################################
+
+MOBLY_ARTIFACTS_BUCKET="gs://mobly_priv_artifacts"
+MOBLY_ARTIFACTS_VERSION="out/billyzhao_mobly_tests_20241211_1122_RC00" # Make this a variable
+
+# Fetch Mobly artifacts. The meatadata is currently being fetched into TMPDIR_ARTIFACTS at this point.
+echo "Fetching Mobly artifacts from ${MOBLY_ARTIFACTS_BUCKET}/${MOBLY_ARTIFACTS_VERSION} to ${TMPDIR_ARTIFACTS}..."
+gsutil -m cp -r "${MOBLY_ARTIFACTS_BUCKET}/${MOBLY_ARTIFACTS_VERSION}/*" "${TMPDIR_ARTIFACTS}"
+
+# Move *.txtpb files to TMPDIR_METADATA. They were originally fetched into TMPDIR_ARTIFACTS. We filter
+# and move them to TMPDIR_METADATA.
+echo "Moving *.txtpb files to ${TMPDIR_METADATA}..."
+find "${TMPDIR_ARTIFACTS}" -name "*.txtpb" -exec mv {} "${TMPDIR_METADATA}" \;
+
+# ###############################################################################
+# Handle Docker image
+# ###############################################################################
+
 # Build cros-test binary.
 echo "Building cros-test binary..."
 echo "Using GOPATH=${GOPATH_VALS}"
@@ -178,7 +204,9 @@ else
   echo "Building docker image: ${TAG}"
   set -x
   docker buildx build -f "${DOCKERFILE_INTERNAL}" --no-cache=true -t "${TAG}" \
-    --build-arg METADATA_DIR="${TMPDIR_METADATA}" .
+    --build-arg METADATA_DIR="${TMPDIR_METADATA}" \
+    --build-arg ARTIFACT_DIR="${TMPDIR_ARTIFACTS}" .
+
   set +x
 fi
 
