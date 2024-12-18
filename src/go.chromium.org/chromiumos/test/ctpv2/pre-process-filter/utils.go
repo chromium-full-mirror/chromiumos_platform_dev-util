@@ -114,6 +114,17 @@ func getBoard(unit *api.SchedulingUnit) string {
 	return dutModelFromDut(unit.GetPrimaryTarget().GetSwarmingDef().GetDutInfo()).GetBuildTarget()
 }
 
+// getBoardWVariant returns board value for a scheduling unit w/ its variant (if applicable).
+func getBoardWVariant(unit *api.SchedulingUnit) string {
+	board := dutModelFromDut(unit.GetPrimaryTarget().GetSwarmingDef().GetDutInfo()).GetBuildTarget()
+	variant := unit.GetPrimaryTarget().GetSwarmingDef().GetVariant()
+	if variant != "" {
+		return board + "-" + variant
+	}
+	return board
+
+}
+
 // getMilestone returns the image milestone for a scheduling unit.
 func getMilestone(installPath string) (string, error) {
 	if installPath == "" {
@@ -137,7 +148,7 @@ func createBoardTestMap(req *api.InternalTestplan, log *log.Logger) (map[string]
 	for _, tc := range req.TestCases {
 		for _, units := range tc.GetSchedulingUnitOptions() {
 			for _, unit := range units.GetSchedulingUnits() {
-				board := getBoard(unit)
+				board := getBoardWVariant(unit)
 				milestone, err := getMilestone(unit.GetDynamicUpdateLookupTable()["installPath"])
 				if err != nil {
 					log.Printf("skipping as scheduling unit doesn't have install path")
@@ -164,7 +175,7 @@ func flakeFilteringLogAndResults(rspn *api.FilterFlakyResponse, board string, re
 
 		log.Printf("The following tests are set to be removed from this scheduled attempt for all models under board: %s\n", board)
 		for _, test := range rspn.RemovedTests {
-			log.Printf(test + "\n")
+			log.Println(test)
 		}
 	} else {
 		log.Printf("No tests to be removed from this scheduled attempt for any models under board: %s\n", board)
