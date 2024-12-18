@@ -79,6 +79,8 @@ type Options struct {
 	Postsubmit    bool   `json:",omitempty"` // flash a postsubmit build
 	Port          string `json:",omitempty"` // port number to connect to on the dut-host
 	DryRun        bool   `json:",omitempty"` // print what is going to be flashed but do not actually flash
+	// the ConnectTimeout of the SSH command.
+	SSHConnectTimeout time.Duration `json:",omitempty"`
 	dut.FlashOptions
 }
 
@@ -98,7 +100,7 @@ func Main(ctx context.Context, t0 time.Time, target string, opts *Options) error
 		return err
 	}
 
-	sshDialer, err := ssh.NewDialer(ssh.SshOptions{Port: opts.Port})
+	sshDialer, err := ssh.NewDialer(ssh.SSHOptions{Port: opts.Port, ConnectTimeout: opts.SSHConnectTimeout})
 	if err != nil {
 		return fmt.Errorf("failed to make ssh dialer: %w", err)
 	}

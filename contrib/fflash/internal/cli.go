@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"chromium.googlesource.com/chromiumos/platform/dev-util.git/contrib/fflash/internal/ssh"
 	"github.com/alecthomas/kingpin"
 )
 
@@ -33,6 +34,9 @@ func cliParse(args []string) (target string, opts Options, err error) {
 	app.Flag("postsubmit", "flash a postsubmit build").BoolVar(&opts.Postsubmit)
 	app.Flag("port", "port number to connect to on the dut-host").Short('p').StringVar(&opts.Port)
 	app.Flag("dry-run", "print the target image version but do not actually flash it").BoolVar(&opts.DryRun)
+	app.Flag("ssh-connect-timeout",
+		fmt.Sprintf("connect timeout for the SSH command; defaults to %v", ssh.DefaultConnectTimeout)).
+		DurationVar(&opts.SSHConnectTimeout)
 	rootfsVerification := app.Flag(
 		"rootfs-verification",
 		"whether rootfs verification on the new root is enabled. "+

@@ -34,7 +34,7 @@ func main() {
 	kingpin.Arg("dut-host", "the ssh target of the dut").Required().StringVar(&target)
 	kingpin.Parse()
 
-	dialer, err := ssh.NewDialer(ssh.SshOptions{})
+	dialer, err := ssh.NewDialer(ssh.SSHOptions{})
 	if err != nil {
 		log.Fatal("cannot create new ssh dialer:", err)
 	}

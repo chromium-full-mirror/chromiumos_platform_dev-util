@@ -12,32 +12,44 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
 
-// SshOptions is the set of all supported ssh options.
-type SshOptions struct {
-	Port string
+const DefaultConnectTimeout = 20 * time.Second
+
+// SSHOptions is the set of all supported ssh options.
+type SSHOptions struct {
+	Port           string
+	ConnectTimeout time.Duration
 }
 
 // Dialer is responsible for creating new ssh connections with a given set of ssh options.
 type Dialer struct {
-	sshOptions SshOptions
+	sshOptions SSHOptions
 	keyChain   *KeyChain
 }
 
 // NewDialer creates a new ssh dialer which will create ssh clients and tunnels based on the provided options.
-func NewDialer(sshOptions SshOptions) (*Dialer, error) {
+func NewDialer(sshOptions SSHOptions) (*Dialer, error) {
 	keyChain, err := NewKeyChain()
 	if err != nil {
 		return nil, err
+	}
+
+	if sshOptions.ConnectTimeout == 0 {
+		sshOptions.ConnectTimeout = DefaultConnectTimeout
 	}
 
 	return &Dialer{
 		sshOptions: sshOptions,
 		keyChain:   keyChain,
 	}, nil
+}
+
+func (d *Dialer) SSHOptions() SSHOptions {
+	return d.sshOptions
 }
 
 // DialWithSystemSSH connects to destination and return a Client.
@@ -80,7 +92,7 @@ func (d *Dialer) DefaultCommand(ctx context.Context) *exec.Cmd {
 		"-oBatchMode=yes",
 		"-oUserKnownHostsFile=/dev/null",
 		"-oStrictHostKeyChecking=no",
-		"-oConnectTimeout=20",
+		fmt.Sprintf("-oConnectTimeout=%.0f", d.sshOptions.ConnectTimeout.Seconds()),
 		"-oServerAliveInterval=1",
 		"-oUser=root",
 	)
