@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-"
-#
 # Copyright 2020 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """Module containing shared helper methods."""
 
-from enum import Enum
+import enum
 import functools
 import logging
 import os
@@ -35,7 +33,7 @@ CHROMIUM_REVIEW_BASEURL = "https://chromium-review.googlesource.com/a"
 CHROMEOS_BRANCHES = ["5.4", "5.10", "5.10-cip", "5.15", "6.1", "6.6"]
 STABLE_BRANCHES = ["5.4", "5.10", "5-10-cip", "5.15", "6.1", "6.6"]
 
-UPSTREAM_START_BRANCH = "v%s" % CHROMEOS_BRANCHES[0]
+UPSTREAM_START_BRANCH = f"v{CHROMEOS_BRANCHES[0]}"
 
 CHROMEOS_PATH = "linux_chrome"
 STABLE_PATH = "linux_stable"
@@ -56,7 +54,7 @@ connect_db = functools.partial(
 GWSQ_EMAIL = "chromeos-kernel-findmissing-reviewers@google.com"
 
 
-class Status(Enum):
+class Status(enum.Enum):
     """Text representation of database enum to track status of gerrit CL."""
 
     OPEN = 1  # Gerrit ticket was created for clean fix patch
@@ -65,7 +63,7 @@ class Status(Enum):
     CONFLICT = 4  # Gerrit ticket NOT created since patch doesn't apply properly
 
 
-class Kernel(Enum):
+class Kernel(enum.Enum):
     """Enum representing which Kernel we are representing."""
 
     linux_stable = 1
@@ -111,12 +109,12 @@ def get_current_time():
 
 def stable_branch(version):
     """Stable branch name"""
-    return "linux-%s.y" % version
+    return f"linux-{version}.y"
 
 
 def chromeos_branch(version):
     """Chromeos branch name"""
-    return "chromeos-%s" % version
+    return f"chromeos-{version}"
 
 
 def search_upstream_sha(kernel_sha):
@@ -148,7 +146,7 @@ def search_upstream_sha(kernel_sha):
 
 def patch_link(changeID):
     """Link to patch on gerrit"""
-    return "https://chromium-review.googlesource.com/q/%s" % changeID
+    return f"https://chromium-review.googlesource.com/q/{changeID}"
 
 
 def update_previous_fetch(db, kernel, branch, last_sha):
