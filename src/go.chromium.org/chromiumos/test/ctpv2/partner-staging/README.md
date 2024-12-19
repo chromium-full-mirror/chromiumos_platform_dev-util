@@ -167,5 +167,5 @@ cat request.json | led launch
 - [Build docker image](#Run-with-LUCI)
 - Run container:
 ```bash
-docker run --rm -it -v ~/service_account/chromeos-distributed-fleet-s4p.json:/creds/service_accounts/service-account-chromeos.json -v ~/.cftmeta:/root/.cftmeta -p $SERVICE_PORT:$SERVICE_PORT us-docker.pkg.dev/cros-registry/partner-test-services/partner-staging /usr/bin/partner-staging server --port $SERVICE_PORT
+docker run --rm -it -v ~/service_account/chromeos-distributed-fleet-s4p.json:/creds/service_accounts/service-account-chromeos.json -v ~/.cftmeta:/root/.cftmeta -p $SERVICE_PORT:$SERVICE_PORT -e SERVICE_ACCOUNT_KEY_PATH=/creds/service_accounts/service-account-chromeos.json --port $SERVICE_PORT us-docker.pkg.dev/cros-registry/partner-test-services/partner-staging /usr/bin/partner-staging server
 ```

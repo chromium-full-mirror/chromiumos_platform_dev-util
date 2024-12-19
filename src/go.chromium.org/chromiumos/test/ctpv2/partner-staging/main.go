@@ -42,8 +42,13 @@ func executor(req *api.InternalTestplan, log *log.Logger, commonParams *server.C
 	buildsToStage, cft := exctractBuildsToStage(req)
 	log.Printf("Found builds to stage: %d\n", len(buildsToStage))
 	ctx := context.Background()
+	options := make([]option.ClientOption, 0, 1)
 	saPath := site.ServiceAccountPath()
-	moblabClient, err := moblab.NewBuildClient(ctx, option.WithCredentialsFile(saPath))
+	if saPath != "" {
+		log.Printf("Using service account key path: %s\n", saPath)
+		options = append(options, option.WithCredentialsFile(saPath))
+	}
+	moblabClient, err := moblab.NewBuildClient(ctx, options...)
 	if err != nil {
 		return req, err
 	}

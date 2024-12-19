@@ -115,12 +115,12 @@ func TestParseChromeOSBuild(t *testing.T) {
 	testCases := map[string]parseResult{
 		"skyrim-release/R130-16033.49.0": {
 			board:   "skyrim",
-			version: "130-16033.49.0",
+			version: "16033.49.0",
 			err:     false,
 		},
 		"zork-release/130-16033.49.0": {
 			board:   "zork",
-			version: "130-16033.49.0",
+			version: "16033.49.0",
 			err:     false,
 		},
 		"zork-dev/130-16033.49.0": {
@@ -154,7 +154,7 @@ func TestParseChromeOSBuild(t *testing.T) {
 func TestStageChromeOSBuild(t *testing.T) {
 	build := "skyrim-release/R130-16033.49.0"
 	bucket := "chromeos-distributed-fleet-s4p"
-	expectedName := "buildTargets/skyrim/models/foo/builds/130-16033.49.0/artifacts/chromeos-distributed-fleet-s4p"
+	expectedName := "buildTargets/skyrim/models/foo/builds/16033.49.0/artifacts/chromeos-distributed-fleet-s4p"
 	expectedFilter := "type=release"
 
 	ctx := context.Background()

@@ -7,15 +7,10 @@ import (
 const (
 	// ServiceAccountKeyPathEnv defines the Service account key path to be used by staging filter
 	ServiceAccountKeyPathEnv = "SERVICE_ACCOUNT_KEY_PATH"
-	// DefaultServiceAccountKeyPath is the service account key path to be used by staging filter
-	DefaultServiceAccountKeyPath = "/creds/service_accounts/service-account-chromeos.json"
 )
 
 // ServiceAccountPath specifies the service account key path to be used by staging filter
 func ServiceAccountPath() string {
 	saPath := os.Getenv(ServiceAccountKeyPathEnv)
-	if saPath == "" {
-		saPath = DefaultServiceAccountKeyPath
-	}
 	return saPath
 }
