@@ -14,6 +14,9 @@ cd "${HERE}" || exit
 # What docker image to build: 0: AOSP TF, 1: internal TF
 INTERNAL_TF=0
 
+# To use the preset GOPATH or build it
+MYGOPATH=0
+
 # Keep temp files after script finishes.
 KEEP_TMP_FILES=0
 
@@ -25,11 +28,18 @@ DOCKERFILE_INTERNAL="Dockerfile_AL_INTERNAL"
 DOCKER_TAG_AOSP="us-docker.pkg.dev/cros-registry/test-services/cros-test:prodAospTF"
 DOCKER_TAG_INTERNAL="us-docker.pkg.dev/cros-registry/test-services/cros-test:prodTF"
 
+TEST_FINDER_TAG_INTERNAL="us-docker.pkg.dev/cros-registry/test-services/cros-test-finder:ALTF"
+
+TEST_FINDER_FILE="Dockerfile_Combined_Finder"
+
+
+
 METADATA_BUCKET="gs://cros-xts-metadata"
 METADATA_COMPILE_SCRIPT="../../python/src/tools/compile_xts_metadata.py"
 
 CROS_TEST_BUILD_PATH="../../../../go.chromium.org/chromiumos/test/execution/cmd/cros-test/."
-GOPATH_VALS=$(realpath -e "../../../../../../../../chroot/usr/lib/gopath/"):$(realpath -e "../../../../..")
+CROS_TEST_FINDER_BUILD_PATH="../../../../go.chromium.org/chromiumos/test/test_finder/cmd/cros-test-finder/."
+
 
 PLATFORM_TOOLS_URL="https://dl.google.com/android/repository/platform-tools-latest-linux.zip"
 
@@ -93,6 +103,10 @@ while [[ $# -gt 0 ]]; do
       DOCKER_TAG="$1"
       shift
       ;;
+    -p|--MYGOPATH)
+      MYGOPATH=1
+      shift
+      ;;
     *)
       echo "Unknown option $1"
       exit 1
@@ -104,6 +118,15 @@ done
 # Handle Tradefed metadata and tests
 # ###############################################################################
 
+if [[ "${MYGOPATH}" -eq 0 ]]; then
+  echo "configuring gopath for you"
+  GOPATH_VALS=$(realpath -e "../../../../../../../../chroot/usr/lib/gopath/"):$(realpath -e "../../../../..")
+else
+  echo "using preset gopath"
+  GOPATH_VALS=${GOPATH}
+fi
+
+echo "Using ${GOPATH_VALS} for gopath"
 
 TMPDIR_METADATA=$(mktemp -d -p . -t tf_metadata_XXXXXXXXXX) || exit 1
 TMPDIR_ARTIFACTS=$(mktemp -d -p . -t tf_artifacts_XXXXXXXXXX) || exit 1
@@ -188,8 +211,14 @@ if [[ ! -f "./cros-test" ]]; then
   echo "Test binary [cros-test] not found or could not be built."
   exit 2
 fi
+GOPATH="${GOPATH_VALS}" CGO_ENABLED=0 GO111MODULE=off go build "${CROS_TEST_FINDER_BUILD_PATH}"
+if [[ ! -f "./cros-test" ]]; then
+  echo "Test binary [cros-test] not found or could not be built."
+  exit 2
+fi
 
-# Build Docker image.
+
+# Build Docker images.
 if [[ "${INTERNAL_TF}" -eq 0 ]]; then
   TAG=${DOCKER_TAG:-${DOCKER_TAG_AOSP}}
   echo "Building AOSP docker image: ${TAG}"
@@ -210,6 +239,12 @@ else
   set +x
 fi
 
+set -x
+docker buildx build -f "${TEST_FINDER_FILE}" --no-cache=true -t "${TEST_FINDER_TAG_INTERNAL}" \
+    --build-arg METADATA_DIR="${TMPDIR_METADATA}" .
+set +x
+
+
 # Remove temporary files.
 if [[ "${KEEP_TMP_FILES}" -eq 0 ]]; then
   rm -fR "${TMPDIR_METADATA}"
@@ -218,4 +253,5 @@ if [[ "${KEEP_TMP_FILES}" -eq 0 ]]; then
     rm -fR "${TMPDIR_TF}"
   fi
   rm ./cros-test
+  rm ./cros-test-finder
 fi

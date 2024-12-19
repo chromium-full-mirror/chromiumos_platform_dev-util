@@ -1,0 +1,20 @@
+# Copyright 2024 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+FROM us-docker.pkg.dev/cros-registry/base-images/ubuntu:ubuntuProd
+COPY cros-test-finder /usr/bin/
+
+ARG METADATA_DIR="."
+
+
+RUN mkdir -p /tmp/test
+# Bring in metadata to 1 location
+COPY ${METADATA_DIR}/*.txtpb /tmp/test/metadata/
+COPY ${METADATA_DIR}/*.pb /tmp/test/metadata/
+
+
+# Own cros-test-finder/test_finder_filter & metadata
+RUN chmod 755 /usr/bin/cros-test-finder
+
+RUN chmod 644 /tmp/test/metadata/*.pb /tmp/test/metadata/*.txtpb
