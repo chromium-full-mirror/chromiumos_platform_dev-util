@@ -458,12 +458,15 @@ def rewrite_commit_message(
     repo.reword(commit_message, sign_off=sign_off, update_author=updated_author)
 
 
-def get_push_refspec(args: argparse.Namespace, downstream_branch: str) -> str:
+def get_push_refspec(
+    args: argparse.Namespace, downstream_branch: str, conflicted_changes: bool
+) -> str:
     """Generate a push refspec for Gerrit.
 
     Args:
         args: The parsed command line arguments.
         downstream_branch: The branch to push to.
+        conflicted_changes: Whether the copied CL stack contains conflicts.
 
     Returns:
         A push refspec as a string.
@@ -475,6 +478,9 @@ def get_push_refspec(args: argparse.Namespace, downstream_branch: str) -> str:
             push_options.append(f"{key}={option}")
 
     for label in args.labels:
+        if conflicted_changes and (label in ["Bot-Commit+1", "Commit-Queue+2"]):
+            logger.info("Skipping CQ because the copied stack has conflicts")
+            continue
         _add_push_option("l", label)
 
     for cc in args.ccs:
@@ -892,7 +898,9 @@ def run_copybot(
     if repo.rev_parse() == downstream_rev:
         logger.info("Nothing to push!")
     else:
-        push_refspec = get_push_refspec(args, downstream_branch)
+        push_refspec = get_push_refspec(
+            args, downstream_branch, len(conflicted_revs) != 0
+        )
         if not args.dry_run and not local_downstream:
             try:
                 repo.push(
