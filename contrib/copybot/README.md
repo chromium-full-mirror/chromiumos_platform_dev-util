@@ -24,14 +24,14 @@ Should [Copybara] support this in the future in a manner which works
 well for CopyBot's users, we should work to deprecate our usages of
 CopyBot in favor of unified infrastructure.
 
-[Copybara]: https://github.com/google/copybara
-
 ## CopyBot's design
 
-CopyBot is a single Python script: `copybot.py`.
+CopyBot is a set of Python scripts:
 
-`copybot.py` is what to run to copy code from one repository to
-another.  Its general usage is:
+`copybot.py`, `gerrit.py`, and `copybot_argparser.py`
+
+`copybot.py` is the main entry point and is what to run to copy code from one
+repository to another.  Its general usage is:
 
 ```
 ./copybot.py [options...] <upstream_repo>:<upstream_branch>:<upstream_subtree> <downstream_repo>:<downstream_branch>:<downstream_subtree>
@@ -55,14 +55,27 @@ Run `./copybot.py --help` for a complete list of options supported.
 
 Use `--dry-run` to test changes without pushing to the downstream repository.
 
+`gerrit.py` aims to encapsulate the functionality needed by copybot to interact
+with git and GoB repos.  Common functions for managing queries, changes, metadata,
+refspecs, and pushing copied stacks can be found here.
+
+`copybot_argparser.py` aims to minimize the content in the main script by
+encapsulating the parsing, checking, and application of command line arguments.
+
 ## Using CopyBot
 
 CopyBot is intended to be run daily as a cron job.  The Chromium OS
-deployment of CopyBot runs nightly at ~4:30 AM Mountain Time.
+deployment of CopyBot runs nightly at ~4:30 AM Mountain Time, but is configurable
+on a per project basis in `copybot.star`
+
+By default, copybot will set BotCommit+1, Verified+1, and CQ+2.  To stop this
+behavior, define the labels for your jobs configuration in copybot.star.  See
+this example for [coreboot toolchain].
 
 Your job as a downstreamer is to:
 
 - CR+2 and CQ+2 the commits uploaded by CopyBot.
+   * This step may be skipped if copybot is configured to auto-+2 for your repo.
 
 - Watch for CQ failures.
 
@@ -139,6 +152,12 @@ to prevent the CL from merging.
 
 See [Ignore List Example].
 
+#### Abandoning Commits
+
+Copybot will also consider abandoned commits as a part of the history of a repo.
+Should you choose to always ignore a change that has already been uploaded, you
+can leave the hashtags on the change, and abandon it.
+
 ### Triggering CopyBot Manually
 
 You can trigger CopyBot jobs from the [LUCI Scheduler UI].
@@ -147,7 +166,7 @@ You can trigger CopyBot jobs from the [LUCI Scheduler UI].
 
 CopyBot jobs run and managed by LUCI.  To add or modify a job configuration,
 modify the corresponding configuration object in
-[`infra/config/misc_builders/copybot.star`](https://chrome-internal.googlesource.com/chromeos/infra/config/+/main/misc_builders/copybot.star).
+[`infra/config/misc_builders/copybot.star`].
 
 ### CopyBot support for repositories
 
@@ -231,6 +250,12 @@ and will overwrite the commit and commit message with the change as it would
 cherry-pick it.  See [Preserving Commits](#preserving-commits) if this is not
 the desired behavior.
 
+Historical relationships can also be established with the `upstream-history-starts-with` and
+`downstream-history-starts-with` command line arguments.  Using these arguments will set the
+revision hash to use for the target repo as the starting point for consideration for
+downstreaming.  This option can also be used to limit the number of CLs in the history to look
+at after history has been previously established.  This aids in reducing copybot runtime.
+
 ## CopyBot Status
 
 To see the status of an individual CopyBot job, go to the corresponding LUCI
@@ -246,23 +271,23 @@ Run `black .` and `isort .` to do the formatting.
 
 To run tests, use `./run_tests.sh`.
 
-### Future Improvements
+### Support
 
-A number of improvements could be made to Copybot in the future to
-make it more friendly and help keep the bus number high.  Possible
-ideas include:
+To file a bug against copybot please use [go/copybot-bug].
 
-- Better email notifications on merge conflicts.
-
-- Automated copying and updates of FROMPULL PRs from GitHub when
-  changes are pushed.
+To ask questions or get help, please reachout to [copybot-maintainers@google.com]
 
 ### Tutorial Video
 
 How to run it manually video: [copybot - manual run demo][copybot_video]
 (available only to Googlers for the moment).
 
-[LUCI Scheduler UI]: https://luci-scheduler.appspot.com/jobs/chromeos
-[copybot_video]: https://drive.google.com/file/d/10aG8cMnR6TOpY5veLWSXX4MGeHA0RGel/view?resourcekey=0-zeid4OuuFAsysx0dJomQWg
-[Ignore List Example]: https://chromium-review.googlesource.com/c/chromiumos/third_party/zephyr/nanopb/+/5349888
+[coreboot toolchain]: https://source.corp.google.com/h/chrome-internal/chromeos/superproject/+/main:infra/config/misc_builders/copybot.star;l=150
+[Copybara]: https://github.com/google/copybara
 [CopyBot Status Dashboard]: https://dashboards.corp.google.com/_e1e96010_77ed_4e80_8437_f8fb0bb0f77b
+[copybot-maintainers@google.com]: mailto:copybot-maintainers@google.com
+[copybot_video]: https://drive.google.com/file/d/10aG8cMnR6TOpY5veLWSXX4MGeHA0RGel/view?resourcekey=0-zeid4OuuFAsysx0dJomQWg
+[go/copybot-bug]: http://go/copybot-bug
+[Ignore List Example]: https://chromium-review.googlesource.com/c/chromiumos/third_party/zephyr/nanopb/+/5349888
+[`infra/config/misc_builders/copybot.star`](https://chrome-internal.googlesource.com/chromeos/infra/config/+/main/misc_builders/copybot.star).
+[LUCI Scheduler UI]: https://luci-scheduler.appspot.com/jobs/chromeos
