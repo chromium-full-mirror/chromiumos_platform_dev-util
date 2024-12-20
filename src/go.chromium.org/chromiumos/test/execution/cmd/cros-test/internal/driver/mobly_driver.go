@@ -139,19 +139,6 @@ func (md *MoblyDriver) RunTests(ctx context.Context, resultsDir string, req *api
 	return resp, nil
 }
 
-// moveArtifacts moves artifacts from source to destination.
-func (md *MoblyDriver) moveArtifacts(resultsDir, artifactsDir string) {
-	mvCmd := exec.Command("mv", artifactsDir, resultsDir)
-	md.logger.Printf("Moving artifacts from: %q to: %q", artifactsDir, resultsDir)
-
-	out, err := mvCmd.CombinedOutput()
-	if err != nil {
-		md.logger.Printf("Error moving artifacts: %s: %s", err, string(out))
-	} else {
-		md.logger.Printf("Successfully moved artifacts")
-	}
-}
-
 // launchAndReadMobly launches a Mobly command and reads its output.
 func launchAndReadMobly(cmd *exec.Cmd, logger *log.Logger) error {
 	stderr, err := cmd.StderrPipe()
