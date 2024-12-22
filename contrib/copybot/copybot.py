@@ -242,11 +242,15 @@ def find_commits_to_copy(
             downstream history.
 
     Returns:
-        Four values: a list of the commit hashes to copy, a
-        dictionary mapping commit hashes to the files that should be
-        included, a dictionary mapping commit hashes to the files
-        that should be skipped, and a list of the CLs found with the
+        * A list of the commit hashes to copy.
+        * A dictionary mapping commit hashes to the files that should be
+        included.
+        * A dictionary mapping commit hashes to the files
+        that should be skipped.
+        * A list of the CLs found with the
         copybot-skip hashtag.
+        * A boolean denoting if there are pending changes that should be
+        acted upon.
 
     Raises:
         ValueError: If the provided last merged commit hash does not
@@ -281,6 +285,7 @@ def find_commits_to_copy(
     )
 
     counter = 0
+    pending_to_submit = False
     for rev in upstream_hashes:
         # Early exit if limit reached to avoid inadvertent continuation
         if counter > upstream_limit and upstream_limit != 0:
@@ -382,6 +387,8 @@ def find_commits_to_copy(
                     commit_files,
                 )
                 continue
+        if pending_changes and rev in pending_changes:
+            pending_to_submit = True
         commits_to_copy.append(rev)
 
     return (
@@ -389,6 +396,7 @@ def find_commits_to_copy(
         commit_files_map,
         skipped_files_map,
         copybot_skip_cls,
+        pending_to_submit,
     )
 
 
@@ -697,6 +705,7 @@ def run_copybot(
         commit_files_map,
         skipped_files_map,
         copybot_skip_cls,
+        pending_to_submit,
     ) = find_commits_to_copy(
         repo,
         upstream_rev,
@@ -898,7 +907,7 @@ def run_copybot(
     if repo.rev_parse() == downstream_rev:
         logger.info("Nothing to push!")
     else:
-        skip_cq = any(conflicted_revs) or any(pending_changes)
+        skip_cq = any(conflicted_revs) or (not pending_to_submit)
         push_refspec = get_push_refspec(args, downstream_branch, skip_cq)
         if not args.dry_run and not local_downstream:
             try:
