@@ -4,5 +4,4 @@ include chromiumos/config:/OWNERS.testservices
 # CTRP Team Contributors
 jessemcguire@google.com
 jkusuma@google.com
-yasinsonui@google.com
 zhihuixie@google.com
