@@ -907,7 +907,7 @@ def run_copybot(
     if repo.rev_parse() == downstream_rev:
         logger.info("Nothing to push!")
     else:
-        skip_cq = any(conflicted_revs) or (not pending_to_submit)
+        skip_cq = any(conflicted_revs) or pending_to_submit
         push_refspec = get_push_refspec(args, downstream_branch, skip_cq)
         if not args.dry_run and not local_downstream:
             try:
