@@ -639,6 +639,7 @@ def run_copybot(
             repo.get_cl_count(args.upstream_history_starts_with, upstream_rev)
             + 1
         )
+    logger.info("Upstream history length: %d", upstream_history_length)
     if args.downstream_history_starts_with:
         downstream_history_length = (
             repo.get_cl_count(
@@ -646,6 +647,7 @@ def run_copybot(
             )
             + 1
         )
+    logger.info("Downstream history length: %d", downstream_history_length)
 
     # Verify that the two repositories share a history
     num_cls_to_downstream = 0
@@ -696,6 +698,9 @@ def run_copybot(
             args.upstream_history_limit,
         )
         args.upstream_history_limit = num_cls_to_downstream
+        # The reference CL may have been cherry-picked out of order.
+        # Remove the downstream limit to find it in the history correctly.
+        args.downstream_history_limit = downstream_history_length
 
     commit_files_map = {}
     skipped_files_map = {}
