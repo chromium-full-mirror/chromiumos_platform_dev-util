@@ -113,9 +113,9 @@ def generate_copybot_arg_parser() -> argparse.Namespace:
     parser.add_argument(
         "--limit",
         type=int,
-        default=240,
+        default=200,
         help="Maximum number of CLs to downstream at once.  0 for infinite."
-        "Default is 240 to avoid hitting the CL limit in Gerrit.",
+        "Default is 200 to avoid hitting the CL limit in Gerrit.",
     )
     parser.add_argument(
         "--upstream-history-limit",
