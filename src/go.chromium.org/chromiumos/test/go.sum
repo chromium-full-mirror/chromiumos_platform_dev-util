@@ -216,6 +216,8 @@ go.chromium.org/chromiumos/config/go/src/go.chromium.org/chromiumos/config/go v0
 go.chromium.org/chromiumos/config/go/src/go.chromium.org/chromiumos/config/go v0.0.0-20241119011516-a08b3fa78d0c/go.mod h1:JR2kUZJhcMXE7Uw+DZIWn6+a4P21Rutfiak7MGK2gQY=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240530000842-7d34be97f98c h1:I+jrUdSw57R07U0r4Y2BU3YD20IAuyY1DEs3x0GDkvw=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240530000842-7d34be97f98c/go.mod h1:FA/cWXnIm9fHk7ZY1UX9yvquxllhmGuyOoaf6xmgT3k=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20250102200227-b13b715cea73 h1:9NvAuiyGKFuxD1JUNGqTsGmMRc+8saopsUOLABp7h7U=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20250102200227-b13b715cea73/go.mod h1:FA/cWXnIm9fHk7ZY1UX9yvquxllhmGuyOoaf6xmgT3k=
 go.chromium.org/chromiumos/platform/dev-util/src/go.chromium.org/chromiumos/lro v0.0.0-20241119133351-1b564358cf15 h1:MX0tqVjChbFT5WwptXLUXF7EoaaC1zgJXV1fpzLOCX0=
 go.chromium.org/chromiumos/platform/dev-util/src/go.chromium.org/chromiumos/lro v0.0.0-20241119133351-1b564358cf15/go.mod h1:tSvAX6a7PcR9fZ6i5Q9a16QN/LMhjeGH4qnKnIeDhHY=
 go.chromium.org/luci v0.0.0-20240531181147-0c7c729b2fcf h1:kQpts0oB2O6TJtQMgzM7K0+G4DY9dYRDxWNNMErCO4Q=

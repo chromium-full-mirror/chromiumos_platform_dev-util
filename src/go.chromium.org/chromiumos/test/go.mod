@@ -27,7 +27,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/smartystreets/goconvey v1.8.1
 	go.chromium.org/chromiumos/config/go v0.0.0-20240309015314-b8a183866804
-	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240530000842-7d34be97f98c
+	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20250102200227-b13b715cea73
 	go.chromium.org/chromiumos/lro v0.0.0-00010101000000-000000000000
 	go.chromium.org/luci v0.0.0-20240531181147-0c7c729b2fcf
 	go.chromium.org/tast v0.0.0-00010101000000-000000000000

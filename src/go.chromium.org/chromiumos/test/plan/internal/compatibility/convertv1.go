@@ -13,15 +13,15 @@ import (
 	"sort"
 	"strings"
 
-	"go.chromium.org/chromiumos/test/plan/internal/compatibility/priority"
-
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	testpb "go.chromium.org/chromiumos/config/go/test/api"
 	test_api_v1 "go.chromium.org/chromiumos/config/go/test/api/v1"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/lab"
+	"go.chromium.org/chromiumos/infra/proto/go/test_platform"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
+	"go.chromium.org/chromiumos/test/plan/internal/compatibility/priority"
 	bbpb "go.chromium.org/luci/buildbucket/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -84,9 +84,11 @@ func getAllAttrFromCriteria(criteria []*testpb.DutCriterion, attr *testpb.DutAtt
 	return values, nil
 }
 
-// checkCriteriaValid returns an error if any of criteria don't match the set
-// of validAttrs.
-func checkCriteriaValid(criteria []*testpb.DutCriterion, validAttrs ...*testpb.DutAttribute) error {
+// getFreeformAttributes returns the criteria that don't match any of
+// validAttrs, converted to FreeformAttributes
+func getFreeformAttributes(criteria []*testpb.DutCriterion, validAttrs ...*testpb.DutAttribute) (*test_platform.Request_Params_FreeformAttributes, error) {
+	freeformAttributes := &test_platform.Request_Params_FreeformAttributes{}
+
 	for _, criterion := range criteria {
 		matches := false
 		for _, attr := range validAttrs {
@@ -96,11 +98,17 @@ func checkCriteriaValid(criteria []*testpb.DutCriterion, validAttrs ...*testpb.D
 		}
 
 		if !matches {
-			return fmt.Errorf("criterion %q doesn't match any valid attributes (%q)", criterion, validAttrs)
+			if len(criterion.GetValues()) != 1 {
+				return nil, fmt.Errorf("only DutCriterion with exactly one value supported, got %q", criterion)
+			}
+			freeformAttributes.SwarmingDimensions = append(freeformAttributes.SwarmingDimensions, fmt.Sprintf(
+				"%s:%s", criterion.GetAttributeId().GetValue(),
+				criterion.GetValues()[0],
+			))
 		}
 	}
 
-	return nil
+	return freeformAttributes, nil
 }
 
 // sortedValuesFromMap returns the values from m as a list, sorted by the keys
@@ -458,6 +466,9 @@ type suiteInfo struct {
 	totalShards int64
 	// optional, if true then run test suites in this rule via CFT workflow.
 	runViaCft bool
+	// optional, any unexpected DutCriteria are passed through as
+	// FreeformAttributes.
+	freeformAttributes *test_platform.Request_Params_FreeformAttributes
 }
 
 // getBuildTarget returns the build target for the suiteInfo. If boardVariant is
@@ -549,10 +560,12 @@ func coverageRuleToSuiteInfo(
 
 	dutTarget := rule.GetDutTargets()[0]
 
-	// Check that all criteria in dutTarget specify one of the expected
-	// DutAttributes.
-	if err := checkCriteriaValid(dutTarget.GetCriteria(), poolAttr, programAttr, designAttr, licenseAttr); err != nil {
+	freeformAttributes, err := getFreeformAttributes(dutTarget.GetCriteria(), poolAttr, programAttr, designAttr, licenseAttr)
+	if err != nil {
 		return nil, err
+	}
+	if len(freeformAttributes.GetSwarmingDimensions()) > 0 {
+		glog.Infof("Passing additional DutCriteria as FreeformAttributes: %s", freeformAttributes)
 	}
 
 	pools, err := getAttrFromCriteria(dutTarget.GetCriteria(), poolAttr)
@@ -687,18 +700,19 @@ func coverageRuleToSuiteInfo(
 				suiteInfos = append(
 					suiteInfos,
 					&suiteInfo{
-						program:      chosenProgram,
-						companions:   companions,
-						design:       design,
-						pool:         pool,
-						suite:        id.Value,
-						tagCriteria:  nil,
-						environment:  hw,
-						critical:     critical,
-						boardVariant: boardVariant,
-						profile:      profile,
-						licenses:     licenses,
-						runViaCft:    rule.RunViaCft,
+						program:            chosenProgram,
+						companions:         companions,
+						design:             design,
+						pool:               pool,
+						suite:              id.Value,
+						tagCriteria:        nil,
+						environment:        hw,
+						critical:           critical,
+						boardVariant:       boardVariant,
+						profile:            profile,
+						licenses:           licenses,
+						runViaCft:          rule.RunViaCft,
+						freeformAttributes: freeformAttributes,
 					})
 			}
 		case *testpb.TestSuite_TestCaseTagCriteria_:
@@ -724,19 +738,20 @@ func coverageRuleToSuiteInfo(
 
 			suiteInfos = append(suiteInfos,
 				&suiteInfo{
-					program:      chosenProgram,
-					companions:   companions,
-					design:       design,
-					pool:         pool,
-					suite:        suite.GetName(),
-					tagCriteria:  suite.GetTestCaseTagCriteria(),
-					environment:  env,
-					critical:     critical,
-					boardVariant: boardVariant,
-					profile:      profile,
-					totalShards:  suite.GetTotalShards(),
-					licenses:     licenses,
-					runViaCft:    rule.GetRunViaCft(),
+					program:            chosenProgram,
+					companions:         companions,
+					design:             design,
+					pool:               pool,
+					suite:              suite.GetName(),
+					tagCriteria:        suite.GetTestCaseTagCriteria(),
+					environment:        env,
+					critical:           critical,
+					boardVariant:       boardVariant,
+					profile:            profile,
+					totalShards:        suite.GetTotalShards(),
+					licenses:           licenses,
+					runViaCft:          rule.GetRunViaCft(),
+					freeformAttributes: freeformAttributes,
 				})
 		default:
 			return nil, fmt.Errorf("TestSuite spec type %T is not supported", spec)
@@ -1044,10 +1059,11 @@ func ToCTP1(
 							Value: suiteInfo.critical,
 						},
 					},
-					RunViaCft:   suiteInfo.runViaCft,
-					TagCriteria: suiteInfo.tagCriteria,
-					TotalShards: suiteInfo.totalShards,
-					Companions:  suiteInfo.companions,
+					RunViaCft:          suiteInfo.runViaCft,
+					TagCriteria:        suiteInfo.tagCriteria,
+					TotalShards:        suiteInfo.totalShards,
+					Companions:         suiteInfo.companions,
+					FreeformAttributes: suiteInfo.freeformAttributes,
 				}
 
 				if _, found := hwTests[displayName]; found {
