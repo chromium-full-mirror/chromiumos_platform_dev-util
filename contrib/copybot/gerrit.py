@@ -196,7 +196,7 @@ class GitRepo:
         revision_range: str = "HEAD",
         fmt: str = "",
         num: int = 0,
-        subtree: str = "",
+        subtree: Union[str, "os.PathLike[str]"] = "",
         exclude_file_patterns: Iterable[str] = (),
     ) -> "subprocess.CompletedProcess[str]":
         """Do a `git log`."""
@@ -217,7 +217,7 @@ class GitRepo:
         self,
         revision_range: str = "HEAD",
         num: int = 0,
-        subtree: str = "",
+        subtree: Union[str, "os.PathLike[str]"] = "",
         exclude_file_patterns: Iterable[str] = (),
     ) -> List[str]:
         """Get the commit log as a list of commit hashes."""
@@ -548,12 +548,20 @@ class GitRepo:
         args.append(refspec)
         self._run_git("push", *args)
 
-    def get_cl_count(self, original_rev: str, current_rev: str) -> int:
+    def get_cl_count(
+        self,
+        original_rev: str,
+        current_rev: str,
+        subtree: Union[str, "os.PathLike[str]"] = "",
+    ) -> int:
         """Get the number of CLs between the specified revisions."""
         if not original_rev or not current_rev:
             return 0
         args = ["--count"]
         args.append(f"{original_rev}..{current_rev}")
+        if subtree:
+            args.append("--")
+            args.append(subtree)
         result = self._run_git("rev-list", *args)
         return int(result.stdout.rstrip())
 
@@ -729,7 +737,7 @@ class Gerrit:
         project: str,
         branch: str,
         hashtags: Iterable[str] = (),
-        subtree: str = "",
+        subtree: Union[str, "os.PathLike[str]"] = "",
         exclude_paths: Iterable[str] = (),
     ) -> Dict[str, GerritClInfo]:
         """Find pending changes previously opened by CopyBot on Gerrit.

@@ -636,18 +636,24 @@ def run_copybot(
     downstream_history_length = 0
     if args.upstream_history_starts_with:
         upstream_history_length = (
-            repo.get_cl_count(args.upstream_history_starts_with, upstream_rev)
-            + 1
-        )
-    logger.info("Upstream history length: %d", upstream_history_length)
-    if args.downstream_history_starts_with:
-        downstream_history_length = (
             repo.get_cl_count(
-                args.downstream_history_starts_with, downstream_rev
+                args.upstream_history_starts_with,
+                upstream_rev,
+                upstream_subtree,
             )
             + 1
         )
-    logger.info("Downstream history length: %d", downstream_history_length)
+        logger.info("Upstream history length: %d", upstream_history_length)
+    if args.downstream_history_starts_with:
+        downstream_history_length = (
+            repo.get_cl_count(
+                args.downstream_history_starts_with,
+                downstream_rev,
+                downstream_subtree,
+            )
+            + 1
+        )
+        logger.info("Downstream history length: %d", downstream_history_length)
 
     # Verify that the two repositories share a history
     num_cls_to_downstream = 0
