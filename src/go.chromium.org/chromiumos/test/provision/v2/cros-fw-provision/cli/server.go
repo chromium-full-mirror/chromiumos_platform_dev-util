@@ -221,8 +221,20 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 	fwService, err := firmwareservice.NewFirmwareService(ctx, ps.dutServer, ps.servoClient, ps.cacheServer,
 		ps.board, ps.model, false, req, ps.servoConfig)
 	if err != nil {
-		response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
 		ps.log.Printf("Failed to initialize Firmware Service: %v", err)
+		var firmwareResponse api.FirmwareProvisionResponse
+		provError, ok := err.(*firmwareservice.FirmwareProvisionError)
+		if ok {
+			response.Status = provError.Status
+			firmwareResponse.ErrorMessage = provError.Err.Error()
+		} else {
+			response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
+			firmwareResponse.ErrorMessage = err.Error()
+		}
+		response.Metadata, err = anypb.New(&firmwareResponse)
+		if err != nil {
+			ps.log.Printf("Failed to create AnyPb: %v", err)
+		}
 		return
 	}
 	// Clean up the temporary directories on the DUT.

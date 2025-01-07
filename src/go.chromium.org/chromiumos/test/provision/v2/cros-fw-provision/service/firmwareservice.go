@@ -104,6 +104,8 @@ func NewFirmwareService(ctx context.Context, dutServer api.DutServiceClient,
 		if err := req.GetMetadata().UnmarshalTo(metadata); err != nil {
 			return nil, InvalidRequestErr(errors.Wrap(err, "unmarshalling metadata"))
 		}
+	} else {
+		return nil, InvalidRequestErr(errors.Errorf("FirmwareProvisionInstallMetadata is required, got %s", req.String()))
 	}
 	detailedRequest := metadata.FirmwareConfig
 	dutAdapter := common_utils.NewServiceAdapter(dutServer, false /*noReboot*/)
