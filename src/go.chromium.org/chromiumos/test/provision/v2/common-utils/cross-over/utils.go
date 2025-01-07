@@ -29,7 +29,10 @@ const (
 	UNKNOWN
 )
 
-const connectionResetErr = "connection reset by peer"
+const (
+	connectionResetErr = "connection reset by peer"
+	servoNexusLogPath  = "/tmp/servod/"
+)
 
 func connectWithTimeout(addr string, config *ssh.ClientConfig, timeout time.Duration) (*ssh.Client, error) {
 	result := make(chan *ssh.Client)
@@ -156,11 +159,13 @@ func callServod(ctx context.Context, log *log.Logger, key, value string, params 
 	log.Printf("\nMaking CallServod Call with req %v", req)
 	response, err := params.ServoNexusClient.CallServod(ctx, req)
 	if err != nil {
+		saveServoLogs(ctx, log, params.ServoNexusClient, params.Dut)
 		return err
 	}
 	switch result := response.GetResult().(type) {
 	case *api.CallServodResponse_Failure_:
-		return fmt.Errorf("Call Servod failed error: " + result.Failure.ErrorMessage)
+		saveServoLogs(ctx, log, params.ServoNexusClient, params.Dut)
+		return fmt.Errorf("Call Servod failed error: %s", result.Failure.ErrorMessage)
 	case *api.CallServodResponse_Success_:
 		log.Printf("\nCallServod Call succeeded with response %v", response)
 		return nil
@@ -182,6 +187,7 @@ func startServod(ctx context.Context, log *log.Logger, servoNexusClient api.Serv
 	log.Printf("\nCalling start servod with request %v.", req)
 	op, err := servoNexusClient.StartServod(ctx, req)
 	if err != nil {
+		saveServoLogs(ctx, log, servoNexusClient, dut)
 		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -193,7 +199,26 @@ func startServod(ctx context.Context, log *log.Logger, servoNexusClient api.Serv
 func setPDRole(ctx context.Context, log *log.Logger, val string, params *CrossOverParameters) error {
 	err := callServod(ctx, log, "servo_pd_role", val, params)
 	if err != nil {
-		log.Println("Warning failed to set servo_pd_role to %s", val)
+		log.Println("Warning failed to set servo_pd_role to", val)
 	}
 	return err
+}
+
+func saveServoLogs(ctx context.Context, log *log.Logger, servoNexusClient api.ServodServiceClient, dut *lab_api.Dut) error {
+	host := dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
+	if strings.Contains(host, satlab) {
+		log.Println("Warning: Saving servo logs on satlab not supported.")
+		return nil
+	}
+	req := &api.SaveLogsRequest{}
+	req.ServodPorts = []int32{dut.GetChromeos().GetServo().GetServodAddress().GetPort()}
+	req.ServoHostPath = host + sshPort
+	req.Dest = servoNexusLogPath
+	_, err := servoNexusClient.SaveLogs(ctx, req)
+	if err != nil {
+		log.Println("Warning: failed to save servo logs ", err)
+		return err
+	}
+	log.Println("Saved logs successfully")
+	return nil
 }

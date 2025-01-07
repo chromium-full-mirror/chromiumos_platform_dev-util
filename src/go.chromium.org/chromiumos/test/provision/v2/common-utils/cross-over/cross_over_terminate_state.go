@@ -41,6 +41,7 @@ func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (
 		log.Printf("\nCalling stop servod with request %v.", req)
 		op, err := s.params.ServoNexusClient.StopServod(ctx, req)
 		if err != nil {
+			saveServoLogs(ctx, log, s.params.ServoNexusClient, s.params.Dut)
 			return common_utils.WrapStringInAny("INFRA: could not stop servod post install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -57,7 +58,6 @@ func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (
 	} else {
 		successMsg = "INFRA: cross-over provision to CROS successful"
 	}
-	// TODO: Code change to download the logs.
 	return common_utils.WrapStringInAny(successMsg), api.InstallResponse_STATUS_SUCCESS, nil
 }
 

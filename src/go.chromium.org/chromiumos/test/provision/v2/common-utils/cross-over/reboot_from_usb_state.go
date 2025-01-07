@@ -45,6 +45,7 @@ func (s RebootFromUSBState) Execute(ctx context.Context, log *log.Logger) (*anyp
 		setPDRole(ctx, log, "src", s.params)
 		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
 	}
+
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
 }
 
