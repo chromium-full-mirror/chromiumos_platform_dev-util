@@ -39,6 +39,8 @@ DEFINE_string logfile "${LOGFILE_PATH}" "Path to record logs to."
 DEFINE_string status_url "" "URL of devserver to post status to."
 DEFINE_boolean reboot "${FLAGS_TRUE}" "Whether to reboot at completion"
 DEFINE_boolean minios "${FLAGS_FALSE}" "Whether to provision inactive miniOS"
+DEFINE_string dev_exclude "" "Exclude files from dev_image"
+DEFINE_string var_exclude "" "Exclude files from var_overlay"
 
 # Parse command line.
 FLAGS "$@" || exit 1
@@ -192,12 +194,30 @@ stateful_update() {
     "${STATEFUL_DIR}/var_new" \
     "${STATEFUL_DIR}/dev_image_new" || die "Unable to reset stateful."
 
+  # Stateful exclusion.
+  local tar_args=( )
+  if [[ -n "${FLAGS_dev_exclude}" ]]; then
+    IFS=' ' read -r -a dev_arr <<< "${FLAGS_dev_exclude}"
+    for exclude_path in "${dev_arr[@]}"; do
+      rm -rf "${STATEFUL_DIR}/dev_image/${exclude_path}"
+      tar_args+=( "--exclude=dev_image_new/${exclude_path}" )
+    done
+  fi
+
+  if [[ -n "${FLAGS_var_exclude}" ]]; then
+    IFS=' ' read -r -a var_arr <<< "${FLAGS_var_exclude}"
+    for exclude_path in "${var_arr[@]}"; do
+      rm -rf "${STATEFUL_DIR}/var_overlay/${exclude_path}"
+      tar_args+=( "--exclude=var_new/${exclude_path}" )
+    done
+  fi
+
   # Stateful update.
   info "Stateful update"
   post_status "DUT: Stateful update"
-  get_url_to_stdout "${url}" |
-    tar --ignore-command-error --overwrite --directory="${STATEFUL_DIR}" \
-      --warning=no-timestamp --selinux -xzf -
+  tar_args+=( --ignore-command-error --overwrite \
+    --directory="${STATEFUL_DIR}" --warning=no-timestamp --selinux -xzf - )
+  get_url_to_stdout "${url}" | tar "${tar_args[@]}"
   local pipestatus=("${PIPESTATUS[@]}")
   if [[ "${pipestatus[0]}" -ne "0" ]]; then
     die "Retrieving ${url} failed. (statuses ${pipestatus[*]})"
