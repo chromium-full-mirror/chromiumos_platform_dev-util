@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"runtime/debug"
 
 	"go.chromium.org/chromiumos/lro"
 	"go.chromium.org/chromiumos/test/util/portdiscovery"
@@ -197,6 +198,22 @@ func (ps *FWProvisionServer) Install(ctx context.Context, req *api.InstallReques
 func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRequest, lroName string) {
 	response := api.InstallResponse{}
 	defer func() {
+		if r := recover(); r != nil {
+			stack := string(debug.Stack())
+			ps.log.Printf("Panic detected: %+v stack: %s", r, stack)
+			var firmwareResponse api.FirmwareProvisionResponse
+			response.Status = api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED
+			err, ok := r.(error)
+			if ok {
+				firmwareResponse.ErrorMessage = err.Error()
+			} else {
+				firmwareResponse.ErrorMessage = fmt.Sprintf("panic: %+v", r)
+			}
+			response.Metadata, err = anypb.New(&firmwareResponse)
+			if err != nil {
+				ps.log.Printf("Failed to create AnyPb: %v", err)
+			}
+		}
 		ps.manager.SetResult(lroName, &response)
 		ps.log.Printf("Provision set OP Response to:%s ", response.String())
 	}()
