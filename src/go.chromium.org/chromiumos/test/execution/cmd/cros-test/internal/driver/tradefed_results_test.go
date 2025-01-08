@@ -22,6 +22,7 @@ const (
 	TradefedTestResultFile              = "tradefed_test_data/test_result.xml"
 	TradefedTestResultFileModulesNoTest = "tradefed_test_data/test_result_modules_no_test.xml"
 	TradefedTestResultModuleError       = "tradefed_test_data/test_result_module_error.xml"
+	TradefedLuciTestResultFile          = "tradefed_test_data/LUCIResult_.json"
 
 	FileSelectFileByPattern1 = "/tmp/test-SelectFileByPattern-file1.txt"
 	FileSelectFileByPattern2 = "/tmp/test-SelectFileByPattern-file2.txt"
@@ -159,6 +160,46 @@ func getTestCaseResults(prefix string) []*api.TestCaseResult {
 	}
 }
 
+func getGeneralTestCaseResults(prefix string) []*api.TestCaseResult {
+	startTimestamp := int64(1736207832737)
+	startTime := timestamppb.New(time.Unix(startTimestamp/1000, startTimestamp%1000*1000000))
+	numOfTests := 4
+	duration := &durationpb.Duration{Seconds: int64(18 / numOfTests)}
+	testHarness := &api.TestHarness{TestHarnessType: &api.TestHarness_Tradefed_{Tradefed: &api.TestHarness_Tradefed{}}}
+
+	return []*api.TestCaseResult{
+		{
+			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests#testSingleWindow"},
+			TestHarness: testHarness,
+			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
+			StartTime:   startTime,
+			Duration:    duration,
+		},
+		{
+			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests#testSingleWindow"},
+			TestHarness: testHarness,
+			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
+			StartTime:   startTime,
+			Duration:    duration,
+		},
+		{
+			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests#testMultiWindowsLimitFail"},
+			TestHarness: testHarness,
+			Verdict:     &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}},
+			Errors:      []*api.TestCaseResult_Error{{Message: "null: java.lang.AssertionError: windows expected: 5, found: 4"}},
+			StartTime:   startTime,
+			Duration:    duration,
+		},
+		{
+			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests2#testMultiWindowsLimit2"},
+			TestHarness: testHarness,
+			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
+			StartTime:   startTime,
+			Duration:    duration,
+		},
+	}
+}
+
 func TestParseCompatibilityXmlResults(t *testing.T) {
 	t.Parallel()
 
@@ -220,6 +261,34 @@ func TestParseCompatibilityXmlResults(t *testing.T) {
 		So(givenTestCases[0].GetParentTest(), ShouldEqual, moduleName)
 		So(givenTestCases[0].ChildTestCaseResults[0].Verdict, ShouldResemble, failVerdict)
 	})
+
+	Convey("Build TradeFed results from LUCI JSON", t, func() {
+		logger := log.New(io.Discard, "", 0)
+		moduleName := "tradefed.general.DesktopChromeTestCases"
+
+		want := &api.CrosTestResponse{
+			TestCaseResults: getGeneralTestCaseResults(moduleName + "#"),
+			GivenTestResults: []*api.CrosTestResponse_GivenTestResult{
+				{
+					ParentTest:           moduleName,
+					ChildTestCaseResults: getGeneralTestCaseResults(""),
+				},
+			},
+		}
+
+		TR := LuciJsonResult{}
+		err := parseResultFile(logger, TradefedLuciTestResultFile, &TR)
+		So(err, ShouldBeNil)
+
+		R, err2 := convertToResult(logger, TR)
+		So(err2, ShouldBeNil)
+
+		allTestCases, givenTestCases := generateTestCaseResult(logger, "general", R, nil)
+
+		So(allTestCases, ShouldResemble, want.TestCaseResults)
+		So(givenTestCases, ShouldResemble, want.GivenTestResults)
+	})
+
 }
 
 func TestBuildTcResult(t *testing.T) {

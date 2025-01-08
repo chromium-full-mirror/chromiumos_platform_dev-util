@@ -32,6 +32,8 @@ func BuildNonXtsTestCommand(logger *log.Logger, testType string, tests []*api.Te
 
 	cmd := []string{nonXtsTestRunner}
 
+	logPath := getGlobalLogPath()
+
 	cmd = append(cmd, "--test-tag", fmt.Sprintf("cros-%s-test", testType),
 		"--auto-collect", "HOSTLOG_ON_FAILURE", "--auto-collect", "LOGCAT_ON_FAILURE",
 		"--invocation-timeout", invocationTimeout, "--log-level", "VERBOSE",
@@ -45,6 +47,7 @@ func BuildNonXtsTestCommand(logger *log.Logger, testType string, tests []*api.Te
 		"--test-config-only-zip", generalConfigOnlyZip,
 		"--test-zip-file-filter", generalTestsZipTemplate, "--no-bugreport-on-invocation-ended",
 		"--google-device-setup:set-global-setting", "verifier_verify_adb_installs=0",
+		"--luci-result-reporter:json-output-path", logPath,
 	)
 
 	// Adding a list of artifacts to skip downloading by the CTS runner.

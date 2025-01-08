@@ -8,6 +8,7 @@ package driver
 import (
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 
@@ -38,6 +39,15 @@ func getArchFromBoard(targetBoard string) string {
 		}
 	}
 	return arch
+}
+
+func getGlobalLogPath() string {
+	logPath := os.Getenv("GLOBAL_LOG_PATH")
+	if len(logPath) <= 0 {
+		logPath = defaultGlobalLogPath
+		os.Setenv("GLOBAL_LOG_PATH", logPath)
+	}
+	return logPath
 }
 
 func extractBuildInfoFromExecutionMetadata(metadata *api.ExecutionMetadata) (branch string, target string, build string) {

@@ -8,7 +8,6 @@ package driver
 import (
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -84,11 +83,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			"--no-set-test-harness")
 	}
 
-	logPath := os.Getenv("GLOBAL_LOG_PATH")
-	if len(logPath) <= 0 {
-		logPath = defaultGlobalLogPath
-		os.Setenv("GLOBAL_LOG_PATH", logPath)
-	}
+	logPath := getGlobalLogPath()
 
 	cmd = append(cmd, "--invocation-timeout", invocationTimeout, "--log-level", "VERBOSE")
 

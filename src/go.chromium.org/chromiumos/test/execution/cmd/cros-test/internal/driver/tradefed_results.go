@@ -7,6 +7,7 @@ package driver
 
 import (
 	"compress/gzip"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -27,7 +29,10 @@ const (
 	tfStageLogsPath      = "/tmp/stage-android-build-api/stub"
 	tfStageResultPattern = "subprocess-test_result.xml_*.xml.gz"
 	tfAospResultPattern  = "android-%s/results/latest/test_result.xml"
+	tfLuciResultPattern  = "LUCIResult_*.json"
 	incompleteError      = "Module is missing from results or skipped by exclude filter"
+
+	RAW_STATUS_KEY_NAME = "raw_status"
 )
 
 //--------------------------------------------------------------
@@ -75,6 +80,25 @@ type Result struct {
 	Modules  []Module `xml:"Module"`
 }
 
+//--------------------------------------------------------------
+// Data structures for parsing LUCI reporter JSON data.
+//--------------------------------------------------------------
+
+type LuciJsonResult struct {
+	Tr []struct {
+		TestId        string  `json:"testId"`
+		Name          string  `json:"result_name"`
+		Status        string  `json:"status"`
+		Expected      bool    `json:"expected"`
+		FailureReason string  `json:"failureReason"`
+		Duration      float32 `json:"duration"`
+		Tags          []struct {
+			Key   string `json:"key"`
+			Value string `json:"value"`
+		} `json:"tags"`
+	} `json:"tr"`
+}
+
 func selectMostRecentFile(files []string) string {
 	var recentFile string
 	var recentTime int64 = 0
@@ -113,15 +137,19 @@ func selectFileByPattern(pattern string) (string, error) {
 	}
 }
 
-// Unmarshal XML result file into a given struct.
+// Unmarshal XML or JSON result file into a given struct.
 func parseResultFile(logger *log.Logger, resultPath string, v any) error {
 	resultData, err := os.ReadFile(resultPath)
 	if err != nil {
 		logger.Println("Failed to read Tradefed result file: ", err)
 		return err
 	}
-	err = xml.Unmarshal(resultData, v)
-	// err = parseFunc(resultData)
+	if strings.HasSuffix(resultPath, ".json") {
+		err = json.Unmarshal(resultData, v)
+	} else {
+		// Use XML parser for all other result files.
+		err = xml.Unmarshal(resultData, v)
+	}
 	if err != nil {
 		logger.Println("Failed to parse Tradefed result file: ", err)
 		return err
@@ -188,6 +216,171 @@ func parseCompatibilityXmlResults(logger *log.Logger, testType string, req *api.
 	if err = parseResultFile(logger, xmlResultFile, &R); err != nil {
 		return allTestCases, nil, logsDir, err
 	}
+	allTestCases, givenTestCases := generateTestCaseResult(logger, testType, R, req)
+
+	return allTestCases, givenTestCases, logsDir, nil
+}
+
+func parseLuciResultName(resultName string) (abi string, moduleName string, endtime int64, err error) {
+	// Parse ABI, Module name and test time from LUCI result name string.
+	// Format of LUCI result name: "<ABI> <module>##<datetime>"
+
+	// First, extract the ABI
+	parts1 := strings.SplitN(resultName, " ", 2)
+	if len(parts1) != 2 {
+		return "", "", 0, fmt.Errorf("could not split ABI from result name: %s", resultName)
+	}
+	abi = parts1[0]
+
+	// Then, split the remaining part
+	parts2 := strings.SplitN(parts1[1], "##", 2)
+	if len(parts2) != 2 {
+		return "", "", 0, fmt.Errorf("could not parse result name: %s", resultName)
+	}
+	moduleName = parts2[0]
+
+	// Parse the datetime and convert to timestamp (i.e. "2025-01-06T23:57:37.155198962Z" -> 1736168257)
+	t, err := time.Parse(time.RFC3339Nano, parts2[1])
+	if err != nil {
+		fmt.Println(err)
+	}
+	endtime = t.UnixMilli()
+
+	return
+}
+
+func parseTestName(testName string) (string, string, error) {
+	testNameParts := strings.SplitN(testName, "#", 2)
+	if len(testNameParts) != 2 {
+		return "", "", fmt.Errorf("could not parse test name: %s", testName)
+	}
+
+	return testNameParts[0], testNameParts[1], nil
+}
+
+func isPassedTest(status string) bool {
+	statusUp := strings.ToUpper(status)
+	return strings.HasPrefix(statusUp, "PASS") || strings.HasPrefix(statusUp, "SKIP")
+}
+
+func convertToResult(logger *log.Logger, luciResult LuciJsonResult) (Result, error) {
+	moduleMap := make(map[string]*Module)
+	var endTime int64
+	var maxDuration int64
+
+	for _, trResult := range luciResult.Tr {
+		abi, moduleName, moduleEndTime, err := parseLuciResultName(trResult.Name)
+		if err != nil {
+			return Result{}, err
+		}
+		testCaseName, testName, err := parseTestName(trResult.TestId)
+		if err != nil {
+			return Result{}, err
+		}
+
+		status := trResult.Status
+		for _, tag := range trResult.Tags {
+			if tag.Key == RAW_STATUS_KEY_NAME {
+				status = tag.Value
+			}
+		}
+
+		if _, ok := moduleMap[moduleName]; !ok {
+			moduleMap[moduleName] = &Module{
+				Name:    moduleName,
+				Abi:     abi,
+				Runtime: strconv.FormatInt(int64(trResult.Duration*1000), 10),
+				Done:    "true",
+			}
+		}
+
+		module := moduleMap[moduleName]
+		var testCase *TradefedTestCase
+		for i := range module.TestCases {
+			if module.TestCases[i].Name == testCaseName {
+				testCase = &module.TestCases[i]
+				break
+			}
+		}
+		if testCase == nil {
+			module.TestCases = append(module.TestCases, TradefedTestCase{Name: testCaseName})
+			testCase = &module.TestCases[len(module.TestCases)-1]
+		}
+
+		tfTest := TradeFedTest{
+			Name:   testName,
+			Result: status,
+		}
+		if len(trResult.FailureReason) > 0 && !trResult.Expected {
+			tfTest.Failure = TradeFedTestFailure{Message: trResult.FailureReason}
+		}
+		testCase.Tests = append(testCase.Tests, tfTest)
+
+		// Keep track of latest endTime and max test runtime duration.
+		currModuleRuntime, err := strconv.Atoi(module.Runtime)
+		if err == nil {
+			currModuleRuntime = 1
+		}
+		moduleDuration := int64(trResult.Duration * 1000)
+		if moduleDuration > maxDuration {
+			maxDuration = moduleDuration
+		}
+		if moduleDuration > int64(currModuleRuntime) {
+			module.Runtime = strconv.FormatInt(moduleDuration, 10)
+		}
+
+		if moduleEndTime > endTime {
+			endTime = moduleEndTime
+		}
+	}
+
+	var modules []Module
+	for _, module := range moduleMap {
+		passCount := 0
+		totalCount := 0
+		for _, testCase := range module.TestCases {
+			for _, test := range testCase.Tests {
+				totalCount++
+				if isPassedTest(test.Result) {
+					passCount++
+				}
+			}
+		}
+		module.Pass = strconv.Itoa(passCount)
+		module.Total_Tests = strconv.Itoa(totalCount)
+		modules = append(modules, *module)
+	}
+
+	return Result{
+		Start:   strconv.FormatInt(endTime-maxDuration, 10),
+		End:     strconv.FormatInt(endTime, 10),
+		Modules: modules,
+	}, nil
+}
+
+func parseLuciJsonResults(logger *log.Logger, testType string, req *api.CrosTestRequest) ([]*api.TestCaseResult, []*api.CrosTestResponse_GivenTestResult, []string, error) {
+	var logsDir []string
+	allTestCases := []*api.TestCaseResult{}
+
+	resultFilePath := filepath.Join(getGlobalLogPath(), "*", tfLuciResultPattern)
+	jsonResultFile, err := selectFileByPattern(resultFilePath)
+	if err != nil {
+		return allTestCases, nil, logsDir, fmt.Errorf("failed to locate result file: %w", err)
+	}
+
+	logsDir = append(logsDir, filepath.Join(filepath.Dir(jsonResultFile), "*"))
+
+	logger.Println("Parsing JSON results from: ", jsonResultFile)
+	TR := LuciJsonResult{}
+	if err = parseResultFile(logger, jsonResultFile, &TR); err != nil {
+		return allTestCases, nil, logsDir, err
+	}
+
+	R, err := convertToResult(logger, TR)
+	if err != nil {
+		return allTestCases, nil, logsDir, err
+	}
+
 	allTestCases, givenTestCases := generateTestCaseResult(logger, testType, R, req)
 
 	return allTestCases, givenTestCases, logsDir, nil
@@ -313,7 +506,11 @@ func buildTradefedResult(logger *log.Logger, testType string, req *api.CrosTestR
 	f := &api.CrosTestResponse{}
 
 	var err error
-	f.TestCaseResults, f.GivenTestResults, logsToSave, err = parseCompatibilityXmlResults(logger, testType, req)
+	if isNonXtsTest(testType) {
+		f.TestCaseResults, f.GivenTestResults, logsToSave, err = parseLuciJsonResults(logger, testType, req)
+	} else {
+		f.TestCaseResults, f.GivenTestResults, logsToSave, err = parseCompatibilityXmlResults(logger, testType, req)
+	}
 	if err != nil {
 		logger.Println("Failed to locate or parse Tradefed compatibility result file: ", err)
 		return testResponseNoXMLFound(req), logsToSave
@@ -347,7 +544,7 @@ func buildTcResult(testName string, testStatus string, startTime time.Time, dura
 	case "ASSUMPTION_FAILURE":
 		tcResult.Verdict = &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}}
 		tcResult.Errors = []*api.TestCaseResult_Error{testError}
-	case "FAILED", "fail":
+	case "FAILED", "FAILURE", "fail":
 		tcResult.Verdict = &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}}
 		tcResult.Errors = []*api.TestCaseResult_Error{testError}
 	case "INCOMPLETE":
