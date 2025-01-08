@@ -273,7 +273,8 @@ def build_image(args: argparse.Namespace, service: str, output: str) -> bool:
         traceback.print_exc()
         err = True
     finally:
-        shutil.rmtree(prepper.full_out_dir)
+        if os.path.exists(prepper.full_out_dir):
+            shutil.rmtree(prepper.full_out_dir)
     return err
 
 
