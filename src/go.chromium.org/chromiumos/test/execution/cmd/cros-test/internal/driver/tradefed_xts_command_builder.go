@@ -106,7 +106,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 
 		// Adding cts-params with prefix for each one.
 		ctsParams := []string{
-			"--skip-device-info", "--no-use-device-build-info", "--log-level", "VERBOSE",
+			"--no-use-device-build-info", "--log-level", "VERBOSE",
 			"--max-log-size", "62914560", "--max-tmp-logcat-file", "62914560",
 			"--logcat-on-failure", "--screenshot-on-failure", "--include-test-log-tags",
 			"--result-reporter:disable-result-posting", "--result-reporter:no-disable",
