@@ -9,7 +9,6 @@ import (
 	"context"
 	"log"
 	"strings"
-	"time"
 
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
 
@@ -30,7 +29,12 @@ func NewCrossOverTerminateState(params *CrossOverParameters) common_utils.Servic
 
 func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("Executing " + s.Name())
-
+	var successMsg string
+	if strings.Contains(s.params.TargetImagePath.GetPath(), "android-build") {
+		successMsg = "INFRA: cross-over provision to ANDROID successful"
+	} else {
+		successMsg = "INFRA: cross-over provision to CROS successful"
+	}
 	if s.params.StopServo {
 		req := &api.StopServodRequest{}
 		req.ServodPort = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
@@ -39,24 +43,13 @@ func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (
 			req.ServodDockerContainerName = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
 		}
 		log.Printf("\nCalling stop servod with request %v.", req)
-		op, err := s.params.ServoNexusClient.StopServod(ctx, req)
+		_, err := s.params.ServoNexusClient.StopServod(ctx, req)
 		if err != nil {
+			log.Println("Warning: failed to stop servod", err)
 			saveServoLogs(ctx, log, s.params.ServoNexusClient, s.params.Dut)
-			return common_utils.WrapStringInAny("INFRA: could not stop servod post install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_, err = common_utils.WaitLongRunningOp(ctx, log, op)
-		if err != nil {
-			return common_utils.WrapStringInAny("INFRA: could not stop servod post install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, err
+			return common_utils.WrapStringInAny(successMsg), api.InstallResponse_STATUS_SUCCESS, nil
 		}
 		log.Printf("\nStopped servod process")
-	}
-	var successMsg string
-	if strings.Contains(s.params.TargetImagePath.GetPath(), "android-build") {
-		successMsg = "INFRA: cross-over provision to ANDROID successful"
-	} else {
-		successMsg = "INFRA: cross-over provision to CROS successful"
 	}
 	return common_utils.WrapStringInAny(successMsg), api.InstallResponse_STATUS_SUCCESS, nil
 }
