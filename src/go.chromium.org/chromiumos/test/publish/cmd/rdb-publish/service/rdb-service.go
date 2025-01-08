@@ -82,7 +82,7 @@ type RdbPublishService struct {
 // NewRdbPublishService creates a new ResultDB publish service to interact with
 // ResultDB.
 func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
-	m, err := unpackMetadata(req)
+	m, err := UnpackMetadata(req)
 	if err != nil {
 		return nil, err
 	}
@@ -230,8 +230,8 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 	return nil
 }
 
-// unpackMetadata unpacks the Any metadata field into PublishGcsMetadata
-func unpackMetadata(req *api.PublishRequest) (*metadata.PublishRdbMetadata, error) {
+// UnpackMetadata unpacks the Any metadata field into PublishGcsMetadata
+func UnpackMetadata(req *api.PublishRequest) (*metadata.PublishRdbMetadata, error) {
 	var m metadata.PublishRdbMetadata
 	if err := req.Metadata.UnmarshalTo(&m); err != nil {
 		return &m, fmt.Errorf("improperly formatted input proto metadata, %s", err)

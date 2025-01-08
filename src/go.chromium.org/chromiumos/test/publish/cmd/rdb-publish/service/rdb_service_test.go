@@ -1006,7 +1006,7 @@ func TestNewRdbPublishService(t *testing.T) {
 			BaseVariant: map[string]string{},
 		}
 		req.Metadata, _ = anypb.New(metadata)
-		m, _ := unpackMetadata(req)
+		m, _ := UnpackMetadata(req)
 		wantService := &RdbPublishService{
 			CurrentInvocationId:       m.GetCurrentInvocationId(),
 			TestResultProto:           m.GetTestResult(),

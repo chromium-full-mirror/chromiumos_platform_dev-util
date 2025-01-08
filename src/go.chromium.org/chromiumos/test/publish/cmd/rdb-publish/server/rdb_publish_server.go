@@ -82,6 +82,12 @@ func (ps *RdbPublishServer) Publish(ctx context.Context, req *api.PublishRequest
 		ps.manager.SetResult(op.Name, out)
 	}()
 
+	// Exports the EqC info to BQ if it's a 3D test run.
+	if err := PublishEQC(ctx, req); err != nil {
+		// Only logs the error message without exiting early.
+		log.Printf("failed to publish the EqC info to BQ: %s", err)
+	}
+
 	gps, err := service.NewRdbPublishService(req)
 	if err != nil {
 		log.Printf("failed to create new rdb publish service: %s", err)
@@ -99,4 +105,23 @@ func (ps *RdbPublishServer) Publish(ctx context.Context, req *api.PublishRequest
 
 	log.Println("Finished Successfuly!")
 	return op, nil
+}
+
+// PublishEQC exports the EqC info to BigQuery.
+func PublishEQC(ctx context.Context, req *api.PublishRequest) error {
+	if !req.Is_3DRun {
+		return nil
+	}
+
+	eps, err := service.NewEQCPublishService(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to create new EqC publish service: %s", err.Error())
+	}
+
+	defer eps.Close()
+
+	if err := eps.ExportToBQ(ctx); err != nil {
+		return fmt.Errorf("failed to export the EqC info to BQ: %s", err.Error())
+	}
+	return nil
 }
