@@ -30,6 +30,7 @@ const (
 	pingRetryCount  = 20
 	networkWaitTime = 1 * time.Minute
 	powerResetDelay = 10 * time.Second
+	networkErrMsg   = "Network is unreachable"
 )
 
 var launchTargetPatterns = []*regexp.Regexp{
@@ -60,17 +61,8 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		errMsg := "cannot SSH onto DUT booted from USB common provision image"
 		return common_utils.WrapStringInAny(s.errStatus(errMsg)), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, errors.New(errMsg)
 	}
-	if err := setPDRole(ctx, log, "src", s.params); err == nil {
-		log.Println("Sleeping for 1 minute for the network to come up after setting servo_pd_role to src")
-		time.Sleep(networkWaitTime)
-	}
+	setPDRole(ctx, log, "src", s.params)
 	defer client.Close()
-	var session *ssh.Session
-	session, err := client.NewSession()
-	if err != nil {
-		log.Println("Failed to create session: ", err)
-		return nil, api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
-	}
 	cacheServerAdd := s.params.Dut.GetCacheServer().GetAddress().GetAddress()
 	installCommand := ""
 	targetImgPath := s.params.TargetImagePath.GetPath()
@@ -93,13 +85,9 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	} else {
 		installCommand = fmt.Sprintf("cros-install %s %s", targetImgPath[5:], cacheServerAdd)
 	}
-	log.Println("Running command on host now ", installCommand)
-	if output, err := session.CombinedOutput(installCommand); err != nil {
+	if err := installCommandWithRetry(client, installCommand, log); err != nil {
 		log.Println("Failed to run installCommand: ", installCommand, err)
-		log.Println(string(output))
 		return common_utils.WrapStringInAny(s.errStatus("FAILED TO RUN CROSOVER INSTALL COMMAND")), api.InstallResponse_STATUS_DOWNLOADING_IMAGE_FAILED, err
-	} else {
-		log.Println(string(output))
 	}
 	return s.handleReboot(ctx, client, log)
 }
@@ -144,6 +132,29 @@ func (s FullOSImageState) handleReboot(ctx context.Context, sshClient *ssh.Clien
 		}
 	}
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
+}
+
+func installCommandWithRetry(client *ssh.Client, installCommand string, log *log.Logger) error {
+	log.Println("Running command on host now ", installCommand)
+	retryCount := 3
+	for ; retryCount >= 0; retryCount-- {
+		var session *ssh.Session
+		session, err := client.NewSession()
+		if err != nil {
+			log.Println("Failed to create session: ", err)
+			return err
+		}
+		output, err := session.CombinedOutput(installCommand)
+		log.Println(string(output))
+		if err == nil {
+			return nil
+		}
+		if !strings.Contains(string(output), networkErrMsg) {
+			return err
+		}
+		log.Println("Got error " + networkErrMsg + " while running install command. Will Retry...")
+	}
+	return fmt.Errorf("Failed to run installCommand")
 }
 
 // sshFailWait return nil, if the device cannot be sshed within 40 seconds.
