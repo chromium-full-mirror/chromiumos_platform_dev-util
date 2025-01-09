@@ -30,8 +30,9 @@ type TestBed struct {
 }
 
 type Controllers struct {
-	OpenWrtDevices []*OpenWrtDevice `yaml:"OpenWrtDevice,omitempty"`
-	AndroidDevices []*AndroidDevice `yaml:"AndroidDevice,omitempty"`
+	OpenWrtDevices    []*OpenWrtDevice     `yaml:"OpenWrtDevice,omitempty"`
+	AndroidDevices    []*AndroidDevice     `yaml:"AndroidDevice,omitempty"`
+	BtReferenceDevice []*BtReferenceDevice `yaml:"BtReferenceDevice,omitempty"`
 }
 
 type AndroidDevice struct {
@@ -42,6 +43,13 @@ type AndroidDevice struct {
 
 type OpenWrtDevice struct {
 	Hostname string   `yaml:"hostname"`
+	Params   paramMap `yaml:",inline"`
+}
+
+type BtReferenceDevice struct {
+	Hostname string   `yaml:"hostname"`
+	Username string   `yaml:"username"`
+	Password string   `yaml:"password"`
 	Params   paramMap `yaml:",inline"`
 }
 
@@ -60,6 +68,8 @@ type ConfigParams struct {
 	// Values prefixed by `primary-<suffix>` or `secondary-<suffix>` will only apply to that device.
 	// Keyed by `openwrt-params`
 	OpenWrtParams deviceParamMap
+	// Keyed by `btreference-params`
+	BtReferenceParams deviceParamMap
 }
 
 func GenerateMoblyConfig(logger *log.Logger, dir string, serials []string, metadata []*api.Arg) (err error) {
@@ -83,10 +93,16 @@ func GenerateMoblyConfig(logger *log.Logger, dir string, serials []string, metad
 			logger.Println(d, k, v)
 		}
 	}
+	for d, m := range configParams.BtReferenceParams {
+		for k, v := range m {
+			logger.Println(d, k, v)
+		}
+	}
 
 	Controllers := &Controllers{
-		AndroidDevices: GenerateAndroidDevices(serials, configParams.AndroidParams),
-		OpenWrtDevices: GenerateOpenWrtDevices(serials, configParams.OpenWrtParams),
+		AndroidDevices:    GenerateAndroidDevices(serials, configParams.AndroidParams),
+		OpenWrtDevices:    GenerateOpenWrtDevices(serials, configParams.OpenWrtParams),
+		BtReferenceDevice: GenerateBtReferenceDevices(serials, configParams.BtReferenceParams),
 	}
 
 	Config := &MoblyTestConfig{
@@ -118,6 +134,47 @@ func GenerateMoblyConfig(logger *log.Logger, dir string, serials []string, metad
 	}
 
 	return
+}
+
+func GenerateBtReferenceDevices(serials []string, btReferenceParams deviceParamMap) []*BtReferenceDevice {
+	devices := []*BtReferenceDevice{}
+	deviceKeyToSerial := map[string]string{}
+	for i, serial := range serials {
+		if i == 0 {
+			deviceKeyToSerial["primary"] = strings.TrimSuffix(serial, ":22")
+		} else {
+			deviceKeyToSerial["secondary"] = strings.TrimSuffix(serial, ":22")
+		}
+	}
+
+	paramsForEachDevice := btReferenceParams["all"]
+
+	for deviceKey, deviceParams := range btReferenceParams {
+		if deviceKey == "all" {
+			continue
+		}
+
+		deviceKey = strings.ReplaceAll(deviceKey, "primary", deviceKeyToSerial["primary"])
+		deviceKey = strings.ReplaceAll(deviceKey, "secondary", deviceKeyToSerial["secondary"])
+
+		params := paramMap{}
+		for k, v := range paramsForEachDevice {
+			params[k] = v
+		}
+
+		for k, v := range deviceParams {
+			params[k] = v
+		}
+
+		devices = append(devices, &BtReferenceDevice{
+			Hostname: deviceKey,
+			Username: "root",
+			Password: "test0000",
+			Params:   params,
+		})
+	}
+
+	return devices
 }
 
 func GenerateOpenWrtDevices(serials []string, openWrtParams deviceParamMap) []*OpenWrtDevice {
@@ -209,6 +266,9 @@ func ParseMetadata(logger *log.Logger, metadata []*api.Arg) *ConfigParams {
 		case "openwrt-params":
 			logger.Println("openwrt-params")
 			configParams.OpenWrtParams = ParseDeviceArg(logger, arg)
+		case "btreference-params":
+			logger.Println("btreference-params")
+			configParams.BtReferenceParams = ParseDeviceArg(logger, arg)
 		default:
 			logger.Println("default")
 		}
