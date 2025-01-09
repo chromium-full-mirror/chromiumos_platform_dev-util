@@ -196,6 +196,15 @@ func startServod(ctx context.Context, log *log.Logger, servoNexusClient api.Serv
 	return err
 }
 
+// Sets the servo_pd_role.
+//
+// This is a workaround for a power issue on certain devices (b/376928189)
+// where the power needs to be turned off from the source before booting
+// into recovery.
+//
+// This is not required for most devices and is not a critical dependency
+// for provisioning. Therefore, failures in this function should not
+// block the provisioning process.
 func setPDRole(ctx context.Context, log *log.Logger, val string, params *CrossOverParameters) error {
 	err := callServod(ctx, log, "servo_pd_role", val, params)
 	if err != nil {

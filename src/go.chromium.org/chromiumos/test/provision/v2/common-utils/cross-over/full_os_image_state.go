@@ -60,11 +60,10 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		errMsg := "cannot SSH onto DUT booted from USB common provision image"
 		return common_utils.WrapStringInAny(s.errStatus(errMsg)), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, errors.New(errMsg)
 	}
-	if err := setPDRole(ctx, log, "src", s.params); err != nil {
-		return common_utils.WrapStringInAny(s.errStatus("INFRA: unable to set servo_pd_role to src")), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
+	if err := setPDRole(ctx, log, "src", s.params); err == nil {
+		log.Println("Sleeping for 1 minute for the network to come up after setting servo_pd_role to src")
+		time.Sleep(networkWaitTime)
 	}
-	log.Println("Sleeping for 1 minute for the network to come up after setting servo_pd_role to src")
-	time.Sleep(networkWaitTime)
 	defer client.Close()
 	var session *ssh.Session
 	session, err := client.NewSession()

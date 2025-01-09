@@ -31,9 +31,7 @@ func NewRebootFromUSBState(params *CrossOverParameters) common_utils.ServiceStat
 
 func (s RebootFromUSBState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any, api.InstallResponse_Status, error) {
 	log.Println("Executing " + s.Name())
-	if err := setPDRole(ctx, log, "snk", s.params); err != nil {
-		return common_utils.WrapStringInAny("INFRA: unable to set servo_pd_role to snk"), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
-	}
+	setPDRole(ctx, log, "snk", s.params)
 	if err := callServodRetry(ctx, log, "power_state", "off", s.params); err != nil {
 		setPDRole(ctx, log, "src", s.params)
 		return common_utils.WrapStringInAny("INFRA: unable to set turn off USB"), api.InstallResponse_STATUS_PROVISIONING_FAILED, err
