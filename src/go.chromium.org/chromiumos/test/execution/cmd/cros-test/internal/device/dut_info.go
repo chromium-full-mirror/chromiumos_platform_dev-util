@@ -564,5 +564,5 @@ func deviceSerial(dut *labapi.Dut) (string, error) {
 	}
 	// TODO: need to figure out to handle none non-default port.
 	// Currently, we assume chromeos device serial is always <ip>:5555.
-	return fmt.Sprintf("%s:22", crosSsh.Address), nil
+	return fmt.Sprintf("%s:5555", crosSsh.Address), nil
 }

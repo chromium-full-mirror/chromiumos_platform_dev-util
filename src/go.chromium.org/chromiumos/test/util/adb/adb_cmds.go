@@ -175,7 +175,7 @@ func FmtAddr(addr string) string {
 		// The adb port specified. No formatting is needed
 		return addr
 	}
-	return fmt.Sprintf("%s:22", addr)
+	return fmt.Sprintf("%s:5555", addr)
 }
 
 func AdbShellCmd(cmdStr []string, addr string, log *log.Logger) (string, error) {
