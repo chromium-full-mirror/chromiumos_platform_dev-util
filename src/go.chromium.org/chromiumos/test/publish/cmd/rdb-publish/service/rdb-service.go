@@ -383,7 +383,7 @@ func ingestPostProcessResponses(testResult *artifact.TestResult, postProcessResp
 		return
 	}
 
-	log.Printf("start to ingest post process responses: %s", postProcessResps)
+	log.Printf("start to ingest post process responses: %#v", postProcessResps)
 
 	buildMetadata := testResult.GetTestInvocation().GetPrimaryExecutionInfo().GetBuildInfo().GetBuildMetadata()
 	for _, resp := range postProcessResps.Responses {
@@ -398,12 +398,14 @@ func ingestPostProcessResponses(testResult *artifact.TestResult, postProcessResp
 			populateAVLInfo(testResult, resp.GetGetAvlInfoResponse())
 		case *api.RunActivityResponse_GetGscInfoResponse:
 			populateGSCInfo(testResult, resp.GetGetGscInfoResponse())
+		case *api.RunActivityResponse_GetServoInfoResponse:
+			populateServoInfo(buildMetadata, resp.GetGetServoInfoResponse())
 		default:
 			log.Printf("post process response type: %T is not supported", resp.GetResponse())
 		}
 	}
 
-	log.Printf("successfully ingested post process responses: %s", postProcessResps)
+	log.Printf("successfully ingested post process responses: %#v", postProcessResps)
 }
 
 // ingestFirmwareProvisionResponse ingests the response of the firmware
@@ -442,7 +444,7 @@ func populateFirmwareInfo(buildMetadata *artifact.BuildMetadata, fwInfoResp *api
 		return
 	}
 
-	log.Printf("start to populate firmware info: %s", fwInfoResp)
+	log.Printf("start to populate firmware info: %#v", fwInfoResp)
 
 	// Fetches the existing firmware info if available in the build metadata.
 	firmware := buildMetadata.GetFirmware()
@@ -458,7 +460,7 @@ func populateFirmwareInfo(buildMetadata *artifact.BuildMetadata, fwInfoResp *api
 	}
 	buildMetadata.Firmware = firmware
 
-	log.Printf("successfully populated firmware info: %s", fwInfoResp)
+	log.Printf("successfully populated firmware info: %#v", fwInfoResp)
 }
 
 // populateKernelInfo populates kernel info.
@@ -468,7 +470,7 @@ func populateKernelInfo(buildMetadata *artifact.BuildMetadata, fwInfoResp *api.G
 		return
 	}
 
-	log.Printf("start to populate kernel info: %s", fwInfoResp)
+	log.Printf("start to populate kernel info: %#v", fwInfoResp)
 
 	kernel := &artifact.BuildMetadata_Kernel{}
 	if fwInfoResp.GetKernelVersion() != "" {
@@ -476,7 +478,7 @@ func populateKernelInfo(buildMetadata *artifact.BuildMetadata, fwInfoResp *api.G
 	}
 	buildMetadata.Kernel = kernel
 
-	log.Printf("successfully populated kernel info: %s", fwInfoResp)
+	log.Printf("successfully populated kernel info: %#v", fwInfoResp)
 }
 
 // populateGSCFirmwareInfo populates GSC firmware info.
@@ -486,7 +488,7 @@ func populateGSCFirmwareInfo(testResult *artifact.TestResult, fwInfoResp *api.Ge
 		return
 	}
 
-	log.Printf("start to populate GSC firmware info from: %s", fwInfoResp)
+	log.Printf("start to populate GSC firmware info from: %#v", fwInfoResp)
 
 	for _, testRun := range testResult.GetTestRuns() {
 		testCaseInfo := testRun.GetTestCaseInfo()
@@ -517,7 +519,7 @@ func populateGSCFirmwareInfo(testResult *artifact.TestResult, fwInfoResp *api.Ge
 		log.Printf("successfully populated GSC firmware info: %s for test: %q", testCaseInfo.GscInfo, testName)
 	}
 
-	log.Printf("successfully populated GSC firmware info from: %s", fwInfoResp)
+	log.Printf("successfully populated GSC firmware info from: %#v", fwInfoResp)
 }
 
 // populateGfxInfo populates graphics info.
@@ -527,7 +529,7 @@ func populateGfxInfo(buildMetadata *artifact.BuildMetadata, gfxInfoResp *api.Get
 		return
 	}
 
-	log.Printf("start to populate graphics info: %s", gfxInfoResp)
+	log.Printf("start to populate graphics info: %#v", gfxInfoResp)
 
 	gfxInfo := &artifact.BuildMetadata_GfxInfo{}
 	gfxLabels := gfxInfoResp.GetGfxLabels()
@@ -549,7 +551,7 @@ func populateGfxInfo(buildMetadata *artifact.BuildMetadata, gfxInfoResp *api.Get
 	}
 	buildMetadata.GfxInfo = gfxInfo
 
-	log.Printf("successfully populated graphics info: %s", gfxInfoResp)
+	log.Printf("successfully populated graphics info: %#v", gfxInfoResp)
 }
 
 // populateAVLInfo populates AVL qualification info.
@@ -559,7 +561,7 @@ func populateAVLInfo(testResult *artifact.TestResult, avlInfoResp *api.GetAvlInf
 		return
 	}
 
-	log.Printf("start to populate AVL qual info: %s", avlInfoResp)
+	log.Printf("start to populate AVL qual info: %#v", avlInfoResp)
 
 	avlInfoMap := avlInfoResp.GetAvlInfos()
 	for _, testRun := range testResult.GetTestRuns() {
@@ -587,7 +589,7 @@ func populateAVLInfo(testResult *artifact.TestResult, avlInfoResp *api.GetAvlInf
 		testCaseInfo.AvlInfo = testCaseAVLInfo
 	}
 
-	log.Printf("successfully populated AVL qual info: %s", avlInfoResp)
+	log.Printf("successfully populated AVL qual info: %#v", avlInfoResp)
 }
 
 // populateGSCInfo populates GSC devboard info.
@@ -597,7 +599,7 @@ func populateGSCInfo(testResult *artifact.TestResult, gscInfoResp *api.GetGscInf
 		return
 	}
 
-	log.Printf("start to populate GSC devboard info: %s", gscInfoResp)
+	log.Printf("start to populate GSC devboard info: %#v", gscInfoResp)
 
 	gscInfoMap := gscInfoResp.GetGscInfos()
 	for _, testRun := range testResult.GetTestRuns() {
@@ -621,5 +623,25 @@ func populateGSCInfo(testResult *artifact.TestResult, gscInfoResp *api.GetGscInf
 		testCaseInfo.GscInfo = gscInfo
 	}
 
-	log.Printf("successfully populated GSC devboard info: %s", gscInfoResp)
+	log.Printf("successfully populated GSC devboard info: %#v", gscInfoResp)
+}
+
+// populateServoInfo populates servo info.
+func populateServoInfo(buildMetadata *artifact.BuildMetadata, servoInfoResp *api.GetServoInfoResponse) {
+	if servoInfoResp == nil {
+		log.Printf("servo info response is empty")
+		return
+	}
+
+	log.Printf("start to populate servo info: %#v", servoInfoResp)
+
+	servoInfoAny := servoInfoResp.GetServoInfo()
+	servoInfo := &artifact.BuildMetadata_ServoInfo{}
+	opts := proto.UnmarshalOptions{DiscardUnknown: true}
+	if err := anypb.UnmarshalTo(servoInfoAny, servoInfo, opts); err != nil {
+		log.Printf("failed to unmarshal servo info: %s", servoInfoAny)
+	}
+	buildMetadata.ServoInfo = servoInfo
+
+	log.Printf("successfully populated servo info: %#v", servoInfoResp)
 }

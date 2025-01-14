@@ -329,6 +329,13 @@ func TestIngestPostProcessResponses(t *testing.T) {
 			},
 		}
 
+		servoInfo := &artifact.BuildMetadata_ServoInfo{
+			ServodVersion: "v1.0.2345-4b2de21e 2024-08-17 00:30:57",
+			ServoType:     "servo_v4_with_c2d2_and_ccd_ti50",
+			ServoVersions: "c2d2_v2.4.73-d771c18ba9,0.24.40/ti50_common_prepvt-15086.B:v0.0.355-15c69d7f,fizz-labstation-release/R115-15474.55.0,servo_v4_v2.4.58-c37246f9c",
+		}
+		servoInfoAny, _ := anypb.New(servoInfo)
+
 		// Create a post process response proto.
 		postProcessResps := &api.RunActivitiesResponse{
 			Responses: []*api.RunActivityResponse{
@@ -376,6 +383,13 @@ func TestIngestPostProcessResponses(t *testing.T) {
 						},
 					},
 				},
+				{
+					Response: &api.RunActivityResponse_GetServoInfoResponse{
+						GetServoInfoResponse: &api.GetServoInfoResponse{
+							ServoInfo: servoInfoAny,
+						},
+					},
+				},
 			},
 		}
 
@@ -407,6 +421,7 @@ func TestIngestPostProcessResponses(t *testing.T) {
 				PlatformDiskSize:   128,
 				PlatformMemorySize: 32,
 			},
+			ServoInfo: servoInfo,
 		}
 		wantAVL := &artifact.AvlInfo{
 			AvlComponentType: "storage",
@@ -959,6 +974,63 @@ func TestPopulateGSCInfo(t *testing.T) {
 
 		// Verify that the GSC devboard info is not populated.
 		So(testResult.TestRuns[0].TestCaseInfo.GscInfo, ShouldBeNil)
+	})
+}
+
+func TestPopulateServoInfo(t *testing.T) {
+	t.Parallel()
+
+	servoInfo := &artifact.BuildMetadata_ServoInfo{
+		ServodVersion: "v1.0.2345-4b2de21e 2024-08-17 00:30:57",
+		ServoType:     "servo_v4_with_c2d2_and_ccd_ti50",
+		ServoVersions: "c2d2_v2.4.73-d771c18ba9,0.24.40/ti50_common_prepvt-15086.B:v0.0.355-15c69d7f,fizz-labstation-release/R115-15474.55.0,servo_v4_v2.4.58-c37246f9c",
+	}
+	servoInfoAny, _ := anypb.New(servoInfo)
+
+	Convey("Populates servo info", t, func() {
+		// Create a build metadata proto.
+		buildMetadata := &artifact.BuildMetadata{}
+
+		// Create a servo info response proto.
+		servoInfoResp := &api.GetServoInfoResponse{
+			ServoInfo: servoInfoAny,
+		}
+
+		// Call populateServoInfo.
+		populateServoInfo(buildMetadata, servoInfoResp)
+
+		// Verify that the servo info is populated correctly.
+		wantServoInfo := &artifact.BuildMetadata_ServoInfo{
+			ServodVersion: "v1.0.2345-4b2de21e 2024-08-17 00:30:57",
+			ServoType:     "servo_v4_with_c2d2_and_ccd_ti50",
+			ServoVersions: "c2d2_v2.4.73-d771c18ba9,0.24.40/ti50_common_prepvt-15086.B:v0.0.355-15c69d7f,fizz-labstation-release/R115-15474.55.0,servo_v4_v2.4.58-c37246f9c",
+		}
+		So(buildMetadata.ServoInfo, ShouldResembleProto, wantServoInfo)
+	})
+
+	Convey("Skip if the servo info has empty values", t, func() {
+		// Create a build metadata proto.
+		buildMetadata := &artifact.BuildMetadata{}
+
+		// Create a servo info response proto with empty values.
+		servoInfoResp := &api.GetServoInfoResponse{}
+
+		// Call populateServoInfo.
+		populateServoInfo(buildMetadata, servoInfoResp)
+
+		// Verify no value is populated.
+		So(buildMetadata.GfxInfo, ShouldBeNil)
+	})
+
+	Convey("Skip if the response is nil", t, func() {
+		// Create a build metadata proto.
+		buildMetadata := &artifact.BuildMetadata{}
+
+		// Call populateServoInfo.
+		populateServoInfo(buildMetadata, nil)
+
+		// Verify no value is populated.
+		So(buildMetadata.GfxInfo, ShouldBeNil)
 	})
 }
 
