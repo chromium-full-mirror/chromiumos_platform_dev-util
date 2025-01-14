@@ -107,12 +107,6 @@ NEW_LINE=`grep -rsn "assert_rw_fwid_DO_NOT_EDIT(project_name=\"${REF}\"" | cut -
 UPDATED_FWID=${NEW_LINE//$REF/$VARIANT}
 echo "${UPDATED_FWID}" >> "${BUILD_PY}"
 
-# Regenarte for bazel targets.
-EC_DIR="${HOME}/${TRUNK}/src/platform/ec"
-pushd "${EC_DIR}"
-./bazel/gen_bazel_targets.py
-popd
-
 # Format the code
 black "${BUILD_PY}"
 
@@ -122,7 +116,6 @@ zmake build "${VARIANT}"
 # Add the changed file
 git add "${BUILD_PY}"
 git add "${BASE}"/"${VARIANT}"
-git add "${EC_DIR}/bazel/all_targets.generated.bzl"
 
 # Now commit the files. Use fmt to word-wrap the main commit message.
 MSG=$(echo "Create the initial Zephyr EC image for the ${VARIANT} variant
