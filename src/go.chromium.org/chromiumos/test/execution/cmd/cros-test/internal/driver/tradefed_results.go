@@ -45,7 +45,8 @@ type TradeFedTestFailure struct {
 }
 
 type TradeFedTest struct {
-	Result  string              `xml:"result,attr"`
+	Result  string `xml:"result,attr"`
+	Abi     string
 	Name    string              `xml:"name,attr"`
 	Failure TradeFedTestFailure `xml:"Failure"`
 }
@@ -309,6 +310,7 @@ func convertToResult(logger *log.Logger, luciResult LuciJsonResult) (Result, err
 
 		tfTest := TradeFedTest{
 			Name:   testName,
+			Abi:    abi,
 			Result: status,
 		}
 		if len(trResult.FailureReason) > 0 && !trResult.Expected {
@@ -393,7 +395,7 @@ func testResponseNoXMLFound(req *api.CrosTestRequest) *api.CrosTestResponse {
 	}
 	for _, suites := range req.GetTestSuites() {
 		for _, testCaseIds := range suites.GetTestCaseIds().GetTestCaseIds() {
-			testCaseResult := buildTcResult(testCaseIds.GetValue(), "INCOMPLETE", time.Now().Add(-1*time.Second), 1, "")
+			testCaseResult := buildTcResult(testCaseIds.GetValue(), "", "INCOMPLETE", time.Now().Add(-1*time.Second), 1, "")
 			r.TestCaseResults = append(r.TestCaseResults, testCaseResult)
 			r.GivenTestResults = append(r.GivenTestResults, &api.CrosTestResponse_GivenTestResult{
 				ParentTest:           testCaseIds.GetValue(),
@@ -429,21 +431,21 @@ func generateTestCaseResult(logger *log.Logger, testType string, R Result, req *
 			// Check and report module-level error.
 			if module.Reason.Message != "" {
 				allTestCases = append(allTestCases,
-					buildTcResult(moduleName, "FAILED", startTime, testDur, module.Reason.Message))
+					buildTcResult(moduleName, module.Abi, "FAILED", startTime, testDur, module.Reason.Message))
 				givenTestCases = append(givenTestCases, &api.CrosTestResponse_GivenTestResult{
 					ParentTest: moduleName,
 					ChildTestCaseResults: []*api.TestCaseResult{
-						buildTcResult(moduleName, "FAILED", startTime, testDur, module.Reason.Message),
+						buildTcResult(moduleName, module.Abi, "FAILED", startTime, testDur, module.Reason.Message),
 					},
 				})
 			} else {
 				// No tests in the module and no errors, so reporting this module as 'pass'.
 				allTestCases = append(allTestCases,
-					buildTcResult(moduleName, "PASSED", startTime, testDur, ""))
+					buildTcResult(moduleName, module.Abi, "PASSED", startTime, testDur, ""))
 				givenTestCases = append(givenTestCases, &api.CrosTestResponse_GivenTestResult{
 					ParentTest: moduleName,
 					ChildTestCaseResults: []*api.TestCaseResult{
-						buildTcResult(moduleName, "PASSED", startTime, testDur, ""),
+						buildTcResult(moduleName, module.Abi, "PASSED", startTime, testDur, ""),
 					},
 				})
 			}
@@ -459,11 +461,16 @@ func generateTestCaseResult(logger *log.Logger, testType string, R Result, req *
 				if len(test.Failure.StackTrace) > 0 {
 					errorMessage += "\n" + test.Failure.StackTrace
 				}
+				abi := module.Abi
+				if len(test.Abi) > 0 {
+					// If test ABI is available, use it instead of the module ABI.
+					abi = test.Abi
+				}
 				allTestCases = append(allTestCases,
-					buildTcResult(fullTestName, test.Result, startTime, testDur, errorMessage))
+					buildTcResult(fullTestName, abi, test.Result, startTime, testDur, errorMessage))
 				testName := fmt.Sprintf("%s#%s", testcase.Name, test.Name)
 				childTestCases = append(childTestCases,
-					buildTcResult(testName, test.Result, startTime, testDur, errorMessage))
+					buildTcResult(testName, abi, test.Result, startTime, testDur, errorMessage))
 			}
 		}
 		givenTestCase.ChildTestCaseResults = childTestCases
@@ -471,12 +478,12 @@ func generateTestCaseResult(logger *log.Logger, testType string, R Result, req *
 	}
 	for moduleName := range modulesFromReq {
 		allTestCases = append(allTestCases,
-			buildTcResult(moduleName, "SKIPPED", startTime, 1, incompleteError))
+			buildTcResult(moduleName, "", "SKIPPED", startTime, 1, incompleteError))
 		givenTestCases = append(givenTestCases,
 			&api.CrosTestResponse_GivenTestResult{
 				ParentTest: moduleName,
 				ChildTestCaseResults: []*api.TestCaseResult{
-					buildTcResult(moduleName, "SKIPPED", startTime, 1, incompleteError),
+					buildTcResult(moduleName, "", "SKIPPED", startTime, 1, incompleteError),
 				},
 			})
 	}
@@ -520,13 +527,16 @@ func buildTradefedResult(logger *log.Logger, testType string, req *api.CrosTestR
 	return f, logsToSave
 }
 
-func buildTcResult(testName string, testStatus string, startTime time.Time, duration int64,
+func buildTcResult(testName string, abi string, testStatus string, startTime time.Time, duration int64,
 	errorMessage string) *api.TestCaseResult {
 
 	tcResult := new(api.TestCaseResult)
 
 	tcResult.TestHarness = &api.TestHarness{TestHarnessType: &api.TestHarness_Tradefed_{Tradefed: &api.TestHarness_Tradefed{}}}
 	tcResult.TestCaseId = &api.TestCase_Id{Value: testName}
+	if len(abi) > 0 {
+		tcResult.Tags = []*api.TestCase_Tag{&api.TestCase_Tag{Value: fmt.Sprintf("abi:%s", abi)}}
+	}
 
 	tcResult.StartTime = timestamppb.New(startTime)
 	// Make a duration of atleast 1 second so the proto isnt empty.

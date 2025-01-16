@@ -107,11 +107,13 @@ func getTestCaseResults(prefix string) []*api.TestCaseResult {
 	startTime := timestamppb.New(time.Unix(startTimestamp/1000, startTimestamp%1000*1000000))
 	numOfTests := 2
 	duration := &durationpb.Duration{Seconds: int64(2254 / 1000 / numOfTests)}
+	testTags := []*api.TestCase_Tag{&api.TestCase_Tag{Value: "abi:x86_64"}}
 	testHarness := &api.TestHarness{TestHarnessType: &api.TestHarness_Tradefed_{Tradefed: &api.TestHarness_Tradefed{}}}
 
 	return []*api.TestCaseResult{
 		{
 			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.jvmti.cts.JvmtiHostTest1976#testJvmti"},
+			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			StartTime:   startTime,
@@ -119,6 +121,7 @@ func getTestCaseResults(prefix string) []*api.TestCaseResult {
 		},
 		{
 			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.jvmti.cts.JvmtiHostTest1976#testAssumptionFail"},
+			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
@@ -127,6 +130,7 @@ func getTestCaseResults(prefix string) []*api.TestCaseResult {
 		},
 		{
 			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.jvmti.cts.JvmtiHostTest1976#testIncomplate"},
+			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Crash_{Crash: &api.TestCaseResult_Crash{}},
 			Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
@@ -135,6 +139,7 @@ func getTestCaseResults(prefix string) []*api.TestCaseResult {
 		},
 		{
 			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.jvmti.cts.JvmtiHostTest1976#testIgnored"},
+			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}},
 			Errors:      []*api.TestCaseResult_Error{{Message: ""}},
@@ -143,6 +148,7 @@ func getTestCaseResults(prefix string) []*api.TestCaseResult {
 		},
 		{
 			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.jvmti.cts.JvmtiHostTest1976#testUnknown"},
+			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}},
 			Errors:      []*api.TestCaseResult_Error{{Message: ""}},
@@ -151,6 +157,7 @@ func getTestCaseResults(prefix string) []*api.TestCaseResult {
 		},
 		{
 			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.mediav2.cts.CodecDecoderSurfaceTest#testFlushNative"},
+			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}},
 			Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
@@ -165,11 +172,13 @@ func getGeneralTestCaseResults(prefix string) []*api.TestCaseResult {
 	startTime := timestamppb.New(time.Unix(startTimestamp/1000, startTimestamp%1000*1000000))
 	numOfTests := 4
 	duration := &durationpb.Duration{Seconds: int64(18 / numOfTests)}
+	testTags := []*api.TestCase_Tag{&api.TestCase_Tag{Value: "abi:x86_64"}}
 	testHarness := &api.TestHarness{TestHarnessType: &api.TestHarness_Tradefed_{Tradefed: &api.TestHarness_Tradefed{}}}
 
 	return []*api.TestCaseResult{
 		{
 			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests#testSingleWindow"},
+			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			StartTime:   startTime,
@@ -177,6 +186,7 @@ func getGeneralTestCaseResults(prefix string) []*api.TestCaseResult {
 		},
 		{
 			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests#testSingleWindow"},
+			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			StartTime:   startTime,
@@ -184,6 +194,7 @@ func getGeneralTestCaseResults(prefix string) []*api.TestCaseResult {
 		},
 		{
 			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests#testMultiWindowsLimitFail"},
+			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}},
 			Errors:      []*api.TestCaseResult_Error{{Message: "null: java.lang.AssertionError: windows expected: 5, found: 4"}},
@@ -192,6 +203,7 @@ func getGeneralTestCaseResults(prefix string) []*api.TestCaseResult {
 		},
 		{
 			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests2#testMultiWindowsLimit2"},
+			Tags:        []*api.TestCase_Tag{&api.TestCase_Tag{Value: "abi:arm64-v8a"}}, // Different test ABI that should override module ABI.
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			StartTime:   startTime,
@@ -300,24 +312,29 @@ func TestBuildTcResult(t *testing.T) {
 		duration := endTime.Sub(startTime)
 		failureMessage := "Failed for some reason"
 		testName := "tradefed.cts.CtsSampleTestCase"
+		abi := "x86_64"
 
 		testCaseID := &api.TestCase_Id{Value: testName}
+		testTags := []*api.TestCase_Tag{&api.TestCase_Tag{Value: fmt.Sprintf("abi:%s", abi)}}
 		testHarness := &api.TestHarness{TestHarnessType: &api.TestHarness_Tradefed_{Tradefed: &api.TestHarness_Tradefed{}}}
 		wantStartTime := timestamppb.New(startTime)
 		wantDuration := &durationpb.Duration{Seconds: int64(duration.Seconds())}
 
 		for _, tc := range []struct {
 			name         string
+			abi          string
 			errorMessage string
 			status       string
 			want         *api.TestCaseResult
 		}{
 			{
 				name:         "Pass test",
+				abi:          abi,
 				errorMessage: "",
 				status:       "PASSED",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
+					Tags:        testTags,
 					TestHarness: testHarness,
 					Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 					StartTime:   wantStartTime,
@@ -326,10 +343,12 @@ func TestBuildTcResult(t *testing.T) {
 			},
 			{
 				name:         "Assumption failure test",
+				abi:          abi,
 				errorMessage: failureMessage,
 				status:       "ASSUMPTION_FAILURE",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
+					Tags:        testTags,
 					TestHarness: testHarness,
 					Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 					Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
@@ -339,10 +358,12 @@ func TestBuildTcResult(t *testing.T) {
 			},
 			{
 				name:         "Fail test",
+				abi:          abi,
 				errorMessage: failureMessage,
 				status:       "FAILED",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
+					Tags:        testTags,
 					TestHarness: testHarness,
 					Verdict:     &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}},
 					Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
@@ -352,10 +373,12 @@ func TestBuildTcResult(t *testing.T) {
 			},
 			{
 				name:         "Incomplete test",
+				abi:          abi,
 				errorMessage: failureMessage,
 				status:       "INCOMPLETE",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
+					Tags:        testTags,
 					TestHarness: testHarness,
 					Verdict:     &api.TestCaseResult_Crash_{Crash: &api.TestCaseResult_Crash{}},
 					Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
@@ -365,10 +388,12 @@ func TestBuildTcResult(t *testing.T) {
 			},
 			{
 				name:         "Skipped test",
+				abi:          abi,
 				errorMessage: failureMessage,
 				status:       "SKIPPED",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
+					Tags:        testTags,
 					TestHarness: testHarness,
 					Verdict:     &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}},
 					Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
@@ -378,10 +403,12 @@ func TestBuildTcResult(t *testing.T) {
 			},
 			{
 				name:         "Ignore test",
+				abi:          abi,
 				errorMessage: failureMessage,
 				status:       "IGNORED",
 				want: &api.TestCaseResult{
 					TestCaseId:  testCaseID,
+					Tags:        testTags,
 					TestHarness: testHarness,
 					Verdict:     &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}},
 					Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
@@ -391,7 +418,7 @@ func TestBuildTcResult(t *testing.T) {
 			},
 		} {
 			Convey(tc.name, func() {
-				got := buildTcResult(testName, tc.status, startTime, int64(duration.Seconds()), tc.errorMessage)
+				got := buildTcResult(testName, tc.abi, tc.status, startTime, int64(duration.Seconds()), tc.errorMessage)
 				So(got, ShouldResemble, tc.want)
 			})
 		}

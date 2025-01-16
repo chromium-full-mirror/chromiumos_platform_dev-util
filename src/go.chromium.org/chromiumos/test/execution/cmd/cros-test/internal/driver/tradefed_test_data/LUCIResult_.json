@@ -64,7 +64,7 @@
     {
       "duration": 19.88,
       "expected": true,
-      "result_name": "x86_64 DesktopChromeTestCases##2025-01-06T23:57:37.155437272Z",
+      "result_name": "arm64-v8a DesktopChromeTestCases##2025-01-06T23:57:37.155437272Z",
       "status": "PASS",
       "tags": [
         {
