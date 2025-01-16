@@ -10,6 +10,7 @@ use std::error::Error;
 
 use amarisoft_api::AmarisoftAPI;
 use common::ServerError;
+use local_ip_address::list_afinet_netifas;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tiny_http;
@@ -129,31 +130,63 @@ impl CrosWebServer {
                     server_command.command.as_str(),
                     request_ip
                 );
-                let result: Result<(), Box<dyn Error>> = match server_command.command.as_str() {
+                match server_command.command.as_str() {
                     "SetupEntitlementReturnCodeForDevice"
                     | "ResetEntitlementValueForDevice"
                     | "IgnoreNextEntitlementCheckForDevice" => {
-                        self.entl_check.process_command(server_command, &imeisv)
+                        let result = self.entl_check.process_command(server_command, &imeisv);
+                        return match result {
+                            Ok(_) => {
+                                CrosWebServer::respond_http_response(request, "", common::HTTP_OK)
+                            }
+                            Err(error) => CrosWebServer::respond_http_response(
+                                request,
+                                error.to_string().as_str(),
+                                HTTP_ERROR_INTERNAL_SERVER,
+                            ),
+                        };
                     }
-                    _ => Err(Box::new(ServerError("Unknown command".to_owned()))),
-                };
-                return match result {
-                    Ok(_) => CrosWebServer::respond_http_response(request, "", common::HTTP_OK),
-                    Err(error) => CrosWebServer::respond_http_response(
-                        request,
-                        error.to_string().as_str(),
-                        HTTP_ERROR_INTERNAL_SERVER,
-                    ),
+                    "GetCallboxInfo" => {
+                        let result = self.get_callbox_info();
+                        return match result {
+                            Ok(val) => {
+                                CrosWebServer::respond_http_response(
+                                    request,
+                                    val.as_str(),
+                                    common::HTTP_OK,
+                                );
+                            }
+                            Err(err) => CrosWebServer::respond_http_response(
+                                request,
+                                err.to_string().as_str(),
+                                HTTP_ERROR_INTERNAL_SERVER,
+                            ),
+                        };
+                    }
+                    _ => {
+                        CrosWebServer::respond_http_response(
+                            request,
+                            "Unknown command",
+                            HTTP_ERROR_INTERNAL_SERVER,
+                        );
+                    }
                 };
             }
-            Err(error) => {
-                return CrosWebServer::respond_http_response(
-                    request,
-                    error.to_string().as_str(),
-                    HTTP_ERROR_INTERNAL_SERVER,
-                )
-            }
+            Err(error) => CrosWebServer::respond_http_response(
+                request,
+                error.to_string().as_str(),
+                HTTP_ERROR_INTERNAL_SERVER,
+            ),
         };
+    }
+
+    fn get_callbox_info(&self) -> Result<String, Box<dyn Error>> {
+        let network_interfaces = list_afinet_netifas().expect("Failed to get callbox ips");
+        let mut ips = String::new();
+        for (name, ip) in network_interfaces.iter() {
+            ips.push_str(format!("{}:\t{:?}\n", name, ip).as_str());
+        }
+        Ok(ips)
     }
 
     pub fn handle_url_request(
