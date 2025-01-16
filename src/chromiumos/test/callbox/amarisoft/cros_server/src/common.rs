@@ -30,9 +30,9 @@ pub struct ServerCommand {
 }
 
 pub fn create_parse_error(fn_name: &str, root_error: Box<dyn Error>) -> Box<dyn Error> {
-    return Box::new(ServerError(
+    Box::new(ServerError(
         format!("Failed to parse {} command: {}", fn_name, root_error).to_owned(),
-    ));
+    ))
 }
 
 pub fn parse_value_to_json<T: DeserializeOwned>(
@@ -40,7 +40,7 @@ pub fn parse_value_to_json<T: DeserializeOwned>(
 ) -> std::result::Result<T, ServerError> {
     let temp_content = content.clone();
     match serde_json::from_value::<T>(content) {
-        Ok(result) => return Ok(result),
+        Ok(result) => Ok(result),
         Err(error) => {
             println!(
                 "Failed to parse JSON content of type: `{}`: {} content:{:?}",
@@ -48,16 +48,16 @@ pub fn parse_value_to_json<T: DeserializeOwned>(
                 error,
                 temp_content
             );
-            return Err(ServerError("Failed to parse json message".to_owned()));
+            Err(ServerError("Failed to parse json message".to_owned()))
         }
-    };
+    }
 }
 
 pub fn parse_string_to_json<T: DeserializeOwned>(
     content: &String,
 ) -> std::result::Result<T, ServerError> {
-    match serde_json::from_str::<T>(&content) {
-        Ok(result) => return Ok(result),
+    match serde_json::from_str::<T>(content) {
+        Ok(result) => Ok(result),
         Err(error) => {
             println!(
                 "Failed to parse JSON content of type: `{}`: {} : {}",
@@ -65,7 +65,7 @@ pub fn parse_string_to_json<T: DeserializeOwned>(
                 error,
                 content
             );
-            return Err(ServerError("Failed to parse json message".to_owned()));
+            Err(ServerError("Failed to parse json message".to_owned()))
         }
-    };
+    }
 }

@@ -28,19 +28,19 @@ pub(crate) struct AmarisoftAPI {
 
 impl AmarisoftAPI {
     pub fn new() -> AmarisoftAPI {
-        return AmarisoftAPI {
+        AmarisoftAPI {
             imeisv_cache: HashMap::new(),
-        };
+        }
     }
 
     fn extract_member<T: DeserializeOwned>(
         value: &Value,
         name: &str,
-        data: &String,
+        data: &str,
     ) -> Result<T, Box<dyn Error>> {
-        match serde_json::from_value::<T>((&value[&name]).clone()) {
+        match serde_json::from_value::<T>((value[&name]).clone()) {
             Ok(res) => Ok(res),
-            Err(_) => Err(Self::new_json_parse_error(&name, data.as_str())),
+            Err(_) => Err(Self::new_json_parse_error(name, data)),
         }
     }
 
@@ -90,10 +90,10 @@ impl AmarisoftAPI {
                 }
             }
         }
-        return Err(Box::new(ServerError(format!(
+        Err(Box::new(ServerError(format!(
             "ip address {} was not found in ue_get",
             dut_ip
-        ))));
+        ))))
     }
 
     // Execute a generic command on the Amarisoft Remote API using ws.js
@@ -143,9 +143,9 @@ impl AmarisoftAPI {
     }
 
     fn new_json_parse_error(object_name: &str, message: &str) -> Box<dyn Error> {
-        return Box::new(ServerError(format!(
+        Box::new(ServerError(format!(
             "Failed to parse {}. message:{}",
             object_name, message
-        )));
+        )))
     }
 }

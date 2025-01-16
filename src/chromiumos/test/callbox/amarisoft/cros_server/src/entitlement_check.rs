@@ -41,22 +41,22 @@ pub(crate) struct EntitlementCheck {
 
 impl EntitlementCheck {
     pub fn new() -> EntitlementCheck {
-        return EntitlementCheck {
+        EntitlementCheck {
             etl_result: HashMap::new(),
             ignore_next_etl: HashMap::new(),
-        };
+        }
     }
 
     pub fn is_ignore_next_request(&mut self, imeisv: &str) -> bool {
         if let Some(val) = self.ignore_next_etl.get_mut(imeisv) {
-            *val = *val - 1;
+            *val -= 1;
             if *val <= 0 {
                 println!("Ignoring entitlement check");
                 self.ignore_next_etl.remove(imeisv);
                 return true;
             }
         }
-        return false;
+        false
     }
     pub fn check_entitlement(&mut self, imeisv: &str, imsi: &str) -> EntitlementCheckResult {
         if self.is_ignore_next_request(imeisv) {
@@ -77,14 +77,14 @@ impl EntitlementCheck {
             return EntitlementCheckResult::NotOk(ENTITLEMENT_ERROR_USER_NOT_RECOGNIZED);
         }
         if result == 0 {
-            return EntitlementCheckResult::Ok;
+            EntitlementCheckResult::Ok
         } else {
-            return EntitlementCheckResult::NotOk(result);
+            EntitlementCheckResult::NotOk(result)
         }
     }
 
     fn make_key(imeisv: &str, imsi: &str) -> String {
-        return imeisv.to_owned() + "-" + imsi;
+        imeisv.to_owned() + "-" + imsi
     }
 
     fn setup_entitlement_value(
@@ -101,7 +101,7 @@ impl EntitlementCheck {
         );
         self.etl_result
             .insert(Self::make_key(imeisv, setup.imsi.as_str()), setup.code);
-        return Ok(());
+        Ok(())
     }
 
     fn reset_entitlement_value(
@@ -113,7 +113,7 @@ impl EntitlementCheck {
         self.etl_result.retain(|key, _| !key.starts_with(imeisv));
         self.etl_result.remove(&setup.imsi);
         self.ignore_next_etl.remove(imeisv);
-        return Ok(());
+        Ok(())
     }
 
     pub fn process_command(
@@ -155,7 +155,7 @@ impl EntitlementCheck {
                 self.ignore_next_etl.insert(imeisv.to_owned(), 1);
                 Ok(())
             }
-            _ => return Err(Box::new(ServerError("Unknown command".to_owned()))),
+            _ => Err(Box::new(ServerError("Unknown command".to_owned()))),
         }
     }
 }

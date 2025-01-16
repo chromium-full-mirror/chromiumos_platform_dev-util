@@ -13,7 +13,6 @@ use common::ServerError;
 use local_ip_address::list_afinet_netifas;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use tiny_http;
 
 use crate::entitlement_check::EntitlementCheckResult;
 
@@ -32,10 +31,10 @@ struct CrosWebServer {
 
 impl CrosWebServer {
     fn new() -> CrosWebServer {
-        return CrosWebServer {
+        CrosWebServer {
             entl_check: entitlement_check::EntitlementCheck::new(),
             amarisoft: AmarisoftAPI::new(),
-        };
+        }
     }
 
     fn get_header_field(request: &mut tiny_http::Request, field: &'static str) -> String {
@@ -70,12 +69,12 @@ impl CrosWebServer {
                 println!("Failed to read JSON content");
                 return Err(ServerError(error.to_string()));
             }
-            return common::parse_string_to_json(&mut content);
+            return common::parse_string_to_json(&content);
         }
-        return Err(ServerError(format!(
+        Err(ServerError(format!(
             "The Content type {} is not application/json",
             content_type
-        )));
+        )))
     }
 
     fn handle_entitlement_check(&mut self, mut request: tiny_http::Request, imeisv: String) {
