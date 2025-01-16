@@ -30,8 +30,8 @@ CHROMEOS_REPO = os.path.join(CHROMIUM_SITE, CHROMEOS_KERNEL_DIR)
 CHROMIUM_REVIEW_BASEURL = "https://chromium-review.googlesource.com/a"
 
 # Order BRANCHES from oldest to newest
-CHROMEOS_BRANCHES = ["5.4", "5.10", "5.10-cip", "5.15", "6.1", "6.6", "6.12"]
-STABLE_BRANCHES = ["5.4", "5.10", "5-10-cip", "5.15", "6.1", "6.6", "6.12"]
+CHROMEOS_BRANCHES = ["5.4", "5.10", "5.15", "6.1", "6.6", "6.12"]
+STABLE_BRANCHES = ["5.4", "5.10", "5.15", "6.1", "6.6", "6.12"]
 
 UPSTREAM_START_BRANCH = f"v{CHROMEOS_BRANCHES[0]}"
 
