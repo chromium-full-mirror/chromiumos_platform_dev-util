@@ -1,4 +1,4 @@
-// Copyright 2022 The ChromiumOS Authors.
+// Copyright 2022 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,16 +18,19 @@ import (
 // CpconPublishService serves only one publish request. Not to be confused with a
 // server that creates a new service instance for each request.
 type CpconPublishService struct {
-	LocalArtifactPath string
-	RetryCount        int
+	LocalArtifactPath           string
+	RetryCount                  int
 	ServiceAccountCredsFilePath string
-	Bucket string
+	Bucket                      string
+	Build                       string
+	Suite                       string
+	ParentJobID                 string
 }
 
 func NewCpconPublishService(req *api.PublishRequest) (*CpconPublishService, error) {
-	var m api.PublishGcsMetadata
+	var m api.PublishCpconMetadata
 	if err := req.Metadata.UnmarshalTo(&m); err != nil {
-		return nil, fmt.Errorf("improperly formatted input proto metadata, received %v, expected PublishGcsMetadata: %s", req, err)
+		return nil, fmt.Errorf("improperly formatted input proto metadata, received %v, expected PublishCpconMetadata: %s", req, err)
 	}
 
 	bucket, err := resolveGcsPathToBucket(m.GcsPath.GetPath())
@@ -41,18 +44,24 @@ func NewCpconPublishService(req *api.PublishRequest) (*CpconPublishService, erro
 	}
 
 	return &CpconPublishService{
-		LocalArtifactPath: req.GetArtifactDirPath().GetPath(),
-		RetryCount:        retryCount,
+		LocalArtifactPath:           req.GetArtifactDirPath().GetPath(),
+		RetryCount:                  retryCount,
 		ServiceAccountCredsFilePath: m.GetServiceAccountCredsFilePath().GetPath(),
-		Bucket: bucket,
+		Bucket:                      bucket,
+		Build:                       m.GetBuild(),
+		Suite:                       m.GetSuite(),
+		ParentJobID:                 m.GetParentSwarmingTaskId(),
 	}, nil
 }
 
 func (ts *CpconPublishService) UploadToCpcon(ctx context.Context) error {
 	cmd, err := uploadResultsCmd(ctx, CpconUploadRequest{
-		ResultsDir: ts.LocalArtifactPath,
+		ResultsDir:                  ts.LocalArtifactPath,
 		ServiceAccountCredsFilePath: ts.ServiceAccountCredsFilePath,
-		Bucket: ts.Bucket,
+		Bucket:                      ts.Bucket,
+		Build:                       ts.Build,
+		Suite:                       ts.Suite,
+		ParentJobID:                 ts.ParentJobID,
 	})
 	if err != nil {
 		log.Printf("error while creating upload results command: %s", err)
@@ -68,7 +77,7 @@ func (ts *CpconPublishService) UploadToCpcon(ctx context.Context) error {
 
 // resolveGcsPathToBucket translate the gcsUrl for the gcs upload to a bucket
 // name which can be used for the cpcon upload tool
-func resolveGcsPathToBucket(gcsUrl string) (string, error){
+func resolveGcsPathToBucket(gcsUrl string) (string, error) {
 	re := regexp.MustCompile(`gs:\/\/([^\/]*)\/(.*)`)
 	gcsPathMatches := re.FindStringSubmatch(gcsUrl)
 	if len(gcsPathMatches) != 3 {

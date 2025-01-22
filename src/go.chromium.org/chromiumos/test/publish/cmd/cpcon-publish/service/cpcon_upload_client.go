@@ -1,3 +1,7 @@
+// Copyright 2025 The ChromiumOS Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 package service
 
 import (
@@ -18,8 +22,11 @@ type CpconUploadRequest struct {
 	// Path to test results to upload
 	ResultsDir string
 
-	Bucket string
+	Bucket                      string
 	ServiceAccountCredsFilePath string
+	Build                       string
+	Suite                       string
+	ParentJobID                 string
 }
 
 // uploadResultsCmd constructs upload_results command with all necessary args
@@ -33,6 +40,9 @@ func uploadResultsCmd(ctx context.Context, req CpconUploadRequest) (*exec.Cmd, e
 		"-d", req.ResultsDir,
 		"--bucket", req.Bucket,
 		"--sa_path", req.ServiceAccountCredsFilePath,
+		"--build", req.Build,
+		"--suite", req.Suite,
+		"--parent_job_id", req.ParentJobID,
 	}
 	cmd := exec.CommandContext(ctx, pythonPath, args...)
 	return cmd, nil
