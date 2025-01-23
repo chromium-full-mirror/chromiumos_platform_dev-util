@@ -179,7 +179,7 @@ func (e *EQCRow) Save() (map[string]bigquery.Value, string, error) {
 	}, e.EQCHash, nil
 }
 
-// eqcInfo extracts the EqC info from the test results in the publish
+// eqcInfo extracts the EqC info from the rdb metadata in the publish
 // request.
 func eqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
 	metadata, err := UnpackMetadata(req)
@@ -187,10 +187,22 @@ func eqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
 		return nil, fmt.Errorf("unpacking the metadata in the publish request: %w", err)
 	}
 
-	testInvocation := metadata.GetTestResult().GetTestInvocation()
-	if testInvocation == nil {
-		return nil, fmt.Errorf("skipping the EqC BQ export because the test invocation is empty")
+	eqcInfoMap := metadata.GetEqcInfo()
+	eqcInfo := &artifact.EqcInfo{
+		EqcHash:               eqcInfoMap["eqcHash"],
+		EqcName:               eqcInfoMap["eqcName"],
+		EqcCategoryExpression: eqcInfoMap["eqcCategoryExpression"],
 	}
 
-	return testInvocation.GetEqcInfo(), nil
+	if dimensionsJSON, ok := eqcInfoMap["eqcDimensions"]; ok {
+		dimensionsMap := make(map[string]string)
+		if err := json.Unmarshal([]byte(dimensionsJSON), &dimensionsMap); err != nil {
+			return nil, fmt.Errorf("unmarshalling the EqC dimensions: %w", err)
+		}
+		eqcInfo.EqcDimensions = dimensionsMap
+	} else {
+		eqcInfo.EqcDimensions = make(map[string]string)
+	}
+
+	return eqcInfo, nil
 }

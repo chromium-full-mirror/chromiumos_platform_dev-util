@@ -232,6 +232,10 @@ func (rps *RdbPublishService) UploadToRdb(ctx context.Context) error {
 
 // UnpackMetadata unpacks the Any metadata field into PublishGcsMetadata
 func UnpackMetadata(req *api.PublishRequest) (*metadata.PublishRdbMetadata, error) {
+	if req == nil {
+		return nil, fmt.Errorf("input proto is nil")
+	}
+
 	var m metadata.PublishRdbMetadata
 	if err := req.Metadata.UnmarshalTo(&m); err != nil {
 		return &m, fmt.Errorf("improperly formatted input proto metadata, %s", err)

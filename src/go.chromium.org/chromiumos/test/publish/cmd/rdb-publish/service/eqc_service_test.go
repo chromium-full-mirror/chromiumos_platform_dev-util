@@ -24,19 +24,29 @@ func TestNewEQCPublishService(t *testing.T) {
 
 	Convey("NewEQCPublishService", t, func() {
 		Convey("Valid request", func() {
-			validEQCInfo := &artifact.EqcInfo{
-				EqcHash:               "A310930190d11",
-				EqcName:               "IntelRaptorLakeKernelNext",
-				EqcCategoryExpression: "WifiBtChipset_Soc_Kernel_80211_AX",
-			}
-			validMetadata := &metadata.PublishRdbMetadata{
-				TestResult: &artifact.TestResult{
-					TestInvocation: &artifact.TestInvocation{
-						EqcInfo: validEQCInfo,
-					},
+			wantEQCInfo := &artifact.EqcInfo{
+				EqcHash:               "9073744604696850342",
+				EqcName:               "Cometlake-U__INTEL_HRP2_AX201__5.15",
+				EqcCategoryExpression: "WifiBtChipset_Soc_Kernel_Intel",
+				EqcDimensions: map[string]string{
+					"dlm:soc":               "Cometlake-U",
+					"image:_kernel_version": "5.15",
+					"wireless_field":        "INTEL_HRP2_AX201",
 				},
 			}
-			validMetadataAny, _ := anypb.New(validMetadata)
+			eqcInfoMap := map[string]string{
+				"eqcCategoryExpression": "WifiBtChipset_Soc_Kernel_Intel",
+				"eqcDimensions":         "{\"dlm:soc\":\"Cometlake-U\",\"image:_kernel_version\":\"5.15\",\"wireless_field\":\"INTEL_HRP2_AX201\"}",
+				"eqcHash":               "9073744604696850342",
+				"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__5.15",
+			}
+			rdbMetadata := &metadata.PublishRdbMetadata{
+				EqcInfo: eqcInfoMap,
+			}
+
+			validMetadataAny, err := anypb.New(rdbMetadata)
+			So(err, ShouldBeNil)
+
 			req := &api.PublishRequest{
 				Metadata: validMetadataAny,
 			}
@@ -45,7 +55,7 @@ func TestNewEQCPublishService(t *testing.T) {
 
 			So(err, ShouldBeNil)
 			So(s, ShouldNotBeNil)
-			So(s.eqcInfo, ShouldResembleProto, validEQCInfo)
+			So(s.eqcInfo, ShouldResembleProto, wantEQCInfo)
 
 			s.Close()
 		})
@@ -169,5 +179,74 @@ func TestEQCRowSave(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(gotValue, ShouldResemble, wantValue)
 		})
+	})
+}
+
+// Generate unit tests for the function eqcInfo(req *api.PublishRequest)
+func TestEqcInfo(t *testing.T) {
+	t.Parallel()
+
+	Convey("Valid request with EQC info", t, func() {
+		wantEQCInfo := &artifact.EqcInfo{
+			EqcHash:               "9073744604696850342",
+			EqcName:               "Cometlake-U__INTEL_HRP2_AX201__5.15",
+			EqcCategoryExpression: "{\"value\":{\"combinatorial\":{\"subcategories\":[{\"value\":{\"enumerated\":{\"classes\":[{\"value\":{\"name\":\"swarming:label-wifi_state:NORMAL\",\"expression\":{\"property\":{\"propertyPath\":\"swarming:label-wifi_state\",\"strEqual\":\"NORMAL\"}}}}]}}},{\"name\":\"WifiBtChipset_Soc_Kernel\"}]}}}",
+			EqcDimensions: map[string]string{
+				"dlm:soc":               "Cometlake-U",
+				"image:_kernel_version": "5.15",
+				"wireless_field":        "INTEL_HRP2_AX201",
+			},
+		}
+		eqcInfoMap := map[string]string{
+			"eqcCategoryExpression": "{\"value\":{\"combinatorial\":{\"subcategories\":[{\"value\":{\"enumerated\":{\"classes\":[{\"value\":{\"name\":\"swarming:label-wifi_state:NORMAL\",\"expression\":{\"property\":{\"propertyPath\":\"swarming:label-wifi_state\",\"strEqual\":\"NORMAL\"}}}}]}}},{\"name\":\"WifiBtChipset_Soc_Kernel\"}]}}}",
+			"eqcDimensions":         "{\"dlm:soc\":\"Cometlake-U\",\"image:_kernel_version\":\"5.15\",\"wireless_field\":\"INTEL_HRP2_AX201\"}",
+			"eqcHash":               "9073744604696850342",
+			"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__5.15",
+		}
+		rdbMetadata := &metadata.PublishRdbMetadata{
+			EqcInfo: eqcInfoMap,
+		}
+
+		validMetadataAny, err := anypb.New(rdbMetadata)
+		So(err, ShouldBeNil)
+
+		req := &api.PublishRequest{
+			Metadata: validMetadataAny,
+		}
+		gotEQCInfo, err := eqcInfo(req)
+		So(err, ShouldBeNil)
+		So(gotEQCInfo, ShouldResembleProto, wantEQCInfo)
+	})
+
+	Convey("Valid request without EQC info", t, func() {
+		validMetadataAny, err := anypb.New(&metadata.PublishRdbMetadata{})
+		So(err, ShouldBeNil)
+
+		req := &api.PublishRequest{
+			Metadata: validMetadataAny,
+		}
+		gotEQCInfo, err := eqcInfo(req)
+
+		// Expect an empty EqcInfo
+		So(err, ShouldBeNil)
+		So(gotEQCInfo, ShouldResembleProto, &artifact.EqcInfo{})
+	})
+
+	Convey("Nil request", t, func() {
+		gotEQCInfo, err := eqcInfo(nil)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldContainSubstring, "unpacking the metadata")
+		So(gotEQCInfo, ShouldBeNil)
+	})
+
+	Convey("Invalid metadata", t, func() {
+		req := &api.PublishRequest{
+			Metadata: &anypb.Any{}, // Empty Any proto
+		}
+		gotEQCInfo, err := eqcInfo(req)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldContainSubstring, "unpacking the metadata")
+		So(gotEQCInfo, ShouldBeNil)
+
 	})
 }
