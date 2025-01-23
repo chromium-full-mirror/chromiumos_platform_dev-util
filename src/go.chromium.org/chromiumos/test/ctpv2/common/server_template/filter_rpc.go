@@ -20,6 +20,7 @@ import (
 
 // GenericFilterServiceServer ...
 type GenericFilterServiceServer struct {
+	api.GenericFilterServiceServer
 	logPath      string
 	name         string
 	serverLogger *log.Logger
