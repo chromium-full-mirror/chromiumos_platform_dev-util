@@ -81,6 +81,10 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			"--cts-package-name", fmt.Sprintf("android-%s.zip", testType),
 			"--rootdir-var", fmt.Sprintf("%s_ROOT", strings.ToUpper(testType)),
 			"--no-set-test-harness")
+
+		if testType == "gts" {
+			cmd = append(cmd, "--inject-global-config", "--global-config-filters", "host_options")
+		}
 	}
 
 	logPath := getGlobalLogPath()
