@@ -7,6 +7,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"path/filepath"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"go.chromium.org/luci/common/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/proto"
 )
 
 // GenericFilterServiceServer ...
@@ -57,7 +59,8 @@ func NewServer(logger *log.Logger, logPath, name string, commonParams *CommonFil
 // Execute executes s.executor() with the req. The executor method must be provided on startup to NewServer.
 func (s *GenericFilterServiceServer) Execute(ctx context.Context, req *api.InternalTestplan) (*api.InternalTestplan, error) {
 	t := time.Now()
-	logPath := filepath.Join(s.logPath, req.GetSuiteInfo().GetSuiteRequest().GetTestSuite().GetName(), s.name, t.Format("20060102-150405"))
+	suiteName := req.GetSuiteInfo().GetSuiteRequest().GetTestSuite().GetName()
+	logPath := filepath.Join(s.logPath, suiteName, s.name, t.Format("20060102-150405"))
 	s.serverLogger.Printf("Creating Log File at %s", logPath)
 	logFile, err := common.CreateLogFile(logPath)
 	if err != nil {
@@ -67,6 +70,8 @@ func (s *GenericFilterServiceServer) Execute(ctx context.Context, req *api.Inter
 	}
 	defer logFile.Close()
 	logger := common.NewLogger(logFile)
+	logger.SetFlags(log.LstdFlags | log.LUTC | log.Lshortfile)
+	logger.SetPrefix(fmt.Sprintf("%s: ", suiteName))
 
 	logger.Printf("Received Request: %s", req)
 
@@ -77,4 +82,89 @@ func (s *GenericFilterServiceServer) Execute(ctx context.Context, req *api.Inter
 	logger.Printf("Execute RPC Command was successful")
 
 	return rspn, nil
+}
+
+// ExecuteStream takes in a streamed InternalTestplan and then calls the s.Execute() path.
+func (s *GenericFilterServiceServer) ExecuteStream(stream api.GenericFilterService_ExecuteStreamServer) error {
+	testplan, err := ReceiveRequest(stream.Recv)
+	if err != nil {
+		return err
+	}
+
+	testplan, err = s.Execute(stream.Context(), testplan)
+	if err != nil {
+		return err
+	}
+
+	err = SendRequest(stream.Send, testplan)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ReceiveRequest waits on InternalTestplanFragments and compiles them into a full InternalTestplan.
+func ReceiveRequest(recvFunc func() (*api.InternalTestplanFragment, error)) (*api.InternalTestplan, error) {
+	// Gather fragments
+	streamedBytes := []byte{}
+	for {
+		fragment, err := recvFunc()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		streamedBytes = append(streamedBytes, fragment.GetFragment()...)
+	}
+
+	// Convert fragments into InternalTestplan
+	testplan := &api.InternalTestplan{}
+	unmarshaler := proto.UnmarshalOptions{
+		DiscardUnknown: true,
+	}
+	err := unmarshaler.Unmarshal(streamedBytes, testplan)
+	if err != nil {
+		return nil, err
+	}
+
+	return testplan, nil
+}
+
+// SendRequest breaks the InternalTestplan object into 2MB fragments and sends them off to the caller.
+func SendRequest(sendFunc func(*api.InternalTestplanFragment) error, testplan *api.InternalTestplan) error {
+	bytes, err := proto.Marshal(testplan)
+	if err != nil {
+		return err
+	}
+
+	// Partition by 2 MB and stream
+	for _, byteFragment := range PartitionBytesBySize(bytes, 2*1024*1024) {
+		testplanFragment := &api.InternalTestplanFragment{
+			Fragment: byteFragment,
+		}
+
+		if err := sendFunc(testplanFragment); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// PartitionBytesBySize splits a byte array into many byte arrays
+// according to the maxSize passed in.
+func PartitionBytesBySize(inBytes []byte, maxSize uint64) [][]byte {
+	outBytes := [][]byte{}
+
+	increment := int(maxSize)
+	for start := 0; start < len(inBytes); start += increment {
+		end := start + increment
+		if len(inBytes) < end {
+			end = len(inBytes)
+		}
+		outBytes = append(outBytes, inBytes[start:end])
+	}
+
+	return outBytes
 }
