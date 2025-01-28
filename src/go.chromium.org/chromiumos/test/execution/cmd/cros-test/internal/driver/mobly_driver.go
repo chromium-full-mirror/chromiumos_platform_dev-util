@@ -165,5 +165,5 @@ func launchAndReadMobly(cmd *exec.Cmd, logger *log.Logger) error {
 		common.TestScanner(stdout, logger, "Mobly")
 	}()
 	wg.Wait()
-	return cmd.Wait() // Return the error from cmd.Wait()
+	return nil
 }
