@@ -334,6 +334,77 @@ func TestMatchedTestsForTestNameInSuites(t *testing.T) {
 
 }
 
+// TestMatchedTestsForSuitesWithNameSpaces make sure MatchedTestsForSuite return
+// all expected metadata even if the suite name itself contains spaces.
+func TestMatchedTestsForSuitesWithNameSpaces(t *testing.T) {
+	testMetadataLocal := []*api.TestCaseMetadata{
+		{
+			TestCase: &api.TestCase{
+				Id: &api.TestCase_Id{
+					Value: "test with spaces",
+				},
+				Name: "test with spaces",
+				Tags: []*api.TestCase_Tag{
+					{Value: "attr1"},
+					{Value: "attr2"},
+				},
+			},
+		},
+		{
+			TestCase: &api.TestCase{
+				Id: &api.TestCase_Id{
+					Value: "test with spaces 2",
+				},
+				Name: "test with spaces 2",
+				Tags: []*api.TestCase_Tag{
+					{Value: "attr1"},
+					{Value: "attr2"},
+				},
+			},
+		},
+	}
+
+	suites := []*api.TestSuite{
+		{
+			Name: "suite.with.spaces",
+			Spec: &api.TestSuite_TestCaseIds{
+				TestCaseIds: &api.TestCaseIdList{
+					TestCaseIds: []*api.TestCase_Id{
+						{Value: "test with spaces"},
+						{Value: "test with spaces 2"},
+					},
+				},
+			},
+		},
+	}
+	expectedTests := map[string]bool{
+		"test with spaces":   false,
+		"test with spaces 2": false,
+	}
+
+	matchedMdList, err := MatchedTestsForSuites(testMetadataLocal, suites)
+	if err != nil {
+		t.Fatal("Failed to call MatchedTestsTestsForSuites: ", err)
+	}
+
+	for _, md := range matchedMdList {
+		found, ok := expectedTests[md.TestCase.Name]
+		if !ok {
+			t.Errorf("Unexpected metadata: %+v", md)
+		}
+		if found {
+			t.Errorf("Duplicate metadata: %+v", md)
+		}
+		expectedTests[md.TestCase.Name] = true
+	}
+
+	for test, found := range expectedTests {
+		if !found {
+			t.Errorf("Failed to find test: %v", test)
+		}
+	}
+}
+
 // TestMatchedTestsForTestNameExcludesInSuites make sure MatchedTestsForSuite return
 // all expected metadata excluding tests from TestNameExcludes.
 func TestMatchedTestsForTestNameExcludesInSuites(t *testing.T) {

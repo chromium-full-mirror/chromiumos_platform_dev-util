@@ -148,6 +148,41 @@ func MatchedTestsForSuites(metadataList []*api.TestCaseMetadata, suites []*api.T
 					}
 				}
 				delete(tests, tm.GetTestCase().GetId().GetValue())
+			} else if _, ok := tests[getfirstName(tm.GetTestCase().GetId().GetValue())]; ok {
+				// This codepath is hit in the edge case where a testname contains spaces.
+				// getfirstName() will index the test case up to the first space, but will
+				// still append the true test name as the value. We hit this issue in b/392702193.
+				//
+				// In order to address, this, assuming we fail the lookup of the whole test name,
+				// we lookup the name of the testname up to the first space, it should match.
+				// We then remove the entry in the slice if it exists. If the slice is empty, we
+				// remove it.
+				// This should only ever get called in Mobly test cases.
+				keyToRemove := getfirstName(tm.GetTestCase().GetId().GetValue())
+				valToRemove := tm.GetTestCase().GetId().GetValue()
+
+				md := proto.Clone(tm).(*api.TestCaseMetadata)
+				md.TestCase.Id.Value = valToRemove
+				tmList = append(tmList, md)
+				if slice, ok := tests[keyToRemove]; ok {
+					indexToRemove := -1
+					for i, str := range slice {
+						if str == valToRemove {
+							indexToRemove = i
+							break
+						}
+					}
+					if indexToRemove != -1 {
+						slice[indexToRemove] = slice[len(slice)-1]
+						slice = slice[:len(slice)-1]
+
+						if len(slice) == 0 {
+							delete(tests, keyToRemove)
+						} else {
+							tests[keyToRemove] = slice
+						}
+					}
+				}
 			}
 		}
 		if len(tests) > 0 {
