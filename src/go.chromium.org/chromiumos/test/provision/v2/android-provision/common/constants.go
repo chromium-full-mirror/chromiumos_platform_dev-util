@@ -1,4 +1,4 @@
-// Copyright 2022 The ChromiumOS Authors.
+// Copyright 2022 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -63,7 +63,9 @@ var OSVersionToGMSCorePlatformMap = map[string]string{
 	"12": "prodsc",
 	"13": "prodsc",
 	"14": "prodsc",
+	"15": "prodvic",
 }
 
 type ProvisionCtxKey string
+
 const StageCtxKey ProvisionCtxKey = "stage"
