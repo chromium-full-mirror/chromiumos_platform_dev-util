@@ -122,7 +122,7 @@ func TestArchiveXTSResults(t *testing.T) {
 				AlRun:                true,
 				ApfeGcsPrefix:        "gs://apfe-bucket",
 				ResultsGcsPrefix:     "gs://result-bucket",
-				Build:                "brya-release/R100-14543.0.0",
+				Build:                "brya-trunk-userdebug/P1454321",
 				Product:              "brya.brya",
 				ParentSwarmingTaskId: "parent_job_id",
 			},

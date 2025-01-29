@@ -43,6 +43,11 @@ var (
 
 	// Regex patterns
 	TIMESTAMP_REGEX = fmt.Sprintf("%s%s.%s.%s_%s.%s.%s*", DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT)
+
+	// AL release configurations that do not need to be archived and skipped.
+	// Release configurations are in the format: <target_name>-<release>-<variant>
+	// See: go/trunk-stable-release-configurations
+	AL_SKIP_RELEASE_BUILD_REGEX = regexp.MustCompile(`\w+-(trunk_food|trunk_staging)-\w+/.*`)
 )
 
 // ArchiveInfo defines the properties of a XTS archive process.
@@ -62,7 +67,7 @@ type ArchiveInfo struct {
 // It scans the result dir from metadata to find the relevant XML result files and prepares
 // them for upload with a list of archive instructions.
 func archiveInfo(resultDir string, metadata *api.XtsArchiverMetadata, now time.Time) ([]ArchiveInfo, error) {
-	if !isReleaseBuild(metadata.GetBuild()) {
+	if !isReleaseBuild(metadata.GetBuild(), metadata.GetAlRun()) {
 		log.Printf("Skipping the XTS archive process for non-release build: %s", metadata.GetBuild())
 		return nil, nil
 	}
@@ -314,8 +319,13 @@ func parseJobResultsFilePath(path string, isALRun bool, now time.Time) (harness 
 	return folders[foldersLen-6], folders[foldersLen-4], folders[foldersLen-1], nil
 }
 
-// isReleaseBuild returns whether the build is for a release.
-func isReleaseBuild(build string) bool {
+// isReleaseBuild returns whether the build is for a release that needs to be archived.
+func isReleaseBuild(build string, isALRun bool) bool {
+	if isALRun {
+		return !AL_SKIP_RELEASE_BUILD_REGEX.MatchString(build)
+	}
+
+	// ChromeOS classic build formats
 	if strings.HasPrefix(build, TRY_BOT_PREFIX) {
 		return false
 	}

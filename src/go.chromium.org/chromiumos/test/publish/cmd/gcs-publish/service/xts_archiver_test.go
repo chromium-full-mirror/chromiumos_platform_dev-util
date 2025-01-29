@@ -104,7 +104,7 @@ func TestArchiveInfos(t *testing.T) {
 					AlRun:                true,
 					ApfeGcsPrefix:        "gs://apfe-bucket",
 					ResultsGcsPrefix:     "gs://result-bucket",
-					Build:                "brya-release/R100-14543.0.0",
+					Build:                "brya-userdebug/P454321",
 					Product:              "brya.brya",
 					ParentSwarmingTaskId: "parent_job_id",
 				},
@@ -241,7 +241,7 @@ func TestArchiveInfoForTest(t *testing.T) {
 				metadata: &api.XtsArchiverMetadata{
 					ApfeGcsPrefix:        "gs://apfe-bucket",
 					ResultsGcsPrefix:     "gs://result-bucket",
-					Build:                "brya-release/R133-16103.0.0",
+					Build:                "brya-trunk-userdebug/P16103",
 					Product:              "brya.brya",
 					ParentSwarmingTaskId: "parent_job_id",
 					AlRun:                true,
@@ -579,20 +579,75 @@ func TestIsReleaseBuild(t *testing.T) {
 	Convey("Test isReleaseBuild", t, func() {
 		testCases := []struct {
 			build     string
+			isALRun   bool
 			isRelease bool
 		}{
-			{"brya-release/R99-12345.0.0", true},
-			{"brya-release/R99-12345.0.0-test", true},
-			{"a-very-long-board.name-release/R99-12345.0.0", true},
-			{"brya-release.staging/R99-12345.0.0", false},
-			{"trybot-brya-release/R99-12345.0.0", false},
-			{"brya-kernelnext/R99-12345.0.0", false},
-			{"brya/R99-12345.0.0", false},
+			{
+				build:     "brya-release/R99-12345.0.0",
+				isALRun:   false,
+				isRelease: true,
+			},
+			{
+				build:     "brya-release/R99-12345.0.0-test",
+				isALRun:   false,
+				isRelease: true,
+			},
+			{
+				build:     "a-very-long-board.name-release/R99-12345.0.0",
+				isALRun:   false,
+				isRelease: true,
+			},
+			{
+				build:     "brya-release.staging/R99-12345.0.0",
+				isALRun:   false,
+				isRelease: false,
+			},
+			{
+				build:     "trybot-brya-release/R99-12345.0.0",
+				isALRun:   false,
+				isRelease: false,
+			},
+			{
+				build:     "brya-kernelnext/R99-12345.0.0",
+				isALRun:   false,
+				isRelease: false,
+			},
+			{
+				build:     "brya/R99-12345.0.0",
+				isALRun:   false,
+				isRelease: false,
+			},
+			{
+				build:     "brya-userdebug/P12345",
+				isALRun:   true,
+				isRelease: true,
+			},
+			{
+				build:     "brya-trunk-userdebug/P12345",
+				isALRun:   true,
+				isRelease: true,
+			},
+			{
+				build:     "brya-next-userdebug/P12345",
+				isALRun:   true,
+				isRelease: true,
+			},
+			{
+				build:     "brya-trunk_staging-userdebug/P12345",
+				isALRun:   true,
+				isRelease: false,
+			},
+			{
+				build:     "brya-trunk_food-userdebug/P12345",
+				isALRun:   true,
+				isRelease: false,
+			},
 		}
 
 		for _, tc := range testCases {
 			Convey(tc.build, func() {
-				So(isReleaseBuild(tc.build), ShouldEqual, tc.isRelease)
+				gotIsRelease := isReleaseBuild(tc.build, tc.isALRun)
+				So(gotIsRelease, ShouldEqual, tc.isRelease)
 			})
 		}
 	})
