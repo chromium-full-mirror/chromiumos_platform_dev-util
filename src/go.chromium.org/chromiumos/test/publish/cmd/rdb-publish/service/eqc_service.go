@@ -25,6 +25,10 @@ const (
 
 	// EQCInfoTable EqC info BigQuery table name.
 	EQCInfoTable = "eqc_info"
+
+	// EQCSubjectKey 3D EqC subject key used to fetch EqC info from the
+	// scheduling publish key map.
+	EQCSubjectKey = "3D"
 )
 
 // EQCPublishService 3D EqC publish service to interact with BigQuery.
@@ -187,7 +191,18 @@ func eqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
 		return nil, fmt.Errorf("unpacking the metadata in the publish request: %w", err)
 	}
 
-	eqcInfoMap := metadata.GetEqcInfo()
+	eqcInfoMap := make(map[string]string)
+	for _, items := range metadata.GetPublishKeys() {
+		if items.GetSubject() == EQCSubjectKey {
+			eqcInfoMap = items.GetKeyValues()
+			break
+		}
+	}
+
+	if len(eqcInfoMap) == 0 {
+		return &artifact.EqcInfo{}, nil
+	}
+
 	eqcInfo := &artifact.EqcInfo{
 		EqcHash:               eqcInfoMap["eqcHash"],
 		EqcName:               eqcInfoMap["eqcName"],

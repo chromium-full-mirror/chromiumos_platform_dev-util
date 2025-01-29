@@ -41,7 +41,12 @@ func TestNewEQCPublishService(t *testing.T) {
 				"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__5.15",
 			}
 			rdbMetadata := &metadata.PublishRdbMetadata{
-				EqcInfo: eqcInfoMap,
+				PublishKeys: []*api.PublishKey{
+					{
+						Subject:   EQCSubjectKey,
+						KeyValues: eqcInfoMap,
+					},
+				},
 			}
 
 			validMetadataAny, err := anypb.New(rdbMetadata)
@@ -204,7 +209,12 @@ func TestEqcInfo(t *testing.T) {
 			"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__5.15",
 		}
 		rdbMetadata := &metadata.PublishRdbMetadata{
-			EqcInfo: eqcInfoMap,
+			PublishKeys: []*api.PublishKey{
+				{
+					Subject:   EQCSubjectKey,
+					KeyValues: eqcInfoMap,
+				},
+			},
 		}
 
 		validMetadataAny, err := anypb.New(rdbMetadata)
