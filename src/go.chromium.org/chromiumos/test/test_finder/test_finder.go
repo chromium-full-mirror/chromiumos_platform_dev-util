@@ -30,6 +30,7 @@ import (
 
 const (
 	defaultRootPath        = "/tmp/test/cros-test-finder"
+	filterLogPath          = "/tmp/filters/cros-test-finder"
 	defaultInputFileName   = "request.json"
 	defaultOutputFileName  = "result.json"
 	defaultTestMetadataDir = "/tmp/test/metadata"
@@ -57,8 +58,12 @@ func createLogFile(fullPath string) (*os.File, error) {
 }
 
 // newLogger creates a logger. Using go default logger for now.
-func newLogger(logFile *os.File) *log.Logger {
-	mw := io.MultiWriter(logFile, os.Stderr)
+func newLogger(logFiles ...*os.File) *log.Logger {
+	writers := []io.Writer{os.Stderr}
+	for _, logFile := range logFiles {
+		writers = append(writers, logFile)
+	}
+	mw := io.MultiWriter(writers...)
 	return log.New(mw, "", log.LstdFlags|log.LUTC)
 }
 
@@ -290,6 +295,11 @@ func startServer(d []string) int {
 	fs.IntVar(&a.port, "port", defaultPort, fmt.Sprintf("Specify the port for the server. Default value %d.", defaultPort))
 	fs.Parse(d)
 
+	filterLogFile, err := createLogFile(filepath.Join(filterLogPath, t.Format("20060102-150405")))
+	if err != nil {
+		log.Fatalln("Failed to create log file", err)
+		return 2
+	}
 	logFile, err := createLogFile(a.logPath)
 	if err != nil {
 		log.Fatalln("Failed to create log file", err)
@@ -297,7 +307,7 @@ func startServer(d []string) int {
 	}
 	defer logFile.Close()
 
-	logger := newLogger(logFile)
+	logger := newLogger(logFile, filterLogFile)
 
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", a.port))
 	if err != nil {
