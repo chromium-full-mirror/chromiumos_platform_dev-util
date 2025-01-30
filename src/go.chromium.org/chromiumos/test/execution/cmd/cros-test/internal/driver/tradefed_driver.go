@@ -115,7 +115,9 @@ func runTradefedTest(ctx context.Context, logger *log.Logger, tests []*api.TestC
 	model string, servo *labapi.Servo) error {
 
 	for _, s := range serials {
-		if err := adb.SetupAdb(logger, s); err != nil {
+		// TODO(b/393175524): Switch back to SetupAdb() after we understand the
+		// regression or if this doesn't help.
+		if err := adb.RetrySetupAdb(logger, s, 15*time.Second); err != nil {
 			return fmt.Errorf("setupAdb failed for %s", s)
 		}
 		// Force the disablement of the test_harness setting to resolve bootloops.
