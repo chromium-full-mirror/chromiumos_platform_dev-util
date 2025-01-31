@@ -259,7 +259,7 @@ func ParseMetadata(logger *log.Logger, metadata []*api.Arg) *ConfigParams {
 		switch arg.Flag {
 		case "test-params":
 			logger.Println("test-params")
-			configParams.TestParams = ParseArg(logger, arg)
+			configParams.TestParams = ParseArg(logger, arg, configParams.TestParams)
 		case "android-params":
 			logger.Println("android-params")
 			configParams.AndroidParams = ParseDeviceArg(logger, arg)
@@ -271,15 +271,22 @@ func ParseMetadata(logger *log.Logger, metadata []*api.Arg) *ConfigParams {
 			configParams.BtReferenceParams = ParseDeviceArg(logger, arg)
 		default:
 			logger.Println("default")
+			// Any additional test params dynamically passed in.
+			if strings.HasPrefix(arg.Flag, "extra-test-params") {
+				logger.Println("test-params")
+				configParams.TestParams = ParseArg(logger, arg, configParams.TestParams)
+			}
 		}
 	}
 
 	return configParams
 }
 
-func ParseArg(logger *log.Logger, arg *api.Arg) paramMap {
+func ParseArg(logger *log.Logger, arg *api.Arg, argMap paramMap) paramMap {
 	logger.Println("ParseArg")
-	argMap := paramMap{}
+	if argMap == nil {
+		argMap = paramMap{}
+	}
 
 	for _, param := range strings.Split(arg.Value, ",") {
 		logger.Println(param)
@@ -288,6 +295,9 @@ func ParseArg(logger *log.Logger, arg *api.Arg) paramMap {
 			continue
 		}
 		key, value := parts[0], parts[1]
+		if _, ok := argMap[key]; ok {
+			logger.Printf("duplicate arg: %q, original value: %q, new value: %q", key, argMap[key], value)
+		}
 		argMap[key] = value
 		logger.Println(key, value)
 	}
