@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"sync"
 
@@ -44,12 +45,23 @@ func buildMoblyCommand(logger *log.Logger, test *api.TestCaseMetadata) (*exec.Cm
 	}
 
 	par := filepath.Join("/usr/local/mobly", parFile)
+
 	args := []string{
-		"--",
+		"--", // Separator between global and test-specific arguments.
 		"-c", "/usr/local/mobly/test_config.yml",
 		"--tests", test.GetTestCase().GetName(),
 	}
 
+	// Check if the executable supports the ipv6 flag. if it does, we disable
+	// enforcing kernel ipv6 support as our lab does not support this generally.
+	// This is currently relevant for the g3 executable.
+	// See b/390240237 for more details.
+	helpCmd := exec.Command(par, "--helpfull")
+	out, _ := helpCmd.CombinedOutput()
+	flagRegex := regexp.MustCompile(`enforce_kernel_ipv6_support`)
+	if flagRegex.MatchString(string(out)) {
+		args = append([]string{"--enforce_kernel_ipv6_support=false"}, args...)
+	}
 	cmd := exec.Command(par, args...)
 	return cmd, nil
 }
