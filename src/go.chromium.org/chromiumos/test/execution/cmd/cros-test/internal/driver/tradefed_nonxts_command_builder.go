@@ -47,7 +47,7 @@ func BuildNonXtsTestCommand(logger *log.Logger, testType string, tests []*api.Te
 		"--test-config-only-zip", generalConfigOnlyZip,
 		"--test-zip-file-filter", generalTestsZipTemplate, "--no-bugreport-on-invocation-ended",
 		"--google-device-setup:set-global-setting", "verifier_verify_adb_installs=0",
-		"--luci-result-reporter:json-output-path", logPath,
+		"--luci-result-reporter:log-output-dir", logPath,
 	)
 
 	// Adding a list of artifacts to skip downloading by the CTS runner.
