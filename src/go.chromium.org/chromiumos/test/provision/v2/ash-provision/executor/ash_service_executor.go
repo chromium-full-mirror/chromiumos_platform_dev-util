@@ -5,9 +5,10 @@
 package executor
 
 import (
+	"errors"
+
 	"go.chromium.org/chromiumos/test/provision/v2/ash-provision/service"
 	common_utils "go.chromium.org/chromiumos/test/provision/v2/common-utils"
-	"errors"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 	lab_api "go.chromium.org/chromiumos/config/go/test/lab/api"
@@ -18,7 +19,7 @@ import (
 type AShProvisionExecutor struct {
 }
 
-func (c *AShProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, req *api.InstallRequest) (common_utils.ServiceState, error) {
+func (c *AShProvisionExecutor) GetFirstState(dut *lab_api.Dut, dutClient api.DutServiceClient, _ string, req *api.InstallRequest) (common_utils.ServiceState, error) {
 	cs, err := service.NewAShService(dut, dutClient, req)
 	if err != nil {
 		return nil, err
