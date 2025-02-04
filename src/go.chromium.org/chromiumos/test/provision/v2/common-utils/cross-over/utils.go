@@ -151,7 +151,7 @@ func callServod(ctx context.Context, log *log.Logger, key, value string, params 
 			},
 		},
 	}
-	req.ServoHostPath = params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
+	req.ServoHostPath = params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + servoSSHPort
 	if strings.Contains(req.ServoHostPath, satlab) {
 		req.ServodDockerContainerName = params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
 	}
@@ -180,7 +180,7 @@ func startServod(ctx context.Context, log *log.Logger, servoNexusClient api.Serv
 	req.Model = dut.GetChromeos().GetDutModel().GetModelName()
 	req.SerialName = dut.GetChromeos().GetServo().GetSerial()
 	req.ServodPort = dut.GetChromeos().GetServo().GetServodAddress().GetPort()
-	req.ServoHostPath = dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
+	req.ServoHostPath = dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + servoSSHPort
 	if strings.Contains(req.ServoHostPath, satlab) {
 		req.ServodDockerContainerName = dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
 	}
@@ -221,7 +221,7 @@ func saveServoLogs(ctx context.Context, log *log.Logger, servoNexusClient api.Se
 	}
 	req := &api.SaveLogsRequest{}
 	req.ServodPorts = []int32{dut.GetChromeos().GetServo().GetServodAddress().GetPort()}
-	req.ServoHostPath = host + sshPort
+	req.ServoHostPath = host + servoSSHPort
 	req.Dest = servoNexusLogPath
 	_, err := servoNexusClient.SaveLogs(ctx, req)
 	if err != nil {

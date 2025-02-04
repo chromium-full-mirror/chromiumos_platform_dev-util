@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	sshPort               = ":22"
+	servoSSHPort          = ":22"
 	satlab                = "satlab"
 	bootWaitRetryCount    = 18
 	bootWaitRetryInterval = 5 * time.Second

@@ -38,7 +38,7 @@ func (s CrossOverTerminateState) Execute(ctx context.Context, log *log.Logger) (
 	if s.params.StopServo {
 		req := &api.StopServodRequest{}
 		req.ServodPort = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetPort()
-		req.ServoHostPath = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + sshPort
+		req.ServoHostPath = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress() + servoSSHPort
 		if strings.Contains(req.ServoHostPath, satlab) {
 			req.ServodDockerContainerName = s.params.Dut.GetChromeos().GetServo().GetServodAddress().GetAddress()
 		}
