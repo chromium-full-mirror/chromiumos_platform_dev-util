@@ -71,7 +71,12 @@ func BuildNonXtsTestCommand(logger *log.Logger, testType string, tests []*api.Te
 	var buildInfoReported = false
 	var invocationInfoReported = false
 	var branch, target, build string
-	branch, target, build = extractBuildInfoFromExecutionMetadata(metadata)
+	// To support ATP runs, the priority is given to the "extra" metadata
+	// which is pointing to the location of test and Tradefed ZIP packages.
+	branch, target, build = extractTestInfoFromExecutionMetadata(metadata)
+	if !(len(branch) > 0 && len(target) > 0 && len(build) > 0) {
+		branch, target, build = extractBuildInfoFromExecutionMetadata(metadata)
+	}
 	if len(branch) > 0 && len(target) > 0 && len(build) > 0 {
 		// If provided, use these to set branch, target and build. this will make internal
 		// TF ants plugin to work correctly with ATP created invocation.
@@ -82,10 +87,7 @@ func BuildNonXtsTestCommand(logger *log.Logger, testType string, tests []*api.Te
 
 	for _, t := range tests {
 		if !buildInfoReported {
-			tiBranch, tiTarget, tiBuild := extractTestInfoFromExecutionMetadata(metadata)
-			if !(len(tiBranch) > 0 && len(tiTarget) > 0 && len(tiBuild) > 0) {
-				tiBranch, tiTarget, tiBuild = extractBuildInfoFromTest(t.TestCase, metadata, board)
-			}
+			tiBranch, tiTarget, tiBuild := extractBuildInfoFromTest(t.TestCase, metadata, board)
 			if len(tiBranch) > 0 && len(tiTarget) > 0 && len(tiBuild) > 0 {
 				logger.Println("Setting build info from test metadata - branch/target/build: ", board, "/", target, "/", build)
 				if !invocationInfoReported {
