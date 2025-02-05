@@ -21,32 +21,16 @@ const (
 	DTS                = "dts"
 )
 
-// Ensure the metadata is correct. This is only needed for some backwards compatibility with configs
-func validPlan(branch string, target string, build string, plan string) bool {
-	if !(len(branch) > 0 && len(target) > 0 && len(build) > 0) {
-		return false
-	}
-	// DTS is built in git_main-al-dev, so this is a valid plan
-	if plan == DTS && branch == GIT_MAIN_AL_DEV {
-		return true
-	} else if plan != DTS && branch == GIT_MAIN {
-		// However, all other xTS is built in git_main, thus these must be declared part of the git_main branch.
-		return true
-	}
-	return false
-}
-
 func extractBuildInfo(test *api.TestCase, metadata *api.ExecutionMetadata, board string, plan string, logger *log.Logger) (branch string, target string, build string) {
 	branch, target, build = extractTestInfoFromExecutionMetadata(metadata)
-	if !validPlan(branch, target, build, plan) {
-		// Ensure the metadata is correct. This is only needed for some backwards compatibility with configs
-		logger.Println("Setting xTS build info from test metadata - branch/target/build: ", board, "/", target, "/", build)
-		return extractBuildInfoFromTest(test, metadata, board)
+	if !(len(branch) > 0 && len(target) > 0 && len(build) > 0) {
+		// As no direct way to return error, we continue with what we have and let Tradefed error out if it doesn't have enough information.
+		// Print log to make it clear what is missing.
+		logger.Println("Missing required info branch/target/build, got: ", branch, "/", target, "/", build)
 	}
-	logger.Println("Setting xTS build info from build info - branch/target/build: ", board, "/", target, "/", build)
+	logger.Println("Setting xTS build info from build info - branch/target/build: ", branch, "/", target, "/", build)
 
 	return
-
 }
 
 func getTestRunner() string {
