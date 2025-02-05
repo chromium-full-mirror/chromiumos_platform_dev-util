@@ -141,9 +141,9 @@ func GenerateBtReferenceDevices(serials []string, btReferenceParams deviceParamM
 	deviceKeyToSerial := map[string]string{}
 	for i, serial := range serials {
 		if i == 0 {
-			deviceKeyToSerial["primary"] = strings.TrimSuffix(serial, ":22")
+			deviceKeyToSerial["primary"] = strings.TrimSuffix(serial, ":5555")
 		} else {
-			deviceKeyToSerial["secondary"] = strings.TrimSuffix(serial, ":22")
+			deviceKeyToSerial["secondary"] = strings.TrimSuffix(serial, ":5555")
 		}
 	}
 
