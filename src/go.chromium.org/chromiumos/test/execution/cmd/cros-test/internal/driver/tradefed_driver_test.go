@@ -184,6 +184,20 @@ func TestDetectTestType(t *testing.T) {
 				expectedTestType: "vts",
 			},
 			{
+				name: "STS test type by name",
+				testCaseMetadata: []*api.TestCaseMetadata{
+					createMetadataMessage("sts.CtsTestCase", ""),
+				},
+				expectedTestType: "sts",
+			},
+			{
+				name: "STS test type by tag",
+				testCaseMetadata: []*api.TestCaseMetadata{
+					createMetadataMessage("SomeVtsTestCase", "suite:sts"),
+				},
+				expectedTestType: "sts",
+			},
+			{
 				name: "General tests by name",
 				testCaseMetadata: []*api.TestCaseMetadata{
 					createMetadataMessage("general.GenTestCase", ""),

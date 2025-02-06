@@ -49,8 +49,12 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 
 	plan, err := extractMetadataFlag(metadata, planMetadataFlag)
 	if err != nil {
-		// By default, plan is the same as test suite type, i.e. "cts", "dts", etc.
-		plan = testType
+		// By default, plan is the same as test suite type, i.e. "cts", "dts", etc (except for STS).
+		if testType == "sts" {
+			plan = "sts-dynamic-full"
+		} else {
+			plan = testType
+		}
 	}
 
 	// Add test type specific arguments.
@@ -64,7 +68,7 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			"--test-tag", fmt.Sprintf("cros-%s-test", testType),
 			"--cts-package-name", fmt.Sprintf("android-%s.zip", testType),
 			"--rootdir-var", fmt.Sprintf("%s_ROOT", strings.ToUpper(testType)),
-			"--no-set-test-harness")
+			"--no-set-test-harness", "--jdk-folder-for-subprocess", "/jdk/jdk21/linux-x86")
 
 		if testType == "gts" {
 			cmd = append(cmd, "--inject-global-config", "--global-config-filters", "host_options")
@@ -95,8 +99,11 @@ func BuildXtsTestCommand(logger *log.Logger, testType string, tests []*api.TestC
 			"--result-reporter:disable-result-posting", "--result-reporter:no-disable",
 			"--use-log-saver", `--post-boot-command "am switch-user 10"`,
 		}
-		if testType != "gts" && testType != "vts" {
+		if testType != "gts" && testType != "vts" && testType != "sts" {
 			ctsParams = append(ctsParams, "--property-check:no-throw-error")
+		}
+		if testType == "sts" {
+			ctsParams = append(ctsParams, "--ghidra-preparer:disable")
 		}
 		for _, param := range ctsParams {
 			cmd = append(cmd, "--cts-params", param)

@@ -33,7 +33,7 @@ const (
 
 // List of xTS & non-xTS test suites supported by this driver.
 // Not all suites are supported for each Tradefed type.
-var knownSuites = []string{"cts", "dts", "gts", "vts", "general"}
+var knownSuites = []string{"cts", "dts", "gts", "vts", "sts", "general"}
 var nonXtsSuites = []string{"general"}
 
 var testType = "cts"
