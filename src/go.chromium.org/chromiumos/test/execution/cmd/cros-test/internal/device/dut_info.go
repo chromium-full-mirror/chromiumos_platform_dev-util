@@ -526,6 +526,18 @@ func GenLabConfig(primary *DutInfo, companions []*DutInfo, androidCompanion []*A
 
 }
 
+// Returns a list of all devices in a request, both companion and primary.
+func Devices(req *api.CrosTestRequest) []*labapi.Dut {
+	devices := []*labapi.Dut{}
+	if req.GetPrimary().GetDut() != nil {
+		devices = append(devices, req.GetPrimary().GetDut())
+	}
+	for _, c := range req.GetCompanions() {
+		devices = append(devices, c.GetDut())
+	}
+	return devices
+}
+
 // DerviceSerials extracts serial information of all devices from a requests test.
 func DerviceSerials(req *api.CrosTestRequest) ([]string, error) {
 	var serials []string

@@ -1,0 +1,405 @@
+// Copyright 2025 The ChromiumOS Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package driver
+
+import (
+	"log"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"go.chromium.org/chromiumos/config/go/test/api"
+	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
+	"gopkg.in/yaml.v2"
+)
+
+var fullConfig = MoblyTestConfig{
+	TestBeds: []*TestBed{
+		{
+			Name: "LocalTestBed",
+			Controllers: &Controllers{
+				OpenWrtDevices: []*OpenWrtDevice{
+					{
+						Hostname: "SERIAL_1-router",
+						Params: paramMap{
+							"skip_init_reboot": "True",
+						},
+					},
+					{
+						Hostname: "SERIAL_1-pcap",
+						Params: paramMap{
+							"skip_init_reboot": "True",
+						},
+					},
+				},
+				AndroidDevices: []*AndroidDevice{
+					{
+						Serial: "SERIAL_1",
+						Role:   "source_device",
+						Params: paramMap{},
+					},
+					{
+						Serial: "SERIAL_2",
+						Role:   "target_device",
+						Params: paramMap{},
+					},
+				},
+				BtReferenceDevice: []*BtReferenceDevice{
+					{
+						Hostname: "SERIAL_1-btpeer1",
+						Username: "root",
+						Password: "test0000",
+						Params:   paramMap{},
+					},
+					{
+						Hostname: "SERIAL_1-btpeer2",
+						Username: "root",
+						Password: "test0000",
+						Params:   paramMap{},
+					},
+					{
+						Hostname: "SERIAL_1-btpeer3",
+						Username: "root",
+						Password: "test0000",
+						Params:   paramMap{},
+					},
+					{
+						Hostname: "SERIAL_1-btpeer4",
+						Username: "root",
+						Password: "test0000",
+						Params:   paramMap{},
+					},
+				},
+				PassportHost: []*PassportHost{
+					{
+						Params: paramMap{
+							"foo": "bar", "foo2": "bar2",
+						},
+						HostTopology: &labapi.PasitHost{
+							Devices: []*labapi.PasitHost_Device{
+								{
+									Id:   "SERIAL_1",
+									Type: labapi.PasitHost_Device_DUT,
+								},
+								{
+									Id:   "dock_switch",
+									Type: labapi.PasitHost_Device_SWITCH_FIXTURE,
+								},
+								{
+									Id:   "dock_1",
+									Type: labapi.PasitHost_Device_DOCKING_STATION,
+								},
+								{
+									Id:   "hdmi_switch",
+									Type: labapi.PasitHost_Device_SWITCH_FIXTURE,
+								},
+								{
+									Id:   "monitor_1",
+									Type: labapi.PasitHost_Device_MONITOR,
+								},
+								{
+									Id:   "dp_switch",
+									Type: labapi.PasitHost_Device_SWITCH_FIXTURE,
+								},
+								{
+									Id:   "monitor_2",
+									Type: labapi.PasitHost_Device_MONITOR,
+								},
+								{
+									Id:   "eth_switch",
+									Type: labapi.PasitHost_Device_SWITCH_FIXTURE,
+								},
+								{
+									Id:   "network_1",
+									Type: labapi.PasitHost_Device_NETWORK,
+								},
+							},
+							Connections: []*labapi.PasitHost_Connection{
+								{
+									Type:     "USBC",
+									ParentId: "SERIAL_1",
+									ChildId:  "dock_switch",
+								},
+								{
+									Type:     "USBC",
+									ParentId: "dock_Switch",
+									ChildId:  "dock_1",
+								},
+								{
+									Type:     "HDMI",
+									ParentId: "dock_1",
+									ChildId:  "dp_switch",
+								},
+								{
+									Type:     "HDMI",
+									ParentId: "dp_switch",
+									ChildId:  "monitor_2",
+								},
+								{
+									Type:     "HDMI",
+									ParentId: "hdmi_switch",
+									ChildId:  "monitor_1",
+								},
+								{
+									Type:     "HDMI",
+									ParentId: "dock_1",
+									ChildId:  "hdmi_switch",
+								},
+								{
+									Type:     "ETHERNET",
+									ParentId: "dock_1",
+									ChildId:  "eth_switch",
+								},
+								{
+									Type:     "ETHERNET",
+									ParentId: "eth_switch",
+									ChildId:  "network_1",
+								},
+							},
+						},
+					},
+				},
+			},
+			TestParams: &TestParams{
+				Params: paramMap{
+					"foo": "bar", "foo2": "bar2",
+					"passport_switch_service_host": "10.0.0.2",
+					"passport_switch_service_port": "12345",
+				},
+			},
+		},
+	},
+}
+
+var fullConfigYaml = `TestBeds:
+- Name: LocalTestBed
+  TestParams:
+    foo: bar
+    foo2: bar2
+    passport_switch_service_host: 10.0.0.2
+    passport_switch_service_port: "12345"
+  Controllers:
+    OpenWrtDevice:
+    - hostname: SERIAL_1-router
+      skip_init_reboot: "True"
+    - hostname: SERIAL_1-pcap
+      skip_init_reboot: "True"
+    AndroidDevice:
+    - serial: SERIAL_1
+      role: source_device
+    - serial: SERIAL_2
+      role: target_device
+    BtReferenceDevice:
+    - hostname: SERIAL_1-btpeer1
+      username: root
+      password: test0000
+    - hostname: SERIAL_1-btpeer2
+      username: root
+      password: test0000
+    - hostname: SERIAL_1-btpeer3
+      username: root
+      password: test0000
+    - hostname: SERIAL_1-btpeer4
+      username: root
+      password: test0000
+    PassportHost:
+    - host_topology:
+        connections:
+        - child_id: dock_switch
+          parent_id: SERIAL_1
+          type: USBC
+        - child_id: dock_1
+          parent_id: dock_Switch
+          type: USBC
+        - child_id: dp_switch
+          parent_id: dock_1
+          type: HDMI
+        - child_id: monitor_2
+          parent_id: dp_switch
+          type: HDMI
+        - child_id: monitor_1
+          parent_id: hdmi_switch
+          type: HDMI
+        - child_id: hdmi_switch
+          parent_id: dock_1
+          type: HDMI
+        - child_id: eth_switch
+          parent_id: dock_1
+          type: ETHERNET
+        - child_id: network_1
+          parent_id: eth_switch
+          type: ETHERNET
+        devices:
+        - id: SERIAL_1
+          type: DUT
+        - id: dock_switch
+          type: SWITCH_FIXTURE
+        - id: dock_1
+          type: DOCKING_STATION
+        - id: hdmi_switch
+          type: SWITCH_FIXTURE
+        - id: monitor_1
+          type: MONITOR
+        - id: dp_switch
+          type: SWITCH_FIXTURE
+        - id: monitor_2
+          type: MONITOR
+        - id: eth_switch
+          type: SWITCH_FIXTURE
+        - id: network_1
+          type: NETWORK
+      foo: bar
+      foo2: bar2
+`
+
+// TestYamlConversion verifies that a config is converted into the expected yaml representation.
+func TestYamlConversion(t *testing.T) {
+	yamlGot, _ := yaml.Marshal(&fullConfig)
+	t.Log(string(yamlGot))
+	if diff := cmp.Diff(string(yamlGot), fullConfigYaml); diff != "" {
+		t.Errorf("Got unexpected argument from NewMoblyConfig (-got +want):\n%s\n%v\n--\n%v\n", string(yamlGot), fullConfigYaml, diff)
+	}
+}
+
+// TestGenerateConfigs verifies the Mobly config generation.
+func TestGenerateConfigs(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected MoblyTestConfig
+		serials  []string
+		devices  []*labapi.Dut
+		metadata []*api.Arg
+	}{
+		{
+			name:    "full_config",
+			serials: []string{"SERIAL_1", "SERIAL_2"},
+			metadata: []*api.Arg{
+				{
+					Flag:  "test-params",
+					Value: "foo:bar,foo2:bar2",
+				},
+				{
+					Flag:  "openwrt-params",
+					Value: "skip_init_reboot:True,primary-router,primary-pcap",
+				},
+				{
+					Flag:  "btreference-params",
+					Value: "primary-btpeer1,primary-btpeer2,primary-btpeer3,primary-btpeer4",
+				},
+				{
+					Flag:  "extra-test-params",
+					Value: "passport_switch_service_host:10.0.0.2,passport_switch_service_port:12345",
+				},
+				{
+					Flag:  "passport-params",
+					Value: "foo:bar,foo2:bar2",
+				},
+			},
+			devices: []*labapi.Dut{
+				{
+					DutType: &labapi.Dut_Chromeos{
+						Chromeos: &labapi.Dut_ChromeOS{
+							PasitHost: &labapi.PasitHost{
+								Devices: []*labapi.PasitHost_Device{
+									{
+										Id:   "SERIAL_1",
+										Type: labapi.PasitHost_Device_DUT,
+									},
+									{
+										Id:   "dock_switch",
+										Type: labapi.PasitHost_Device_SWITCH_FIXTURE,
+									},
+									{
+										Id:   "dock_1",
+										Type: labapi.PasitHost_Device_DOCKING_STATION,
+									},
+									{
+										Id:   "hdmi_switch",
+										Type: labapi.PasitHost_Device_SWITCH_FIXTURE,
+									},
+									{
+										Id:   "monitor_1",
+										Type: labapi.PasitHost_Device_MONITOR,
+									},
+									{
+										Id:   "dp_switch",
+										Type: labapi.PasitHost_Device_SWITCH_FIXTURE,
+									},
+									{
+										Id:   "monitor_2",
+										Type: labapi.PasitHost_Device_MONITOR,
+									},
+									{
+										Id:   "eth_switch",
+										Type: labapi.PasitHost_Device_SWITCH_FIXTURE,
+									},
+									{
+										Id:   "network_1",
+										Type: labapi.PasitHost_Device_NETWORK,
+									},
+								},
+								Connections: []*labapi.PasitHost_Connection{
+									{
+										Type:     "USBC",
+										ParentId: "SERIAL_1",
+										ChildId:  "dock_switch",
+									},
+									{
+										Type:     "USBC",
+										ParentId: "dock_Switch",
+										ChildId:  "dock_1",
+									},
+									{
+										Type:     "HDMI",
+										ParentId: "dock_1",
+										ChildId:  "dp_switch",
+									},
+									{
+										Type:     "HDMI",
+										ParentId: "dp_switch",
+										ChildId:  "monitor_2",
+									},
+									{
+										Type:     "HDMI",
+										ParentId: "hdmi_switch",
+										ChildId:  "monitor_1",
+									},
+									{
+										Type:     "HDMI",
+										ParentId: "dock_1",
+										ChildId:  "hdmi_switch",
+									},
+									{
+										Type:     "ETHERNET",
+										ParentId: "dock_1",
+										ChildId:  "eth_switch",
+									},
+									{
+										Type:     "ETHERNET",
+										ParentId: "eth_switch",
+										ChildId:  "network_1",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: fullConfig,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			config := NewMoblyConfig(log.Default(), test.serials, test.metadata, test.devices)
+			// Convert to yaml to make it easier to compare.
+			yamlWant, _ := yaml.Marshal(&test.expected)
+			yamlGot, _ := yaml.Marshal(config)
+
+			if diff := cmp.Diff(string(yamlGot), string(yamlWant)); diff != "" {
+				t.Errorf("Got unexpected argument from NewMoblyConfig (-got +want):\n%s\n%v\n--\n%v\n", string(yamlGot), string(yamlWant), diff)
+			}
+		})
+	}
+}

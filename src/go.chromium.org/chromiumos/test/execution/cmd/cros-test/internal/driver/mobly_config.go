@@ -6,18 +6,36 @@
 package driver
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
+
 	"go.chromium.org/chromiumos/config/go/test/api"
+	labapi "go.chromium.org/chromiumos/config/go/test/lab/api"
 	"go.chromium.org/luci/common/errors"
+	"google.golang.org/protobuf/encoding/protojson"
 	"gopkg.in/yaml.v2"
 )
 
 type paramMap = map[string]string
-type deviceParamMap = map[string]paramMap
+
+type deviceParams struct {
+	deviceId string
+	params   paramMap
+}
+
+func deviceParamMap(params []deviceParams) map[string]paramMap {
+	res := make(map[string]paramMap)
+	for _, device := range params {
+		res[device.deviceId] = device.params
+	}
+	return res
+}
 
 type MoblyTestConfig struct {
 	TestBeds []*TestBed `yaml:"TestBeds"`
@@ -29,10 +47,15 @@ type TestBed struct {
 	Controllers *Controllers `yaml:"Controllers"`
 }
 
+type TestParams struct {
+	Params paramMap `yaml:",inline"`
+}
+
 type Controllers struct {
 	OpenWrtDevices    []*OpenWrtDevice     `yaml:"OpenWrtDevice,omitempty"`
 	AndroidDevices    []*AndroidDevice     `yaml:"AndroidDevice,omitempty"`
 	BtReferenceDevice []*BtReferenceDevice `yaml:"BtReferenceDevice,omitempty"`
+	PassportHost      []*PassportHost      `yaml:"PassportHost,omitempty"`
 }
 
 type AndroidDevice struct {
@@ -53,8 +76,24 @@ type BtReferenceDevice struct {
 	Params   paramMap `yaml:",inline"`
 }
 
-type TestParams struct {
-	Params paramMap `yaml:",inline"`
+type PassportHost struct {
+	HostTopology *labapi.PasitHost
+	Params       paramMap
+}
+
+func (p PassportHost) MarshalYAML() (interface{}, error) {
+	topology, err := yamlFriendlyPb(p.HostTopology)
+	if err != nil {
+		return "", fmt.Errorf("failed to make protobuf yaml compatible: %w", err)
+	}
+
+	return struct {
+		HostTopology interface{} `yaml:"host_topology"`
+		Params       paramMap    `yaml:",inline"`
+	}{
+		HostTopology: topology,
+		Params:       p.Params,
+	}, nil
 }
 
 // Config Parameters from ExecutionMetadata
@@ -64,15 +103,17 @@ type ConfigParams struct {
 	TestParams paramMap
 	// Values prefixed by `primary` or `secondary` will only apply to that device.
 	// Keyed by `android-params`
-	AndroidParams deviceParamMap
+	AndroidParams []deviceParams
 	// Values prefixed by `primary-<suffix>` or `secondary-<suffix>` will only apply to that device.
 	// Keyed by `openwrt-params`
-	OpenWrtParams deviceParamMap
+	OpenWrtParams []deviceParams
 	// Keyed by `btreference-params`
-	BtReferenceParams deviceParamMap
+	BtReferenceParams []deviceParams
+	// Keyed by `passport-params`
+	PassportParams paramMap
 }
 
-func GenerateMoblyConfig(logger *log.Logger, dir string, serials []string, metadata []*api.Arg) (err error) {
+func NewMoblyConfig(logger *log.Logger, serials []string, metadata []*api.Arg, devices []*labapi.Dut) *MoblyTestConfig {
 	logger.Println("Generating Mobly Test Config")
 	for _, arg := range metadata {
 		logger.Println(arg.Flag, arg.Value)
@@ -83,18 +124,18 @@ func GenerateMoblyConfig(logger *log.Logger, dir string, serials []string, metad
 		logger.Println(k, v)
 	}
 
-	for d, m := range configParams.AndroidParams {
-		for k, v := range m {
+	for _, d := range configParams.AndroidParams {
+		for k, v := range d.params {
+			logger.Println(d.deviceId, k, v)
+		}
+	}
+	for _, d := range configParams.OpenWrtParams {
+		for k, v := range d.params {
 			logger.Println(d, k, v)
 		}
 	}
-	for d, m := range configParams.OpenWrtParams {
-		for k, v := range m {
-			logger.Println(d, k, v)
-		}
-	}
-	for d, m := range configParams.BtReferenceParams {
-		for k, v := range m {
+	for _, d := range configParams.BtReferenceParams {
+		for k, v := range d.params {
 			logger.Println(d, k, v)
 		}
 	}
@@ -103,9 +144,10 @@ func GenerateMoblyConfig(logger *log.Logger, dir string, serials []string, metad
 		AndroidDevices:    GenerateAndroidDevices(serials, configParams.AndroidParams),
 		OpenWrtDevices:    GenerateOpenWrtDevices(serials, configParams.OpenWrtParams),
 		BtReferenceDevice: GenerateBtReferenceDevices(serials, configParams.BtReferenceParams),
+		PassportHost:      GeneratePassportHost(logger, devices, configParams.PassportParams),
 	}
 
-	Config := &MoblyTestConfig{
+	return &MoblyTestConfig{
 		TestBeds: []*TestBed{
 			{
 				Name:        "LocalTestBed",
@@ -116,8 +158,10 @@ func GenerateMoblyConfig(logger *log.Logger, dir string, serials []string, metad
 			},
 		},
 	}
+}
 
-	yamlData, err := yaml.Marshal(Config)
+func (c *MoblyTestConfig) Write(logger *log.Logger, dir string) (err error) {
+	yamlData, err := yaml.Marshal(c)
 	if err != nil {
 		err = errors.Annotate(err, "failed to marshal yaml config").Err()
 		return
@@ -136,7 +180,32 @@ func GenerateMoblyConfig(logger *log.Logger, dir string, serials []string, metad
 	return
 }
 
-func GenerateBtReferenceDevices(serials []string, btReferenceParams deviceParamMap) []*BtReferenceDevice {
+func GeneratePassportHost(logger *log.Logger, devices []*labapi.Dut, passportParams paramMap) []*PassportHost {
+	var passportHosts []*PassportHost
+	for _, dut := range devices {
+		if dut.GetChromeos() == nil || dut.GetChromeos().GetPasitHost() == nil {
+			continue
+		}
+		topology := dut.GetChromeos().GetPasitHost()
+		passportHosts = append(passportHosts, &PassportHost{
+			HostTopology: topology,
+			Params:       passportParams,
+		})
+	}
+
+	// If test params indicate a passport device, but none was found then add one with an empty topology
+	// so users can still specify based on command line.
+	if len(passportHosts) == 0 && len(passportParams) > 0 {
+		passportHosts = append(passportHosts, &PassportHost{
+			Params:       passportParams,
+			HostTopology: &labapi.PasitHost{},
+		})
+	}
+
+	return passportHosts
+}
+
+func GenerateBtReferenceDevices(serials []string, btReferenceParams []deviceParams) []*BtReferenceDevice {
 	devices := []*BtReferenceDevice{}
 	deviceKeyToSerial := map[string]string{}
 	for i, serial := range serials {
@@ -147,9 +216,17 @@ func GenerateBtReferenceDevices(serials []string, btReferenceParams deviceParamM
 		}
 	}
 
-	paramsForEachDevice := btReferenceParams["all"]
+	paramsForEachDevice := paramMap{}
+	for _, device := range btReferenceParams {
+		if device.deviceId == "all" {
+			paramsForEachDevice = device.params
+			break
+		}
+	}
 
-	for deviceKey, deviceParams := range btReferenceParams {
+	for _, device := range btReferenceParams {
+		deviceKey := device.deviceId
+		deviceParams := device.params
 		if deviceKey == "all" {
 			continue
 		}
@@ -177,7 +254,7 @@ func GenerateBtReferenceDevices(serials []string, btReferenceParams deviceParamM
 	return devices
 }
 
-func GenerateOpenWrtDevices(serials []string, openWrtParams deviceParamMap) []*OpenWrtDevice {
+func GenerateOpenWrtDevices(serials []string, openWrtParams []deviceParams) []*OpenWrtDevice {
 	devices := []*OpenWrtDevice{}
 	deviceKeyToSerial := map[string]string{}
 	for i, serial := range serials {
@@ -188,9 +265,17 @@ func GenerateOpenWrtDevices(serials []string, openWrtParams deviceParamMap) []*O
 		}
 	}
 
-	paramsForEachDevice := openWrtParams["all"]
+	paramsForEachDevice := paramMap{}
+	for _, device := range openWrtParams {
+		if device.deviceId == "all" {
+			paramsForEachDevice = device.params
+			break
+		}
+	}
 
-	for deviceKey, deviceParams := range openWrtParams {
+	for _, device := range openWrtParams {
+		deviceKey := device.deviceId
+		deviceParams := device.params
 		if deviceKey == "all" {
 			continue
 		}
@@ -216,11 +301,11 @@ func GenerateOpenWrtDevices(serials []string, openWrtParams deviceParamMap) []*O
 	return devices
 }
 
-func GenerateAndroidDevices(serials []string, androidParams deviceParamMap) []*AndroidDevice {
+func GenerateAndroidDevices(serials []string, androidParams []deviceParams) []*AndroidDevice {
 	devices := []*AndroidDevice{}
 
-	paramsForEachDevice := androidParams["all"]
-
+	androidParamsMap := deviceParamMap(androidParams)
+	paramsForEachDevice := androidParamsMap["all"]
 	for i, serial := range serials {
 		var role string
 		params := paramMap{}
@@ -231,10 +316,10 @@ func GenerateAndroidDevices(serials []string, androidParams deviceParamMap) []*A
 		var deviceParams paramMap
 		if i == 0 {
 			role = "source_device"
-			deviceParams = androidParams["primary"]
+			deviceParams = androidParamsMap["primary"]
 		} else {
 			role = "target_device"
-			deviceParams = androidParams["secondary"]
+			deviceParams = androidParamsMap["secondary"]
 		}
 		for k, v := range deviceParams {
 			params[k] = v
@@ -269,6 +354,9 @@ func ParseMetadata(logger *log.Logger, metadata []*api.Arg) *ConfigParams {
 		case "btreference-params":
 			logger.Println("btreference-params")
 			configParams.BtReferenceParams = ParseDeviceArg(logger, arg)
+		case "passport-params":
+			logger.Println("passport-params")
+			configParams.PassportParams = ParseArg(logger, arg, configParams.PassportParams)
 		default:
 			logger.Println("default")
 			// Any additional test params dynamically passed in.
@@ -306,18 +394,20 @@ func ParseArg(logger *log.Logger, arg *api.Arg, argMap paramMap) paramMap {
 	return argMap
 }
 
-func ParseDeviceArg(logger *log.Logger, arg *api.Arg) deviceParamMap {
+func ParseDeviceArg(logger *log.Logger, arg *api.Arg) []deviceParams {
 	logger.Println("ParseDeviceArg")
-	argMap := deviceParamMap{}
+	argMap := make(map[string]paramMap)
 
 	deviceKey := "all"
 	argMap["all"] = paramMap{}
+	keys := []string{"all"}
 	for _, param := range strings.Split(arg.Value, ",") {
 		logger.Println(param)
 		parts := strings.Split(param, ":")
 		if len(parts) == 1 {
 			deviceKey = parts[0]
 			argMap[deviceKey] = paramMap{}
+			keys = append(keys, deviceKey)
 		}
 		if len(parts) != 2 {
 			continue
@@ -327,6 +417,45 @@ func ParseDeviceArg(logger *log.Logger, arg *api.Arg) deviceParamMap {
 		logger.Println(deviceKey, key, value)
 	}
 
+	params := []deviceParams{}
+	for _, key := range keys {
+		params = append(params, deviceParams{
+			deviceId: key,
+			params:   argMap[key],
+		})
+	}
+
 	logger.Println("ParseDeviceArg Return")
-	return argMap
+	return params
+}
+
+// yamlFriendlyPb converts a protobuf message into an object that, when converted into
+// yaml, can easily be unmarshalled into the original protobuf. Without this,
+// the golang field names will be mangled by the default yaml marshaller.
+//
+//	e.g. go from:
+//	  * DeviceSerial -> deviceserial
+//	to
+//	  * DeviceSerial -> device_serial
+func yamlFriendlyPb(m proto.Message) (interface{}, error) {
+	// If message is empty default to nil.
+	if proto.Size(m) == 0 {
+		return nil, nil
+	}
+
+	marshalOpts := protojson.MarshalOptions{
+		// Optional, but helps keep marshalling in line with the rest of the testbed
+		// .yaml file structs by switching to underscores vs camelCase.
+		UseProtoNames: true,
+	}
+
+	// Convert to .json and then unmarshal into a new object whose fields will now
+	// be marshalled
+	asJson := marshalOpts.Format(proto.MessageV2(m))
+
+	var res interface{}
+	if err := json.Unmarshal([]byte(asJson), &res); err != nil {
+		return nil, err
+	}
+	return res, nil
 }
