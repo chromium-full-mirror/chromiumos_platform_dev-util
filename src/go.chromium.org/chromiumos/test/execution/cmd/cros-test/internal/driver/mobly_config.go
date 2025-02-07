@@ -24,6 +24,17 @@ import (
 
 type paramMap = map[string]string
 
+// combinedParamMap combines the provided paramMaps and returns a new one.
+func combinedParamMap(maps ...paramMap) paramMap {
+	copy := paramMap{}
+	for _, p := range maps {
+		for k, v := range p {
+			copy[k] = v
+		}
+	}
+	return copy
+}
+
 type deviceParams struct {
 	deviceId string
 	params   paramMap
@@ -152,7 +163,7 @@ func NewMoblyConfig(logger *log.Logger, serials []string, metadata []*api.Arg, d
 	Controllers := &Controllers{
 		AndroidDevices:    GenerateAndroidDevices(serials, configParams.AndroidParams),
 		OpenWrtDevices:    GenerateOpenWrtDevices(serials, configParams.OpenWrtParams),
-		BtReferenceDevice: GenerateBtReferenceDevices(serials, configParams.BtReferenceParams),
+		BtReferenceDevice: GenerateBtReferenceDevices(serials, devices, configParams.BtReferenceParams),
 		PassportHost:      GeneratePassportHost(logger, devices, configParams.PassportParams),
 		ChameleonDevice:   GenerateChameleonDevices(serials, devices, configParams.ChameleonParams),
 	}
@@ -215,7 +226,7 @@ func GeneratePassportHost(logger *log.Logger, devices []*labapi.Dut, passportPar
 	return passportHosts
 }
 
-func GenerateBtReferenceDevices(serials []string, btReferenceParams []deviceParams) []*BtReferenceDevice {
+func GenerateBtReferenceDevices(serials []string, duts []*labapi.Dut, btReferenceParams []deviceParams) []*BtReferenceDevice {
 	devices := []*BtReferenceDevice{}
 	deviceKeyToSerial := map[string]string{}
 	for i, serial := range serials {
@@ -234,6 +245,26 @@ func GenerateBtReferenceDevices(serials []string, btReferenceParams []devicePara
 		}
 	}
 
+	// First copy all from infra.
+	seen := make(map[string]*BtReferenceDevice)
+	for _, dut := range duts {
+		if dut.GetChromeos() == nil {
+			continue
+		}
+		for _, btpeer := range dut.GetChromeos().GetBluetoothPeers() {
+			hostname := btpeer.GetHostname()
+			device := &BtReferenceDevice{
+				Hostname: hostname,
+				Username: "root",
+				Password: "test0000",
+				Params:   combinedParamMap(paramsForEachDevice),
+			}
+			seen[device.Hostname] = device
+			devices = append(devices, device)
+		}
+	}
+
+	// Now append devices specified by btReferenceParams & update infra params if provided.
 	for _, device := range btReferenceParams {
 		deviceKey := device.deviceId
 		deviceParams := device.params
@@ -244,21 +275,17 @@ func GenerateBtReferenceDevices(serials []string, btReferenceParams []devicePara
 		deviceKey = strings.ReplaceAll(deviceKey, "primary", deviceKeyToSerial["primary"])
 		deviceKey = strings.ReplaceAll(deviceKey, "secondary", deviceKeyToSerial["secondary"])
 
-		params := paramMap{}
-		for k, v := range paramsForEachDevice {
-			params[k] = v
+		if val, ok := seen[deviceKey]; ok {
+			val.Params = combinedParamMap(val.Params, deviceParams)
+		} else {
+			// This device is unknown to infra ATM, just append it.
+			devices = append(devices, &BtReferenceDevice{
+				Hostname: deviceKey,
+				Username: "root",
+				Password: "test0000",
+				Params:   combinedParamMap(paramsForEachDevice, deviceParams),
+			})
 		}
-
-		for k, v := range deviceParams {
-			params[k] = v
-		}
-
-		devices = append(devices, &BtReferenceDevice{
-			Hostname: deviceKey,
-			Username: "root",
-			Password: "test0000",
-			Params:   params,
-		})
 	}
 
 	return devices

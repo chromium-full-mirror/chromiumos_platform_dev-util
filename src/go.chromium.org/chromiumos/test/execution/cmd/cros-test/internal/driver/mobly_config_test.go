@@ -50,25 +50,31 @@ var fullConfig = MoblyTestConfig{
 						Hostname: "SERIAL_1-btpeer1",
 						Username: "root",
 						Password: "test0000",
-						Params:   paramMap{},
+						Params:   paramMap{"fake_global_param": "True", "fake_peer1_param": "False"},
 					},
 					{
 						Hostname: "SERIAL_1-btpeer2",
 						Username: "root",
 						Password: "test0000",
-						Params:   paramMap{},
+						Params:   paramMap{"fake_global_param": "True"},
+					},
+					{
+						Hostname: "SERIAL_1-btpeer5",
+						Username: "root",
+						Password: "test0000",
+						Params:   paramMap{"fake_global_param": "True"},
 					},
 					{
 						Hostname: "SERIAL_1-btpeer3",
 						Username: "root",
 						Password: "test0000",
-						Params:   paramMap{},
+						Params:   paramMap{"fake_global_param": "True"},
 					},
 					{
 						Hostname: "SERIAL_1-btpeer4",
 						Username: "root",
 						Password: "test0000",
-						Params:   paramMap{},
+						Params:   paramMap{"fake_global_param": "True"},
 					},
 				},
 				PassportHost: []*PassportHost{
@@ -204,15 +210,24 @@ var fullConfigYaml = `TestBeds:
     - hostname: SERIAL_1-btpeer1
       username: root
       password: test0000
+      fake_global_param: "True"
+      fake_peer1_param: "False"
     - hostname: SERIAL_1-btpeer2
       username: root
       password: test0000
+      fake_global_param: "True"
+    - hostname: SERIAL_1-btpeer5
+      username: root
+      password: test0000
+      fake_global_param: "True"
     - hostname: SERIAL_1-btpeer3
       username: root
       password: test0000
+      fake_global_param: "True"
     - hostname: SERIAL_1-btpeer4
       username: root
       password: test0000
+      fake_global_param: "True"
     PassportHost:
     - host_topology:
         connections:
@@ -300,7 +315,7 @@ func TestGenerateConfigs(t *testing.T) {
 				},
 				{
 					Flag:  "btreference-params",
-					Value: "primary-btpeer1,primary-btpeer2,primary-btpeer3,primary-btpeer4",
+					Value: "fake_global_param:True,primary-btpeer1,fake_peer1_param:False,primary-btpeer2,primary-btpeer3,primary-btpeer4",
 				},
 				{
 					Flag:  "extra-test-params",
@@ -319,6 +334,17 @@ func TestGenerateConfigs(t *testing.T) {
 				{
 					DutType: &labapi.Dut_Chromeos{
 						Chromeos: &labapi.Dut_ChromeOS{
+							BluetoothPeers: []*labapi.BluetoothPeer{
+								{
+									Hostname: "SERIAL_1-btpeer1",
+								},
+								{
+									Hostname: "SERIAL_1-btpeer2",
+								},
+								{
+									Hostname: "SERIAL_1-btpeer5",
+								},
+							},
 							PasitHost: &labapi.PasitHost{
 								Devices: []*labapi.PasitHost_Device{
 									{
