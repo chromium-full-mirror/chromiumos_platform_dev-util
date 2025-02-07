@@ -162,7 +162,7 @@ func NewMoblyConfig(logger *log.Logger, serials []string, metadata []*api.Arg, d
 
 	Controllers := &Controllers{
 		AndroidDevices:    GenerateAndroidDevices(serials, configParams.AndroidParams),
-		OpenWrtDevices:    GenerateOpenWrtDevices(serials, configParams.OpenWrtParams),
+		OpenWrtDevices:    GenerateOpenWrtDevices(serials, devices, configParams.OpenWrtParams),
 		BtReferenceDevice: GenerateBtReferenceDevices(serials, devices, configParams.BtReferenceParams),
 		PassportHost:      GeneratePassportHost(logger, devices, configParams.PassportParams),
 		ChameleonDevice:   GenerateChameleonDevices(serials, devices, configParams.ChameleonParams),
@@ -307,7 +307,7 @@ func GenerateChameleonDevices(serials []string, duts []*labapi.Dut, chameleonPar
 	return chameleon_devices
 }
 
-func GenerateOpenWrtDevices(serials []string, openWrtParams []deviceParams) []*OpenWrtDevice {
+func GenerateOpenWrtDevices(serials []string, duts []*labapi.Dut, openWrtParams []deviceParams) []*OpenWrtDevice {
 	devices := []*OpenWrtDevice{}
 	deviceKeyToSerial := map[string]string{}
 	for i, serial := range serials {
@@ -326,6 +326,23 @@ func GenerateOpenWrtDevices(serials []string, openWrtParams []deviceParams) []*O
 		}
 	}
 
+	// First copy all from infra.
+	seen := make(map[string]*OpenWrtDevice)
+	for _, dut := range duts {
+		if dut.GetChromeos() == nil {
+			continue
+		}
+		for _, ap := range dut.GetChromeos().GetWifi().GetWifiRouters() {
+			hostname := ap.GetHostname()
+			device := &OpenWrtDevice{
+				Hostname: hostname,
+				Params:   combinedParamMap(paramsForEachDevice),
+			}
+			seen[device.Hostname] = device
+			devices = append(devices, device)
+		}
+	}
+
 	for _, device := range openWrtParams {
 		deviceKey := device.deviceId
 		deviceParams := device.params
@@ -336,19 +353,14 @@ func GenerateOpenWrtDevices(serials []string, openWrtParams []deviceParams) []*O
 		deviceKey = strings.ReplaceAll(deviceKey, "primary", deviceKeyToSerial["primary"])
 		deviceKey = strings.ReplaceAll(deviceKey, "secondary", deviceKeyToSerial["secondary"])
 
-		params := paramMap{}
-		for k, v := range paramsForEachDevice {
-			params[k] = v
+		if val, ok := seen[deviceKey]; ok {
+			val.Params = combinedParamMap(val.Params, deviceParams)
+		} else {
+			devices = append(devices, &OpenWrtDevice{
+				Hostname: deviceKey,
+				Params:   combinedParamMap(paramsForEachDevice, deviceParams),
+			})
 		}
-
-		for k, v := range deviceParams {
-			params[k] = v
-		}
-
-		devices = append(devices, &OpenWrtDevice{
-			Hostname: deviceKey,
-			Params:   params,
-		})
 	}
 
 	return devices

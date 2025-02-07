@@ -27,6 +27,12 @@ var fullConfig = MoblyTestConfig{
 						},
 					},
 					{
+						Hostname: "SERIAL_1-foo",
+						Params: paramMap{
+							"skip_init_reboot": "True",
+						},
+					},
+					{
 						Hostname: "SERIAL_1-pcap",
 						Params: paramMap{
 							"skip_init_reboot": "True",
@@ -199,6 +205,8 @@ var fullConfigYaml = `TestBeds:
     OpenWrtDevice:
     - hostname: SERIAL_1-router
       skip_init_reboot: "True"
+    - hostname: SERIAL_1-foo
+      skip_init_reboot: "True"
     - hostname: SERIAL_1-pcap
       skip_init_reboot: "True"
     AndroidDevice:
@@ -343,6 +351,16 @@ func TestGenerateConfigs(t *testing.T) {
 								},
 								{
 									Hostname: "SERIAL_1-btpeer5",
+								},
+							},
+							Wifi: &labapi.Wifi{
+								WifiRouters: []*labapi.WifiRouter{
+									{
+										Hostname: "SERIAL_1-router",
+									},
+									{
+										Hostname: "SERIAL_1-foo",
+									},
 								},
 							},
 							PasitHost: &labapi.PasitHost{
