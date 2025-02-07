@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Package release provides commands for managing chameleond releases for btpeers.
 package release
 
 import (
@@ -31,7 +32,7 @@ func RootCmd(dirContext *dirs.DirContext, initDirContext func() error) *cobra.Co
 				return fmt.Errorf("failed to initialize a new release manager: %w", err)
 			}
 			if err := releaseManager.FetchConfig(cmd.Context()); err != nil {
-				if err == storage.ErrObjectNotExist {
+				if errors.Is(err, storage.ErrObjectNotExist) {
 					configPath, _ := releaseManager.ConfigObject()
 					answer, err := common.PromptYesNo(cmd.Context(), fmt.Sprintf("No existing BluetoothPeerChameleondConfig found at %q.\n\nWant to initialize a new config file?", configPath), false)
 					if err != nil {

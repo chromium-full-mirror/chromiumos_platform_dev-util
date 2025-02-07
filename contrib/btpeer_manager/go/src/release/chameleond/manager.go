@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Package chameleond provides commands for managing chameleond releases for btpeers.
 package chameleond
 
 import (
@@ -80,15 +81,10 @@ func NewManager(ctx context.Context, managerConfig *ManagerConfig) (*Manager, er
 	return m, nil
 }
 
-func (m *Manager) cleanObjectNamePathSegment(path string) string {
-	replaceRegex := regexp.MustCompile(`([\[\]*?:"<>|/#\s]|_)+`)
-	return replaceRegex.ReplaceAllString(path, "_")
-}
-
 func (m *Manager) InitializeNewBTPeerChameleondConfig(ctx context.Context, forceOverwriteExisting bool) error {
 	if !forceOverwriteExisting {
 		configObjectPath, _ := m.ConfigObject()
-		if err := m.FetchConfig(ctx); err != nil && err != storage.ErrObjectNotExist {
+		if err := m.FetchConfig(ctx); err != nil && !errors.Is(err, storage.ErrObjectNotExist) {
 			return fmt.Errorf("failed to check if a config already exists in GCS at %q: %w", configObjectPath, err)
 		}
 		if m.config != nil {
@@ -144,12 +140,12 @@ func (m *Manager) FetchConfig(ctx context.Context) error {
 	configObjectPath, configObj := m.ConfigObject()
 	reader, err := configObj.NewReader(ctx)
 	if err != nil {
-		if err == storage.ErrObjectNotExist {
+		if errors.Is(err, storage.ErrObjectNotExist) {
 			return err
 		}
 		return fmt.Errorf("failed to open config object %q from GCS: %w", configObjectPath, err)
 	}
-	configJson, err := io.ReadAll(reader)
+	configJSON, err := io.ReadAll(reader)
 	if err != nil {
 		return fmt.Errorf("failed to read config object %q from GCS: %w", configObjectPath, err)
 	}
@@ -157,7 +153,7 @@ func (m *Manager) FetchConfig(ctx context.Context) error {
 		return fmt.Errorf("failed to read config object %q from GCS: %w", configObjectPath, err)
 	}
 	config := &labapi.BluetoothPeerChameleondConfig{}
-	if err := protojson.Unmarshal(configJson, config); err != nil {
+	if err := protojson.Unmarshal(configJSON, config); err != nil {
 		return fmt.Errorf("failed to unmarshal config object %q from GCS as a BluetoothPeerChameleondConfig: %w", configObjectPath, err)
 	}
 	log.Logger.Printf("Successfully retrieved BluetoothPeerChameleondConfig from %q\n", configObjectPath)
@@ -167,18 +163,18 @@ func (m *Manager) FetchConfig(ctx context.Context) error {
 
 func (m *Manager) saveConfig(ctx context.Context) error {
 	configObjectPath, configObj := m.ConfigObject()
-	configJson, err := fileutils.MarshalPrettyJSON(m.config)
+	configJSON, err := fileutils.MarshalPrettyJSON(m.config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config to JSON: %w", err)
 	}
 	writer := configObj.NewWriter(ctx)
-	if _, err := writer.Write(configJson); err != nil {
+	if _, err := writer.Write(configJSON); err != nil {
 		return fmt.Errorf("failed to upload new config object %q to GCS: %w", configObjectPath, err)
 	}
 	if err := writer.Close(); err != nil {
 		return fmt.Errorf("failed to upload new config object %q to GCS: %w", configObjectPath, err)
 	}
-	log.Logger.Printf("Saved new BluetoothPeerChameleondConfig to %q:\n%s\n", configObjectPath, configJson)
+	log.Logger.Printf("Saved new BluetoothPeerChameleondConfig to %q:\n%s\n", configObjectPath, configJSON)
 	return nil
 }
 
@@ -308,7 +304,7 @@ func (m *Manager) downloadObjectToFile(ctx context.Context, obj *storage.ObjectH
 	if err != nil {
 		_ = reader.Close()
 		_ = dstFile.Close()
-		if err == storage.ErrObjectNotExist {
+		if errors.Is(err, storage.ErrObjectNotExist) {
 			return err
 		}
 		return fmt.Errorf("failed to open GCS object: %w", err)

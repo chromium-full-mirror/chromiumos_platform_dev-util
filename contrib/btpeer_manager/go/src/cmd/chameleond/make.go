@@ -53,9 +53,13 @@ func makeCmd(dirContext *dirs.DirContext) *cobra.Command {
 			// Read commit from commit file.
 			log.Logger.Printf("Reading chameleond commit from chameleond commit file %q\n", commitFilePath)
 			commitFileContents, err := fileutils.ReadFile(cmd.Context(), commitFilePath)
+			if err != nil {
+				return fmt.Errorf("failed to read chameleond commit file %q: %w", commitFilePath, err)
+			}
+
 			chameleondCommit := strings.TrimSpace(string(commitFileContents))
 			if chameleondCommit == "" {
-				return fmt.Errorf("no commit found in chameleond commit file %q\n", commitFilePath)
+				return fmt.Errorf("no commit found in chameleond commit file %q", commitFilePath)
 			}
 			log.Logger.Printf("Read chameleond commit as %q\n", chameleondCommit)
 

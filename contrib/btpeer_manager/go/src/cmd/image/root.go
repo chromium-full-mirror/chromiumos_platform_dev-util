@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Package image provides commands for managing images on btpeers.
 package image
 
 import (
