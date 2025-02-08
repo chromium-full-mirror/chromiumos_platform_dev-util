@@ -182,6 +182,50 @@ var fullConfig = MoblyTestConfig{
 						},
 					},
 				},
+				StarfishDevice: []*StarfishDevice{
+					{
+						Carrier: "VERIZON",
+						ModemInfo: &labapi.ModemInfo{
+							Type:           labapi.ModemType_MODEM_TYPE_LCUK54,
+							Imei:           "123456789",
+							SupportedBands: "1,2,3,4,5",
+							SimCount:       2,
+							ModelVariant:   "test_variant",
+						},
+						SIMInfos: []*labapi.SIMInfo{
+							{
+								SlotId: 1,
+								Type:   *labapi.SIMType_SIM_UNKNOWN.Enum(),
+								ProfileInfo: []*labapi.SIMProfileInfo{
+									{
+										Iccid:       "1",
+										SimPin:      "1111",
+										SimPuk:      "49830420",
+										CarrierName: *labapi.NetworkProvider_NETWORK_TMOBILE.Enum(),
+										OwnNumber:   "123456789",
+									},
+								},
+							},
+							{
+								SlotId: 2,
+								Type:   *labapi.SIMType_SIM_PHYSICAL.Enum(),
+								ProfileInfo: []*labapi.SIMProfileInfo{
+									{
+										Iccid:       "2",
+										SimPin:      "2222",
+										SimPuk:      "49830420",
+										CarrierName: *labapi.NetworkProvider_NETWORK_ATT.Enum(),
+										OwnNumber:   "987654321",
+									},
+								},
+							},
+						},
+						Params: paramMap{
+							"foo": "bar", "foo2": "bar2",
+							"starfish.carrier": "VERIZON",
+						},
+					},
+				},
 			},
 			TestParams: &TestParams{
 				Params: paramMap{
@@ -289,6 +333,33 @@ var fullConfigYaml = `TestBeds:
       chameleon_xmlrpc_port: "9992"
       foo: bar
       foo2: bar2
+    StarfishDevice:
+    - carrier: VERIZON
+      modem_info:
+        imei: "123456789"
+        model_variant: test_variant
+        sim_count: 2
+        supported_bands: 1,2,3,4,5
+        type: MODEM_TYPE_LCUK54
+      sim_infos:
+      - profile_info:
+        - carrier_name: NETWORK_TMOBILE
+          iccid: "1"
+          own_number: "123456789"
+          sim_pin: "1111"
+          sim_puk: "49830420"
+        slot_id: 1
+      - profile_info:
+        - carrier_name: NETWORK_ATT
+          iccid: "2"
+          own_number: "987654321"
+          sim_pin: "2222"
+          sim_puk: "49830420"
+        slot_id: 2
+        type: SIM_PHYSICAL
+      foo: bar
+      foo2: bar2
+      starfish.carrier: VERIZON
 `
 
 // TestYamlConversion verifies that a config is converted into the expected yaml representation.
@@ -337,6 +408,14 @@ func TestGenerateConfigs(t *testing.T) {
 					Flag:  "chameleon-params",
 					Value: "foo:bar,foo2:bar2",
 				},
+				{
+					Flag:  "starfish-params",
+					Value: "foo:bar,foo2:bar2",
+				},
+				{
+					Flag:  "starfish.carrier",
+					Value: "VERIZON",
+				},
 			},
 			devices: []*labapi.Dut{
 				{
@@ -360,6 +439,44 @@ func TestGenerateConfigs(t *testing.T) {
 									},
 									{
 										Hostname: "SERIAL_1-foo",
+									},
+								},
+							},
+							Cellular: &labapi.Cellular{
+								Carrier: "VERIZON",
+							},
+							ModemInfo: &labapi.ModemInfo{
+								Type:           labapi.ModemType_MODEM_TYPE_LCUK54,
+								Imei:           "123456789",
+								SupportedBands: "1,2,3,4,5",
+								SimCount:       2,
+								ModelVariant:   "test_variant",
+							},
+							SimInfos: []*labapi.SIMInfo{
+								{
+									SlotId: 1,
+									Type:   *labapi.SIMType_SIM_UNKNOWN.Enum(),
+									ProfileInfo: []*labapi.SIMProfileInfo{
+										{
+											Iccid:       "1",
+											SimPin:      "1111",
+											SimPuk:      "49830420",
+											CarrierName: *labapi.NetworkProvider_NETWORK_TMOBILE.Enum(),
+											OwnNumber:   "123456789",
+										},
+									},
+								},
+								{
+									SlotId: 2,
+									Type:   *labapi.SIMType_SIM_PHYSICAL.Enum(),
+									ProfileInfo: []*labapi.SIMProfileInfo{
+										{
+											Iccid:       "2",
+											SimPin:      "2222",
+											SimPuk:      "49830420",
+											CarrierName: *labapi.NetworkProvider_NETWORK_ATT.Enum(),
+											OwnNumber:   "987654321",
+										},
 									},
 								},
 							},
@@ -460,9 +577,14 @@ func TestGenerateConfigs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			config := NewMoblyConfig(log.Default(), test.serials, test.metadata, test.devices)
 			// Convert to yaml to make it easier to compare.
-			yamlWant, _ := yaml.Marshal(&test.expected)
-			yamlGot, _ := yaml.Marshal(config)
-
+			yamlWant, err := yaml.Marshal(&test.expected)
+			if err != nil {
+				panic(err)
+			}
+			yamlGot, err := yaml.Marshal(config)
+			if err != nil {
+				panic(err)
+			}
 			if diff := cmp.Diff(string(yamlGot), string(yamlWant)); diff != "" {
 				t.Errorf("Got unexpected argument from NewMoblyConfig (-got +want):\n%s\n%v\n--\n%v\n", string(yamlGot), string(yamlWant), diff)
 			}

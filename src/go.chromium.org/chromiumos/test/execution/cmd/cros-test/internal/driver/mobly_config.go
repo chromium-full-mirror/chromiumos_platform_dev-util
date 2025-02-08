@@ -68,6 +68,7 @@ type Controllers struct {
 	BtReferenceDevice []*BtReferenceDevice `yaml:"BtReferenceDevice,omitempty"`
 	PassportHost      []*PassportHost      `yaml:"PassportHost,omitempty"`
 	ChameleonDevice   []*ChameleonDevice   `yaml:"ChameleonDevice,omitempty"`
+	StarfishDevice    []*StarfishDevice    `yaml:"StarfishDevice,omitempty"`
 }
 
 type AndroidDevice struct {
@@ -91,6 +92,41 @@ type BtReferenceDevice struct {
 type PassportHost struct {
 	HostTopology *labapi.PasitHost
 	Params       paramMap
+}
+
+type StarfishDevice struct {
+	Carrier   string
+	SIMInfos  []*labapi.SIMInfo
+	ModemInfo *labapi.ModemInfo
+	Params    paramMap
+}
+
+func (s StarfishDevice) MarshalYAML() (interface{}, error) {
+	var simInfos []interface{}
+	for _, si := range s.SIMInfos {
+		friendlySI, err := yamlFriendlyPb(si)
+		if err != nil {
+			return "", fmt.Errorf("failed to make sim info protobuf yaml compatible: %w", err)
+		}
+		simInfos = append(simInfos, friendlySI)
+	}
+
+	modemInfo, err := yamlFriendlyPb(s.ModemInfo)
+	if err != nil {
+		return "", fmt.Errorf("failed to make modem info protobuf yaml compatible: %w", err)
+	}
+
+	return struct {
+		Carrier   string      `yaml:"carrier"`
+		ModemInfo interface{} `yaml:"modem_info,omitempty"`
+		SIMInfos  interface{} `yaml:"sim_infos,omitempty"`
+		Params    paramMap    `yaml:",inline"`
+	}{
+		Carrier:   s.Carrier,
+		ModemInfo: modemInfo,
+		SIMInfos:  simInfos,
+		Params:    s.Params,
+	}, nil
 }
 
 func (p PassportHost) MarshalYAML() (interface{}, error) {
@@ -131,6 +167,8 @@ type ConfigParams struct {
 	PassportParams paramMap
 	// Keyed by `chameleon-params`
 	ChameleonParams paramMap
+	// Keyed by `starfish-params` and `starfish.carrier`
+	StarfishParams paramMap
 }
 
 func NewMoblyConfig(logger *log.Logger, serials []string, metadata []*api.Arg, devices []*labapi.Dut) *MoblyTestConfig {
@@ -166,6 +204,7 @@ func NewMoblyConfig(logger *log.Logger, serials []string, metadata []*api.Arg, d
 		BtReferenceDevice: GenerateBtReferenceDevices(serials, devices, configParams.BtReferenceParams),
 		PassportHost:      GeneratePassportHost(logger, devices, configParams.PassportParams),
 		ChameleonDevice:   GenerateChameleonDevices(serials, devices, configParams.ChameleonParams),
+		StarfishDevice:    GenerateStarfishDevice(logger, devices, configParams.StarfishParams),
 	}
 
 	return &MoblyTestConfig{
@@ -224,6 +263,29 @@ func GeneratePassportHost(logger *log.Logger, devices []*labapi.Dut, passportPar
 	}
 
 	return passportHosts
+}
+
+func GenerateStarfishDevice(logger *log.Logger, devices []*labapi.Dut, starfishParams paramMap) []*StarfishDevice {
+	var starfishDevices []*StarfishDevice
+	for _, dut := range devices {
+		if dut.GetChromeos() == nil {
+			continue
+		}
+
+		// No carrier -> Not a cellular DUT.
+		if dut.GetChromeos().GetCellular() == nil || dut.GetChromeos().GetCellular().GetCarrier() == "" {
+			continue
+		}
+
+		starfishDevices = append(starfishDevices, &StarfishDevice{
+			Carrier:   dut.GetChromeos().GetCellular().GetCarrier(),
+			SIMInfos:  dut.GetChromeos().GetSimInfos(),
+			ModemInfo: dut.GetChromeos().GetModemInfo(),
+			Params:    starfishParams,
+		})
+	}
+
+	return starfishDevices
 }
 
 func GenerateBtReferenceDevices(serials []string, duts []*labapi.Dut, btReferenceParams []deviceParams) []*BtReferenceDevice {
@@ -425,6 +487,12 @@ func ParseMetadata(logger *log.Logger, metadata []*api.Arg) *ConfigParams {
 		case "chameleon-params":
 			logger.Println("chameleon-params")
 			configParams.ChameleonParams = ParseArg(logger, arg, configParams.ChameleonParams)
+		case "starfish-params":
+			logger.Println("starfish-params")
+			configParams.StarfishParams = ParseArg(logger, arg, configParams.StarfishParams)
+		case "starfish.carrier":
+			// allow starfish.carrier to be used directly as it's exposed directly to Testhaus (b/337286675).
+			configParams.StarfishParams = combinedParamMap(configParams.StarfishParams, paramMap{arg.Flag: arg.Value})
 		default:
 			logger.Println("default")
 			// Any additional test params dynamically passed in.
