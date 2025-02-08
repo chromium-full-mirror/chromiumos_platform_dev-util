@@ -7,13 +7,13 @@ package image
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"cloud.google.com/go/storage"
@@ -139,7 +139,7 @@ func (m *Manager) FetchConfig(ctx context.Context) error {
 	configObjectPath, configObj := m.ConfigObject()
 	reader, err := configObj.NewReader(ctx)
 	if err != nil {
-		if errs.Is(err, storage.ErrObjectNotExist) {
+		if errors.Is(err, storage.ErrObjectNotExist) {
 			return err
 		}
 		return fmt.Errorf("failed to open config object %q from GCS: %w", configObjectPath, err)
