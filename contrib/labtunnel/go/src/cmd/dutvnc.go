@@ -42,7 +42,7 @@ localhost:5900 with your preferred VNC client.
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tunnelRegistry := ssh.NewTunnelRegistry()
-			sshManager := buildSshManager()
+			sshManager := buildSSHManager()
 			hostDut, leased, err := resolveDutHostname(cmd.Context(), args[0])
 			if err != nil {
 				return fmt.Errorf("could not determine hostname: %w", err)

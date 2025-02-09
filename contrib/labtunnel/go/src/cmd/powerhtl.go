@@ -27,7 +27,7 @@ Starts servod on power htl satlab & opens an ssh tunnels to remote ssh port and 
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tunnelRegistry := ssh.NewTunnelRegistry()
-			sshManager := buildSshManager()
+			sshManager := buildSSHManager()
 
 			// Tunnel to dut.
 			hostDut, leased, err := resolveDutHostname(cmd.Context(), args[0])
@@ -47,7 +47,9 @@ Starts servod on power htl satlab & opens an ssh tunnels to remote ssh port and 
 			defer func() {
 				// The cmd.Context() may be invalid due to SIGINT, use a new one
 				// for stopping the container.
-				ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+
 				err = stopSatlabServod(ctx, satlab, servodContainer)
 				if err != nil {
 					log.Logger.Printf("Warning, error while stopping servod container: %v", err)

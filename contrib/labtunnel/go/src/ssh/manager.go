@@ -47,17 +47,16 @@ type executorMessage struct {
 	retry       bool
 }
 
-type ConcurrentSshManager struct {
-	sshRunner             *Runner
-	executorChannel       chan executorMessage
-	sshExecutorCount      int
-	executorCtxCancellers context.CancelFunc
-	retryDelay            time.Duration
-	executorStates        map[string]executorState
+type ConcurrentSSHManager struct {
+	sshRunner        *Runner
+	executorChannel  chan executorMessage
+	sshExecutorCount int
+	retryDelay       time.Duration
+	executorStates   map[string]executorState
 }
 
-func NewConcurrentSshManager(sshRunner *Runner, retryDelay time.Duration) *ConcurrentSshManager {
-	return &ConcurrentSshManager{
+func NewConcurrentSSHManager(sshRunner *Runner, retryDelay time.Duration) *ConcurrentSSHManager {
+	return &ConcurrentSSHManager{
 		sshRunner:        sshRunner,
 		executorChannel:  make(chan executorMessage, 100),
 		sshExecutorCount: 0,
@@ -66,7 +65,7 @@ func NewConcurrentSshManager(sshRunner *Runner, retryDelay time.Duration) *Concu
 	}
 }
 
-func (m *ConcurrentSshManager) Ssh(ctx context.Context, retryOnError bool, description string, exec Executor) {
+func (m *ConcurrentSSHManager) SSH(ctx context.Context, retryOnError bool, description string, exec Executor) {
 	m.sshExecutorCount++
 	m.executorStates[description] = running
 	log.Logger.Printf("starting ssh exec %q\n", description)
@@ -82,7 +81,7 @@ func (m *ConcurrentSshManager) Ssh(ctx context.Context, retryOnError bool, descr
 	}()
 }
 
-func (m *ConcurrentSshManager) WaitUntilAllSshCompleted(ctx context.Context) {
+func (m *ConcurrentSSHManager) WaitUntilAllSSHCompleted(ctx context.Context) {
 executorLoop:
 	for m.sshExecutorCount > 0 {
 		if ctx.Err() == nil {
@@ -106,7 +105,7 @@ executorLoop:
 					select {
 					case <-ctx.Done():
 					case <-time.After(m.retryDelay):
-						m.Ssh(msg.ctx, msg.retry, msg.description, msg.exec)
+						m.SSH(msg.ctx, msg.retry, msg.description, msg.exec)
 					}
 				}
 			} else {
@@ -118,7 +117,7 @@ executorLoop:
 	m.LogExecutorStates()
 }
 
-func (m *ConcurrentSshManager) LogExecutorStates() {
+func (m *ConcurrentSSHManager) LogExecutorStates() {
 	descriptions := make([]string, len(m.executorStates))
 	i := 0
 	for description := range m.executorStates {

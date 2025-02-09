@@ -40,7 +40,7 @@ ports will be freed upon stopping labtunnel.
 	// Persistent CLI Flags.
 	localPortStart          int
 	sshOptions              []string
-	remotePortSsh           int
+	remotePortSSH           int
 	sshRetryDelaySeconds    int
 	remotePortChameleond    int
 	satlabDroneHostOverride string
@@ -48,7 +48,7 @@ ports will be freed upon stopping labtunnel.
 
 func init() {
 	rootCmd.PersistentFlags().IntVarP(&localPortStart, "local-port-start", "p", 2200, "Initial local port to forward to tunnel")
-	rootCmd.PersistentFlags().IntVar(&remotePortSsh, "remote-port-ssh", 22, "Remote port to forward ssh tunnels to")
+	rootCmd.PersistentFlags().IntVar(&remotePortSSH, "remote-port-ssh", 22, "Remote port to forward ssh tunnels to")
 	rootCmd.PersistentFlags().IntVar(&sshRetryDelaySeconds, "ssh-retry-delay-seconds", 10, "Time to wait before retrying failed ssh command calls")
 	rootCmd.PersistentFlags().StringSliceVarP(
 		&sshOptions, "ssh-options", "o",

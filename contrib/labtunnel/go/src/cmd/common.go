@@ -28,7 +28,7 @@ const (
 	crosHostnameSuffix      = ".cros"
 )
 
-var satlabHostnameMatcher = regexp.MustCompile("^(satlab-\\w+)-(.*)-host.+$")
+var satlabHostnameMatcher = regexp.MustCompile(`^(satlab-\w+)-(.*)-host.+$`)
 var dockerNoSuchContainerMatcher = regexp.MustCompile(`No such container`)
 
 const satlabUsername = "moblab"
@@ -63,7 +63,7 @@ func promptUserForDutChoice(ctx context.Context, hostnames []string) (string, er
 	}
 	prompt += fmt.Sprintf("\nSelect from 0-%d: ", totalDuts-1)
 	inputReader := bufio.NewReader(fileutils.NewContextualReaderWrapper(ctx, os.Stdin))
-	for true {
+	for {
 		var selected int
 		fmt.Print(prompt)
 		input, err := inputReader.ReadString('\n')
@@ -82,14 +82,14 @@ func promptUserForDutChoice(ctx context.Context, hostnames []string) (string, er
 		clog.Logger.Printf("Using user selected leased DUT: %s", hostnames[selected])
 		return hostnames[selected], nil
 	}
-	return "", fmt.Errorf("no host selected")
+
+	// Unreachable
 }
 
 func resolveHostname(hostnameParam string, suffixToAdd string) string {
 	// Remove any crosfleet name prefix.
-	if strings.HasPrefix(hostnameParam, crosfleetHostnamePrefix) {
-		hostnameParam = strings.TrimPrefix(hostnameParam, crosfleetHostnamePrefix)
-	}
+	hostnameParam = strings.TrimPrefix(hostnameParam, crosfleetHostnamePrefix)
+
 	if suffixToAdd != "" {
 		// Add suffix, keeping any existing cros suffix.
 		if strings.HasSuffix(hostnameParam, crosHostnameSuffix) {
@@ -103,12 +103,12 @@ func resolveHostname(hostnameParam string, suffixToAdd string) string {
 	return hostnameParam
 }
 
-func buildSshManager() *ssh.ConcurrentSshManager {
-	return ssh.NewConcurrentSshManager(ssh.NewRunner(sshOptions), time.Duration(sshRetryDelaySeconds)*time.Second)
+func buildSSHManager() *ssh.ConcurrentSSHManager {
+	return ssh.NewConcurrentSSHManager(ssh.NewRunner(sshOptions), time.Duration(sshRetryDelaySeconds)*time.Second)
 }
 
 func nextLocalPort(ctx context.Context) int {
-	for true {
+	for {
 		localPort := localPortStart
 		localPortStart++
 		available, err := isPortAvailable(ctx, localPort)
@@ -119,7 +119,7 @@ func nextLocalPort(ctx context.Context) int {
 			return localPort
 		}
 	}
-	return -1
+	// Unreachable
 }
 
 // lookupActualHosts resolves remote & ssh host, accounting for any that are satlab.
@@ -333,35 +333,35 @@ func runContextualCommand(ctx context.Context, logPrefix string, command string,
 	}
 }
 
-func tunnelToDut(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("DUT-", tunnelID), "", remotePortSsh, hostname)
+func tunnelToDut(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("DUT-", tunnelID), "", remotePortSSH, hostname)
 }
 
-func tunnelToRouter(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("ROUTER-", tunnelID), "", remotePortSsh, hostname)
+func tunnelToRouter(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("ROUTER-", tunnelID), "", remotePortSSH, hostname)
 }
 
-func tunnelToPcap(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("PCAP-", tunnelID), "", remotePortSsh, hostname)
+func tunnelToPcap(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("PCAP-", tunnelID), "", remotePortSSH, hostname)
 }
 
-func tunnelToBtpeer(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("BTPEER-", tunnelID), "", remotePortSsh, hostname)
+func tunnelToBtpeer(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("BTPEER-", tunnelID), "", remotePortSSH, hostname)
 }
 
-func tunnelToChameleon(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
+func tunnelToChameleon(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, tunnelID int, hostname string) (string, error) {
 	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("CHAMELEON-", tunnelID), "", remotePortChameleond, hostname)
 }
 
-func genericTunnelToSshPort(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
-	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("SSH-", tunnelID), "", remotePortSsh, hostname)
+func genericTunnelToSSHPort(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, tunnelID int, hostname string) (string, error) {
+	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("SSH-", tunnelID), "", remotePortSSH, hostname)
 }
 
-func genericTunnelToChameleondPort(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelID int, hostname string) (string, error) {
+func genericTunnelToChameleondPort(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, tunnelID int, hostname string) (string, error) {
 	return tunnelLocalPortToRemotePort(ctx, tunnelRegistry, sshManager, fmt.Sprint("CHAMELEOND-", tunnelID), "", remotePortChameleond, hostname)
 }
 
-func tunnelToRoutersUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, hostDut string, routerCount int) ([]string, error) {
+func tunnelToRoutersUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, hostDut string, routerCount int) ([]string, error) {
 	if routerCount < 1 {
 		return nil, nil
 	}
@@ -383,7 +383,7 @@ func tunnelToRoutersUsingDutHost(ctx context.Context, tunnelRegistry *ssh.Tunnel
 	return localHostnames, err
 }
 
-func tunnelToPcapsUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, hostDut string, pcapCount int) ([]string, error) {
+func tunnelToPcapsUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, hostDut string, pcapCount int) ([]string, error) {
 	if pcapCount < 1 {
 		return nil, nil
 	}
@@ -405,7 +405,7 @@ func tunnelToPcapsUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRe
 	return localHostnames, nil
 }
 
-func tunnelToBtpeersUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, hostDut string, btPeerCount int) ([]string, error) {
+func tunnelToBtpeersUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, hostDut string, btPeerCount int) ([]string, error) {
 	if btPeerCount < 1 {
 		return nil, nil
 	}
@@ -422,7 +422,7 @@ func tunnelToBtpeersUsingDutHost(ctx context.Context, tunnelRegistry *ssh.Tunnel
 	return localHostnames, nil
 }
 
-func tunnelToChameleonUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, hostDut string, tunnelID int) (string, error) {
+func tunnelToChameleonUsingDutHost(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, hostDut string, tunnelID int) (string, error) {
 	return tunnelToChameleon(ctx, tunnelRegistry, sshManager, tunnelID, resolveHostname(hostDut, "-chameleon"))
 }
 
@@ -436,7 +436,7 @@ func pollDUTLease(ctx context.Context, hostDut string) context.Context {
 	ctx, cancel := context.WithCancel(ctx)
 	// goroutine to cancel context when lease is expired or abandoned
 	go func() {
-		for true {
+		for {
 			remain, err := crosfleet.DUTLeaseTimeRemainingSeconds(ctx, hostDut)
 			if err == nil && remain == 0 {
 				clog.Logger.Printf("lease ended closing tunnels")

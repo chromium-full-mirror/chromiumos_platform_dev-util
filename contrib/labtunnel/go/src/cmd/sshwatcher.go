@@ -29,12 +29,12 @@ to be specified and is selected like it is for other tunnels in labtunnel. See
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tunnelRegistry := ssh.NewTunnelRegistry()
-			sshManager := buildSshManager()
+			sshManager := buildSSHManager()
 
 			// Tunnel to the specified hosts.
 			for i, host := range args {
 
-				if _, err := genericTunnelToSshPort(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
+				if _, err := genericTunnelToSSHPort(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
 					return err
 				}
 			}

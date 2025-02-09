@@ -18,7 +18,7 @@ var (
 	hostsPcap       []string
 	hostsBtpeer     []string
 	hostsChameleon  []string
-	hostsSsh        []string
+	hostsSSH        []string
 	hostsChameleond []string
 
 	hostsCmd = &cobra.Command{
@@ -47,7 +47,7 @@ $ labtunnel hosts --chameleond <host>
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tunnelRegistry := ssh.NewTunnelRegistry()
-			sshManager := buildSshManager()
+			sshManager := buildSSHManager()
 
 			// Tunnel to the specified hosts.
 			tunnelCount := 0
@@ -81,8 +81,8 @@ $ labtunnel hosts --chameleond <host>
 				}
 				tunnelCount++
 			}
-			for i, host := range hostsSsh {
-				if _, err := genericTunnelToSshPort(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
+			for i, host := range hostsSSH {
+				if _, err := genericTunnelToSSHPort(cmd.Context(), tunnelRegistry, sshManager, i+1, host); err != nil {
 					return err
 				}
 				tunnelCount++
@@ -113,6 +113,6 @@ func init() {
 	hostsCmd.Flags().StringArrayVar(&hostsPcap, "pcap", []string{}, "Pcap hosts to tunnel to")
 	hostsCmd.Flags().StringArrayVar(&hostsBtpeer, "btpeer", []string{}, "Btpeer hosts to tunnel to")
 	hostsCmd.Flags().StringArrayVar(&hostsChameleon, "chameleon", []string{}, "Chameleon hosts to tunnel to")
-	hostsCmd.Flags().StringArrayVar(&hostsSsh, "ssh", []string{}, "Hosts to tunnel to their ssh port")
+	hostsCmd.Flags().StringArrayVar(&hostsSSH, "ssh", []string{}, "Hosts to tunnel to their ssh port")
 	hostsCmd.Flags().StringArrayVar(&hostsChameleond, "chameleond", []string{}, "Hosts to tunnel to their chameleond port")
 }

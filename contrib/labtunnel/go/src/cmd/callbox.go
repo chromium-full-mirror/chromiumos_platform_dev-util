@@ -40,7 +40,7 @@ on the proxy host, as the callboxes do not support SSH.
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tunnelRegistry := ssh.NewTunnelRegistry()
-			sshManager := buildSshManager()
+			sshManager := buildSSHManager()
 
 			// Tunnel to dut.
 			hostDut, leased, err := resolveDutHostname(cmd.Context(), args[0])

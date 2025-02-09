@@ -45,7 +45,7 @@ see "labtunnel btpeers --help" for details.
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tunnelRegistry := ssh.NewTunnelRegistry()
-			sshManager := buildSshManager()
+			sshManager := buildSSHManager()
 
 			// Tunnel to dut.
 			hostDut, leased, err := resolveDutHostname(cmd.Context(), args[0])

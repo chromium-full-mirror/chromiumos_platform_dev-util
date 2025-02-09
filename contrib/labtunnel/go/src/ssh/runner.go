@@ -20,13 +20,13 @@ const tunnelKeepaliveCmd = "sleep 24h"
 
 type Runner struct {
 	sshOpts   []string
-	nextCmdId int
+	nextCmdID int
 }
 
 func NewRunner(sshOpts []string) *Runner {
 	return &Runner{
 		sshOpts:   sshOpts,
-		nextCmdId: 1,
+		nextCmdID: 1,
 	}
 }
 
@@ -34,21 +34,20 @@ func NewRunner(sshOpts []string) *Runner {
 func SSHOptsCmdline(sshOpts []string) ([]string, error) {
 	args := make([]string, 0)
 
-	if sshOpts != nil {
-		for _, opt := range sshOpts {
-			opt = strings.TrimPrefix(opt, "-o ")
-			optParts := strings.Split(opt, "=")
-			if len(optParts) != 2 {
-				return nil, fmt.Errorf("invalid ssh option %q", opt)
-			}
-			optKey := optParts[0]
-			optValue := optParts[1]
-			optValue = strings.TrimPrefix(optValue, "\"")
-			optValue = strings.TrimSuffix(optValue, "\"")
-			opt = fmt.Sprintf("%s=%q", optKey, optValue)
-			args = append(args, []string{"-o", opt}...)
+	for _, opt := range sshOpts {
+		opt = strings.TrimPrefix(opt, "-o ")
+		optParts := strings.Split(opt, "=")
+		if len(optParts) != 2 {
+			return nil, fmt.Errorf("invalid ssh option %q", opt)
 		}
+		optKey := optParts[0]
+		optValue := optParts[1]
+		optValue = strings.TrimPrefix(optValue, "\"")
+		optValue = strings.TrimSuffix(optValue, "\"")
+		opt = fmt.Sprintf("%s=%q", optKey, optValue)
+		args = append(args, []string{"-o", opt}...)
 	}
+
 	return args, nil
 }
 
@@ -59,22 +58,21 @@ func (r *Runner) buildCmd(ctx context.Context, sshOpts []string, flags []string,
 		return nil, nil, err
 	}
 
-	if flags != nil {
-		for _, flagStr := range flags {
-			flagParts := strings.Split(flagStr, " ")
-			flag := strings.TrimPrefix(strings.TrimPrefix(flagParts[0], "-"), "-")
-			if len(flag) == 1 {
-				flag = "-" + flag
-			} else {
-				flag = "--" + flag
-			}
-			args = append(args, flag)
-			if len(flagParts) > 1 {
-				// Add the rest of the flag parts back as a single argument.
-				args = append(args, strings.Join(flagParts[1:], " "))
-			}
+	for _, flagStr := range flags {
+		flagParts := strings.Split(flagStr, " ")
+		flag := strings.TrimPrefix(strings.TrimPrefix(flagParts[0], "-"), "-")
+		if len(flag) == 1 {
+			flag = "-" + flag
+		} else {
+			flag = "--" + flag
+		}
+		args = append(args, flag)
+		if len(flagParts) > 1 {
+			// Add the rest of the flag parts back as a single argument.
+			args = append(args, strings.Join(flagParts[1:], " "))
 		}
 	}
+
 	if posArgs != nil {
 		args = append(args, posArgs...)
 	}
@@ -87,8 +85,8 @@ func (r *Runner) buildCmd(ctx context.Context, sshOpts []string, flags []string,
 	}
 
 	// Capture command output to log with a unique prefix.
-	logPrefix := fmt.Sprintf("SSH[%d]: ", r.nextCmdId)
-	r.nextCmdId++
+	logPrefix := fmt.Sprintf("SSH[%d]: ", r.nextCmdID)
+	r.nextCmdID++
 	cmdLogger := clog.NewLogger(logPrefix)
 	logWriter := clog.NewWriter(cmdLogger)
 	cmd.Stdout = logWriter
