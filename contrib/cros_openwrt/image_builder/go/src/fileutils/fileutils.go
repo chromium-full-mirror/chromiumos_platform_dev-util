@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -38,15 +37,8 @@ const pathTimestampTimeFormat = "20060102-150405"
 // CleanDirectory removes all files within the directory at dirPath.
 func CleanDirectory(dirPath string) error {
 	log.Logger.Printf("Cleaning dir %q\n", dirPath)
-	files, err := ioutil.ReadDir(dirPath)
-	if err != nil {
-		return fmt.Errorf("failed to read contents of directory %q: %w", dirPath, err)
-	}
-	for _, f := range files {
-		fullPath := path.Join(dirPath, f.Name())
-		if err := os.RemoveAll(fullPath); err != nil {
-			return fmt.Errorf("failed to remove %q: %w", fullPath, err)
-		}
+	if err := os.RemoveAll(dirPath); err != nil {
+		return fmt.Errorf("failed to remove %q: %w", dirPath, err)
 	}
 	return nil
 }
@@ -141,16 +133,26 @@ func DownloadFileFromURL(ctx context.Context, src, dstFolder string, replaceExis
 // GetLatestFilePathInDir returns the path of the file with the latest
 // modification time in the directory at path dirPath.
 func GetLatestFilePathInDir(dirPath string) (string, error) {
-	files, err := ioutil.ReadDir(dirPath)
+	dirEntries, err := os.ReadDir(dirPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read files in dir %q: %w", dirPath, err)
 	}
 	var latestFile os.FileInfo
-	for _, file := range files {
-		if file.Mode().IsRegular() && (latestFile == nil || latestFile.ModTime().Before(file.ModTime())) {
-			latestFile = file
+	for _, entry := range dirEntries {
+		if !entry.Type().IsRegular() {
+			continue
+		}
+
+		fileInfo, err := entry.Info()
+		if err != nil {
+			return "", fmt.Errorf("failed to get info for file %q: %w", entry.Name(), err)
+		}
+
+		if latestFile == nil || latestFile.ModTime().Before(fileInfo.ModTime()) {
+			latestFile = fileInfo
 		}
 	}
+
 	if latestFile == nil {
 		return "", fmt.Errorf("no files found in dir %q", dirPath)
 	}
@@ -285,18 +287,9 @@ func CopyFile(ctx context.Context, srcFilePath string, dstPath string) error {
 // CopyFilesInDirToDir copies all files in directory at path srcDirPath into
 // the directory at dstDirPath.
 func CopyFilesInDirToDir(ctx context.Context, srcDirPath string, dstDirPath string) error {
-	cmd := exec.CommandContext(ctx, "bash", "cp", "-R", path.Join(srcDirPath, "*"), dstDirPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	files, err := ioutil.ReadDir(srcDirPath)
+	err := os.CopyFS(dstDirPath, os.DirFS(srcDirPath))
 	if err != nil {
-		return fmt.Errorf("failed to list files in dir %q: %w", srcDirPath, err)
-	}
-	for _, file := range files {
-		filePath := path.Join(srcDirPath, file.Name())
-		if err := CopyFile(ctx, filePath, dstDirPath); err != nil {
-			return fmt.Errorf("failed to copy files in dir %q to dir %q: %w", srcDirPath, dstDirPath, err)
-		}
+		return fmt.Errorf("failed to copy files from dir %q to dir %q: %w", srcDirPath, dstDirPath, err)
 	}
 	return nil
 }

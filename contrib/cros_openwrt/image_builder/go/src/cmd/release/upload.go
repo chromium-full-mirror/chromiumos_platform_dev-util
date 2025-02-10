@@ -113,6 +113,9 @@ func uploadCmd() *cobra.Command {
 				buildInfo.ImageUuid,
 				minCrosVersion,
 			)
+			if err != nil {
+				return fmt.Errorf("failed to upload image archive: %w", err)
+			}
 
 			// Update the config with new image.
 			deviceConfig.Images = append(deviceConfig.Images, imageConfig)

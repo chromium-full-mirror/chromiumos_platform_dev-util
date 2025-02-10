@@ -24,6 +24,9 @@ func AutoResolveDownloadURLs(ctx context.Context, autoURL string) (sdkURL, image
 		return "", "", fmt.Errorf("automatic URL resolution only supported from %s pages", openWrtDownloadsUrlPrefix)
 	}
 	pageURL, err := url.Parse(autoURL)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse autoUrl %q: %w", autoURL, err)
+	}
 	pathParts := strings.Split(strings.Trim(pageURL.Path, "/"), "/")
 	targetsPathPartIndex := -1
 	for i, part := range pathParts {
