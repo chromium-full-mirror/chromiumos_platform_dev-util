@@ -87,10 +87,15 @@ func (eps *EQCPublishService) Close() error {
 // ExportToBQ exports the EqC info to BigQuery.
 func (eps *EQCPublishService) ExportToBQ(ctx context.Context) error {
 	eqcInfo := eps.eqcInfo
-	log.Printf("Exporting the EqC info: %v to BQ", eqcInfo)
+	log.Printf("Exporting the EqC info: %#v to BQ", eqcInfo)
 
 	if eqcInfo == nil {
 		log.Printf("Skipping the BQ export because the EqC info is empty")
+		return nil
+	}
+
+	if eqcInfo.GetEqcHash() == "" {
+		log.Printf("Skipping the BQ export because the EqC hash is empty: %#v", eqcInfo)
 		return nil
 	}
 
@@ -100,7 +105,7 @@ func (eps *EQCPublishService) ExportToBQ(ctx context.Context) error {
 	}
 
 	if exist {
-		log.Printf("Skipping the BQ export because the EqC info already exists: %v", eqcInfo)
+		log.Printf("Skipping the BQ export because the EqC info already exists: %#v", eqcInfo)
 		return nil
 	}
 
@@ -114,10 +119,10 @@ func (eps *EQCPublishService) ExportToBQ(ctx context.Context) error {
 
 	inserter := eps.bqClient.Dataset(TestInfoDataset).Table(EQCInfoTable).Inserter()
 	if err := inserter.Put(ctx, eqcRow); err != nil {
-		return fmt.Errorf("exporting the EqC info: %v to BQ: %w", eqcInfo, err)
+		return fmt.Errorf("exporting the EqC info: %#v to BQ: %w", eqcInfo, err)
 	}
 
-	log.Printf("Successfully exported the EqC info: %v to BQ", eqcInfo)
+	log.Printf("Successfully exported the EqC info: %#v to BQ", eqcInfo)
 	return nil
 }
 
@@ -154,12 +159,12 @@ func (eps *EQCPublishService) checkExists(ctx context.Context, eqcInfo *artifact
 
 	err = it.Next(&EQCRow{})
 	if err == iterator.Done {
-		log.Printf("EqC info doesn't exist in the BQ: %v", eqcInfo)
+		log.Printf("EqC info doesn't exist in the BQ: %#v", eqcInfo)
 		return false, nil
 	} else if err != nil {
 		return false, fmt.Errorf("checking if the EqC info already exists: %w", err)
 	} else {
-		log.Printf("EqC info already exists in the BQ: %v", eqcInfo)
+		log.Printf("EqC info already exists in the BQ: %#v", eqcInfo)
 		return true, nil
 	}
 }
@@ -186,6 +191,7 @@ func (e *EQCRow) Save() (map[string]bigquery.Value, string, error) {
 // eqcInfo extracts the EqC info from the rdb metadata in the publish
 // request.
 func eqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
+	log.Printf("Started to extract the EqC info from the request: %#v", req)
 	metadata, err := UnpackMetadata(req)
 	if err != nil {
 		return nil, fmt.Errorf("unpacking the metadata in the publish request: %w", err)
@@ -219,5 +225,6 @@ func eqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
 		eqcInfo.EqcDimensions = make(map[string]string)
 	}
 
+	log.Printf("Successfully extracted the EqC info: %#v", eqcInfo)
 	return eqcInfo, nil
 }
