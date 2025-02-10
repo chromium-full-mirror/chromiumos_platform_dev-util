@@ -100,11 +100,10 @@ func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
 	testResult := m.GetTestResult()
 	postProcessResponses := m.GetPostProcessResponses()
 	fwProvisionResponse := m.GetFirmwareProvisionResponse()
-	is3DRun := req.GetIs_3DRun()
 	if testResult != nil {
 		testInv := testResult.GetTestInvocation()
 		if testInv != nil {
-			testInv.Is_3DRun = is3DRun
+			ingestEqCInfo(testInv, req)
 		}
 
 		// Fetches the existing build metadata if available in the test result.
@@ -127,7 +126,7 @@ func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
 		BaseVariant:               m.GetBaseVariant(),
 		PostProcessResponses:      postProcessResponses,
 		FirmwareProvisionResponse: fwProvisionResponse,
-		Is3DRun:                   is3DRun,
+		Is3DRun:                   req.GetIs_3DRun(),
 	}, nil
 }
 
@@ -377,6 +376,27 @@ func chromiumTestRDBConfig(testResult *artifact.TestResult, baseTags map[string]
 
 	log.Printf("successfully created the resultdb config for chromium tests: %v", config)
 	return config, nil
+}
+
+// ingestEqCInfo ingests the 3D EqC info into the test invocation.
+func ingestEqCInfo(testInv *artifact.TestInvocation, req *api.PublishRequest) {
+	testInv.Is_3DRun = req.GetIs_3DRun()
+	if !testInv.Is_3DRun {
+		return
+	}
+
+	eqcInfo, err := EqcInfo(req)
+	if err != nil {
+		log.Printf("Failed to ingest the EqC info")
+		return
+	}
+
+	// Associates test results with the EqC hash only so that the EqC hash can
+	// be used to query the EqC BQ table for additional latest details.
+	testInv.EqcInfo = &artifact.EqcInfo{
+		EqcHash: eqcInfo.GetEqcHash(),
+	}
+	log.Printf("successfully ingested the EqC info: %#v", eqcInfo)
 }
 
 // ingestPostProcessResponses ingests the responses of the post process service

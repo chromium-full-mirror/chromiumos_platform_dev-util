@@ -1068,6 +1068,15 @@ func TestNewRdbPublishService(t *testing.T) {
 			},
 		}
 		testResult.TestInvocation.Is_3DRun = req.GetIs_3DRun()
+		testResult.TestInvocation.EqcInfo = &artifact.EqcInfo{
+			EqcHash: "9073744604696850342",
+		}
+		eqcInfoMap := map[string]string{
+			"eqcCategoryExpression": "WifiBtChipset_Soc_Kernel_Intel",
+			"eqcDimensions":         "{\"dlm:soc\":\"Cometlake-U\",\"image:_kernel_version\":\"5.15\",\"wireless_field\":\"INTEL_HRP2_AX201\"}",
+			"eqcHash":               "9073744604696850342",
+			"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__5.15",
+		}
 		metadata := &metadata.PublishRdbMetadata{
 			CurrentInvocationId: "inv_id",
 			TestResult:          testResult,
@@ -1076,6 +1085,12 @@ func TestNewRdbPublishService(t *testing.T) {
 				GsPath: "gs://bucket/dir/metadata/sources.jsonpb",
 			},
 			BaseVariant: map[string]string{},
+			PublishKeys: []*api.PublishKey{
+				{
+					Subject:   EQCSubjectKey,
+					KeyValues: eqcInfoMap,
+				},
+			},
 		}
 		req.Metadata, _ = anypb.New(metadata)
 		m, _ := UnpackMetadata(req)

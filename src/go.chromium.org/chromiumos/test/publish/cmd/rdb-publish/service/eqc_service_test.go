@@ -223,7 +223,7 @@ func TestEqcInfo(t *testing.T) {
 		req := &api.PublishRequest{
 			Metadata: validMetadataAny,
 		}
-		gotEQCInfo, err := eqcInfo(req)
+		gotEQCInfo, err := EqcInfo(req)
 		So(err, ShouldBeNil)
 		So(gotEQCInfo, ShouldResembleProto, wantEQCInfo)
 	})
@@ -235,7 +235,7 @@ func TestEqcInfo(t *testing.T) {
 		req := &api.PublishRequest{
 			Metadata: validMetadataAny,
 		}
-		gotEQCInfo, err := eqcInfo(req)
+		gotEQCInfo, err := EqcInfo(req)
 
 		// Expect an empty EqcInfo
 		So(err, ShouldBeNil)
@@ -243,7 +243,7 @@ func TestEqcInfo(t *testing.T) {
 	})
 
 	Convey("Nil request", t, func() {
-		gotEQCInfo, err := eqcInfo(nil)
+		gotEQCInfo, err := EqcInfo(nil)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldContainSubstring, "unpacking the metadata")
 		So(gotEQCInfo, ShouldBeNil)
@@ -253,7 +253,7 @@ func TestEqcInfo(t *testing.T) {
 		req := &api.PublishRequest{
 			Metadata: &anypb.Any{}, // Empty Any proto
 		}
-		gotEQCInfo, err := eqcInfo(req)
+		gotEQCInfo, err := EqcInfo(req)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldContainSubstring, "unpacking the metadata")
 		So(gotEQCInfo, ShouldBeNil)

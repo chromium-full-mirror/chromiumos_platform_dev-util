@@ -62,7 +62,7 @@ func NewEQCPublishService(ctx context.Context, req *api.PublishRequest) (*EQCPub
 		return nil, fmt.Errorf("creating the BQ client: %w", err)
 	}
 
-	eqcInfo, err := eqcInfo(req)
+	eqcInfo, err := EqcInfo(req)
 	if err != nil {
 		client.Close()
 		return nil, fmt.Errorf("extracting the EqC info from test results: %w", err)
@@ -188,9 +188,9 @@ func (e *EQCRow) Save() (map[string]bigquery.Value, string, error) {
 	}, e.EQCHash, nil
 }
 
-// eqcInfo extracts the EqC info from the rdb metadata in the publish
+// EqcInfo extracts the EqC info from the rdb metadata in the publish
 // request.
-func eqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
+func EqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
 	log.Printf("Started to extract the EqC info from the request: %#v", req)
 	metadata, err := UnpackMetadata(req)
 	if err != nil {
