@@ -65,6 +65,23 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		return common_utils.WrapStringInAny(s.errStatus(errMsg)), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, errors.New(errMsg)
 	}
 	setPDRole(ctx, log, "src", s.params)
+
+	log.Println("IP info")
+	// Jumble the command, we don't care what fails or not, any output, simply print it.
+	const ipCmd = "set -e; ip rule show; ip route show table all; route; ifconfig eth0; echo 'All commands succeeded'"
+	var session *ssh.Session
+	session, err := client.NewSession()
+	if err != nil {
+		log.Println("Failed to create session: ", err)
+		return common_utils.WrapStringInAny(s.errStatus("INFRA: cannot SSH to DUT")), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
+	}
+	if output, err := session.CombinedOutput(ipCmd); err != nil {
+		log.Println("Warning: failed to run IP info commands: ", ipCmd, err)
+		log.Println(string(output))
+	} else {
+		log.Println(string(output))
+	}
+
 	defer client.Close()
 	cacheServerAdd := s.params.Dut.GetCacheServer().GetAddress().GetAddress()
 	installCommand := ""
