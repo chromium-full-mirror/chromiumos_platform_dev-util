@@ -100,7 +100,7 @@ $ labtunnel hosts --chameleond <host>
 
 			time.Sleep(time.Second)
 			tunnelRegistry.PrintToLog()
-			sshManager.WaitUntilAllSshCompleted(cmd.Context())
+			sshManager.WaitUntilAllSSHCompleted(cmd.Context())
 			return nil
 		},
 	}

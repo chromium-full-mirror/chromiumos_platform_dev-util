@@ -87,7 +87,7 @@ see "labtunnel btpeers --help" for details.
 			if leased {
 				ctx = pollDUTLease(ctx, hostDut)
 			}
-			sshManager.WaitUntilAllSshCompleted(ctx)
+			sshManager.WaitUntilAllSSHCompleted(ctx)
 			return nil
 		},
 	}

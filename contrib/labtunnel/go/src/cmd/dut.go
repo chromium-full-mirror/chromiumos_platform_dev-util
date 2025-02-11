@@ -50,7 +50,7 @@ The dut hostname is resolved from <dut_hostname> by removing the prefix
 			if leased {
 				ctx = pollDUTLease(ctx, hostDut)
 			}
-			sshManager.WaitUntilAllSshCompleted(ctx)
+			sshManager.WaitUntilAllSSHCompleted(ctx)
 			return nil
 		},
 	}

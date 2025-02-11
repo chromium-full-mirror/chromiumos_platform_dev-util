@@ -82,7 +82,7 @@ starting at 1.
 			if leased {
 				ctx = pollDUTLease(ctx, hostDut)
 			}
-			sshManager.WaitUntilAllSshCompleted(ctx)
+			sshManager.WaitUntilAllSSHCompleted(ctx)
 			return nil
 		},
 	}

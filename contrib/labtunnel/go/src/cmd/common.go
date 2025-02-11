@@ -162,7 +162,7 @@ func lookupActualHosts(remoteHost, sshHost string) (string, string, error) {
 
 // tunnelLocalPortToRemotePort establishes an ssh tunnel to remoteHost:remotePort on sshHost
 // Returns its localhost:port.
-func tunnelLocalPortToRemotePort(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSshManager, tunnelName string, remoteHost string, remotePort int, sshHost string) (string, error) {
+func tunnelLocalPortToRemotePort(ctx context.Context, tunnelRegistry *ssh.TunnelRegistry, sshManager *ssh.ConcurrentSSHManager, tunnelName string, remoteHost string, remotePort int, sshHost string) (string, error) {
 	localPort := nextLocalPort(ctx)
 	listenHost := fmt.Sprintf("localhost:%d", localPort)
 
@@ -172,7 +172,7 @@ func tunnelLocalPortToRemotePort(ctx context.Context, tunnelRegistry *ssh.Tunnel
 	}
 
 	description := fmt.Sprintf("TUNNEL-%-10s [%s -> %s -> %s:%d]", tunnelName, listenHost, sshHost, remoteHost, remotePort)
-	sshManager.Ssh(ctx, true, description, func(ctx context.Context, r *ssh.Runner) error {
+	sshManager.SSH(ctx, true, description, func(ctx context.Context, r *ssh.Runner) error {
 		return r.TunnelLocalPortToRemotePort(ctx, localPort, remoteHost, remotePort, sshHost)
 	})
 	if remoteHost != "localhost" {

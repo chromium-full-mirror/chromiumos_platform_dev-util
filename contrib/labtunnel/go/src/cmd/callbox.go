@@ -77,7 +77,7 @@ on the proxy host, as the callboxes do not support SSH.
 			if leased {
 				ctx = pollDUTLease(ctx, hostDut)
 			}
-			sshManager.WaitUntilAllSshCompleted(ctx)
+			sshManager.WaitUntilAllSSHCompleted(ctx)
 			return nil
 		},
 	}

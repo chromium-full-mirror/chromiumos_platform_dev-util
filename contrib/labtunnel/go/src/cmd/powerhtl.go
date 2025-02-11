@@ -69,7 +69,7 @@ Starts servod on power htl satlab & opens an ssh tunnels to remote ssh port and 
 			if leased {
 				ctx = pollDUTLease(ctx, hostDut)
 			}
-			sshManager.WaitUntilAllSshCompleted(ctx)
+			sshManager.WaitUntilAllSSHCompleted(ctx)
 
 			return nil
 		},

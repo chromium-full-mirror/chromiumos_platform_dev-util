@@ -52,7 +52,7 @@ The formula for the chameleon device hostname is "<dut>-chameleon".
 			if leased {
 				ctx = pollDUTLease(ctx, hostDut)
 			}
-			sshManager.WaitUntilAllSshCompleted(ctx)
+			sshManager.WaitUntilAllSSHCompleted(ctx)
 			return nil
 		},
 	}

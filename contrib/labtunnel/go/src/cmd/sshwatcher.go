@@ -41,7 +41,7 @@ to be specified and is selected like it is for other tunnels in labtunnel. See
 
 			time.Sleep(time.Second)
 			tunnelRegistry.PrintToLog()
-			sshManager.WaitUntilAllSshCompleted(cmd.Context())
+			sshManager.WaitUntilAllSSHCompleted(cmd.Context())
 			return nil
 		},
 	}

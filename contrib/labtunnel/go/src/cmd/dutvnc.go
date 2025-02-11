@@ -49,7 +49,7 @@ localhost:5900 with your preferred VNC client.
 			}
 
 			// Launch kmsvnc on dut.
-			sshManager.Ssh(cmd.Context(), true, "DUT-VNC", func(ctx context.Context, r *ssh.Runner) error {
+			sshManager.SSH(cmd.Context(), true, "DUT-VNC", func(ctx context.Context, r *ssh.Runner) error {
 				return r.Run(ctx, nil, []string{
 					hostDut,
 					remoteVncCmd,
@@ -77,7 +77,7 @@ localhost:5900 with your preferred VNC client.
 			if leased {
 				ctx = pollDUTLease(ctx, hostDut)
 			}
-			sshManager.WaitUntilAllSshCompleted(ctx)
+			sshManager.WaitUntilAllSSHCompleted(ctx)
 			return nil
 		},
 	}
