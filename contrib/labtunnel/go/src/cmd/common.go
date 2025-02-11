@@ -14,9 +14,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
+	"chromiumos/platform/dev/contrib/labtunnel/cmd_utils"
 	"chromiumos/platform/dev/contrib/labtunnel/crosfleet"
 	"chromiumos/platform/dev/contrib/labtunnel/fileutils"
 	clog "chromiumos/platform/dev/contrib/labtunnel/log"
@@ -297,10 +297,9 @@ func isPortAvailable(ctx context.Context, port int) (bool, error) {
 
 func runContextualCommand(ctx context.Context, logPrefix string, command string, args ...string) {
 	// Build cmd and ensure subprocesses are grouped.
-	cmd := exec.CommandContext(ctx, command, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid:   true,
-		Pdeathsig: syscall.SIGKILL,
+	cmd, err := cmd_utils.CreateContextualCmd(ctx, command, args...)
+	if err != nil {
+		panic(fmt.Errorf("failed to create command %q: %w", command, err))
 	}
 
 	// Log StdOut and StdErr with a prefix.
@@ -310,26 +309,9 @@ func runContextualCommand(ctx context.Context, logPrefix string, command string,
 	cmd.Stderr = logWriter
 
 	// Wait until the command completes or the context is cancelled.
-	runChan := make(chan error)
-	var runErr error
-	go func() {
-		runChan <- cmd.Run()
-	}()
-	select {
-	case <-ctx.Done():
-		runErr = ctx.Err()
-		break
-	case runErr = <-runChan:
-		break
-	}
-
+	runErr := cmd_utils.ExecuteAndWaitContextualCmd(ctx, cmd)
 	if runErr != nil && ctx.Err() != nil {
 		clog.Logger.Printf("Error running command %q: %v", command, runErr)
-	}
-
-	// Silently kill any subprocesses.
-	if cmd.Process != nil {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
 }
 

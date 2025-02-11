@@ -10,8 +10,8 @@ import (
 	"log"
 	"os/exec"
 	"strings"
-	"syscall"
 
+	"chromiumos/platform/dev/contrib/labtunnel/cmd_utils"
 	clog "chromiumos/platform/dev/contrib/labtunnel/log"
 )
 
@@ -78,10 +78,9 @@ func (r *Runner) buildCmd(ctx context.Context, sshOpts []string, flags []string,
 	}
 
 	// Build cmd and ensure ssh and its forked processes are grouped.
-	cmd := exec.CommandContext(ctx, sshCmd, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid:   true,
-		Pdeathsig: syscall.SIGKILL,
+	cmd, error := cmd_utils.CreateContextualCmd(ctx, sshCmd, args...)
+	if error != nil {
+		return nil, nil, error
 	}
 
 	// Capture command output to log with a unique prefix.
@@ -102,24 +101,7 @@ func (r *Runner) Run(ctx context.Context, flags []string, posArgs []string) erro
 	}
 	cmdLogger.Printf("RUN: %s", cmd.String())
 
-	// Wait for run to complete or context is cancelled.
-	runChan := make(chan error)
-	var runErr error
-	go func() {
-		runChan <- cmd.Run()
-	}()
-	select {
-	case <-ctx.Done():
-		runErr = ctx.Err()
-		break
-	case runErr = <-runChan:
-		break
-	}
-
-	// Silently kill this ssh process group.
-	if cmd.Process != nil {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	}
+	runErr := cmd_utils.ExecuteAndWaitContextualCmd(ctx, cmd)
 	return runErr
 }
 
