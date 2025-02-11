@@ -126,7 +126,7 @@ class CrosArtifactPrep:
         """Copy the python proto bindings."""
         shutil.copytree(
             os.path.join(
-                self.chroot, "usr/lib64/python3.8/site-packages/chromiumos"
+                self.chroot, "usr/lib64/python3.11/site-packages/chromiumos"
             ),
             os.path.join(self.full_out, "chromiumos"),
         )
