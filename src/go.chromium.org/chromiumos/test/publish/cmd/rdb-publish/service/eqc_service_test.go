@@ -25,9 +25,8 @@ func TestNewEQCPublishService(t *testing.T) {
 	Convey("NewEQCPublishService", t, func() {
 		Convey("Valid request", func() {
 			wantEQCInfo := &artifact.EqcInfo{
-				EqcHash:               "9073744604696850342",
-				EqcName:               "Cometlake-U__INTEL_HRP2_AX201__5.15",
-				EqcCategoryExpression: "WifiBtChipset_Soc_Kernel_Intel",
+				EqcHash: "9073744604696850342",
+				EqcName: "Cometlake-U__INTEL_HRP2_AX201__5.15",
 				EqcDimensions: map[string]string{
 					"dlm:soc":               "Cometlake-U",
 					"image:_kernel_version": "5.15",
@@ -35,10 +34,9 @@ func TestNewEQCPublishService(t *testing.T) {
 				},
 			}
 			eqcInfoMap := map[string]string{
-				"eqcCategoryExpression": "WifiBtChipset_Soc_Kernel_Intel",
-				"eqcDimensions":         "{\"dlm:soc\":\"Cometlake-U\",\"image:_kernel_version\":\"5.15\",\"wireless_field\":\"INTEL_HRP2_AX201\"}",
-				"eqcHash":               "9073744604696850342",
-				"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__5.15",
+				"eqcDimensions": "{\"dlm:soc\":\"Cometlake-U\",\"image:_kernel_version\":\"5.15\",\"wireless_field\":\"INTEL_HRP2_AX201\"}",
+				"eqcHash":       "9073744604696850342",
+				"eqcName":       "Cometlake-U__INTEL_HRP2_AX201__5.15",
 			}
 			rdbMetadata := &metadata.PublishRdbMetadata{
 				PublishKeys: []*api.PublishKey{
@@ -101,14 +99,12 @@ func TestEQCRowSave(t *testing.T) {
 
 	eqcHash := "A310930190d11"
 	eqcName := "IntelRaptorLakeKernelNext"
-	eqcCategoryExpression := "WifiBtChipset_Soc_Kernel_80211_AX"
 
 	Convey("EQCRow Save", t, func() {
 		Convey("Valid entry", func() {
 			entry := &EQCRow{
-				EQCHash:               eqcHash,
-				EQCName:               eqcName,
-				EQCCategoryExpression: eqcCategoryExpression,
+				EQCHash: eqcHash,
+				EQCName: eqcName,
 				EQCDimensions: map[string]string{
 					"soc":      "value1",
 					"wifiChip": "value2",
@@ -116,10 +112,9 @@ func TestEQCRowSave(t *testing.T) {
 			}
 
 			wantValue := map[string]bigquery.Value{
-				"eqc_hash":                eqcHash,
-				"eqc_name":                eqcName,
-				"eqc_category_expression": eqcCategoryExpression,
-				"eqc_dimensions":          `{"soc":"value1","wifiChip":"value2"}`, // Note: order may vary
+				"eqc_hash":       eqcHash,
+				"eqc_name":       eqcName,
+				"eqc_dimensions": `{"soc":"value1","wifiChip":"value2"}`, // Note: order may vary
 			}
 
 			gotValue, gotInsertID, err := entry.Save()
@@ -128,7 +123,6 @@ func TestEQCRowSave(t *testing.T) {
 			So(gotInsertID, ShouldEqual, wantValue["eqc_hash"])
 			So(gotValue["eqc_hash"], ShouldEqual, wantValue["eqc_hash"])
 			So(gotValue["eqc_name"], ShouldEqual, eqcName)
-			So(gotValue["eqc_category_expression"], ShouldEqual, wantValue["eqc_category_expression"])
 
 			// Compare maps, ignoring key order in eqc_dimensions.
 			gotDimensions := gotValue["eqc_dimensions"]
@@ -145,17 +139,15 @@ func TestEQCRowSave(t *testing.T) {
 
 		Convey("Empty dimensions", func() {
 			entry := &EQCRow{
-				EQCHash:               eqcHash,
-				EQCName:               eqcName,
-				EQCCategoryExpression: eqcCategoryExpression,
-				EQCDimensions:         make(map[string]string), // Empty map
+				EQCHash:       eqcHash,
+				EQCName:       eqcName,
+				EQCDimensions: make(map[string]string), // Empty map
 			}
 
 			wantValue := map[string]bigquery.Value{
-				"eqc_hash":                eqcHash,
-				"eqc_name":                eqcName,
-				"eqc_category_expression": eqcCategoryExpression,
-				"eqc_dimensions":          `{}`,
+				"eqc_hash":       eqcHash,
+				"eqc_name":       eqcName,
+				"eqc_dimensions": `{}`,
 			}
 
 			gotValue, _, err := entry.Save()
@@ -166,17 +158,15 @@ func TestEQCRowSave(t *testing.T) {
 
 		Convey("Nil dimensions", func() {
 			entry := &EQCRow{
-				EQCHash:               eqcHash,
-				EQCName:               eqcName,
-				EQCCategoryExpression: eqcCategoryExpression,
-				EQCDimensions:         nil,
+				EQCHash:       eqcHash,
+				EQCName:       eqcName,
+				EQCDimensions: nil,
 			}
 
 			wantValue := map[string]bigquery.Value{
-				"eqc_hash":                eqcHash,
-				"eqc_name":                eqcName,
-				"eqc_category_expression": eqcCategoryExpression,
-				"eqc_dimensions":          `{}`, // Should be treated as an empty map
+				"eqc_hash":       eqcHash,
+				"eqc_name":       eqcName,
+				"eqc_dimensions": `{}`, // Should be treated as an empty map
 			}
 
 			gotValue, _, err := entry.Save()
@@ -193,9 +183,8 @@ func TestEqcInfo(t *testing.T) {
 
 	Convey("Valid request with EQC info", t, func() {
 		wantEQCInfo := &artifact.EqcInfo{
-			EqcHash:               "9073744604696850342",
-			EqcName:               "Cometlake-U__INTEL_HRP2_AX201__5.15",
-			EqcCategoryExpression: "{\"value\":{\"combinatorial\":{\"subcategories\":[{\"value\":{\"enumerated\":{\"classes\":[{\"value\":{\"name\":\"swarming:label-wifi_state:NORMAL\",\"expression\":{\"property\":{\"propertyPath\":\"swarming:label-wifi_state\",\"strEqual\":\"NORMAL\"}}}}]}}},{\"name\":\"WifiBtChipset_Soc_Kernel\"}]}}}",
+			EqcHash: "9073744604696850342",
+			EqcName: "Cometlake-U__INTEL_HRP2_AX201__5.15",
 			EqcDimensions: map[string]string{
 				"dlm:soc":               "Cometlake-U",
 				"image:_kernel_version": "5.15",
@@ -203,10 +192,9 @@ func TestEqcInfo(t *testing.T) {
 			},
 		}
 		eqcInfoMap := map[string]string{
-			"eqcCategoryExpression": "{\"value\":{\"combinatorial\":{\"subcategories\":[{\"value\":{\"enumerated\":{\"classes\":[{\"value\":{\"name\":\"swarming:label-wifi_state:NORMAL\",\"expression\":{\"property\":{\"propertyPath\":\"swarming:label-wifi_state\",\"strEqual\":\"NORMAL\"}}}}]}}},{\"name\":\"WifiBtChipset_Soc_Kernel\"}]}}}",
-			"eqcDimensions":         "{\"dlm:soc\":\"Cometlake-U\",\"image:_kernel_version\":\"5.15\",\"wireless_field\":\"INTEL_HRP2_AX201\"}",
-			"eqcHash":               "9073744604696850342",
-			"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__5.15",
+			"eqcDimensions": "{\"dlm:soc\":\"Cometlake-U\",\"image:_kernel_version\":\"5.15\",\"wireless_field\":\"INTEL_HRP2_AX201\"}",
+			"eqcHash":       "9073744604696850342",
+			"eqcName":       "Cometlake-U__INTEL_HRP2_AX201__5.15",
 		}
 		rdbMetadata := &metadata.PublishRdbMetadata{
 			PublishKeys: []*api.PublishKey{

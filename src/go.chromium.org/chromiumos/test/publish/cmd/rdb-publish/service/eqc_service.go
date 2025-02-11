@@ -44,10 +44,11 @@ type EQCPublishService struct {
 
 // EQCRow represents a row in the EqC info BigQuery table.
 type EQCRow struct {
-	EQCHash               string
-	EQCName               string
-	EQCCategoryExpression string
-	EQCDimensions         map[string]string
+	EQCHash string
+	EQCName string
+	// TODO: b/395760082 - Add the EqcCategoryExpression back once its type
+	// is updated to JSON from string.
+	EQCDimensions map[string]string
 }
 
 // NewEQCPublishService create a new EqC publish service to interact with
@@ -111,10 +112,11 @@ func (eps *EQCPublishService) ExportToBQ(ctx context.Context) error {
 
 	// Inserts the EqC info because it doesn't exist in the BQ table.
 	eqcRow := &EQCRow{
-		EQCHash:               eqcInfo.EqcHash,
-		EQCName:               eqcInfo.EqcName,
-		EQCCategoryExpression: eqcInfo.EqcCategoryExpression,
-		EQCDimensions:         eqcInfo.EqcDimensions,
+		EQCHash: eqcInfo.EqcHash,
+		EQCName: eqcInfo.EqcName,
+		// TODO: b/395760082 - Add the EqcCategoryExpression back once its type
+		// is updated to JSON from string.
+		EQCDimensions: eqcInfo.EqcDimensions,
 	}
 
 	inserter := eps.bqClient.Dataset(TestInfoDataset).Table(EQCInfoTable).Inserter()
@@ -181,10 +183,11 @@ func (e *EQCRow) Save() (map[string]bigquery.Value, string, error) {
 	}
 
 	return map[string]bigquery.Value{
-		"eqc_hash":                e.EQCHash,
-		"eqc_name":                e.EQCName,
-		"eqc_category_expression": e.EQCCategoryExpression,
-		"eqc_dimensions":          string(dimensions),
+		"eqc_hash": e.EQCHash,
+		"eqc_name": e.EQCName,
+		// TODO: b/395760082 - Add the EqcCategoryExpression back once its type
+		// is updated to JSON from string.
+		"eqc_dimensions": string(dimensions),
 	}, e.EQCHash, nil
 }
 
@@ -210,9 +213,10 @@ func EqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
 	}
 
 	eqcInfo := &artifact.EqcInfo{
-		EqcHash:               eqcInfoMap["eqcHash"],
-		EqcName:               eqcInfoMap["eqcName"],
-		EqcCategoryExpression: eqcInfoMap["eqcCategoryExpression"],
+		EqcHash: eqcInfoMap["eqcHash"],
+		EqcName: eqcInfoMap["eqcName"],
+		// TODO: b/395760082 - Add the EqcCategoryExpression back once its type
+		// is updated to JSON from string.
 	}
 
 	if dimensionsJSON, ok := eqcInfoMap["eqcDimensions"]; ok {
