@@ -44,11 +44,10 @@ type EQCPublishService struct {
 
 // EQCRow represents a row in the EqC info BigQuery table.
 type EQCRow struct {
-	EQCHash string
-	EQCName string
-	// TODO: b/395760082 - Add the EqcCategoryExpression back once its type
-	// is updated to JSON from string.
-	EQCDimensions map[string]string
+	EQCHash               string
+	EQCName               string
+	EQCCategoryExpression map[string]string
+	EQCDimensions         map[string]string
 }
 
 // NewEQCPublishService create a new EqC publish service to interact with
@@ -112,11 +111,10 @@ func (eps *EQCPublishService) ExportToBQ(ctx context.Context) error {
 
 	// Inserts the EqC info because it doesn't exist in the BQ table.
 	eqcRow := &EQCRow{
-		EQCHash: eqcInfo.EqcHash,
-		EQCName: eqcInfo.EqcName,
-		// TODO: b/395760082 - Add the EqcCategoryExpression back once its type
-		// is updated to JSON from string.
-		EQCDimensions: eqcInfo.EqcDimensions,
+		EQCHash:               eqcInfo.EqcHash,
+		EQCName:               eqcInfo.EqcName,
+		EQCCategoryExpression: eqcInfo.EqcCategoryExpression,
+		EQCDimensions:         eqcInfo.EqcDimensions,
 	}
 
 	inserter := eps.bqClient.Dataset(TestInfoDataset).Table(EQCInfoTable).Inserter()
@@ -173,6 +171,15 @@ func (eps *EQCPublishService) checkExists(ctx context.Context, eqcInfo *artifact
 
 // Save implements the ValueSaver interface for the EQCRow struct.
 func (e *EQCRow) Save() (map[string]bigquery.Value, string, error) {
+	if e.EQCCategoryExpression == nil {
+		e.EQCCategoryExpression = make(map[string]string)
+	}
+
+	categoryExpression, err := json.Marshal(e.EQCCategoryExpression)
+	if err != nil {
+		return nil, "", fmt.Errorf("marshalling the EqC category expression: %w", err)
+	}
+
 	if e.EQCDimensions == nil {
 		e.EQCDimensions = make(map[string]string)
 	}
@@ -183,11 +190,10 @@ func (e *EQCRow) Save() (map[string]bigquery.Value, string, error) {
 	}
 
 	return map[string]bigquery.Value{
-		"eqc_hash": e.EQCHash,
-		"eqc_name": e.EQCName,
-		// TODO: b/395760082 - Add the EqcCategoryExpression back once its type
-		// is updated to JSON from string.
-		"eqc_dimensions": string(dimensions),
+		"eqc_hash":                e.EQCHash,
+		"eqc_name":                e.EQCName,
+		"eqc_category_expression": string(categoryExpression),
+		"eqc_dimensions":          string(dimensions),
 	}, e.EQCHash, nil
 }
 
@@ -213,20 +219,45 @@ func EqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
 	}
 
 	eqcInfo := &artifact.EqcInfo{
-		EqcHash: eqcInfoMap["eqcHash"],
-		EqcName: eqcInfoMap["eqcName"],
-		// TODO: b/395760082 - Add the EqcCategoryExpression back once its type
-		// is updated to JSON from string.
+		EqcHash:               eqcInfoMap["eqcHash"],
+		EqcName:               eqcInfoMap["eqcName"],
+		EqcCategoryExpression: make(map[string]string),
+		EqcDimensions:         make(map[string]string),
+	}
+
+	// The content of the "eqcCategoryExpression" field is aligned with the
+	// CategoryExpression proto in "/ttcp/protos/ttcp/syntax/syntax.proto".
+	if categoryExpressionJSON, ok := eqcInfoMap["eqcCategoryExpression"]; ok {
+		categoryExpressionMap := make(map[string]interface{})
+		if err := json.Unmarshal([]byte(categoryExpressionJSON), &categoryExpressionMap); err != nil {
+			return nil, fmt.Errorf("unmarshalling the EqC category expression: %w", err)
+		}
+
+		for k, v := range categoryExpressionMap {
+			switch value := v.(type) {
+			case string:
+				// Corresponds to the name field which indicates the name of the
+				// predefined category. Most of the time (> 99.99%) it will be
+				// mapped to this string type.
+				eqcInfo.EqcCategoryExpression[k] = fmt.Sprintf("%v", value)
+			default:
+				// Corresponds to the category proto field which explicitly
+				// specifies the category contents.
+				jsonString, err := json.Marshal(value)
+				if err != nil {
+					log.Printf("Failed to marshal the category expression key: %s", k)
+					continue
+				}
+				eqcInfo.EqcCategoryExpression[k] = string(jsonString)
+			}
+
+		}
 	}
 
 	if dimensionsJSON, ok := eqcInfoMap["eqcDimensions"]; ok {
-		dimensionsMap := make(map[string]string)
-		if err := json.Unmarshal([]byte(dimensionsJSON), &dimensionsMap); err != nil {
+		if err := json.Unmarshal([]byte(dimensionsJSON), &eqcInfo.EqcDimensions); err != nil {
 			return nil, fmt.Errorf("unmarshalling the EqC dimensions: %w", err)
 		}
-		eqcInfo.EqcDimensions = dimensionsMap
-	} else {
-		eqcInfo.EqcDimensions = make(map[string]string)
 	}
 
 	log.Printf("Successfully extracted the EqC info: %#v", eqcInfo)
