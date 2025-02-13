@@ -171,9 +171,7 @@ func FmtAddr(addr string) string {
 }
 
 func AdbShellCmd(cmdStr []string, addr string, log *log.Logger) (string, error) {
-	args := []string{"-s", FmtAddr(addr), "shell"}
-	args = append(args, cmdStr...)
-	return AdbCmd(args, log)
+	return AdbCmd(append([]string{"-s", FmtAddr(addr), "shell"}, cmdStr...), log)
 }
 
 func GetBuildVersion(addr string, log *log.Logger) (string, error) {
