@@ -1,6 +1,9 @@
 include chromiumos/config:/OWNERS.testplatform
 include chromiumos/config:/OWNERS.testservices
 
+# External Contributors
+kimjae@google.com
+
 # CTRP Team Contributors
 jessemcguire@google.com
 jkusuma@google.com
