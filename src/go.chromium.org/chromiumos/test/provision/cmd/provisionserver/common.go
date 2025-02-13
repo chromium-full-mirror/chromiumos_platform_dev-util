@@ -152,8 +152,6 @@ func (s *provision) installAsh(ctx context.Context, req *api.InstallAshRequest, 
 }
 
 // installArc installs a specified version of ARC on the DUT.
-//
-// TODO(shapiroc): Implement this
 func (s *provision) installArc(ctx context.Context, req *api.InstallArcRequest, op *longrunning.Operation) (*api.InstallFailure, error) {
 	s.logger.Println("Received api.InstallArcRequest: ", req)
 	return &api.InstallFailure{
