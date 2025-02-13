@@ -17,13 +17,6 @@ import (
 
 const retryInterval = 1 * time.Second
 
-func KillServer(logger *log.Logger) {
-	outStr, _ := AdbCmd([]string{"kill-server"}, logger)
-	logger.Println(outStr)
-	outStr, _ = AdbCmd([]string{"devices"}, logger)
-	logger.Println(outStr)
-}
-
 func TeardownAdb(logger *log.Logger, addr string) error {
 	if out, err := AdbCmd([]string{"-s", FmtAddr(addr), "disconnect"}, logger); err != nil {
 		return fmt.Errorf("ADB disconnect failed. %s: %s", err, string(out))
@@ -114,7 +107,6 @@ func SetupAdb(logger *log.Logger, addr string) (err error) {
 	if err != nil {
 		logger.Println("setupAdb failed. Trying again: ", err)
 		// ADB can be in akward state requiring a retry often.
-		// KillServer(logger)
 		err = AdbConnect(logger, addr)
 		if err != nil {
 			logger.Println("setupAdb failed Attempt 2. Exiting: ", err)
