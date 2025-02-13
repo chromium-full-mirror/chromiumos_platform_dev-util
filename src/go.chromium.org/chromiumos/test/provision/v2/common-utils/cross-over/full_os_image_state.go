@@ -66,24 +66,49 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	}
 	setPDRole(ctx, log, "src", s.params)
 
-	log.Println("IP info")
-	// Jumble the command, we don't care what fails or not, any output, simply print it.
-	const ipCmd = "set -e; ip rule show; ip route show table all; route; ifconfig eth0; echo 'All commands succeeded'"
 	var session *ssh.Session
 	session, err := client.NewSession()
 	if err != nil {
 		log.Println("Failed to create session: ", err)
 		return common_utils.WrapStringInAny(s.errStatus("INFRA: cannot SSH to DUT")), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
 	}
-	if output, err := session.CombinedOutput(ipCmd); err != nil {
-		log.Println("Warning: failed to run IP info commands: ", ipCmd, err)
-		log.Println(string(output))
-	} else {
-		log.Println(string(output))
+
+	cacheServerAdd := s.params.Dut.GetCacheServer().GetAddress().GetAddress()
+	ipFunc := func() {
+		log.Println("IP info")
+		// Jumble the command, we don't care what fails or not, any output, simply print it.
+		const ipCmd = "set -e; ip rule show; ip route show table all; route; ifconfig eth0; echo 'All commands succeeded'"
+		if output, err := session.CombinedOutput(ipCmd); err != nil {
+			log.Println("Warning: failed to run IP info commands: ", ipCmd, err)
+			log.Println(string(output))
+		} else {
+			log.Println(string(output))
+		}
+	}
+	networkWaitFunc := func() error {
+		shorterCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		networkCheckCmd := fmt.Sprintf("curl --max-time 5 -s -o/dev/null %s/check_health", cacheServerAdd)
+		for {
+			select {
+			case <-shorterCtx.Done():
+				return errors.New("Failed while waiting for network connection.")
+			default:
+				if err := session.Run(networkCheckCmd); err != nil {
+					ipFunc()
+					// Retry w/ delay.
+					time.Sleep(time.Second)
+					continue
+				}
+				return nil
+			}
+		}
+	}
+	if err := networkWaitFunc(); err != nil {
+		return common_utils.WrapStringInAny(s.errStatus("INFRA: network connection cannot be established")), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
 	}
 
 	defer client.Close()
-	cacheServerAdd := s.params.Dut.GetCacheServer().GetAddress().GetAddress()
 	installCommand := ""
 	targetImgPath := s.params.TargetImagePath.GetPath()
 	if strings.Contains(targetImgPath, androidBuild) {
