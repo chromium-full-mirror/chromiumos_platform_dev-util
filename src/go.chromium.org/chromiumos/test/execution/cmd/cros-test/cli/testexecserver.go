@@ -65,7 +65,20 @@ func driverToTestsMapping(logger *log.Logger, mdList []*api.TestCaseMetadata) (m
 
 // runTests runs the requested tests.
 func runTests(ctx context.Context, logger *log.Logger, resultRootDir, tlwAddr string, metadataList *api.TestCaseMetadataList, req *api.CrosTestRequest) (*api.CrosTestResponse, error) {
-	matchedMdList, err := finder.MatchedTestsForSuites(metadataList.Values, req.TestSuites)
+	md := metadataList.GetValues()
+	shouldPullGcsMD := isMoblySuite(req)
+
+	if shouldPullGcsMD {
+		src, err := finder.GetSourceData(context.Background(), "mobly_priv_artifacts/out")
+		if err != nil {
+			fmt.Printf("err %s", err)
+		}
+		metadata := finder.TranslateMoblySrcToMetadata(src)
+		md = append(md, metadata...)
+
+	}
+
+	matchedMdList, err := finder.MatchedTestsForSuites(md, req.TestSuites)
 	if err != nil {
 		return nil, statuserrors.NewStatusError(statuserrors.InvalidArgument,
 			fmt.Errorf("failed to match test metadata: %v", err))
@@ -156,4 +169,26 @@ func writeOutput(output string, resp *api.CrosTestResponse) error {
 			fmt.Errorf("failed to write file %v: %v", output, err))
 	}
 	return nil
+}
+
+func isMoblySuite(req *api.CrosTestRequest) bool {
+	for _, suite := range req.GetTestSuites() {
+		md := suite.GetExecutionMetadata()
+		if mdFlagPresent(md, "moblySuite") {
+
+			return true
+		}
+	}
+	return false
+}
+
+func mdFlagPresent(metadata *api.ExecutionMetadata, flagName string) bool {
+	if metadata != nil && len(metadata.Args) > 0 {
+		for _, arg := range metadata.Args {
+			if arg.Flag == flagName {
+				return true
+			}
+		}
+	}
+	return false
 }
