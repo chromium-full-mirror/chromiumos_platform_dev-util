@@ -186,10 +186,8 @@ func TestEQCRowSave(t *testing.T) {
 			}
 
 			wantValue := map[string]bigquery.Value{
-				"eqc_hash":                eqcHash,
-				"eqc_name":                eqcName,
-				"eqc_category_expression": `{}`,
-				"eqc_dimensions":          `{}`, // Should be treated as an empty map
+				"eqc_hash": eqcHash,
+				"eqc_name": eqcName,
 			}
 
 			gotValue, _, err := entry.Save()

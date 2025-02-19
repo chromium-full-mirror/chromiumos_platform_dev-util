@@ -171,30 +171,34 @@ func (eps *EQCPublishService) checkExists(ctx context.Context, eqcInfo *artifact
 
 // Save implements the ValueSaver interface for the EQCRow struct.
 func (e *EQCRow) Save() (map[string]bigquery.Value, string, error) {
-	if e.EQCCategoryExpression == nil {
-		e.EQCCategoryExpression = make(map[string]string)
+	row := make(map[string]bigquery.Value)
+	if e.EQCHash != "" {
+		row["eqc_hash"] = e.EQCHash
 	}
 
-	categoryExpression, err := json.Marshal(e.EQCCategoryExpression)
-	if err != nil {
-		return nil, "", fmt.Errorf("marshalling the EqC category expression: %w", err)
+	if e.EQCName != "" {
+		row["eqc_name"] = e.EQCName
 	}
 
-	if e.EQCDimensions == nil {
-		e.EQCDimensions = make(map[string]string)
+	if e.EQCCategoryExpression != nil {
+		categoryExpression, err := json.Marshal(e.EQCCategoryExpression)
+		if err != nil {
+			return nil, "", fmt.Errorf("marshalling the EqC category expression: %w", err)
+		}
+
+		row["eqc_category_expression"] = string(categoryExpression)
 	}
 
-	dimensions, err := json.Marshal(e.EQCDimensions)
-	if err != nil {
-		return nil, "", fmt.Errorf("marshalling the EqC dimensions: %w", err)
+	if e.EQCDimensions != nil {
+		dimensions, err := json.Marshal(e.EQCDimensions)
+		if err != nil {
+			return nil, "", fmt.Errorf("marshalling the EqC dimensions: %w", err)
+		}
+
+		row["eqc_dimensions"] = string(dimensions)
 	}
 
-	return map[string]bigquery.Value{
-		"eqc_hash":                e.EQCHash,
-		"eqc_name":                e.EQCName,
-		"eqc_category_expression": string(categoryExpression),
-		"eqc_dimensions":          string(dimensions),
-	}, e.EQCHash, nil
+	return row, e.EQCHash, nil
 }
 
 // EqcInfo extracts the EqC info from the rdb metadata in the publish
@@ -219,10 +223,8 @@ func EqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
 	}
 
 	eqcInfo := &artifact.EqcInfo{
-		EqcHash:               eqcInfoMap["eqcHash"],
-		EqcName:               eqcInfoMap["eqcName"],
-		EqcCategoryExpression: make(map[string]string),
-		EqcDimensions:         make(map[string]string),
+		EqcHash: eqcInfoMap["eqcHash"],
+		EqcName: eqcInfoMap["eqcName"],
 	}
 
 	// The content of the "eqcCategoryExpression" field is aligned with the
@@ -233,6 +235,7 @@ func EqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
 			return nil, fmt.Errorf("unmarshalling the EqC category expression: %w", err)
 		}
 
+		eqcInfo.EqcCategoryExpression = make(map[string]string)
 		for k, v := range categoryExpressionMap {
 			switch value := v.(type) {
 			case string:
@@ -255,6 +258,7 @@ func EqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
 	}
 
 	if dimensionsJSON, ok := eqcInfoMap["eqcDimensions"]; ok {
+		eqcInfo.EqcDimensions = make(map[string]string)
 		if err := json.Unmarshal([]byte(dimensionsJSON), &eqcInfo.EqcDimensions); err != nil {
 			return nil, fmt.Errorf("unmarshalling the EqC dimensions: %w", err)
 		}
