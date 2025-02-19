@@ -55,7 +55,7 @@ RUN mkdir -p /tmp/test/logs
 
 # Bring in metadata to 1 location (Can be different per board.)
 COPY --chown=chromeos-test:chromeos-test ${METADATA_DIR}/*.pb /tmp/test/metadata/
-COPY --chown=chromeos-test:chromeos-test ${METADATA_DIR}/*.txtpb /tmp/test/metadata/
+#COPY --chown=chromeos-test:chromeos-test ${METADATA_DIR}/*.txtpb /tmp/test/metadata/
 
 
 # Do a final chmod and chown

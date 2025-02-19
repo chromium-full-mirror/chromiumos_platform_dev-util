@@ -123,7 +123,7 @@ if [[ "${MYGOPATH}" -eq 0 ]]; then
   GOPATH_VALS=$(realpath -e "../../../../../../../../chroot/usr/lib/gopath/"):$(realpath -e "../../../../..")
 else
   echo "using preset gopath"
-  GOPATH_VALS=${GOPATH}
+  GOPATH_VALS=${GOPATH:?}
 fi
 
 echo "Using ${GOPATH_VALS} for gopath"
@@ -184,20 +184,15 @@ fi
 
 
 # ###############################################################################
-# Handle Mobly metadata and tests
+# Handle Mobly GRTE dependency
 # ###############################################################################
 
 MOBLY_ARTIFACTS_BUCKET="gs://mobly_priv_artifacts"
-MOBLY_ARTIFACTS_VERSION="out/billyzhao_mobly_tests_20241211_1122_RC00" # Make this a variable
+MOBLY_ARTIFACTS_VERSION="grte" # Make this a variable
 
-# Fetch Mobly artifacts. The meatadata is currently being fetched into TMPDIR_ARTIFACTS at this point.
+# Fetch Mobly artifacts.
 echo "Fetching Mobly artifacts from ${MOBLY_ARTIFACTS_BUCKET}/${MOBLY_ARTIFACTS_VERSION} to ${TMPDIR_ARTIFACTS}..."
 gsutil -m cp -r "${MOBLY_ARTIFACTS_BUCKET}/${MOBLY_ARTIFACTS_VERSION}/*" "${TMPDIR_ARTIFACTS}"
-
-# Move *.txtpb files to TMPDIR_METADATA. They were originally fetched into TMPDIR_ARTIFACTS. We filter
-# and move them to TMPDIR_METADATA.
-echo "Moving *.txtpb files to ${TMPDIR_METADATA}..."
-find "${TMPDIR_ARTIFACTS}" -name "*.txtpb" -exec mv {} "${TMPDIR_METADATA}" \;
 
 # ###############################################################################
 # Handle Docker image

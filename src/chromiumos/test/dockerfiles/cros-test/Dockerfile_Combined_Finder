@@ -17,4 +17,4 @@ COPY ${METADATA_DIR}/*.pb /tmp/test/metadata/
 # Own cros-test-finder/test_finder_filter & metadata
 RUN chmod 755 /usr/bin/cros-test-finder
 
-RUN chmod 644 /tmp/test/metadata/*.pb /tmp/test/metadata/*.txtpb
+#RUN chmod 644 /tmp/test/metadata/*.pb /tmp/test/metadata/*.txtpb
