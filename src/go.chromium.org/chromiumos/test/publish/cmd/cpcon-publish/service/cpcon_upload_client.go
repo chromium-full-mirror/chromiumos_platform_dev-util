@@ -42,7 +42,6 @@ func uploadResultsCmd(ctx context.Context, req CpconUploadRequest) (*exec.Cmd, e
 		"--sa_path", req.ServiceAccountCredsFilePath,
 		"--build", req.Build,
 		"--suite", req.Suite,
-		"--parent_job_id", req.ParentJobID,
 	}
 	cmd := exec.CommandContext(ctx, pythonPath, args...)
 	return cmd, nil
