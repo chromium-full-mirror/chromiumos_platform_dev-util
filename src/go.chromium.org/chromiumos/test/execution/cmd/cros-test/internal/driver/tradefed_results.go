@@ -28,6 +28,7 @@ import (
 const (
 	tfStageLogsPath      = "/tmp/stage-android-build-api/stub"
 	tfStageResultPattern = "subprocess-test_result.xml_*.xml.gz"
+	tfStageLogPattern    = "subprocess-host_log_*"
 	tfAospResultPattern  = "android-%s/results/latest/test_result.xml"
 	tfLuciResultPattern  = "LUCIResult_*.json"
 	incompleteError      = "Module is missing from results or skipped by exclude filter"
@@ -384,6 +385,12 @@ func parseLuciJsonResults(logger *log.Logger, testType string, req *api.CrosTest
 	}
 
 	allTestCases, givenTestCases := generateTestCaseResult(logger, testType, R, req)
+
+	// Save location of additional (staged) logs.
+	stagedLogFile, err := selectFileByPattern(filepath.Join(tfStageLogsPath, "*", "*", tfStageLogPattern))
+	if err == nil {
+		logsDir = append(logsDir, filepath.Join(filepath.Dir(stagedLogFile), "*"))
+	}
 
 	return allTestCases, givenTestCases, logsDir, nil
 }
