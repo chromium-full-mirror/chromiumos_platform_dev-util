@@ -73,7 +73,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		return common_utils.WrapStringInAny(s.errStatus("INFRA: cannot SSH to DUT")), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
 	}
 
-	cacheServerAdd := s.params.Dut.GetCacheServer().GetAddress().GetAddress()
+	cacheServer := s.params.Dut.GetCacheServer().GetAddress()
 	ipFunc := func() {
 		log.Println("IP info")
 		// Jumble the command, we don't care what fails or not, any output, simply print it.
@@ -88,7 +88,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	networkWaitFunc := func() error {
 		shorterCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
-		networkCheckCmd := fmt.Sprintf("curl --max-time 5 -s -o/dev/null %s/check_health", cacheServerAdd)
+		networkCheckCmd := fmt.Sprintf("curl --max-time 5 -s -o/dev/null %s/check_health", cacheServer)
 		for {
 			select {
 			case <-shorterCtx.Done():
@@ -129,9 +129,9 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 			// Uart logs are only enabled in -eng img.
 			callServodSET(ctx, log, cpuUartCapture, on, s.params)
 		}
-		installCommand = fmt.Sprintf("al-install android-build/builds/%s/%s/attempts/latest/artifacts/android-desktop_image.bin.gz %s %s", buildId, launchTarget, cacheServerAdd, fwBuildPath)
+		installCommand = fmt.Sprintf("al-install android-build/builds/%s/%s/attempts/latest/artifacts/android-desktop_image.bin.gz %s %s", buildId, launchTarget, cacheServer.GetAddress(), fwBuildPath)
 	} else {
-		installCommand = fmt.Sprintf("cros-install %s %s", targetImgPath[5:], cacheServerAdd)
+		installCommand = fmt.Sprintf("cros-install %s %s", targetImgPath[5:], cacheServer.GetAddress())
 	}
 	if err := installCommandWithRetry(client, installCommand, log); err != nil {
 		log.Println("Failed to run installCommand: ", installCommand, err)
