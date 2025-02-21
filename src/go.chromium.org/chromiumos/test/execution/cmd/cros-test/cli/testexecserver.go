@@ -66,7 +66,7 @@ func driverToTestsMapping(logger *log.Logger, mdList []*api.TestCaseMetadata) (m
 // runTests runs the requested tests.
 func runTests(ctx context.Context, logger *log.Logger, resultRootDir, tlwAddr string, metadataList *api.TestCaseMetadataList, req *api.CrosTestRequest) (*api.CrosTestResponse, error) {
 	md := metadataList.GetValues()
-	shouldPullGcsMD := isMoblySuite(req)
+	shouldPullGcsMD := isFlexibleTFSuite(req)
 
 	if shouldPullGcsMD {
 		src, err := finder.GetSourceData(context.Background(), "mobly_priv_artifacts/out")
@@ -183,10 +183,10 @@ func writeOutput(output string, resp *api.CrosTestResponse) error {
 	return nil
 }
 
-func isMoblySuite(req *api.CrosTestRequest) bool {
+func isFlexibleTFSuite(req *api.CrosTestRequest) bool {
 	for _, suite := range req.GetTestSuites() {
 		md := suite.GetExecutionMetadata()
-		if mdFlagPresent(md, "moblySuite") {
+		if mdFlagPresent(md, "FlexibleTF") {
 
 			return true
 		}
