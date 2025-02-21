@@ -76,6 +76,15 @@ func runTests(ctx context.Context, logger *log.Logger, resultRootDir, tlwAddr st
 		metadata := finder.TranslateMoblySrcToMetadata(src)
 		md = append(md, metadata...)
 
+		tfsrc, err := finder.GetTFSourceData(context.Background(), "cros-xts-metadata")
+		if err != nil {
+			log.Println("Unable to fetch data from GCS: ", err)
+		}
+		// The source data will not have direct access to the actual proto bindings; thus is in a loose json format
+		// we will translate this into the strict proto format here.
+		tfMetadata := finder.TranslateTFSrcToMetadata(tfsrc)
+		md = append(md, tfMetadata...)
+
 	}
 
 	matchedMdList, err := finder.MatchedTestsForSuites(md, req.TestSuites)
