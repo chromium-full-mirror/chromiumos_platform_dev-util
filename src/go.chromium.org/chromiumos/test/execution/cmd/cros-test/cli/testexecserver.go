@@ -19,7 +19,7 @@ import (
 	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/internal/driver"
 	statuserrors "go.chromium.org/chromiumos/test/execution/errors"
 	"go.chromium.org/chromiumos/test/util/finder"
-
+	"go.chromium.org/chromiumos/test/util/parfetch"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -82,6 +82,18 @@ func runTests(ctx context.Context, logger *log.Logger, resultRootDir, tlwAddr st
 	if err != nil {
 		return nil, statuserrors.NewStatusError(statuserrors.InvalidArgument,
 			fmt.Errorf("failed to match test metadata: %v", err))
+	}
+
+	uniqueParfiles, err := parfetch.GetUniqueParfiles(matchedMdList)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get unique parfiles: %v", err)
+	}
+
+	// only fetch if there are unique parfiles.
+	if len(uniqueParfiles) > 0 {
+		if err := parfetch.FetchAndInstallParfiles(ctx, logger, "mobly_priv_artifacts/out", uniqueParfiles); err != nil {
+			return nil, fmt.Errorf("failed to fetch and install parfiles: %v", err)
+		}
 	}
 
 	// Write all matching test metadata to the results directory.
