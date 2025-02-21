@@ -201,17 +201,12 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 		if r := recover(); r != nil {
 			stack := string(debug.Stack())
 			ps.log.Printf("Panic detected: %+v stack: %s", r, stack)
-			var firmwareResponse api.FirmwareProvisionResponse
 			response.Status = api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED
 			err, ok := r.(error)
 			if ok {
-				firmwareResponse.ErrorMessage = err.Error()
+				response.Message = err.Error()
 			} else {
-				firmwareResponse.ErrorMessage = fmt.Sprintf("panic: %+v", r)
-			}
-			response.Metadata, err = anypb.New(&firmwareResponse)
-			if err != nil {
-				ps.log.Printf("Failed to create AnyPb: %v", err)
+				response.Message = fmt.Sprintf("panic: %+v", r)
 			}
 		}
 		ps.manager.SetResult(lroName, &response)
@@ -222,18 +217,13 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 		ps.board, ps.model, false, req, ps.servoConfig)
 	if err != nil {
 		ps.log.Printf("Failed to initialize Firmware Service: %v", err)
-		var firmwareResponse api.FirmwareProvisionResponse
 		provError, ok := err.(*firmwareservice.FirmwareProvisionError)
 		if ok {
 			response.Status = provError.Status
-			firmwareResponse.ErrorMessage = provError.Err.Error()
+			response.Message = provError.Err.Error()
 		} else {
 			response.Status = api.InstallResponse_STATUS_INVALID_REQUEST
-			firmwareResponse.ErrorMessage = err.Error()
-		}
-		response.Metadata, err = anypb.New(&firmwareResponse)
-		if err != nil {
-			ps.log.Printf("Failed to create AnyPb: %v", err)
+			response.Message = err.Error()
 		}
 		return
 	}
@@ -261,7 +251,7 @@ func (ps *FWProvisionServer) doProvision(ctx context.Context, req *api.InstallRe
 		firmwareResponse = fwService.GetVersions()
 	}
 	if err != nil {
-		firmwareResponse.ErrorMessage = err.Error()
+		response.Message = err.Error()
 	}
 	response.Metadata, err = anypb.New(firmwareResponse)
 	if err != nil {
