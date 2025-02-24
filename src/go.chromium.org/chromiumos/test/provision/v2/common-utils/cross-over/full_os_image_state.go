@@ -64,6 +64,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		errMsg := "cannot SSH onto DUT booted from USB common provision image"
 		return common_utils.WrapStringInAny(s.errStatus(errMsg)), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, errors.New(errMsg)
 	}
+	defer client.Close()
 	setPDRole(ctx, log, "src", s.params)
 
 	var session *ssh.Session
@@ -108,7 +109,6 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		return common_utils.WrapStringInAny(s.errStatus("INFRA: network connection cannot be established")), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
 	}
 
-	defer client.Close()
 	installCommand := ""
 	targetImgPath := s.params.TargetImagePath.GetPath()
 	if strings.Contains(targetImgPath, androidBuild) {
