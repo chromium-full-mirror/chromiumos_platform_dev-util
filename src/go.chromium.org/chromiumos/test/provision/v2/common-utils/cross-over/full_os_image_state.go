@@ -89,7 +89,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	networkWaitFunc := func() error {
 		shorterCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
-		networkCheckCmd := fmt.Sprintf("curl --max-time 5 -s -o/dev/null %s/check_health", cacheServer)
+		networkCheckCmd := fmt.Sprintf("curl --max-time 5 -s -o/dev/null http://%s:%v/check_health", cacheServer.GetAddress(), cacheServer.GetPort())
 		for {
 			var session *ssh.Session
 			session, err := client.NewSession()
