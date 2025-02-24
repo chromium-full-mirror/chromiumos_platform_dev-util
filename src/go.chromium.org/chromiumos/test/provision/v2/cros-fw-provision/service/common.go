@@ -6,9 +6,7 @@ package firmwareservice
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"path"
 	"regexp"
 	"strings"
@@ -160,7 +158,11 @@ type ImageCandidate struct {
 
 // A url like gs://chromeos-image-archive/firmware-brya-14505.B-branch/R100-14505.832.0-1-8730368903603296945/brya/firmware_from_source.tar.bz2
 // becomes gs://firmware-image-archive/firmware-brya-14505.B/14505.832.0/omnigul.14505.832.0.tar.bz2
-var legacyUrlRe = regexp.MustCompile(`gs://chromeos-image-archive/(firmware-\S+-[\d\.]+\.B)-branch/R\d+-(\d+\.\d+\.\d+)[-\d]*/.*`)
+var legacyUrlRe = regexp.MustCompile(`gs://(?:chromeos|firmware)-image-archive/(firmware-\S+-[\d\.]+\.B)(?:-branch(?:-firmware)?)?/(?:R\d+-)?(\d+\.\d+\.\d+)[-\d]*/.*`)
+
+// The legacy builder (i.e. firmware-brya-14505.B) creates files using the coreboot name
+// gs://firmware-image-archive/firmware-brya-14505.B/14505.846.0/omnigul.14505.846.0.tar.bz2
+// gs://firmware-image-archive/firmware-brya-14505.B/14505.846.0/omnigul.EC.14505.846.0.tar.bz2
 
 // GetAPCandidateURLs returns a list of urls and files to extract. Try them in order.
 func GetAPCandidateURLs(ctx context.Context, gsPath string, fws *FirmwareService) ([]ImageCandidate, error) {
@@ -319,7 +321,7 @@ func PickAndExtractECImage(ctx context.Context, dut api.DutServiceClient, imageM
 Specifying board and model may help`, candidates)
 }
 
-// createStageURL returns the URL to stage a gsPath. Pass to curl on the DUT or call stageFile() to do in this service.
+// createStageURL returns the URL to stage a gsPath. Pass to curl on the DUT.
 func createStageURL(ctx context.Context, gsPath string, cacheServer url.URL) url.URL {
 	stagingURL := cacheServer
 	stagingURL.Path = "/stage/"
@@ -330,7 +332,7 @@ func createStageURL(ctx context.Context, gsPath string, cacheServer url.URL) url
 	return stagingURL
 }
 
-// createExtractURL returns the URL to extract a file from a gsPath. Pass to curl on the DUT or call extractFile() to do in this service.
+// createExtractURL returns the URL to extract a file from a gsPath. Pass to curl on the DUT.
 func createExtractURL(ctx context.Context, gsPath, fileInArchive string, cacheServer url.URL) (url.URL, error) {
 	gsPathURL, err := url.Parse(gsPath)
 	if err != nil {
@@ -342,40 +344,4 @@ func createExtractURL(ctx context.Context, gsPath, fileInArchive string, cacheSe
 	v.Set("file", fileInArchive)
 	extractURL.RawQuery = v.Encode()
 	return extractURL, nil
-}
-
-// stageFile stages a gsPath on the cache server.
-func stageFile(ctx context.Context, gsPath string, cacheServer url.URL) error {
-	stagingURL := createStageURL(ctx, gsPath, cacheServer)
-	log.Printf("[FW Provisioning: Stage FW] staging %q\n", stagingURL.String())
-	var client http.Client
-	resp, err := client.Get(stagingURL.String())
-	if err != nil {
-		return errors.Wrapf(err, "failed to stage %q", stagingURL.String())
-	}
-	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("error %s to stage %q", resp.Status, stagingURL.String())
-	}
-
-	return nil
-}
-
-// extractFile extracts a file from an archive using the cache server.
-func extractFile(ctx context.Context, gsPath, fileInArchive string, cacheServer url.URL) (io.ReadCloser, error) {
-	extractURL, err := createExtractURL(ctx, gsPath, fileInArchive, cacheServer)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate url")
-	}
-	log.Printf("[FW Provisioning: Stage FW] extract %q\n", extractURL.String())
-
-	var client http.Client
-	resp, err := client.Get(extractURL.String())
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to extract %q", extractURL.String())
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("error %s to extract %q", resp.Status, extractURL.String())
-	}
-
-	return resp.Body, nil
 }

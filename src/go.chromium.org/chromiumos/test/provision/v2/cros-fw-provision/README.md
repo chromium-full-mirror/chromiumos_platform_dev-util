@@ -146,7 +146,7 @@ cros-fw-provision will need the cache server started.
 Run the test with fast_build.sh:
 
 ```
-~/chromiumos/src/platform/dev/fast_build.sh -t go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision
+~/chromiumos/src/platform/dev/fast_build.sh -t go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/...
 ```
 
 ### Generate coverage report

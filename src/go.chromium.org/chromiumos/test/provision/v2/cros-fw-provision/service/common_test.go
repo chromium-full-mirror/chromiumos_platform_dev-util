@@ -51,6 +51,90 @@ func TestGetCandidateURLs(t *testing.T) {
 				},
 			},
 		},
+		{
+			inputGsUrl:       "gs://firmware-image-archive/firmware-ec-R134-16181.3.B/16181.3.14/rex/firmware_from_source.tar.bz2",
+			board:            "rex",
+			model:            "karis",
+			corebootName:     "karis",
+			legacyECName:     "karis",
+			standaloneECName: "karis",
+			expectedAPCandidates: []ImageCandidate{
+				{
+					GSURL:     "gs://firmware-image-archive/firmware-ec-R134-16181.3.B/16181.3.14/karis.16181.3.14.tar.bz2",
+					Filenames: []string{"image-karis.bin"},
+				},
+				{
+					GSURL:     "gs://firmware-image-archive/firmware-ec-R134-16181.3.B/16181.3.14/rex/firmware_from_source.tar.bz2",
+					Filenames: []string{"image-karis.bin", "image-karis.bin", "image-rex.bin", "image.bin", "bios.bin"},
+				},
+			},
+			expectedECCandidates: []ImageCandidate{
+				{
+					GSURL:     "gs://firmware-image-archive/firmware-ec-R134-16181.3.B/16181.3.14/karis.EC.16181.3.14.tar.bz2",
+					Filenames: []string{"ec.bin"},
+				},
+				{
+					GSURL:     "gs://firmware-image-archive/firmware-ec-R134-16181.3.B/16181.3.14/rex/firmware_from_source.tar.bz2",
+					Filenames: []string{"karis/ec.bin", "karis/ec.bin", "rex/ec.bin", "ec.bin"},
+				},
+			},
+		},
+		{
+			inputGsUrl:       "gs://firmware-image-archive/firmware-ec-R134-16181.3.B/16181.3.14/karis.16181.3.14.tar.bz2",
+			board:            "rex",
+			model:            "karis",
+			corebootName:     "karis",
+			legacyECName:     "karis",
+			standaloneECName: "karis",
+			expectedAPCandidates: []ImageCandidate{
+				{
+					GSURL:     "gs://firmware-image-archive/firmware-ec-R134-16181.3.B/16181.3.14/karis.16181.3.14.tar.bz2",
+					Filenames: []string{"image-karis.bin"},
+				},
+				{
+					GSURL:     "gs://firmware-image-archive/firmware-ec-R134-16181.3.B/16181.3.14/karis.16181.3.14.tar.bz2",
+					Filenames: []string{"image-karis.bin", "image-karis.bin", "image-rex.bin", "image.bin", "bios.bin"},
+				},
+			},
+			expectedECCandidates: []ImageCandidate{
+				{
+					GSURL:     "gs://firmware-image-archive/firmware-ec-R134-16181.3.B/16181.3.14/karis.EC.16181.3.14.tar.bz2",
+					Filenames: []string{"ec.bin"},
+				},
+				{
+					GSURL:     "gs://firmware-image-archive/firmware-ec-R134-16181.3.B/16181.3.14/karis.16181.3.14.tar.bz2",
+					Filenames: []string{"karis/ec.bin", "karis/ec.bin", "rex/ec.bin", "ec.bin"},
+				},
+			},
+		},
+		{
+			inputGsUrl:       "gs://chromeos-image-archive/firmware-rex-15709.B-branch-firmware/R122-15709.59.0/rex/firmware_from_source.tar.bz2",
+			board:            "rex",
+			model:            "karis",
+			corebootName:     "karis",
+			legacyECName:     "karis",
+			standaloneECName: "karis",
+			expectedAPCandidates: []ImageCandidate{
+				{
+					GSURL:     "gs://firmware-image-archive/firmware-rex-15709.B/15709.59.0/karis.15709.59.0.tar.bz2",
+					Filenames: []string{"image-karis.bin"},
+				},
+				{
+					GSURL:     "gs://chromeos-image-archive/firmware-rex-15709.B-branch-firmware/R122-15709.59.0/rex/firmware_from_source.tar.bz2",
+					Filenames: []string{"image-karis.bin", "image-karis.bin", "image-rex.bin", "image.bin", "bios.bin"},
+				},
+			},
+			expectedECCandidates: []ImageCandidate{
+				{
+					GSURL:     "gs://firmware-image-archive/firmware-rex-15709.B/15709.59.0/karis.EC.15709.59.0.tar.bz2",
+					Filenames: []string{"ec.bin"},
+				},
+				{
+					GSURL:     "gs://chromeos-image-archive/firmware-rex-15709.B-branch-firmware/R122-15709.59.0/rex/firmware_from_source.tar.bz2",
+					Filenames: []string{"karis/ec.bin", "karis/ec.bin", "rex/ec.bin", "ec.bin"},
+				},
+			},
+		},
 	}
 	for _, testCase := range testCases {
 		t.Logf("Running testCase %+v", testCase)
