@@ -233,6 +233,13 @@ func GetECCandidateURLs(ctx context.Context, gsPath string, fws *FirmwareService
 // image to use, extracts only it, and returns a path to extracted image.
 // board and model(aka variant) are optional.
 func PickAndExtractMainImage(ctx context.Context, dut api.DutServiceClient, imageMetadata ImageArchiveMetadata, gsPath string, fws *FirmwareService) (string, error) {
+	// Short circuit if we already downloaded the image
+	destPath := fmt.Sprintf("%s/bios.bin", imageMetadata.ArchiveDir)
+	_, _, err := RunDUTCommand(ctx, dut, curlExtractTimeout, "test", []string{"-f", fmt.Sprintf("'%s'", destPath)}, nil)
+	if err == nil {
+		log.Printf("File already downloaded: %s", destPath)
+		return destPath, nil
+	}
 	candidates, err := GetAPCandidateURLs(ctx, gsPath, fws)
 	if err != nil {
 		log.Printf("Failed to calculate candidates: %v", err)
@@ -254,7 +261,6 @@ func PickAndExtractMainImage(ctx context.Context, dut api.DutServiceClient, imag
 			if err != nil {
 				return "", errors.Wrapf(err, "no url for %q", filename)
 			}
-			destPath := fmt.Sprintf("%s/bios.bin", imageMetadata.ArchiveDir)
 			if ok, err := ExtractFile(ctx, dut, url.String(), destPath); err != nil {
 				return "", errors.Wrapf(err, "extract %q", filename)
 			} else if !ok {
@@ -273,6 +279,13 @@ Specifying board and model may help`, candidates)
 // image to use, extracts only it, and returns a path to extracted image.
 // board and model(aka variant) are optional.
 func PickAndExtractECImage(ctx context.Context, dut api.DutServiceClient, imageMetadata ImageArchiveMetadata, gsPath string, fws *FirmwareService) (string, error) {
+	// Short circuit if we already downloaded the image
+	destPath := fmt.Sprintf("%s/ec.bin", imageMetadata.ArchiveDir)
+	_, _, err := RunDUTCommand(ctx, dut, curlExtractTimeout, "test", []string{"-f", fmt.Sprintf("'%s'", destPath)}, nil)
+	if err == nil {
+		log.Printf("File already downloaded: %s", destPath)
+		return destPath, nil
+	}
 	candidates, err := GetECCandidateURLs(ctx, gsPath, fws)
 	if err != nil {
 		log.Printf("Failed to calculate candidates: %v", err)
@@ -294,7 +307,6 @@ func PickAndExtractECImage(ctx context.Context, dut api.DutServiceClient, imageM
 			if err != nil {
 				return "", errors.Wrapf(err, "no url for %q", filename)
 			}
-			destPath := fmt.Sprintf("%s/ec.bin", imageMetadata.ArchiveDir)
 			if ok, err := ExtractFile(ctx, dut, url.String(), destPath); err != nil {
 				return "", errors.Wrapf(err, "extract %q", filename)
 			} else if !ok {

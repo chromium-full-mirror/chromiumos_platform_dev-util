@@ -334,6 +334,10 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 				Command: "mkdir",
 				Args:    []string{"-p", "'/var/tmp/some TempDir'"},
 			}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+				Command: "test",
+				Args:    []string{"-f", "'/var/tmp/some TempDir/ec.bin'"},
+			}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}}), nil)
 			stagingCall := dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
 				Command: "curl",
 				Args:    []string{"-f", "-S", stagingURL},
@@ -360,6 +364,10 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 				Command: "curl",
 				Args:    []string{"-f", "-S", stagingURL},
 			}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+				Command: "test",
+				Args:    []string{"-f", "'/var/tmp/some TempDir/bios.bin'"},
+			}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}}), nil)
 			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("'/var/tmp/some TempDir/bios.bin'", gomock.Eq("image-test_model.bin"), log)).
 				After(stagingCall).After(mkdirCall).MaxTimes(1).
 				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stderr: []byte("The requested URL returned error: 404\n")}), nil)
@@ -375,6 +383,10 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 				Command: "curl",
 				Args:    []string{"-f", "-S", stagingURL},
 			}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+				Command: "test",
+				Args:    []string{"-f", "'/var/tmp/some TempDir/bios.bin'"},
+			}}).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}}), nil)
 			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("'/var/tmp/some TempDir/bios.bin'", gomock.Eq("image-test_model.bin"), log)).
 				After(stagingCall).After(mkdirCall).MaxTimes(1).
 				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stderr: []byte("The requested URL returned error: 404\n")}), nil)
