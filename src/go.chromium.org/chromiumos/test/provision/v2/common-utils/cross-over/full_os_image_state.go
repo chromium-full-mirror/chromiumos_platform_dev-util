@@ -67,16 +67,16 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 	defer client.Close()
 	setPDRole(ctx, log, "src", s.params)
 
-	var session *ssh.Session
-	session, err := client.NewSession()
-	if err != nil {
-		log.Println("Failed to create session: ", err)
-		return common_utils.WrapStringInAny(s.errStatus("INFRA: cannot SSH to DUT")), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
-	}
-
 	cacheServer := s.params.Dut.GetCacheServer().GetAddress()
 	ipFunc := func() {
 		log.Println("IP info")
+		var session *ssh.Session
+		session, err := client.NewSession()
+		if err != nil {
+			log.Println("Failed to create session: ", err)
+			return
+		}
+
 		// Jumble the command, we don't care what fails or not, any output, simply print it.
 		const ipCmd = "set -e; ip rule show; ip route show table all; route; ifconfig eth0; echo 'All commands succeeded'"
 		if output, err := session.CombinedOutput(ipCmd); err != nil {
@@ -91,6 +91,13 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		defer cancel()
 		networkCheckCmd := fmt.Sprintf("curl --max-time 5 -s -o/dev/null %s/check_health", cacheServer)
 		for {
+			var session *ssh.Session
+			session, err := client.NewSession()
+			if err != nil {
+				log.Println("Failed to create session: ", err)
+				return err
+			}
+
 			select {
 			case <-shorterCtx.Done():
 				return errors.New("Failed while waiting for network connection.")
