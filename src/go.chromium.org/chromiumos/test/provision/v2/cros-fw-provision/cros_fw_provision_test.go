@@ -139,7 +139,7 @@ func newFileResponse(pb *api.File) *dutServiceFetchFileClient {
 func TestDetailedRequestSSHStates(t *testing.T) {
 	fakeGSPath := "gs://chromeos-image-archive/board-firmware-branch/R123-12345.0.0/board/firmware_from_source.tar.bz2"
 
-	makeRequest := func(main_rw, main_ro, ec_ro bool) *api.InstallRequest {
+	makeRequest := func(main_rw, main_ro, ec_ro, ec_rw bool) *api.InstallRequest {
 		fakePayload := &build_api.FirmwarePayload{FirmwareImage: &build_api.FirmwarePayload_FirmwareImagePath{FirmwareImagePath: &conf.StoragePath{HostType: conf.StoragePath_GS, Path: fakeGSPath}}}
 		FirmwareConfig := build_api.FirmwareConfig{}
 		if main_rw {
@@ -150,6 +150,9 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 		}
 		if ec_ro {
 			FirmwareConfig.EcRoPayload = fakePayload
+		}
+		if ec_rw {
+			FirmwareConfig.EcRwPayload = fakePayload
 		}
 		any, err := anypb.New(&api.FirmwareProvisionInstallMetadata{
 			FirmwareConfig: &FirmwareConfig,
@@ -180,12 +183,13 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 
 	type TestCase struct {
 		// inputs
-		mainRw, mainRo, ecRo bool
-		configYAML           string
+		mainRw, mainRo, ecRo, ecRw bool
+		configYAML                 string
 		// These are the first files that will exist in the archive.
 		apImageWithinArchive   string
 		ecImageWithinArchive   string
 		npcxImageWithinArchive string
+		ecConfigWithinArchive  string
 		// expected outputs
 		updateRw, updateRo     bool
 		expectConstructorError bool
@@ -206,14 +210,14 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 	}
 
 	testCases := []TestCase{
-		{ /*in*/ false, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, false /*err*/, true, fullVersion},
-		{ /*in*/ true, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, false /*err*/, false, fullVersion},
-		{ /*in*/ false, true, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false, roOnlyVersion},
-		{ /*in*/ false, false, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false, roOnlyVersion},
-		{ /*in*/ false, true, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, false, true /*err*/, false, roOnlyVersion},
-		{ /*in*/ true, true, true, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, true /*err*/, false, fullVersion},
-		{ /*in*/ true, true, false, "", "image.bin", "ec.bin", "npcx_monitor.bin" /*out*/, true, true /*err*/, false, fullVersion},
-		{ /*in*/ true, true, true, `{
+		{ /*in*/ false, false, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin", "ec.config" /*out*/, false, false /*err*/, true, fullVersion},
+		{ /*in*/ true, false, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin", "ec.config" /*out*/, true, false /*err*/, false, fullVersion},
+		{ /*in*/ false, true, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin", "ec.config" /*out*/, false, true /*err*/, false, roOnlyVersion},
+		{ /*in*/ false, false, true, false, "", "image.bin", "ec.bin", "npcx_monitor.bin", "ec.config" /*out*/, false, true /*err*/, false, roOnlyVersion},
+		{ /*in*/ false, true, true, false, "", "image.bin", "ec.bin", "npcx_monitor.bin", "ec.config" /*out*/, false, true /*err*/, false, roOnlyVersion},
+		{ /*in*/ true, true, true, false, "", "image.bin", "ec.bin", "npcx_monitor.bin", "ec.config" /*out*/, true, true /*err*/, false, fullVersion},
+		{ /*in*/ true, true, false, false, "", "image.bin", "ec.bin", "npcx_monitor.bin", "ec.config" /*out*/, true, true /*err*/, false, fullVersion},
+		{ /*in*/ true, true, true, false, `{
 			"chromeos": {
 				"configs": [{
 					"firmware": {
@@ -227,7 +231,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 					"name": "test_model"
 				}]
 			}
-		}`, "image-fromcoreboot.bin", "fromcoreboot/ec.bin", "fromcoreboot/npcx_monitor.bin" /*out*/, true, true /*err*/, false, fullVersion},
+		}`, "image-fromcoreboot.bin", "fromcoreboot/ec.bin", "fromcoreboot/npcx_monitor.bin", "fromcoreboot/ec.config" /*out*/, true, true /*err*/, false, fullVersion},
 	}
 
 	log, _ := cli.SetUpLog(cli.DefaultLogDirectory)
@@ -239,7 +243,7 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 
 		// Create FirmwareService.
 		ctx := context.Background()
-		req := makeRequest(testCase.mainRw, testCase.mainRo, testCase.ecRo)
+		req := makeRequest(testCase.mainRw, testCase.mainRo, testCase.ecRo, testCase.ecRw)
 		log.Printf("  Test Case: %#v\n  Request: {%s}", testCase, req.String())
 		cacheServer := url.URL{
 			Scheme: "http",
@@ -354,6 +358,9 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("'/var/tmp/some TempDir/npcx_monitor.bin'", gomock.Eq(testCase.npcxImageWithinArchive), log)).
 				After(stagingCall).After(mkdirCall).Times(1).
 				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("'/var/tmp/some TempDir/ec.config'", gomock.Eq(testCase.ecConfigWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
 		}
 		if testCase.mainRo {
 			dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
@@ -394,6 +401,27 @@ func TestDetailedRequestSSHStates(t *testing.T) {
 				After(stagingCall).After(mkdirCall).MaxTimes(1).
 				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stderr: []byte("The requested URL returned error: 404\n")}), nil)
 			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("'/var/tmp/some TempDir/bios.bin'", gomock.Eq(testCase.apImageWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+		}
+		if testCase.ecRw {
+			stagingCall := dsc.EXPECT().ExecCommand(gomock.Any(), &rpcMsg{msg: &api.ExecCommandRequest{
+				Command: "curl",
+				Args:    []string{"-f", "-S", stagingURL},
+			}}).MinTimes(1).Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("'/var/tmp/some TempDir/ec.bin'", gomock.Eq("test_board/ec.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stderr: []byte("The requested URL returned error: 404\n")}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("'/var/tmp/some TempDir/ec.bin'", gomock.Eq("test_model/ec.bin"), log)).
+				After(stagingCall).After(mkdirCall).MaxTimes(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{Status: 1}, Stderr: []byte("The requested URL returned error: 404\n")}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("'/var/tmp/some TempDir/ec.bin'", gomock.Eq(testCase.ecImageWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("'/var/tmp/some TempDir/npcx_monitor.bin'", gomock.Eq(testCase.npcxImageWithinArchive), log)).
+				After(stagingCall).After(mkdirCall).Times(1).
+				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
+			dsc.EXPECT().ExecCommand(gomock.Any(), newCurlMatcher("'/var/tmp/some TempDir/ec.config'", gomock.Eq(testCase.ecConfigWithinArchive), log)).
 				After(stagingCall).After(mkdirCall).Times(1).
 				Return(newResponse(&api.ExecCommandResponse{ExitInfo: &api.ExecCommandResponse_ExitInfo{}}), nil)
 		}

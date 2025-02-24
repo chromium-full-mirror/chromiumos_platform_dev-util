@@ -12,6 +12,7 @@ import (
 )
 
 // ServiceState is a single state representation.
+// TODO: Get rid of this state machine.
 type ServiceState interface {
 	// Execute Runs the state
 	Execute(ctx context.Context, log *log.Logger) (*api.FirmwareProvisionResponse, api.InstallResponse_Status, error)

@@ -7,6 +7,52 @@ builds is called "provisioning".
 
 See go/cft-fw-provision-v2 for background.
 
+## Input proto
+
+The request to provision comes in as a chromiumos.test.api.InstallRequest with
+the metadata field populated with
+chromiumos.test.api.FirmwareProvisionInstallMetadata. The fields in
+firmware_config can be populated in these configurations:
+
+* main_ro_payload - The AP RO and AP RW A/B will be updated with this image. As
+  a side effect, the EC RW will also be updated to the version embedded in the
+  AP RW image. The EC RO will remain untouched.
+* main_rw_payload - The AP RW A/B will be updated with this image. As
+  a side effect, the EC RW will also be updated to the version embedded in the
+  AP RW image. The AP & EC RO will remain untouched.
+* ec_ro_payload - The EC RO will be updated with this image. The AP RO/RW & EC
+  RW will be left untouched.
+* ec_rw_payload - The EC RW from this image will be embedded into the AP RW for
+  A and B, and flashed to AP RW A/B.
+
+Here are some common combinations, and where the image comes from:
+
+Payloads | AP RO | EC RO | AP RW | EC RW | Note
+-|-|-|-|-|-
+main_ro + ec_ro | main_ro | ec_ro | main_ro | main_ro | Typical for faft tests w/o EC branch
+main_ro + ec_ro + main_rw | main_ro | ec_ro | main_rw | main_rw | Typical for FW Qual w/o EC branch
+main_ro + ec_ro + main_rw + ec_rw | main_ro | ec_ro | main_rw | ec_rw | Typical for FW Qual w/ EC branch
+main_ro + ec_ro + ec_rw | main_ro | ec_ro | main_ro | ec_rw | Typical for faft tests w/ EC branch
+main_rw | - | - | main_rw | main_rw
+main_rw + ec_rw | - | - | main_rw | ec_rw
+
+After the firmware is updated, the version numbers will be checked to ensure
+the update was successful. The AP firmware version for the inactive bank (A or
+B) will not be checked, only the active firmware.
+
+### Paths
+
+The paths in the payload fields above should be a gs path to the archive
+containing the image for the correct model. However, if the image is a
+firmware_from_source archive, the code will look first for a model specific
+file in the `gs://firmware-image-archive` bucket. I.e. If you are flashing a
+brya/omnigul DUT, then a url like
+`gs://chromeos-image-archive/firmware-brya-14505.B-branch/R100-14505.832.0-1-8730368903603296945/brya/firmware_from_source.tar.bz2`
+will search for
+`gs://firmware-image-archive/firmware-brya-14505.B/14505.832.0/omnigul.14505.832.0.tar.bz2`
+first, and if it is not found, extract `image-omnigul.bin` from the giant
+`firmware_from_source.tar.bz2` archive.
+
 ## Launching
 
 A prebuilt cros-fw-provision will be available in the chroot.  To launch it,
@@ -68,6 +114,8 @@ Run cros-fw-provision inside chroot
 ```
 CACHE_SERVER=192.168.100.1
 FW_IMAGE=$(gsutil ls -l gs://chromeos-image-archive/firmware-{brya,glados,oak,${BOARD?}}*-branch/*/${BOARD?}/firmware_from_source.tar.bz2 | grep -v TOTAL | sort -k2 | tail -1 | awk '{print $3}')
+EC_BRANCH=$(gsutil ls -d gs://firmware-image-archive/firmware-ec-R* | tail -1)
+EC_IMAGE=$(gsutil ls -l ${EC_BRANCH}*/${BOARD}/firmware_from_source.tar.bz2 | grep -v TOTAL | sort -k2 | tail -1 | awk '{print $3}')
 cat >startup.json <<STARTUP
 {
         "dut": {
@@ -102,6 +150,7 @@ cat >startup.json <<STARTUP
         }
 }
 STARTUP
+# Typical case for tip of branch testing
 cat >install.json <<INSTALL
 {
         "metadata": {
@@ -116,7 +165,13 @@ cat >install.json <<INSTALL
                         "ecRoPayload": {
                                 "firmwareImagePath": {
                                         "hostType": "GS",
-                                        "path": "${FW_IMAGE?}"
+                                        "path": "${EC_IMAGE?}"
+                                }
+                        },
+                        "ecRwPayload": {
+                                "firmwareImagePath": {
+                                        "hostType": "GS",
+                                        "path": "${EC_IMAGE?}"
                                 }
                         }
                 }
@@ -126,6 +181,15 @@ INSTALL
 ~/chromiumos/src/platform/dev/fast_build.sh -b go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision \
         -o ~/go/bin/cros-fw-provision && \
         ~/go/bin/cros-fw-provision cli -startup startup.json -install install.json
+```
+
+If you want to test specific versions like a firmware qual would, this command
+should help you find the path:
+
+```
+BOARD=rex
+VERSION=16151.2.19
+gsutil ls -d gs://{firmware,chromeos}-image-archive/firmware-{ec,${BOARD}}*/*${VERSION}*
 ```
 
 ## Dependencies

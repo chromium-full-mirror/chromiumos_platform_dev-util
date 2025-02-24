@@ -35,6 +35,8 @@ type FirmwareVersions struct {
 		Versions struct {
 			RO string `yaml:"ro"`
 			RW string `yaml:"rw"`
+			// The EC version embedded within the AP-RW image.
+			ECRW string `yaml:"ecrw"`
 		} `yaml:"versions"`
 	} `yaml:"host"`
 	EC struct {
@@ -56,6 +58,7 @@ type FirmwareService struct {
 	mainRwPath *conf.StoragePath
 	mainRoPath *conf.StoragePath
 	ecRoPath   *conf.StoragePath
+	ecRwPath   *conf.StoragePath
 
 	board, model string
 	// The name of the model's fw binary from config.yaml
@@ -135,6 +138,7 @@ func NewFirmwareService(ctx context.Context, dutServer api.DutServiceClient,
 	// flashed with write protection turned off.
 	fws.mainRoPath = detailedRequest.MainRoPayload.GetFirmwareImagePath()
 	fws.ecRoPath = detailedRequest.EcRoPayload.GetFirmwareImagePath()
+	fws.ecRwPath = detailedRequest.EcRwPayload.GetFirmwareImagePath()
 
 	if useServo {
 		fws.prepareServoConnection(ctx, servoClient)
@@ -215,6 +219,9 @@ func (fws *FirmwareService) PrintRequestInfo() {
 	if fws.ecRoPath != nil {
 		images = append(images, "EC(RO)")
 	}
+	if fws.ecRwPath != nil {
+		images = append(images, "EC(RW)")
+	}
 	informationString += strings.Join(images, " and ") + " firmware"
 
 	flashMode := "SSH"
@@ -231,7 +238,8 @@ func (fws *FirmwareService) PrintRequestInfo() {
 
 // UpdateRw returns whether the read/write firmware is being operated on.
 func (fws *FirmwareService) UpdateRw() bool {
-	return fws.mainRwPath != nil
+	// If AP RW was specified, or EC RW without AP RO
+	return fws.mainRwPath != nil || (fws.ecRwPath != nil && fws.mainRoPath == nil)
 }
 
 // UpdateRo returns whether the read-only firmware is being operated on.
@@ -373,9 +381,11 @@ func (fws *FirmwareService) ServodDockerContainerName() string {
 // If flashing over ssh, simply calls runFutility().
 // If flashing over servo, also runs pre- and post-flashing dut-controls.
 func (fws *FirmwareService) FlashWithFutility(ctx context.Context, rwOnly bool, futilityImageArgs []string, apImagePath, ecImagePath string) error {
+	// TODO: Remove this and move to call sites.
 	if err := fws.ExtractFirmwareVersions(ctx, rwOnly, futilityImageArgs, apImagePath); err != nil {
 		return errors.Wrap(err, "extract versions")
 	}
+
 	err := fws.sshFlash(ctx, rwOnly, futilityImageArgs, ecImagePath)
 	if err != nil && strings.Contains(err.Error(), "CSME_LOCKED") {
 		if fws.servoClient != nil {
@@ -466,6 +476,7 @@ func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly 
 
 	// b/360198909: Sometimes the output contains control characters.
 	out = strings.ReplaceAll(out, "\x01", "")
+	log.Printf("Manifest: %s", out)
 
 	versions := versionJSON{}
 	err = yaml.Unmarshal([]byte(out), &versions)
@@ -482,12 +493,13 @@ func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly 
 	if !rwOnly && versions.Default.EC.Versions.RO != "" {
 		fws.ExpectedVersions.EC.Versions.RO = versions.Default.EC.Versions.RO
 	}
-	if versions.Default.EC.Versions.RW != "" {
-		fws.ExpectedVersions.EC.Versions.RW = versions.Default.EC.Versions.RW
+	if versions.Default.AP.Versions.ECRW != "" && fws.board != "drallion" && fws.board != "sarien" {
+		fws.ExpectedVersions.EC.Versions.RW = versions.Default.AP.Versions.ECRW
+		fws.ExpectedVersions.EC.Versions.RWHash = ""
 	}
 
-	if apImagePath != "" && fws.board != "drallion" && fws.board != "sarien" {
-		// Get the EC RW hash from the AP image, since the version in the manifest may be wrong.
+	// If there is no EC RW version, get the EC RW hash from the AP image.
+	if versions.Default.AP.Versions.ECRW == "" && apImagePath != "" && fws.board != "drallion" && fws.board != "sarien" {
 		ecImagePath := fmt.Sprintf("%s-ecrw.hash", apImagePath)
 		_, err = connection.RunCmd(ctx, "cbfstool", []string{fmt.Sprintf("'%s'", apImagePath), "extract", "-r", "FW_MAIN_A", "-n", "ecrw.hash", "-f", fmt.Sprintf("'%s'", ecImagePath)})
 		if err != nil {
@@ -497,9 +509,9 @@ func (fws *FirmwareService) ExtractFirmwareVersions(ctx context.Context, rwOnly 
 		if err != nil {
 			return errors.Wrap(err, "failed to get ecrw hash")
 		}
-		fws.ExpectedVersions.EC.Versions.RW = ""
 		fws.ExpectedVersions.EC.Versions.RWHash = strings.Join(strings.FieldsFunc(out, unicode.IsSpace), "")
 	}
+	log.Printf("fws.ExpectedVersions: %+v", fws.ExpectedVersions)
 	return nil
 }
 
@@ -659,7 +671,7 @@ with open("`)
 		csmeLockedRe := regexp.MustCompile(`The CSME was already locked`)
 
 		// Poll every 10s for the log file to appear and have the "EXIT CODE:" string in it.
-		for time.Now().Sub(startTime) < 10*time.Minute {
+		for time.Since(startTime) < 10*time.Minute {
 			time.Sleep(10 * time.Second)
 			catCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			defer cancel()
@@ -770,6 +782,11 @@ func (fws *FirmwareService) GetMainRoPath() string {
 // GetEcRoPath returns the path for the readonly portion of the EC firmware.
 func (fws *FirmwareService) GetEcRoPath() string {
 	return fws.ecRoPath.GetPath()
+}
+
+// GetEcRwPath returns the path for the read/write portion of the EC firmware.
+func (fws *FirmwareService) GetEcRwPath() string {
+	return fws.ecRwPath.GetPath()
 }
 
 type configData struct {

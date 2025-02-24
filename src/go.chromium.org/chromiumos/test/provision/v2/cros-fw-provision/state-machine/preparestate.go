@@ -6,8 +6,9 @@ package state_machine
 
 import (
 	"context"
-	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 	"log"
+
+	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
 )
@@ -48,6 +49,11 @@ func (s FirmwarePrepareState) Execute(ctx context.Context, log *log.Logger) (*ap
 	}
 	if ecRoPath := s.service.GetEcRoPath(); len(ecRoPath) > 0 {
 		if err := s.service.DownloadAndProcess(ctx, ecRoPath); err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
+		}
+	}
+	if ecRwPath := s.service.GetEcRwPath(); len(ecRwPath) > 0 {
+		if err := s.service.DownloadAndProcess(ctx, ecRwPath); err != nil {
 			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
 		}
 	}

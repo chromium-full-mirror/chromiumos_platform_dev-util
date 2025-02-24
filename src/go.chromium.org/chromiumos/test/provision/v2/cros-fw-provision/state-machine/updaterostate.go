@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/pkg/errors"
 	firmwareservice "go.chromium.org/chromiumos/test/provision/v2/cros-fw-provision/service"
 
 	"go.chromium.org/chromiumos/config/go/test/api"
@@ -29,7 +30,7 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 	// form futility command args based on the request
 	var futilityImageArgs []string
 	// Detailed Request
-	var mainRoPath, ecRoPath string
+	var mainRoPath, ecRoPath, ecRwPath string
 	var err error
 	board := s.service.GetBoard()
 	ecRoMetadata, ok := s.service.GetImageMetadata(s.service.GetEcRoPath())
@@ -102,7 +103,26 @@ func (s FirmwareUpdateRoState) Execute(ctx context.Context, log *log.Logger) (*a
 		}
 	}
 
-	log.Printf("[FW Provisioning: Update RO] flashing RO firmware with futility\n")
+	// If EC RW is present, but AP RW is not, and we were going to flash the AP anyway, then run swap_ec_rw on mainRoPath
+	ecRwMetadata, ok := s.service.GetImageMetadata(s.service.GetEcRwPath())
+	if mainRoPath != "" && s.service.GetMainRwPath() == "" && ok && board != "drallion" && board != "sarien" {
+		log.Printf("[FW Provisioning: Update RO] extracting EC-RW image to flash\n")
+		ecRwPath, err = firmwareservice.PickAndExtractECImage(ctx, s.service.DUTServer, ecRwMetadata, s.service.GetEcRwPath(), s.service)
+		if err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
+		}
+		newMainPath, err := firmwareservice.SwapECRWImage(ctx, s.service.DUTServer, mainRoPath, ecRwPath)
+		if err != nil {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
+		}
+		if newMainPath != mainRoPath {
+			return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, errors.Errorf("newMainPath unexpected, got %q, want %q", newMainPath, mainRoPath)
+		}
+	}
+
+	// TODO: Call fws.ExtractFirmwareVersions & fws.ActiveFirmwareVersions, and if they match, then skip flashing.
+	// TODO: Remove fws.ExtractFirmwareVersions from fws.FlashWithFutility
+	log.Printf("[FW Provisioning: Update RO] flashing RO/RW firmware with futility\n")
 	err = s.service.FlashWithFutility(ctx, false /* WP */, futilityImageArgs, mainRoPath, ecRoPath)
 	if err != nil {
 		return nil, api.InstallResponse_STATUS_UPDATE_FIRMWARE_FAILED, firmwareservice.UpdateFirmwareFailedErr(err)
