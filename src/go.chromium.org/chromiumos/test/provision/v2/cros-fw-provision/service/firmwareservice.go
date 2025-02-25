@@ -669,6 +669,7 @@ with open("`)
 		startTime := time.Now()
 		exitCodeRe := regexp.MustCompile(`EXIT CODE: (-?\d+)`)
 		csmeLockedRe := regexp.MustCompile(`The CSME was already locked`)
+		logfileLen := 0
 
 		// Poll every 10s for the log file to appear and have the "EXIT CODE:" string in it.
 		for time.Since(startTime) < 10*time.Minute {
@@ -684,6 +685,17 @@ with open("`)
 				if err != nil {
 					log.Printf("failed to download %q: %v", startupLogFile, err)
 					continue
+				} else {
+					log.Printf("Futility startup:\n%s", buf)
+				}
+			} else {
+				if logfileLen > len(buf) {
+					log.Printf("Logfile shrank! Might be an EC crash. Was %d, now %d", logfileLen, len(buf))
+					log.Printf("Futility output:\n%s", buf)
+					logfileLen = len(buf)
+				} else {
+					log.Printf("Futility output:\n%s", buf[logfileLen:])
+					logfileLen = len(buf)
 				}
 			}
 			m := csmeLockedRe.FindStringSubmatch(buf)
@@ -699,8 +711,6 @@ with open("`)
 					return nil
 				}
 				return errors.Errorf("futility failed: %q", buf)
-			} else {
-				log.Printf("Exit code not found in %q\n", buf)
 			}
 		}
 		return errors.New("Timeout waiting for futility")
