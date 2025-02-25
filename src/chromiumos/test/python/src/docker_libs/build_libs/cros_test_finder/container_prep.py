@@ -39,9 +39,20 @@ class CrosTestFinderArtifactPrep(common_artifact_prep.CrosArtifactPrep):
 
     def prep(self):
         """Run the steps needed to prep the container artifacts."""
-        self.copy_service()
-        shutil.copy(
-            os.path.join(self.chroot_bin, "test_finder_filter"), self.full_out
+        # Download the required packages
+        self.install_cipd_package()
+        self.cipd_init()
+        self.cipd_install(
+            package="chromiumos/infra/cft/cros-test-finder/linux-amd64",
+            ref="prod",
+            json_output_file="cros-test-finder_cipd_metadata.json",
+        )
+        self.cipd_install(
+            package=(
+                "chromiumos/infra/ctpv2-filters/test_finder_filter/linux-amd64"
+            ),
+            ref="prod",
+            json_output_file="test_finder_filter_cipd_metadata.json",
         )
         self.copy_metadata()
         self.copy_dockercontext()

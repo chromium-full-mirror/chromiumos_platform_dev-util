@@ -5,12 +5,12 @@
 package main
 
 import (
-	"context"
+	"log"
 	"os"
-
-	"go.chromium.org/chromiumos/test/test_finder"
 )
 
 func main() {
-	os.Exit(test_finder.TestFinderInternal(context.Background()))
+	log.Println("cros-test-finder has been moved to https://chromium.googlesource.com/infra/infra/+/refs/heads/main/go/src/infra/cros/cmd/cft/cros-test-finder/")
+
+	os.Exit(0)
 }
