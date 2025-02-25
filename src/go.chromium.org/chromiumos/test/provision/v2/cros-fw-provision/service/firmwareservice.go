@@ -893,6 +893,11 @@ func (fws *FirmwareService) ReadConfigYAML(ctx context.Context) error {
 			}
 		}
 	}
+	// Special case for reef boards. See b/398900326
+	if fws.CorebootName != fws.LegacyECName && fws.LegacyECName == "reef" {
+		log.Printf("Overriding EC name to '%q", fws.CorebootName)
+		fws.LegacyECName = fws.CorebootName
+	}
 	log.Printf("config.yaml image names AP: %s EC(legacy): %s EC(standalone): %s", fws.CorebootName, fws.LegacyECName, fws.StandaloneECName)
 	return nil
 }
