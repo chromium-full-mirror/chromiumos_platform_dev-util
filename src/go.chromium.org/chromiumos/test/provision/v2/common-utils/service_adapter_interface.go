@@ -123,7 +123,7 @@ func (s ServiceAdapter) execCmd(ctx context.Context, cmd string, args []string, 
 		return
 	}
 	if execCmdResponse.ExitInfo.Status != 0 {
-		err = fmt.Errorf("status:%v message:%v", execCmdResponse.ExitInfo.Status, execCmdResponse.ExitInfo.ErrorMessage)
+		err = fmt.Errorf("status: %v message: %v STDOUT: %v STDERR :%v", execCmdResponse.ExitInfo.Status, execCmdResponse.ExitInfo.ErrorMessage, execCmdResponse.Stdout, execCmdResponse.Stderr)
 	}
 	if string(execCmdResponse.Stderr) != "" {
 		log.Printf("<cros-provision> execution finished with stderr: %s\n", string(execCmdResponse.Stderr))
