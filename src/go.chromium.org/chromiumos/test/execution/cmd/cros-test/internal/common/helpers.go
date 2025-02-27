@@ -30,7 +30,8 @@ import (
 
 // TestScanner makes a scanner to read from test streams.
 func TestScanner(stream io.Reader, logger *log.Logger, harness string) {
-	const maxCapacity = 4096 * 1024
+	// Set max buffer size to 16MB to account for long outputs.
+	const maxCapacity = 16 * 1024 * 1024
 	scanner := bufio.NewScanner(stream)
 	// Expand the buffer size to avoid deadlocks on heavy logs
 	buf := make([]byte, maxCapacity)
