@@ -113,7 +113,7 @@ func (s FullOSImageState) Execute(ctx context.Context, log *log.Logger) (*anypb.
 		}
 	}
 	if err := networkWaitFunc(); err != nil {
-		return common_utils.WrapStringInAny(s.errStatus("INFRA: network connection cannot be established")), api.InstallResponse_STATUS_PRE_PROVISION_SETUP_FAILED, err
+		log.Println(err)
 	}
 
 	installCommand := ""
