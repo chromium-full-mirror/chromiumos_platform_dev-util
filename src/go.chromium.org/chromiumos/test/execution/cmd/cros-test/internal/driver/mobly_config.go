@@ -56,6 +56,7 @@ type Controllers struct {
 	AndroidDevices    []*AndroidDevice     `yaml:"AndroidDevice,omitempty"`
 	BtReferenceDevice []*BtReferenceDevice `yaml:"BtReferenceDevice,omitempty"`
 	PassportHost      []*PassportHost      `yaml:"PassportHost,omitempty"`
+	ChameleonDevice   []*ChameleonDevice   `yaml:"ChameleonDevice,omitempty"`
 }
 
 type AndroidDevice struct {
@@ -96,6 +97,12 @@ func (p PassportHost) MarshalYAML() (interface{}, error) {
 	}, nil
 }
 
+type ChameleonDevice struct {
+	ChameleonIP         string   `yaml:"chameleon_ip"`
+	ChameleonXMLRPCPort string   `yaml:"chameleon_xmlrpc_port"`
+	Params              paramMap `yaml:",inline"`
+}
+
 // Config Parameters from ExecutionMetadata
 // Keyed by `config-params`
 type ConfigParams struct {
@@ -111,6 +118,8 @@ type ConfigParams struct {
 	BtReferenceParams []deviceParams
 	// Keyed by `passport-params`
 	PassportParams paramMap
+	// Keyed by `chameleon-params`
+	ChameleonParams paramMap
 }
 
 func NewMoblyConfig(logger *log.Logger, serials []string, metadata []*api.Arg, devices []*labapi.Dut) *MoblyTestConfig {
@@ -145,6 +154,7 @@ func NewMoblyConfig(logger *log.Logger, serials []string, metadata []*api.Arg, d
 		OpenWrtDevices:    GenerateOpenWrtDevices(serials, configParams.OpenWrtParams),
 		BtReferenceDevice: GenerateBtReferenceDevices(serials, configParams.BtReferenceParams),
 		PassportHost:      GeneratePassportHost(logger, devices, configParams.PassportParams),
+		ChameleonDevice:   GenerateChameleonDevices(serials, devices, configParams.ChameleonParams),
 	}
 
 	return &MoblyTestConfig{
@@ -254,6 +264,22 @@ func GenerateBtReferenceDevices(serials []string, btReferenceParams []devicePara
 	return devices
 }
 
+func GenerateChameleonDevices(serials []string, duts []*labapi.Dut, chameleonParams paramMap) []*ChameleonDevice {
+	chameleon_devices := []*ChameleonDevice{}
+
+	for _, dut := range duts {
+		if chameleon_ip := dut.GetChromeos().GetChameleon().GetHostname(); chameleon_ip != "" {
+			chameleon_devices = append(chameleon_devices, &ChameleonDevice{
+				ChameleonIP:         chameleon_ip,
+				ChameleonXMLRPCPort: "9992",
+				Params:              chameleonParams,
+			})
+		}
+	}
+
+	return chameleon_devices
+}
+
 func GenerateOpenWrtDevices(serials []string, openWrtParams []deviceParams) []*OpenWrtDevice {
 	devices := []*OpenWrtDevice{}
 	deviceKeyToSerial := map[string]string{}
@@ -357,6 +383,9 @@ func ParseMetadata(logger *log.Logger, metadata []*api.Arg) *ConfigParams {
 		case "passport-params":
 			logger.Println("passport-params")
 			configParams.PassportParams = ParseArg(logger, arg, configParams.PassportParams)
+		case "chameleon-params":
+			logger.Println("chameleon-params")
+			configParams.ChameleonParams = ParseArg(logger, arg, configParams.ChameleonParams)
 		default:
 			logger.Println("default")
 			// Any additional test params dynamically passed in.

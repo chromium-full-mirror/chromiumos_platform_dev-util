@@ -160,6 +160,16 @@ var fullConfig = MoblyTestConfig{
 						},
 					},
 				},
+				ChameleonDevice: []*ChameleonDevice{
+					{
+						ChameleonIP:         "dut-chameleon",
+						ChameleonXMLRPCPort: "9992",
+						Params: paramMap{
+							"foo":  "bar",
+							"foo2": "bar2",
+						},
+					},
+				},
 			},
 			TestParams: &TestParams{
 				Params: paramMap{
@@ -251,6 +261,11 @@ var fullConfigYaml = `TestBeds:
           type: NETWORK
       foo: bar
       foo2: bar2
+    ChameleonDevice:
+    - chameleon_ip: dut-chameleon
+      chameleon_xmlrpc_port: "9992"
+      foo: bar
+      foo2: bar2
 `
 
 // TestYamlConversion verifies that a config is converted into the expected yaml representation.
@@ -293,6 +308,10 @@ func TestGenerateConfigs(t *testing.T) {
 				},
 				{
 					Flag:  "passport-params",
+					Value: "foo:bar,foo2:bar2",
+				},
+				{
+					Flag:  "chameleon-params",
 					Value: "foo:bar,foo2:bar2",
 				},
 			},
@@ -381,6 +400,9 @@ func TestGenerateConfigs(t *testing.T) {
 										ChildId:  "network_1",
 									},
 								},
+							},
+							Chameleon: &labapi.Chameleon{
+								Hostname: "dut-chameleon",
 							},
 						},
 					},
