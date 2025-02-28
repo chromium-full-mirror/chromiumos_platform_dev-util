@@ -22,7 +22,8 @@ import (
 )
 
 const (
-	adbTimeout = 15 * time.Minute
+	adbInterval = 3 * time.Minute
+	adbTimeout  = 15 * time.Minute
 )
 
 // ValidateState checks if the correct version was provisioned or not.
@@ -45,10 +46,29 @@ func (s ValidateState) Execute(ctx context.Context, log *log.Logger) (*anypb.Any
 		log.Println("Performing validation check for AL.")
 		// Refer to b/382122013 for more details on why such a high timeout is needed.
 		dutAddress := fmt.Sprintf("%s:%v", s.params.Dut.GetChromeos().GetSsh().GetAddress(), "5555")
-		if adberr := adb.RetrySetupAdb(log, dutAddress, adbTimeout); adberr != nil {
-			log.Println("Error while testing adb connection ", adberr)
-			collectUARTLogs(ctx, log, s.params)
-			return common_utils.WrapStringInAny("PLATFORM: unable to connect to device post al-install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, adberr
+		adbCtx, cancel := context.WithTimeout(ctx, adbTimeout)
+		defer cancel()
+	adbLoop:
+		for {
+			select {
+			case <-adbCtx.Done():
+				collectUARTLogs(ctx, log, s.params)
+				return common_utils.WrapStringInAny("PLATFORM: unable to connect to device post al-install"), api.InstallResponse_STATUS_POST_PROVISION_SETUP_FAILED, fmt.Errorf("adb timeout into device=%s", dutAddress)
+			default:
+				if adberr := adb.RetrySetupAdb(log, dutAddress, adbInterval); adberr != nil {
+					log.Println("Error while testing adb connection ", adberr)
+					// Hard off followed by on to refresh the device boot state.
+					// Sometimes the networking services don't seem to be always providing a valid connection.
+					if err := callServodRetry(ctx, log, "power_state", "off", s.params); err != nil {
+						log.Println("Error while powering off via servo")
+					}
+					if err := callServodRetry(ctx, log, "power_state", "on", s.params); err != nil {
+						log.Println("Error while powering on via servo")
+					}
+				} else {
+					break adbLoop
+				}
+			}
 		}
 		collectUARTLogs(ctx, log, s.params)
 		// As soon as we get the ADB connection, immediately set the keep awake settings.
