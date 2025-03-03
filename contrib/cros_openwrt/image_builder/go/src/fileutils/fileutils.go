@@ -40,6 +40,11 @@ func CleanDirectory(dirPath string) error {
 	if err := os.RemoveAll(dirPath); err != nil {
 		return fmt.Errorf("failed to remove %q: %w", dirPath, err)
 	}
+
+	if err := os.MkdirAll(dirPath, DefaultDirPermissions); err != nil {
+		return fmt.Errorf("failed to create a directory %q: %w", dirPath, err)
+	}
+
 	return nil
 }
 
@@ -291,6 +296,7 @@ func CopyFilesInDirToDir(ctx context.Context, srcDirPath string, dstDirPath stri
 	if err != nil {
 		return fmt.Errorf("failed to copy files from dir %q to dir %q: %w", srcDirPath, dstDirPath, err)
 	}
+
 	return nil
 }
 

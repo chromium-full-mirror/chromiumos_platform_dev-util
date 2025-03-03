@@ -9,9 +9,20 @@
 set -e
 
 PROJECT_EXE_NAME="$1"
+GO_VERSION="go1.23.1"
+
 SCRIPT_DIR="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
 PROJECT_GOPATH="${SCRIPT_DIR}/go"
 PROJECT_EXE_PATH="${PROJECT_GOPATH}/bin/${PROJECT_EXE_NAME}"
+GOBIN="${GOBIN:-"${PROJECT_GOPATH}/bin"}"
+GO_CMD="${GOBIN}/${GO_VERSION}"
+
+# Configure project go version.
+if ! command -v "${GO_CMD}"; then
+  export GOBIN
+  go install "golang.org/dl/${GO_VERSION}@latest"
+  "${GO_CMD}" download
+fi
 
 # Configure go environment.
 export GOPATH="${PROJECT_GOPATH}"
@@ -19,8 +30,9 @@ export GO111MODULE=on
 
 set -x
 
+"${GO_CMD}" version
 # Get packages, format files, run tests, and build executable.
-cd "${PROJECT_GOPATH}/src" && go mod tidy
-cd "${PROJECT_GOPATH}/src" && go fmt ./...
-cd "${PROJECT_GOPATH}/src" && go test ./...
-cd "${PROJECT_GOPATH}/src" && go build -o "${PROJECT_EXE_PATH}"
+cd "${PROJECT_GOPATH}/src" && "${GO_CMD}" mod tidy
+cd "${PROJECT_GOPATH}/src" && "${GO_CMD}" fmt ./...
+cd "${PROJECT_GOPATH}/src" && "${GO_CMD}" test ./...
+cd "${PROJECT_GOPATH}/src" && "${GO_CMD}" build -o "${PROJECT_EXE_PATH}"
