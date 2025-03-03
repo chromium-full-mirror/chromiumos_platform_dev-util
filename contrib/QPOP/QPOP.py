@@ -489,7 +489,7 @@ class QPOP:
         if not os.path.exists(self._result_path):
             os.mkdir(self._result_path)
 
-        if self._category == "docking":
+        if (self._category == "docking" or self._category == "docking_daisychain"):
             # Execute self test ip power.
             status, msg = self._execute_tast("wwcb.SelftestIppower")
             if not status:
