@@ -40,7 +40,8 @@ func (s RebootFromUSBState) Execute(ctx context.Context, log *log.Logger) (*anyp
 	time.Sleep(waitForPowerOff)
 	if err := callServodRetry(ctx, log, "power_state", "rec", s.params); err != nil {
 		setPDRole(ctx, log, "src", s.params)
-		return nil, api.InstallResponse_STATUS_PROVISIONING_FAILED, err
+		// A hard failure isn't necessary at this point, as subsequent checks will identify servod call failures and system state problems.
+		log.Printf("Letting passthrough from failed rec mode boot: %s", err)
 	}
 
 	return nil, api.InstallResponse_STATUS_SUCCESS, nil
