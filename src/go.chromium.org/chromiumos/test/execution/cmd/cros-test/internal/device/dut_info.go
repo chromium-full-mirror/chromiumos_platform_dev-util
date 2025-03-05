@@ -152,8 +152,8 @@ func FillDUTInfo(device *api.CrosTestRequest_Device, role string) (*DutInfo, err
 	var servoHostname string
 	var servoPort string
 	var servoSerial string
-	if chromeOS.GetServo().GetServodAddress() != nil &&
-		chromeOS.GetServo().GetState() == labapi.PeripheralState_WORKING {
+	if chromeOS.GetServo().GetServodAddress() != nil {
+
 		servo = joinHostAndPort(chromeOS.GetServo().GetServodAddress())
 		servoHostname = strings.ToLower(chromeOS.GetServo().GetServodAddress().GetAddress())
 		if chromeOS.GetServo().GetServodAddress().GetPort() != 0 {
