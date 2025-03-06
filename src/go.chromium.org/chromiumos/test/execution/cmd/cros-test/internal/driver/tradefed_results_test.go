@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -109,51 +110,73 @@ func getTestCaseResults(prefix string) []*api.TestCaseResult {
 	duration := &durationpb.Duration{Seconds: int64(2254 / 1000 / numOfTests)}
 	testTags := []*api.TestCase_Tag{&api.TestCase_Tag{Value: "abi:x86_64"}}
 	testHarness := &api.TestHarness{TestHarnessType: &api.TestHarness_Tradefed_{Tradefed: &api.TestHarness_Tradefed{}}}
+	testClass := "android.jvmti.cts.JvmtiHostTest1976"
+	testFullName := prefix + testClass
 
 	return []*api.TestCaseResult{
 		{
-			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.jvmti.cts.JvmtiHostTest1976#testJvmti"},
+			TestCaseId:  &api.TestCase_Id{Value: prefix + testClass + "#testJvmti"},
 			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			StartTime:   startTime,
 			Duration:    duration,
+			TestCaseMetadata: &api.TestCaseMetadata{
+				TestCase:     &api.TestCase{Id: &api.TestCase_Id{Value: testFullName + "#testJvmti"}, Name: extractTestCaseName(testFullName + "#testJvmti")},
+				TestCaseExec: &api.TestCaseExec{TestHarness: testHarness},
+			},
 		},
 		{
-			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.jvmti.cts.JvmtiHostTest1976#testAssumptionFail"},
+			TestCaseId:  &api.TestCase_Id{Value: prefix + testClass + "#testAssumptionFail"},
 			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
 			StartTime:   startTime,
 			Duration:    duration,
+			TestCaseMetadata: &api.TestCaseMetadata{
+				TestCase:     &api.TestCase{Id: &api.TestCase_Id{Value: testFullName + "#testAssumptionFail"}, Name: extractTestCaseName(testFullName + "#testAssumptionFail")},
+				TestCaseExec: &api.TestCaseExec{TestHarness: testHarness},
+			},
 		},
 		{
-			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.jvmti.cts.JvmtiHostTest1976#testIncomplate"},
+			TestCaseId:  &api.TestCase_Id{Value: testFullName + "#testIncomplate"},
 			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Crash_{Crash: &api.TestCaseResult_Crash{}},
 			Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
 			StartTime:   startTime,
 			Duration:    duration,
+			TestCaseMetadata: &api.TestCaseMetadata{
+				TestCase:     &api.TestCase{Id: &api.TestCase_Id{Value: testFullName + "#testIncomplate"}, Name: extractTestCaseName(testFullName + "#testIncomplate")},
+				TestCaseExec: &api.TestCaseExec{TestHarness: testHarness},
+			},
 		},
 		{
-			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.jvmti.cts.JvmtiHostTest1976#testIgnored"},
+			TestCaseId:  &api.TestCase_Id{Value: testFullName + "#testIgnored"},
 			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}},
 			Errors:      []*api.TestCaseResult_Error{{Message: ""}},
 			StartTime:   startTime,
 			Duration:    duration,
+			TestCaseMetadata: &api.TestCaseMetadata{
+				TestCase:     &api.TestCase{Id: &api.TestCase_Id{Value: testFullName + "#testIgnored"}, Name: extractTestCaseName(testFullName + "#testIgnored")},
+				TestCaseExec: &api.TestCaseExec{TestHarness: testHarness},
+			},
 		},
 		{
-			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.jvmti.cts.JvmtiHostTest1976#testUnknown"},
+			TestCaseId:  &api.TestCase_Id{Value: testFullName + "#testUnknown"},
 			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}},
 			Errors:      []*api.TestCaseResult_Error{{Message: ""}},
 			StartTime:   startTime,
 			Duration:    duration,
+			TestCaseMetadata: &api.TestCaseMetadata{
+				TestCase:     &api.TestCase{Id: &api.TestCase_Id{Value: testFullName + "#testUnknown"}, Name: extractTestCaseName(testFullName + "#testUnknown")},
+				TestCaseExec: &api.TestCaseExec{TestHarness: testHarness},
+			},
 		},
 		{
 			TestCaseId:  &api.TestCase_Id{Value: prefix + "android.mediav2.cts.CodecDecoderSurfaceTest#testFlushNative"},
@@ -163,6 +186,10 @@ func getTestCaseResults(prefix string) []*api.TestCaseResult {
 			Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
 			StartTime:   startTime,
 			Duration:    duration,
+			TestCaseMetadata: &api.TestCaseMetadata{
+				TestCase:     &api.TestCase{Id: &api.TestCase_Id{Value: prefix + "android.mediav2.cts.CodecDecoderSurfaceTest#testFlushNative"}, Name: extractTestCaseName(prefix + "android.mediav2.cts.CodecDecoderSurfaceTest#testFlushNative")},
+				TestCaseExec: &api.TestCaseExec{TestHarness: testHarness},
+			},
 		},
 	}
 }
@@ -174,40 +201,58 @@ func getGeneralTestCaseResults(prefix string) []*api.TestCaseResult {
 	duration := &durationpb.Duration{Seconds: int64(18 / numOfTests)}
 	testTags := []*api.TestCase_Tag{&api.TestCase_Tag{Value: "abi:x86_64"}}
 	testHarness := &api.TestHarness{TestHarnessType: &api.TestHarness_Tradefed_{Tradefed: &api.TestHarness_Tradefed{}}}
+	testClass := "com.android.chrome.desktop.integration.ChromeWindowTests"
+	testFullName := prefix + testClass
 
 	return []*api.TestCaseResult{
 		{
-			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests#testSingleWindow"},
+			TestCaseId:  &api.TestCase_Id{Value: testFullName + "#testSingleWindow"},
 			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			StartTime:   startTime,
 			Duration:    duration,
+			TestCaseMetadata: &api.TestCaseMetadata{
+				TestCase:     &api.TestCase{Id: &api.TestCase_Id{Value: testFullName + "#testSingleWindow"}, Name: extractTestCaseName(testFullName + "#testSingleWindow")},
+				TestCaseExec: &api.TestCaseExec{TestHarness: testHarness},
+			},
 		},
 		{
-			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests#testSingleWindow"},
+			TestCaseId:  &api.TestCase_Id{Value: testFullName + "#testSingleWindow"},
 			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			StartTime:   startTime,
 			Duration:    duration,
+			TestCaseMetadata: &api.TestCaseMetadata{
+				TestCase:     &api.TestCase{Id: &api.TestCase_Id{Value: testFullName + "#testSingleWindow"}, Name: extractTestCaseName(testFullName + "#testSingleWindow")},
+				TestCaseExec: &api.TestCaseExec{TestHarness: testHarness},
+			},
 		},
 		{
-			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests#testMultiWindowsLimitFail"},
+			TestCaseId:  &api.TestCase_Id{Value: testFullName + "#testMultiWindowsLimitFail"},
 			Tags:        testTags,
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}},
 			Errors:      []*api.TestCaseResult_Error{{Message: "null: java.lang.AssertionError: windows expected: 5, found: 4"}},
 			StartTime:   startTime,
 			Duration:    duration,
+			TestCaseMetadata: &api.TestCaseMetadata{
+				TestCase:     &api.TestCase{Id: &api.TestCase_Id{Value: testFullName + "#testMultiWindowsLimitFail"}, Name: extractTestCaseName(testFullName + "#testMultiWindowsLimitFail")},
+				TestCaseExec: &api.TestCaseExec{TestHarness: testHarness},
+			},
 		},
 		{
-			TestCaseId:  &api.TestCase_Id{Value: prefix + "com.android.chrome.desktop.integration.ChromeWindowTests2#testMultiWindowsLimit2"},
+			TestCaseId:  &api.TestCase_Id{Value: testFullName + "2#testMultiWindowsLimit2"},
 			Tags:        []*api.TestCase_Tag{&api.TestCase_Tag{Value: "abi:arm64-v8a"}}, // Different test ABI that should override module ABI.
 			TestHarness: testHarness,
 			Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
 			StartTime:   startTime,
 			Duration:    duration,
+			TestCaseMetadata: &api.TestCaseMetadata{
+				TestCase:     &api.TestCase{Id: &api.TestCase_Id{Value: testFullName + "2#testMultiWindowsLimit2"}, Name: extractTestCaseName(testFullName + "2#testMultiWindowsLimit2")},
+				TestCaseExec: &api.TestCaseExec{TestHarness: testHarness},
+			},
 		},
 	}
 }
@@ -319,6 +364,10 @@ func TestBuildTcResult(t *testing.T) {
 		testHarness := &api.TestHarness{TestHarnessType: &api.TestHarness_Tradefed_{Tradefed: &api.TestHarness_Tradefed{}}}
 		wantStartTime := timestamppb.New(startTime)
 		wantDuration := &durationpb.Duration{Seconds: int64(duration.Seconds())}
+		wantTestCaseMetadata := &api.TestCaseMetadata{
+			TestCase:     &api.TestCase{Id: testCaseID, Name: strings.TrimPrefix(testName, "tradefed.")},
+			TestCaseExec: &api.TestCaseExec{TestHarness: testHarness},
+		}
 
 		for _, tc := range []struct {
 			name         string
@@ -333,12 +382,13 @@ func TestBuildTcResult(t *testing.T) {
 				errorMessage: "",
 				status:       "PASSED",
 				want: &api.TestCaseResult{
-					TestCaseId:  testCaseID,
-					Tags:        testTags,
-					TestHarness: testHarness,
-					Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
-					StartTime:   wantStartTime,
-					Duration:    wantDuration,
+					TestCaseId:       testCaseID,
+					Tags:             testTags,
+					TestHarness:      testHarness,
+					Verdict:          &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
+					StartTime:        wantStartTime,
+					Duration:         wantDuration,
+					TestCaseMetadata: wantTestCaseMetadata,
 				},
 			},
 			{
@@ -347,13 +397,14 @@ func TestBuildTcResult(t *testing.T) {
 				errorMessage: failureMessage,
 				status:       "ASSUMPTION_FAILURE",
 				want: &api.TestCaseResult{
-					TestCaseId:  testCaseID,
-					Tags:        testTags,
-					TestHarness: testHarness,
-					Verdict:     &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
-					Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
-					StartTime:   wantStartTime,
-					Duration:    wantDuration,
+					TestCaseId:       testCaseID,
+					Tags:             testTags,
+					TestHarness:      testHarness,
+					Verdict:          &api.TestCaseResult_Pass_{Pass: &api.TestCaseResult_Pass{}},
+					Errors:           []*api.TestCaseResult_Error{{Message: failureMessage}},
+					StartTime:        wantStartTime,
+					Duration:         wantDuration,
+					TestCaseMetadata: wantTestCaseMetadata,
 				},
 			},
 			{
@@ -362,13 +413,14 @@ func TestBuildTcResult(t *testing.T) {
 				errorMessage: failureMessage,
 				status:       "FAILED",
 				want: &api.TestCaseResult{
-					TestCaseId:  testCaseID,
-					Tags:        testTags,
-					TestHarness: testHarness,
-					Verdict:     &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}},
-					Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
-					StartTime:   wantStartTime,
-					Duration:    wantDuration,
+					TestCaseId:       testCaseID,
+					Tags:             testTags,
+					TestHarness:      testHarness,
+					Verdict:          &api.TestCaseResult_Fail_{Fail: &api.TestCaseResult_Fail{}},
+					Errors:           []*api.TestCaseResult_Error{{Message: failureMessage}},
+					StartTime:        wantStartTime,
+					Duration:         wantDuration,
+					TestCaseMetadata: wantTestCaseMetadata,
 				},
 			},
 			{
@@ -377,13 +429,14 @@ func TestBuildTcResult(t *testing.T) {
 				errorMessage: failureMessage,
 				status:       "INCOMPLETE",
 				want: &api.TestCaseResult{
-					TestCaseId:  testCaseID,
-					Tags:        testTags,
-					TestHarness: testHarness,
-					Verdict:     &api.TestCaseResult_Crash_{Crash: &api.TestCaseResult_Crash{}},
-					Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
-					StartTime:   wantStartTime,
-					Duration:    wantDuration,
+					TestCaseId:       testCaseID,
+					Tags:             testTags,
+					TestHarness:      testHarness,
+					Verdict:          &api.TestCaseResult_Crash_{Crash: &api.TestCaseResult_Crash{}},
+					Errors:           []*api.TestCaseResult_Error{{Message: failureMessage}},
+					StartTime:        wantStartTime,
+					Duration:         wantDuration,
+					TestCaseMetadata: wantTestCaseMetadata,
 				},
 			},
 			{
@@ -392,13 +445,14 @@ func TestBuildTcResult(t *testing.T) {
 				errorMessage: failureMessage,
 				status:       "SKIPPED",
 				want: &api.TestCaseResult{
-					TestCaseId:  testCaseID,
-					Tags:        testTags,
-					TestHarness: testHarness,
-					Verdict:     &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}},
-					Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
-					StartTime:   wantStartTime,
-					Duration:    wantDuration,
+					TestCaseId:       testCaseID,
+					Tags:             testTags,
+					TestHarness:      testHarness,
+					Verdict:          &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}},
+					Errors:           []*api.TestCaseResult_Error{{Message: failureMessage}},
+					StartTime:        wantStartTime,
+					Duration:         wantDuration,
+					TestCaseMetadata: wantTestCaseMetadata,
 				},
 			},
 			{
@@ -407,13 +461,14 @@ func TestBuildTcResult(t *testing.T) {
 				errorMessage: failureMessage,
 				status:       "IGNORED",
 				want: &api.TestCaseResult{
-					TestCaseId:  testCaseID,
-					Tags:        testTags,
-					TestHarness: testHarness,
-					Verdict:     &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}},
-					Errors:      []*api.TestCaseResult_Error{{Message: failureMessage}},
-					StartTime:   wantStartTime,
-					Duration:    wantDuration,
+					TestCaseId:       testCaseID,
+					Tags:             testTags,
+					TestHarness:      testHarness,
+					Verdict:          &api.TestCaseResult_Skip_{Skip: &api.TestCaseResult_Skip{}},
+					Errors:           []*api.TestCaseResult_Error{{Message: failureMessage}},
+					StartTime:        wantStartTime,
+					Duration:         wantDuration,
+					TestCaseMetadata: wantTestCaseMetadata,
 				},
 			},
 		} {

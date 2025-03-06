@@ -578,5 +578,13 @@ func buildTcResult(testName string, abi string, testStatus string, startTime tim
 		tcResult.Errors = []*api.TestCaseResult_Error{testError}
 	}
 
+	tcResult.TestCaseMetadata = &api.TestCaseMetadata{
+		TestCase: &api.TestCase{
+			Id:   tcResult.TestCaseId,
+			Name: extractTestCaseName(tcResult.TestCaseId.Value),
+		},
+		TestCaseExec: &api.TestCaseExec{TestHarness: tcResult.TestHarness},
+	}
+
 	return tcResult
 }
