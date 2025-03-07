@@ -1,0 +1,71 @@
+#!/usr/bin/perl
+#
+# Copyright 2025 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# Maintainer: Ross Zwisler <zwisler@google.com>
+#
+# bisect-num: Help automate a first-build bisect for a given issue.
+# See http://go/cros-imt-first-build-codelab
+# Given an <old_revision> and <new_revision>, this script will give you a
+# middle revision to test at each step until we find two adjacent builds, one
+# which is good and one which is bad.  This script also allows us to update the
+# build we are actually testing, in the case that some images are unavailable
+# because of build issues.
+#
+# Usage: bisect-num <old_revision> <new_revision>
+#   $ bisect-num 15474 15506
+#   range (15474 (good) - 15506 (bad), in 5 steps) Next revision to test: 15490
+#   Good? (y/n) or enter revision actually tested:
+use strict;
+use warnings;
+
+if ($#ARGV != 1) {
+    print "Usage: $0 <old_revision> <new_revision>\n";
+    exit 0;
+}
+
+my $min = shift(@ARGV);
+my $max = shift(@ARGV);
+
+# Function for log2 calculator
+sub log2
+{
+    my $n = shift;
+    # using pre-defined log function
+    return log($n) / log(2);
+}
+
+while (1) {
+    my $mid = int(($min + $max) / 2);
+
+    $mid++ if ($mid == $min);
+
+    if ($mid == $max) {
+        print "First bad number: $mid\n";
+        exit 0;
+    }
+
+    while (1) {
+        my $steps = int(log2($max - $min));
+        print "range ($min (good) - $max (bad), in $steps steps) Next revision to test: $mid\n";
+        print "Good? (y/n) or enter revision actually tested: ";
+
+        my $answer = <STDIN>;
+        exit if (!$answer);
+        chomp($answer);
+
+        if ($answer eq 'y') {
+            print "YES\n";
+            $min = $mid;
+            last;
+        } elsif ($answer eq "n") {
+            print "NO\n";
+            $max = $mid;
+            last;
+        } elsif ($answer =~ /^(\d)+$/) {
+            $mid = $answer;
+        }
+    }
+}
