@@ -36,6 +36,9 @@ from src.docker_libs.build_libs.cros_dut.cros_dut_prep import (
 from src.docker_libs.build_libs.cros_fw_provision.cros_fw_provision_prep import (
     CrosFWProvisionDockerPrepper,
 )
+from src.docker_libs.build_libs.cros_provision.cros_provision_prep import (
+    CrosProvisionDockerPrepper,
+)
 from src.docker_libs.build_libs.cros_publish.cros_publish_prep import (
     CrosPublishDockerPrepper,
 )
@@ -71,7 +74,7 @@ REGISTERED_BUILDS = {
     },
     "cros-callbox": {"prepper": CrosCallBoxDockerPrepper, "cloud": False},
     "cros-dut": {"prepper": CrosDutDockerPrepper, "cloud": False},
-    "cros-provision": {"prepper": CommonServiceDockerPrepper, "cloud": False},
+    "cros-provision": {"prepper": CrosProvisionDockerPrepper, "cloud": False},
     "cros-fw-provision": {
         "prepper": CrosFWProvisionDockerPrepper,
         "cloud": False,

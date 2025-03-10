@@ -37,6 +37,12 @@ class CrosFWProvisionArtifactPrep(CrosArtifactPrep):
 
     def prep(self):
         """Run the steps needed to prep the container artifacts."""
-        self.copy_service()
+        self.install_cipd_package()
+        self.cipd_init()
+        self.cipd_install(
+            package="chromiumos/infra/cft/provision/cros-fw-provision/linux-amd64",
+            ref="prod",
+            json_output_file="cros-fw-provision_cipd_metadata.json",
+        )
         self.copy_metadata()
         self.copy_dockercontext()
