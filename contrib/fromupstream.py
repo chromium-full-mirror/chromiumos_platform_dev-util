@@ -489,6 +489,14 @@ def _match_gitweb(match, args):
     branch = match.group(3)
     commit = match.group(4)
 
+    # Web navigations to https://git.kernel.org starts being redirected to the
+    # new URL https://web.git.kernel.org, while the Git remote repository
+    # URL remains unchanged, which causes Git fetch to fail.
+    # Remove the extra "web." prefix to adapt the URL redirect update.
+    remote = re.sub(
+        r"^https://web\.git\.kernel\.org", "https://git.kernel.org", remote
+    )
+
     if args["debug"]:
         print(
             "_match_gitweb: remote=%s branch=%s commit=%s"
