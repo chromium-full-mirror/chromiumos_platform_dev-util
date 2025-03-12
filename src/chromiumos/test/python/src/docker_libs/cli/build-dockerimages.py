@@ -24,6 +24,9 @@ sys.path.append(
 
 # pylint: disable=import-error,wrong-import-position,import-modules-only
 from src.common.exceptions import ConfigError
+from src.docker_libs.build_libs.android_provision.android_provision_prep import (
+    AndroidProvisionDockerPrepper,
+)
 from src.docker_libs.build_libs.builders import DockerBuilder
 from src.docker_libs.build_libs.builders import GcloudDockerBuilder
 from src.docker_libs.build_libs.builders import LocalDockerBuilder
@@ -60,6 +63,9 @@ from src.docker_libs.build_libs.shared.base_service_prep import (
 from src.docker_libs.build_libs.shared.common_service_prep import (
     CommonServiceDockerPrepper,
 )
+from src.docker_libs.build_libs.vm_provision.vm_provision_prep import (
+    VMProvisionDockerPrepper,
+)
 
 
 # pylint: enable=import-error,wrong-import-position
@@ -69,7 +75,7 @@ from src.docker_libs.build_libs.shared.common_service_prep import (
 
 REGISTERED_BUILDS = {
     "android-provision": {
-        "prepper": CommonServiceDockerPrepper,
+        "prepper": AndroidProvisionDockerPrepper,
         "cloud": False,
     },
     "cros-callbox": {"prepper": CrosCallBoxDockerPrepper, "cloud": False},
@@ -88,7 +94,7 @@ REGISTERED_BUILDS = {
     "cros-servod": {"prepper": CrosServodDockerPrepper, "cloud": False},
     "cros-publish": {"prepper": CrosPublishDockerPrepper, "cloud": False},
     "pre-process": {"prepper": PreProcessDockerPrepper, "cloud": False},
-    "vm-provision": {"prepper": CommonServiceDockerPrepper, "cloud": False},
+    "vm-provision": {"prepper": VMProvisionDockerPrepper, "cloud": False},
     "cros-hpt": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "post-process": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "provision-filter": {"prepper": CommonServiceDockerPrepper, "cloud": False},
