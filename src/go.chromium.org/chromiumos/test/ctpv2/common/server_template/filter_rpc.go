@@ -69,7 +69,7 @@ func (s *GenericFilterServiceServer) Execute(ctx context.Context, req *api.Inter
 		return req, err
 	}
 	defer logFile.Close()
-	logger := common.NewLogger(logFile)
+	logger := s.serverLogger
 	logger.SetFlags(log.LstdFlags | log.LUTC | log.Lshortfile)
 	logger.SetPrefix(fmt.Sprintf("%s: ", suiteName))
 
