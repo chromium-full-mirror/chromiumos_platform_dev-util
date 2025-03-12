@@ -5,16 +5,9 @@
 package main
 
 import (
-	"go.chromium.org/chromiumos/test/provision/v2/cros-provision/cli"
 	"fmt"
-	"os"
 )
 
 func main() {
-	opt, err := cli.ParseInputs()
-	if err != nil {
-		fmt.Printf("unable to parse inputs: %s", err)
-		os.Exit(2)
-	}
-	opt.Run()
+	fmt.Println("Code has been migrated to infra/infra. Please reach out to who/juahurta for any questions.")
 }

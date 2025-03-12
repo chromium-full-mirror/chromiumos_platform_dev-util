@@ -6,16 +6,8 @@ package main
 
 import (
 	"fmt"
-	"os"
-
-	"go.chromium.org/chromiumos/test/provision/v2/foil-provision/cli"
 )
 
 func main() {
-	opt, err := cli.ParseInputs()
-	if err != nil {
-		fmt.Printf("unable to parse inputs: %s", err)
-		os.Exit(2)
-	}
-	opt.Run()
+	fmt.Println("Code has been migrated to infra/infra. Please reach out to who/juahurta for any questions.")
 }
