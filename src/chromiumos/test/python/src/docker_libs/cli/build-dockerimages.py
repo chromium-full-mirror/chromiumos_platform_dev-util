@@ -63,9 +63,12 @@ from src.docker_libs.build_libs.shared.base_service_prep import (
 from src.docker_libs.build_libs.shared.common_service_prep import (
     CommonServiceDockerPrepper,
 )
-from src.docker_libs.build_libs.vm_provision.vm_provision_prep import (
-    VMProvisionDockerPrepper,
-)
+
+
+# Bring back when VM issue is figured out.
+# from src.docker_libs.build_libs.vm_provision.vm_provision_prep import (
+#     VMProvisionDockerPrepper,
+# )
 
 
 # pylint: enable=import-error,wrong-import-position
@@ -94,7 +97,7 @@ REGISTERED_BUILDS = {
     "cros-servod": {"prepper": CrosServodDockerPrepper, "cloud": False},
     "cros-publish": {"prepper": CrosPublishDockerPrepper, "cloud": False},
     "pre-process": {"prepper": PreProcessDockerPrepper, "cloud": False},
-    "vm-provision": {"prepper": VMProvisionDockerPrepper, "cloud": False},
+    "vm-provision": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "cros-hpt": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "post-process": {"prepper": CommonServiceDockerPrepper, "cloud": False},
     "provision-filter": {"prepper": CommonServiceDockerPrepper, "cloud": False},
