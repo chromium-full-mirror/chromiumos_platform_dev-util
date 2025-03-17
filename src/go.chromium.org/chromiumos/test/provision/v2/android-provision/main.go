@@ -6,8 +6,21 @@ package main
 
 import (
 	"fmt"
+	"os"
+
+	"go.chromium.org/chromiumos/test/provision/v2/android-provision/cli"
 )
 
 func main() {
-	fmt.Println("Code has been migrated to infra/infra. Please reach out to who/juahurta for any questions.")
+	cmd, err := cli.ParseInputs()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to parse inputs: %s\n", err)
+		cli.NewCLICommand().Usage()
+		cli.NewServerCommand().Usage()
+		os.Exit(2)
+	}
+	if err = cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Android Provision failed: %v\n", err)
+		os.Exit(1)
+	}
 }
