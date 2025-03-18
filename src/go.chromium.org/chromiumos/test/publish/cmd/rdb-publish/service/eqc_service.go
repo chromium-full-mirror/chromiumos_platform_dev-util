@@ -38,8 +38,8 @@ type EQCPublishService struct {
 	// bqClient the underlying BigQuery client.
 	bqClient *bigquery.Client
 
-	// eqcInfo the EqC info related to the current test results.
-	eqcInfo *artifact.EqcInfo
+	// eqcInfos the list of EqC infos related to the current test results.
+	eqcInfos []*artifact.EqcInfo
 }
 
 // EQCRow represents a row in the EqC info BigQuery table.
@@ -62,7 +62,7 @@ func NewEQCPublishService(ctx context.Context, req *api.PublishRequest) (*EQCPub
 		return nil, fmt.Errorf("creating the BQ client: %w", err)
 	}
 
-	eqcInfo, err := EqcInfo(req)
+	eqcInfos, err := EqcInfos(req)
 	if err != nil {
 		client.Close()
 		return nil, fmt.Errorf("extracting the EqC info from test results: %w", err)
@@ -70,7 +70,7 @@ func NewEQCPublishService(ctx context.Context, req *api.PublishRequest) (*EQCPub
 
 	return &EQCPublishService{
 		bqClient: client,
-		eqcInfo:  eqcInfo,
+		eqcInfos: eqcInfos,
 	}, nil
 }
 
@@ -84,45 +84,49 @@ func (eps *EQCPublishService) Close() error {
 	return nil
 }
 
-// ExportToBQ exports the EqC info to BigQuery.
+// ExportToBQ exports the EqC infos to BigQuery.
 func (eps *EQCPublishService) ExportToBQ(ctx context.Context) error {
-	eqcInfo := eps.eqcInfo
-	log.Printf("Exporting the EqC info: %#v to BQ", eqcInfo)
+	eqcInfos := eps.eqcInfos
+	log.Printf("Exporting the EqC infos: %#v to BQ", eqcInfos)
 
-	if eqcInfo == nil {
-		log.Printf("Skipping the BQ export because the EqC info is empty")
+	if len(eqcInfos) == 0 {
+		log.Printf("Skipping the BQ export because of the empty EqC info list")
 		return nil
 	}
 
-	if eqcInfo.GetEqcHash() == "" {
-		log.Printf("Skipping the BQ export because the EqC hash is empty: %#v", eqcInfo)
-		return nil
+	for _, eqcInfo := range eqcInfos {
+		if eqcInfo.GetEqcHash() == "" {
+			log.Printf("Skipping the BQ export because the EqC hash is empty: %#v", eqcInfo)
+			continue
+		}
+
+		exist, err := eps.checkExists(ctx, eqcInfo)
+		if err != nil {
+			log.Printf("Failed to check if the EqC info already exists: %s", err)
+			continue
+		}
+
+		if exist {
+			log.Printf("Skipping the BQ export because the EqC info already exists: %#v", eqcInfo)
+			continue
+		}
+
+		// Inserts the EqC info because it doesn't exist in the BQ table.
+		eqcRow := &EQCRow{
+			EQCHash:               eqcInfo.EqcHash,
+			EQCName:               eqcInfo.EqcName,
+			EQCCategoryExpression: eqcInfo.EqcCategoryExpression,
+			EQCDimensions:         eqcInfo.EqcDimensions,
+		}
+
+		inserter := eps.bqClient.Dataset(TestInfoDataset).Table(EQCInfoTable).Inserter()
+		if err := inserter.Put(ctx, eqcRow); err != nil {
+			log.Printf("Failed to export the EqC info: %#v to BQ: %s", eqcInfo, err)
+			continue
+		}
 	}
 
-	exist, err := eps.checkExists(ctx, eqcInfo)
-	if err != nil {
-		return fmt.Errorf("checking if the EqC info already exists: %w", err)
-	}
-
-	if exist {
-		log.Printf("Skipping the BQ export because the EqC info already exists: %#v", eqcInfo)
-		return nil
-	}
-
-	// Inserts the EqC info because it doesn't exist in the BQ table.
-	eqcRow := &EQCRow{
-		EQCHash:               eqcInfo.EqcHash,
-		EQCName:               eqcInfo.EqcName,
-		EQCCategoryExpression: eqcInfo.EqcCategoryExpression,
-		EQCDimensions:         eqcInfo.EqcDimensions,
-	}
-
-	inserter := eps.bqClient.Dataset(TestInfoDataset).Table(EQCInfoTable).Inserter()
-	if err := inserter.Put(ctx, eqcRow); err != nil {
-		return fmt.Errorf("exporting the EqC info: %#v to BQ: %w", eqcInfo, err)
-	}
-
-	log.Printf("Successfully exported the EqC info: %#v to BQ", eqcInfo)
+	log.Printf("Successfully exported the EqC infos: %#v to BQ", eqcInfos)
 	return nil
 }
 
@@ -201,27 +205,38 @@ func (e *EQCRow) Save() (map[string]bigquery.Value, string, error) {
 	return row, e.EQCHash, nil
 }
 
-// EqcInfo extracts the EqC info from the rdb metadata in the publish
+// EqcInfos extracts the EqC infos from the rdb metadata in the publish
 // request.
-func EqcInfo(req *api.PublishRequest) (*artifact.EqcInfo, error) {
-	log.Printf("Started to extract the EqC info from the request: %#v", req)
+func EqcInfos(req *api.PublishRequest) ([]*artifact.EqcInfo, error) {
+	log.Printf("Started to extract the EqC infos from the request: %#v", req)
 	metadata, err := UnpackMetadata(req)
 	if err != nil {
-		return nil, fmt.Errorf("unpacking the metadata in the publish request: %w", err)
+		return nil, fmt.Errorf("unpacking the metadata in the publish request: %s", err)
 	}
 
-	eqcInfoMap := make(map[string]string)
+	eqcInfos := make([]*artifact.EqcInfo, 0, len(metadata.GetPublishKeys()))
 	for _, items := range metadata.GetPublishKeys() {
 		if items.GetSubject() == EQCSubjectKey {
-			eqcInfoMap = items.GetKeyValues()
-			break
+			eqcInfo, err := EqcInfo(items.GetKeyValues())
+			if err != nil {
+				log.Printf("Failed to extract the EqC info from the map: %#v due to error: %s", eqcInfo, err)
+				continue
+			}
+			eqcInfos = append(eqcInfos, eqcInfo)
 		}
 	}
 
-	if len(eqcInfoMap) == 0 {
-		return &artifact.EqcInfo{}, nil
+	if len(eqcInfos) == 0 {
+		log.Printf("No EqC infos found in the request")
+		return []*artifact.EqcInfo{}, nil
 	}
 
+	log.Printf("Successfully extracted the EqC infos: %#v", eqcInfos)
+	return eqcInfos, nil
+}
+
+// EqcInfo extracts the EqC info from the EqC map.
+func EqcInfo(eqcInfoMap map[string]string) (*artifact.EqcInfo, error) {
 	eqcInfo := &artifact.EqcInfo{
 		EqcHash: eqcInfoMap["eqcHash"],
 		EqcName: eqcInfoMap["eqcName"],

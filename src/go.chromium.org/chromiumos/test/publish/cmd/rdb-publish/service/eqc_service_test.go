@@ -24,16 +24,18 @@ func TestNewEQCPublishService(t *testing.T) {
 
 	Convey("NewEQCPublishService", t, func() {
 		Convey("Valid request", func() {
-			wantEQCInfo := &artifact.EqcInfo{
-				EqcHash: "9073744604696850342",
-				EqcName: "Cometlake-U__INTEL_HRP2_AX201__5.15",
-				EqcCategoryExpression: map[string]string{
-					"name": "WifiBtChipset_Soc_Kernel_Intel",
-				},
-				EqcDimensions: map[string]string{
-					"dlm:soc":               "Cometlake-U",
-					"image:_kernel_version": "5.15",
-					"wireless_field":        "INTEL_HRP2_AX201",
+			wantEQCInfos := []*artifact.EqcInfo{
+				{
+					EqcHash: "9073744604696850342",
+					EqcName: "Cometlake-U__INTEL_HRP2_AX201__5.15",
+					EqcCategoryExpression: map[string]string{
+						"name": "WifiBtChipset_Soc_Kernel_Intel",
+					},
+					EqcDimensions: map[string]string{
+						"dlm:soc":               "Cometlake-U",
+						"image:_kernel_version": "5.15",
+						"wireless_field":        "INTEL_HRP2_AX201",
+					},
 				},
 			}
 			eqcInfoMap := map[string]string{
@@ -62,7 +64,7 @@ func TestNewEQCPublishService(t *testing.T) {
 
 			So(err, ShouldBeNil)
 			So(s, ShouldNotBeNil)
-			So(s.eqcInfo, ShouldResembleProto, wantEQCInfo)
+			So(s.eqcInfos, ShouldResembleProto, wantEQCInfos)
 
 			s.Close()
 		})
@@ -203,29 +205,53 @@ func TestEqcInfo(t *testing.T) {
 	t.Parallel()
 
 	Convey("Valid request with EQC info", t, func() {
-		wantEQCInfo := &artifact.EqcInfo{
-			EqcHash: "9073744604696850342",
-			EqcName: "Cometlake-U__INTEL_HRP2_AX201__5.15",
-			EqcCategoryExpression: map[string]string{
-				"value": "{\"combinatorial\":{\"subcategories\":[{\"value\":{\"enumerated\":{\"classes\":[{\"value\":{\"expression\":{\"property\":{\"propertyPath\":\"swarming:label-wifi_state\",\"strEqual\":\"NORMAL\"}},\"name\":\"swarming:label-wifi_state:NORMAL\"}}]}}},{\"name\":\"WifiBtChipset_Soc_Kernel\"}]}}",
+		wantEQCInfos := []*artifact.EqcInfo{
+			{
+				EqcHash: "9073744604696850342",
+				EqcName: "Cometlake-U__INTEL_HRP2_AX201__5.15",
+				EqcCategoryExpression: map[string]string{
+					"value": "{\"combinatorial\":{\"subcategories\":[{\"value\":{\"enumerated\":{\"classes\":[{\"value\":{\"expression\":{\"property\":{\"propertyPath\":\"swarming:label-wifi_state\",\"strEqual\":\"NORMAL\"}},\"name\":\"swarming:label-wifi_state:NORMAL\"}}]}}},{\"name\":\"WifiBtChipset_Soc_Kernel\"}]}}",
+				},
+				EqcDimensions: map[string]string{
+					"dlm:soc":               "Cometlake-U",
+					"image:_kernel_version": "5.15",
+					"wireless_field":        "INTEL_HRP2_AX201",
+				},
 			},
-			EqcDimensions: map[string]string{
-				"dlm:soc":               "Cometlake-U",
-				"image:_kernel_version": "5.15",
-				"wireless_field":        "INTEL_HRP2_AX201",
+			{
+				EqcHash: "8073744604696850123",
+				EqcName: "Cometlake-U__INTEL_HRP2_AX201__6.26",
+				EqcCategoryExpression: map[string]string{
+					"value": "{\"combinatorial\":{\"subcategories\":[{\"value\":{\"enumerated\":{\"classes\":[{\"value\":{\"expression\":{\"property\":{\"propertyPath\":\"swarming:label-wifi_state\",\"strEqual\":\"NORMAL\"}},\"name\":\"swarming:label-wifi_state:NORMAL\"}}]}}},{\"name\":\"WifiBtChipset_Soc_Kernel\"}]}}",
+				},
+				EqcDimensions: map[string]string{
+					"dlm:soc":               "Cometlake-X",
+					"image:_kernel_version": "6.26",
+					"wireless_field":        "INTEL_HRP2_AX123",
+				},
 			},
 		}
-		eqcInfoMap := map[string]string{
+		eqcInfoMap1 := map[string]string{
 			"eqcCategoryExpression": "{\"value\":{\"combinatorial\":{\"subcategories\":[{\"value\":{\"enumerated\":{\"classes\":[{\"value\":{\"name\":\"swarming:label-wifi_state:NORMAL\",\"expression\":{\"property\":{\"propertyPath\":\"swarming:label-wifi_state\",\"strEqual\":\"NORMAL\"}}}}]}}},{\"name\":\"WifiBtChipset_Soc_Kernel\"}]}}}",
 			"eqcDimensions":         "{\"dlm:soc\":\"Cometlake-U\",\"image:_kernel_version\":\"5.15\",\"wireless_field\":\"INTEL_HRP2_AX201\"}",
 			"eqcHash":               "9073744604696850342",
 			"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__5.15",
 		}
+		eqcInfoMap2 := map[string]string{
+			"eqcCategoryExpression": "{\"value\":{\"combinatorial\":{\"subcategories\":[{\"value\":{\"enumerated\":{\"classes\":[{\"value\":{\"name\":\"swarming:label-wifi_state:NORMAL\",\"expression\":{\"property\":{\"propertyPath\":\"swarming:label-wifi_state\",\"strEqual\":\"NORMAL\"}}}}]}}},{\"name\":\"WifiBtChipset_Soc_Kernel\"}]}}}",
+			"eqcDimensions":         "{\"dlm:soc\":\"Cometlake-X\",\"image:_kernel_version\":\"6.26\",\"wireless_field\":\"INTEL_HRP2_AX123\"}",
+			"eqcHash":               "8073744604696850123",
+			"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__6.26",
+		}
 		rdbMetadata := &metadata.PublishRdbMetadata{
 			PublishKeys: []*api.PublishKey{
 				{
 					Subject:   EQCSubjectKey,
-					KeyValues: eqcInfoMap,
+					KeyValues: eqcInfoMap1,
+				},
+				{
+					Subject:   EQCSubjectKey,
+					KeyValues: eqcInfoMap2,
 				},
 			},
 		}
@@ -236,9 +262,9 @@ func TestEqcInfo(t *testing.T) {
 		req := &api.PublishRequest{
 			Metadata: validMetadataAny,
 		}
-		gotEQCInfo, err := EqcInfo(req)
+		gotEQCInfos, err := EqcInfos(req)
 		So(err, ShouldBeNil)
-		So(gotEQCInfo, ShouldResembleProto, wantEQCInfo)
+		So(gotEQCInfos, ShouldResembleProto, wantEQCInfos)
 	})
 
 	Convey("Valid request without EQC info", t, func() {
@@ -248,15 +274,15 @@ func TestEqcInfo(t *testing.T) {
 		req := &api.PublishRequest{
 			Metadata: validMetadataAny,
 		}
-		gotEQCInfo, err := EqcInfo(req)
+		gotEQCInfo, err := EqcInfos(req)
 
 		// Expect an empty EqcInfo
 		So(err, ShouldBeNil)
-		So(gotEQCInfo, ShouldResembleProto, &artifact.EqcInfo{})
+		So(gotEQCInfo, ShouldResembleProto, []*artifact.EqcInfo{})
 	})
 
 	Convey("Nil request", t, func() {
-		gotEQCInfo, err := EqcInfo(nil)
+		gotEQCInfo, err := EqcInfos(nil)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldContainSubstring, "unpacking the metadata")
 		So(gotEQCInfo, ShouldBeNil)
@@ -266,7 +292,7 @@ func TestEqcInfo(t *testing.T) {
 		req := &api.PublishRequest{
 			Metadata: &anypb.Any{}, // Empty Any proto
 		}
-		gotEQCInfo, err := EqcInfo(req)
+		gotEQCInfo, err := EqcInfos(req)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldContainSubstring, "unpacking the metadata")
 		So(gotEQCInfo, ShouldBeNil)

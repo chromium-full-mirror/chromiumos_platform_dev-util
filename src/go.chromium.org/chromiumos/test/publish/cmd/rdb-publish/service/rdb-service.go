@@ -385,11 +385,16 @@ func ingestEqCInfo(testInv *artifact.TestInvocation, req *api.PublishRequest) {
 		return
 	}
 
-	eqcInfo, err := EqcInfo(req)
+	eqcInfos, err := EqcInfos(req)
 	if err != nil {
 		log.Printf("Failed to ingest the EqC info")
 		return
 	}
+
+	if len(eqcInfos) == 0 {
+		return
+	}
+	eqcInfo := eqcInfos[0]
 
 	// Associates test results with the EqC hash only so that the EqC hash can
 	// be used to query the EqC BQ table for additional latest details.
