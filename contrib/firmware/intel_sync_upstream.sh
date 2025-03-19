@@ -201,6 +201,29 @@ fi
 
 echo "Merge of ${STAGING_NAME}-${VERSION} complete, ready for upload."
 
+# Restore the required file if deleted
+FILES_TO_RESTORE=("OWNERS" "DIR_METADATA")
+
+restore_file() {
+  local file_name="$1"
+  local full_path="${SRC_DIR}/${file_name}"
+
+  if [ ! -f "${full_path}" ]; then
+    echo "File '${file_name}' is missing. Restoring..."
+    if git -C "${SRC_DIR}" checkout cros-internal/"${CHROMEOS_BRANCH}" -- "${file_name}"; then
+      git commit --amend --no-edit > /dev/null
+      echo "File '${file_name}' restored successfully."
+    else
+      echo -e "\033[31mError: Failed to restore '${file_name}' using git.\033[0m"
+    fi
+  fi
+}
+
+# Restore each file in the list
+for file in "${FILES_TO_RESTORE[@]}"; do
+  restore_file "${file}"
+done
+
 while true
 do
   read -r -p "Do you want to push your changes to cros-internal? [y/n] >" input
