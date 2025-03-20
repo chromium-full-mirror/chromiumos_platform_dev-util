@@ -43,6 +43,7 @@ func TestNewEQCPublishService(t *testing.T) {
 				"eqcDimensions":         "{\"dlm:soc\":\"Cometlake-U\",\"image:_kernel_version\":\"5.15\",\"wireless_field\":\"INTEL_HRP2_AX201\"}",
 				"eqcHash":               "9073744604696850342",
 				"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__5.15",
+				"eqcTests":              "[\"tast.wifi.SetTXPower\",\"tast.wifi.SetTXPower.vpd\"]",
 			}
 			rdbMetadata := &metadata.PublishRdbMetadata{
 				PublishKeys: []*api.PublishKey{
@@ -236,12 +237,14 @@ func TestEqcInfo(t *testing.T) {
 			"eqcDimensions":         "{\"dlm:soc\":\"Cometlake-U\",\"image:_kernel_version\":\"5.15\",\"wireless_field\":\"INTEL_HRP2_AX201\"}",
 			"eqcHash":               "9073744604696850342",
 			"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__5.15",
+			"eqcTests":              "[\"tast.wifi.SetTXPower\"]",
 		}
 		eqcInfoMap2 := map[string]string{
 			"eqcCategoryExpression": "{\"value\":{\"combinatorial\":{\"subcategories\":[{\"value\":{\"enumerated\":{\"classes\":[{\"value\":{\"name\":\"swarming:label-wifi_state:NORMAL\",\"expression\":{\"property\":{\"propertyPath\":\"swarming:label-wifi_state\",\"strEqual\":\"NORMAL\"}}}}]}}},{\"name\":\"WifiBtChipset_Soc_Kernel\"}]}}}",
 			"eqcDimensions":         "{\"dlm:soc\":\"Cometlake-X\",\"image:_kernel_version\":\"6.26\",\"wireless_field\":\"INTEL_HRP2_AX123\"}",
 			"eqcHash":               "8073744604696850123",
 			"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__6.26",
+			"eqcTests":              "[\"tast.wifi.SetTXPower.vpd\"]",
 		}
 		rdbMetadata := &metadata.PublishRdbMetadata{
 			PublishKeys: []*api.PublishKey{

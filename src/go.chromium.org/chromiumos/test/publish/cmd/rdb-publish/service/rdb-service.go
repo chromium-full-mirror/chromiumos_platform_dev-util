@@ -101,10 +101,7 @@ func NewRdbPublishService(req *api.PublishRequest) (*RdbPublishService, error) {
 	postProcessResponses := m.GetPostProcessResponses()
 	fwProvisionResponse := m.GetFirmwareProvisionResponse()
 	if testResult != nil {
-		testInv := testResult.GetTestInvocation()
-		if testInv != nil {
-			ingestEqCInfo(testInv, req)
-		}
+		ingestEqCInfo(testResult, req)
 
 		// Fetches the existing build metadata if available in the test result.
 		buildMetadata := testResult.GetTestInvocation().GetPrimaryExecutionInfo().GetBuildInfo().GetBuildMetadata()
@@ -379,29 +376,50 @@ func chromiumTestRDBConfig(testResult *artifact.TestResult, baseTags map[string]
 }
 
 // ingestEqCInfo ingests the 3D EqC info into the test invocation.
-func ingestEqCInfo(testInv *artifact.TestInvocation, req *api.PublishRequest) {
-	testInv.Is_3DRun = req.GetIs_3DRun()
-	if !testInv.Is_3DRun {
+func ingestEqCInfo(testResult *artifact.TestResult, req *api.PublishRequest) {
+	is3DRun := req.GetIs_3DRun()
+	if !is3DRun {
 		return
 	}
+	testInv := testResult.GetTestInvocation()
+	testInv.Is_3DRun = is3DRun
 
-	eqcInfos, err := EqcInfos(req)
+	metadata, err := UnpackMetadata(req)
 	if err != nil {
-		log.Printf("Failed to ingest the EqC info")
+		log.Printf("Unpacking the metadata in the publish request: %s", err)
 		return
 	}
 
-	if len(eqcInfos) == 0 {
-		return
-	}
-	eqcInfo := eqcInfos[0]
+	testRuns := testResult.GetTestRuns()
+	eqcHashMap := make(map[string]string)
+	for _, items := range metadata.GetPublishKeys() {
+		if items.GetSubject() == EQCSubjectKey {
+			eqcInfoMap := items.GetKeyValues()
+			tests := make([]string, 0, len(testRuns))
+			err := json.Unmarshal([]byte(eqcInfoMap["eqcTests"]), &tests)
+			if err != nil {
+				log.Printf("Failed to unmarshal the associated tests from the EqC info: %s", eqcInfoMap)
+				continue
+			}
 
-	// Associates test results with the EqC hash only so that the EqC hash can
-	// be used to query the EqC BQ table for additional latest details.
-	testInv.EqcInfo = &artifact.EqcInfo{
-		EqcHash: eqcInfo.GetEqcHash(),
+			for _, test := range tests {
+				eqcHashMap[test] = eqcInfoMap["eqcHash"]
+			}
+		}
 	}
-	log.Printf("successfully ingested the EqC info: %#v", eqcInfo)
+
+	for _, testRun := range testRuns {
+		testName := testRun.GetTestCaseInfo().GetTestCaseResult().GetTestCaseId().GetValue()
+		eqcHash := eqcHashMap[testName]
+		if eqcHash != "" {
+			testRun.EqcInfo = &artifact.EqcInfo{
+				EqcHash: eqcHashMap[testName],
+			}
+			log.Printf("Associated the EqC hash: %s with the test: %s", eqcHash, testName)
+		}
+	}
+
+	log.Printf("successfully ingested the EqC info: %#v", eqcHashMap)
 }
 
 // ingestPostProcessResponses ingests the responses of the post process service

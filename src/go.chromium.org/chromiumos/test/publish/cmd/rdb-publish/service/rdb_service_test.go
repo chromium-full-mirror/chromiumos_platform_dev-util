@@ -1068,7 +1068,7 @@ func TestNewRdbPublishService(t *testing.T) {
 			},
 		}
 		testResult.TestInvocation.Is_3DRun = req.GetIs_3DRun()
-		testResult.TestInvocation.EqcInfo = &artifact.EqcInfo{
+		testResult.TestRuns[0].EqcInfo = &artifact.EqcInfo{
 			EqcHash: "9073744604696850342",
 		}
 		eqcInfoMap := map[string]string{
@@ -1076,6 +1076,7 @@ func TestNewRdbPublishService(t *testing.T) {
 			"eqcDimensions":         "{\"dlm:soc\":\"Cometlake-U\",\"image:_kernel_version\":\"5.15\",\"wireless_field\":\"INTEL_HRP2_AX201\"}",
 			"eqcHash":               "9073744604696850342",
 			"eqcName":               "Cometlake-U__INTEL_HRP2_AX201__5.15",
+			"eqcTests":              "[\"tast.gscdevboard.GSCSysinfo\"]",
 		}
 		metadata := &metadata.PublishRdbMetadata{
 			CurrentInvocationId: "inv_id",
