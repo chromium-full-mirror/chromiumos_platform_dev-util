@@ -1,4 +1,4 @@
-// Copyright 2022 The ChromiumOS Authors.
+// Copyright 2022 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -472,16 +472,24 @@ func ingestFirmwareProvisionResponse(buildMetadata *artifact.BuildMetadata, fwPr
 	}
 
 	if fwProvisionResponse.GetApRoVersion() != "" {
-		firmware.ApRoVersion = fwProvisionResponse.GetApRoVersion()
+		firmware.ApRoVersion = fwProvisionResponse.ApRoVersion
 	}
 
 	if fwProvisionResponse.GetApRwVersion() != "" {
-		firmware.ApRwVersion = fwProvisionResponse.GetApRwVersion()
+		firmware.ApRwVersion = fwProvisionResponse.ApRwVersion
+	}
+
+	if fwProvisionResponse.GetEcRoVersion() != "" {
+		firmware.EcRoVersion = fwProvisionResponse.EcRoVersion
+	}
+
+	if fwProvisionResponse.GetEcRwVersion() != "" {
+		firmware.EcRwVersion = fwProvisionResponse.EcRwVersion
 	}
 
 	buildMetadata.Firmware = firmware
 
-	log.Printf("successfully populated AP firmware info from firmware provision response: %s", fwProvisionResponse)
+	log.Printf("successfully populated AP & EC firmware info from firmware provision response: %s", fwProvisionResponse)
 }
 
 // populateFirmwareInfo populates firmware info and kernel version.

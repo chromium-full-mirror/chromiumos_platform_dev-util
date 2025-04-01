@@ -1178,6 +1178,8 @@ func TestIngestFirmwareProvisionResponse(t *testing.T) {
 		fwProvisionResponse := &api.FirmwareProvisionResponse{
 			ApRoVersion: "Google_Voema.13672.224.0",
 			ApRwVersion: "Google_Voema.13672.224.1",
+			EcRoVersion: "vilboz_v2.0.5705-a8a7681f94",
+			EcRwVersion: "vilboz_v2.0.5705-a8a7681f95",
 		}
 
 		// Call ingestFirmwareProvisionResponse.
@@ -1187,6 +1189,8 @@ func TestIngestFirmwareProvisionResponse(t *testing.T) {
 		wantFirmware := &artifact.BuildMetadata_Firmware{
 			ApRoVersion: "Google_Voema.13672.224.0",
 			ApRwVersion: "Google_Voema.13672.224.1",
+			EcRoVersion: "vilboz_v2.0.5705-a8a7681f94",
+			EcRwVersion: "vilboz_v2.0.5705-a8a7681f95",
 		}
 		So(buildMetadata.Firmware, ShouldResembleProto, wantFirmware)
 	})
