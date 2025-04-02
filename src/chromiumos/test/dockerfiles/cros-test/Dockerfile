@@ -90,8 +90,11 @@ RUN tar -xvf /usr/local/dldir/main.tar.gz -C /usr/local/dldir && cd /usr/local/d
 COPY install_jdk9.sh .
 RUN chmod 755 install_jdk9.sh && ./install_jdk9.sh && rm -f install_jdk9.sh
 
-# Cros-test binary is static across boards.
-COPY --chown=chromeos-test:chromeos-test cros-test /usr/bin/
+# Copy CIPD ensured binaries.
+# * cros-test
+# * vpython3
+# * gateway_go (if not public)
+COPY --chown=chromeos-test:chromeos-test --chmod=755 pkgbin/ /usr/bin/
 
 # ###############################################################################
 # Everything above this point should not be changing often (ie not every build)
@@ -113,7 +116,6 @@ RUN chmod 755 /usr/bin/fsck.erofs
 # Mark for Autotest/Tast to know they are within the CFT environment.
 RUN touch /usr/local/f20container
 
-COPY --chown=chromeos-test:chromeos-test chromeos_omnilab_gateway/ /usr/bin/
 ARG public
 
 # Conditionally check if not public and set permission to file's owner
@@ -143,7 +145,6 @@ COPY --chown=chromeos-test:chromeos-test *.pb /tmp/test/metadata/
 RUN sudo ln -s /usr/local/autotest/site_utils/test_that.py /usr/bin/test_that
 
 # Do a final chown on /tmp/test
-RUN chmod 755 /usr/bin/cros-test
 RUN chown -R chromeos-test:chromeos-test /tmp/test/
 
 
@@ -191,9 +192,9 @@ COPY shadow_config.ini .
 # Chromium tests, e.g. gtests, GPU tests, may need vpython3 support.
 # Install it to an uncommon path invisible to other users by default.
 RUN sudo mkdir -p /opt/browser-tools
-COPY --chown=chromeos-test:chromeos-test vpython3 /opt/browser-tools/vpython3
-COPY --chown=chromeos-test:chromeos-test 3.8/ /opt/browser-tools/3.8/
-COPY --chown=chromeos-test:chromeos-test 3.11/ /opt/browser-tools/3.11/
+RUN sudo mv /usr/bin/vpython3 /opt/browser-tools/vpython3
+RUN sudo mv /usr/bin/3.8/ /opt/browser-tools/3.8/
+RUN sudo mv /usr/bin/3.11/ /opt/browser-tools/3.11/
 # vpython3 relies on CIPD to activate virtual env.
 COPY --chown=chromeos-test:chromeos-test cipd /opt/browser-tools/cipd
 

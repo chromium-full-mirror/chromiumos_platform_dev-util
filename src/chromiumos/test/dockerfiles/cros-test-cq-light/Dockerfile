@@ -26,8 +26,11 @@ RUN echo 'chromeos-test ALL=NOPASSWD:ALL' > /etc/sudoers.d/chromeos-test
 # TODO (b/232943535): When multi-staged/layered images become a thing, this needs to be moved into a base layer as this dep will never change.
 RUN mkdir -p /usr/local/dldir
 
-# Cros-test binary is static across boards.
-COPY --chown=chromeos-test:chromeos-test --chmod=755 cros-test /usr/bin/
+# Copy CIPD ensured binaries.
+# * cros-test
+# * vpython3
+# * gateway_go (if not public)
+COPY --chown=chromeos-test:chromeos-test --chmod=755 pkgbin/ /usr/bin/
 
 # ###############################################################################
 # Everything above this point should not be changing often (ie not every build)

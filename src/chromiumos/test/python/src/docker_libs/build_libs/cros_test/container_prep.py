@@ -42,9 +42,7 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
 
     def prep(self, is_public: bool = False):
         """Run the steps needed to prep the container artifacts."""
-        self.download_omnilab_gateway_client(is_public)
         self.create_tarball()
-        self.copy_service()
         self.copy_metadata()
         self.copy_python_protos()
         self.copy_dockercontext()
@@ -54,7 +52,7 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
         self.copy_private_key()
         self.copy_tast_tools()
         self.setup_cipd()
-        self.download_vpython3()
+        self.ensure_packages(is_public)
 
     def create_tarball(self):
         """Copy the Stuff."""
@@ -89,27 +87,21 @@ class CrosTestArtifactPrep(CrosArtifactPrep):
         self.install_cipd_package()
         self.cipd_init()
 
-    def download_vpython3(self):
-        self.cipd_install("infra/tools/luci/vpython3/linux-amd64", "latest")
-        abs_artifact_path = os.path.join(self.full_out, "vpython3")
-        os.chmod(abs_artifact_path, 0o755)
-
-    def download_omnilab_gateway_client(self, is_public=False):
-        """Download or create directory for Omnilab Gateway Client from CIPD"""
-        gateway_dir = "chromeos_omnilab_gateway"
-        pkg = f"chromeos_internal/infra/tools/{gateway_dir}"
-        gateway_full_path = os.path.join(self.full_out, gateway_dir)
+    def ensure_packages(self, is_public=False):
+        ensure_pkgs_path = os.path.join(self.full_out, "pkgbin")
         ensure_file = os.path.join(self.full_out, "ensure.txt")
-
-        # If download is requested, create ensure file and initiate download
-        if not is_public:
-            with open(ensure_file, "w", encoding="utf-8") as f:
-                f.write(f"{pkg} latest")
-            os.system(
-                f"cipd ensure "
-                f"-ensure-file {ensure_file} "
-                f"-root {gateway_full_path}"
+        with open(ensure_file, "w", encoding="utf-8") as f:
+            f.write(
+                "chromiumos/infra/cft/execution/cros-test/linux-amd64 prod\n"
             )
-        else:
-            # If download is not requested, just create the directory
-            os.makedirs(gateway_full_path, exist_ok=True)
+            f.write("infra/tools/luci/vpython3/linux-amd64 latest\n")
+            if not is_public:
+                f.write(
+                    "chromeos_internal/infra/tools/chromeos_omnilab_gateway "
+                    + "latest\n"
+                )
+        os.system(
+            f"cipd ensure "
+            f"-ensure-file {ensure_file} "
+            f"-root {ensure_pkgs_path}"
+        )
