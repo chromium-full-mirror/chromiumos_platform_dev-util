@@ -1,2 +1,0 @@
-# Used to address the imported Omnilab proto definition.
-master

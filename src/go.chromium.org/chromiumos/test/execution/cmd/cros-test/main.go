@@ -5,12 +5,12 @@
 package main
 
 import (
-	"context"
+	"log"
 	"os"
-
-	"go.chromium.org/chromiumos/test/execution/cmd/cros-test/cli"
 )
 
 func main() {
-	os.Exit(cli.MainInternal(context.Background()))
+	log.Println("cros-test has been moved to https://chromium.googlesource.com/infra/infra/+/refs/heads/main/go/src/infra/cros/cmd/cft/execution/cros-test/")
+
+	os.Exit(0)
 }
