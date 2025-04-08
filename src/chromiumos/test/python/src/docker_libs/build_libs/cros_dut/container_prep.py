@@ -4,18 +4,17 @@
 
 """Prep everything for for the cros-test Docker Build Context."""
 
-
 import sys
 
 
 sys.path.append("../../../../")
 
-from src.docker_libs.build_libs.shared.common_artifact_prep import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
-    CrosArtifactPrep,
+from src.docker_libs.build_libs.shared import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
+    common_artifact_prep,
 )
 
 
-class CrosDutArtifactPrep(CrosArtifactPrep):
+class CrosDutArtifactPrep(common_artifact_prep.CrosArtifactPrep):
     """Prep Needed files for the Test Execution Container Docker Build."""
 
     def __init__(
@@ -39,5 +38,11 @@ class CrosDutArtifactPrep(CrosArtifactPrep):
     def prep(self):
         """Run the steps needed to prep the container artifacts."""
         self.copy_dockercontext()
-        self.copy_service()
+        self.install_cipd_package()
+        self.cipd_init()
+        self.cipd_install(
+            package="chromiumos/infra/cft/dut/cros-dut/linux-amd64",
+            ref="prod",
+            json_output_file="cros-dut_cipd_metadata.json",
+        )
         self.copy_private_key()

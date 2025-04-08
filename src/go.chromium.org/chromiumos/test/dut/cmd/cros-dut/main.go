@@ -6,11 +6,12 @@
 package main
 
 import (
+	"log"
 	"os"
-
-	"go.chromium.org/chromiumos/test/dut/cmd/cros-dut/cli"
 )
 
 func main() {
-	os.Exit(cli.MainInternal())
+	log.Println("cros-dut has been moved to https://chromium.googlesource.com/infra/infra/+/refs/heads/main/go/src/infra/cros/cmd/cft/dut/cros-dut/")
+
+	os.Exit(0)
 }
