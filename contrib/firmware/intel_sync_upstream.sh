@@ -35,12 +35,19 @@ function usage()
 }
 
 # Verify param count
-if [ "$#" -ne "4" ]; then
+if [ "$#" -lt "4" ]; then
   usage
 fi;
 SOC="$1"
 DIR="$2"
 VERSION="$3"
+
+for arg in "$@"; do
+  if [[ "$arg" == "--external" ]]; then
+    run_external=true
+    break # Exit the loop once --external is found
+  fi
+done
 
 if [[ ! "${SOC_LIST[*]}" =~ ${SOC} ]]; then
   die 1 "SoC is not supported"
@@ -133,7 +140,17 @@ die $? "Can't checkout upstream/${VERSION}"
 echo "Checked out upstream/${VERSION} to branch ${STAGING_NAME}-${VERSION}"
 
 echo "Pushing to a staging repo to avoid 'forge commiter' permission issues"
-git push -o skip-validation -o nokeycheck -o push-justification=b/"$4" cros-internal HEAD:refs/heads/staging/"${STAGING_PREFIX}"-"${VERSION}"
+
+PUSH_ARGS=""
+if [[ "$run_external" == true ]]; then
+	echo "Detected --external flag: validation will be performed on git push"
+else
+	echo "No --external flag detected: Skipping validation on git push"
+	PUSH_ARGS="-o skip-validation -o nokeycheck"
+fi
+
+git push ${PUSH_ARGS} -o push-justification=b/"$4" cros-internal HEAD:refs/heads/staging/"${STAGING_PREFIX}"-"${VERSION}"
+
 die $? "Could not push to a staging repo"
 
 # Checkout a local branch from remotes/cros-internal/${CHROMEOS_BRANCH}
