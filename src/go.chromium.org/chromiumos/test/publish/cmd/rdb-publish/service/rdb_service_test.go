@@ -129,6 +129,23 @@ func TestChromiumTestRDBConfig(t *testing.T) {
 	Convey("Chromium Test RDB Config for gtest result format", t, func() {
 		// Create a test result proto with resultdb_settings flag in test args.
 		testResult := &artifact.TestResult{
+			TestInvocation: &artifact.TestInvocation{
+				PrimaryExecutionInfo: &artifact.ExecutionInfo{
+					BuildInfo: &artifact.BuildInfo{
+						Name: "hatch-cq/R106-15048.0.0",
+					},
+					EnvInfo: &artifact.ExecutionInfo_SkylabInfo{
+						SkylabInfo: &artifact.SkylabInfo{
+							BuildbucketInfo: &artifact.BuildbucketInfo{
+								AncestorIds: []int64{
+									8814950840874708945,
+									8814951792758733697,
+								},
+							},
+						},
+					},
+				},
+			},
 			TestRuns: []*artifact.TestRun{
 				{
 					TestCaseInfo: &artifact.TestCaseInfo{
@@ -147,7 +164,11 @@ func TestChromiumTestRDBConfig(t *testing.T) {
 			},
 		}
 		wantRDBConfig := &rdb_client.RdbStreamConfig{
-			BaseTags: map[string]string{},
+			BaseTags: map[string]string{
+				"ancestor_buildbucket_ids": "8814950840874708945,8814951792758733697",
+				"build":                    "R106-15048.0.0",
+				"image":                    "hatch-cq/R106-15048.0.0",
+			},
 			BaseVariant: map[string]string{
 				"builder":     "chromeos-betty-chrome",
 				"cros_img":    "betty-release/R127-15912.0.0",
@@ -172,7 +193,7 @@ func TestChromiumTestRDBConfig(t *testing.T) {
 		So(gotRDBconfig, ShouldResemble, wantRDBConfig)
 	})
 
-	Convey("Chromium Test RDB Config for gtest result format", t, func() {
+	Convey("Chromium Test RDB Config for native result format", t, func() {
 		// Create a test result proto with resultdb_settings flag in test args.
 		testResult := &artifact.TestResult{
 			TestRuns: []*artifact.TestRun{
