@@ -352,6 +352,16 @@ provision_device() {
   echo "${build}" >"${COMPLETED_FILE}"
   keyval "COMPLETED=${build}"
 
+  # TODO(sarthakkukreti@): Cleanup default-key-stateful transition flag.
+  # This allows moblab devices to avoid the forced auto-update wipe for
+  # default-key-stateful transition.
+  rm /mnt/stateful_partition/unencrypted/.default_key_stateful_migration
+
+  if [ "${PARTITION_NUM_POWERWASH_DATA+set}" = "set" ]; then
+    METADATA_PARTITION="${root_disk}${root_part_delim}${PARTITION_NUM_POWERWASH_DATA}"
+    dd if=/dev/zero of="${METADATA_PARTITION}" bs=1M count=4
+  fi
+
   if [[ ${FLAGS_reboot} -eq ${FLAGS_TRUE} ]]; then
     # Reboot in the background, giving time for the ssh invocation to
     # cleanly terminate.
