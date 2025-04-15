@@ -8,8 +8,8 @@ import os
 import shutil
 import sys
 
-from src.docker_libs.build_libs.shared.common_artifact_prep import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
-    CrosArtifactPrep,
+from src.docker_libs.build_libs.shared import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
+    common_artifact_prep,
 )
 from src.tools import (  # noqa: E402 pylint: disable=import-error,wrong-import-position
     container_util,
@@ -19,7 +19,7 @@ from src.tools import (  # noqa: E402 pylint: disable=import-error,wrong-import-
 sys.path.append("../../../../")
 
 
-class CrosPublishArtifactPrep(CrosArtifactPrep):
+class CrosPublishArtifactPrep(common_artifact_prep.CrosArtifactPrep):
     """Prep Needed files for the Cros Publish Container Docker Build."""
 
     def __init__(
@@ -42,11 +42,10 @@ class CrosPublishArtifactPrep(CrosArtifactPrep):
 
     def prep(self):
         """Run the steps needed to prep the container artifacts."""
-        # Copy all cros-publish services
-        self.copy_custom_service("gcs-publish")
+        # Copy all required cros-publish services
         self.copy_custom_service("tko-publish")
-        self.copy_custom_service("rdb-publish")
-        self.copy_custom_service("cpcon-publish")
+        self.setup_cipd()
+        self.ensure_packages()
 
         # Copy CPCon upload dependencies
         self.copy_cpcon_upload()
@@ -56,20 +55,6 @@ class CrosPublishArtifactPrep(CrosArtifactPrep):
         self.untar()
         self.remove_extra()
         self.remove_tarball()
-
-        # Download the required packages
-        self.install_cipd_package()
-        self.cipd_init()
-        self.cipd_install(
-            package="infra/tools/result_adapter/linux-amd64",
-            ref="prod",
-            json_output_file="result_adapter_cipd_metadata.json",
-        )
-        self.cipd_install(
-            package="infra/tools/rdb/linux-amd64",
-            ref="latest",
-            json_output_file="rdb_cipd_metadata.json",
-        )
 
     def untar(self):
         """Untar the package prior to depl."""
@@ -116,4 +101,41 @@ class CrosPublishArtifactPrep(CrosArtifactPrep):
             src, "third_party", "autotest", "files", "contrib"
         )
         shutil.copytree(autotest_contrib, self.full_out + "/contrib/")
-        shutil.copy(os.path.join(src, "config", "python", "chromiumos", "test", "artifact", "tko_pb2.py"), self.full_out)
+        shutil.copy(
+            os.path.join(
+                src,
+                "config",
+                "python",
+                "chromiumos",
+                "test",
+                "artifact",
+                "tko_pb2.py",
+            ),
+            self.full_out,
+        )
+
+    def setup_cipd(self):
+        """Set up cipd so cipd packages can be installed"""
+        self.install_cipd_package()
+        self.cipd_init()
+
+    def ensure_packages(self):
+        ensure_pkgs_path = os.path.join(self.full_out, "pkgbin")
+        ensure_file = os.path.join(self.full_out, "ensure.txt")
+        with open(ensure_file, "w", encoding="utf-8") as f:
+            f.write(
+                "chromiumos/infra/cft/publish/gcs-publish/linux-amd64 prod\n"
+            )
+            f.write(
+                "chromiumos/infra/cft/publish/rdb-publish/linux-amd64 prod\n"
+            )
+            f.write(
+                "chromiumos/infra/cft/publish/cpcon-publish/linux-amd64 prod\n"
+            )
+            f.write("infra/tools/result_adapter/linux-amd64 prod\n")
+            f.write("infra/tools/rdb/linux-amd64 latest\n")
+        os.system(
+            f"cipd ensure "
+            f"-ensure-file {ensure_file} "
+            f"-root {ensure_pkgs_path}"
+        )
