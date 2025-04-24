@@ -604,7 +604,11 @@ do_prepare() {
     if ! git checkout "${mcbranch}" >/dev/null 2>&1; then
       die "Failed to check out '${mcbranch}'."
     fi
-    git pull >/dev/null
+
+    # Pull only the branch's upstream remote. If no remote name is given and if
+    # `git config fetch.all` is true, then git will fetch all remotes, possibly
+    # wasting much time.
+    git pull '@{u}' >/dev/null
   else
     if ! git checkout -b "${mcbranch}" "${ocbranch}"; then
       die "Failed to create '${mcbranch}' from '${ocbranch}'."
