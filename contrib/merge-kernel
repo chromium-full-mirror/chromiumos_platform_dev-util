@@ -136,7 +136,8 @@ find_remote() {
   for remote in $(git remote 2>/dev/null); do
     rurl=$(git remote get-url "${remote}")
     # ignore trailing '/' when comparing repositories
-    if [[ "${rurl%/}" == "${url%/}" ]]; then
+    if [[ "${rurl%/}" == "${url%/}" ]] ||
+       [[ "${rurl%/}" == "persistent-${url%/}" ]]; then
       echo "${remote}"
       break
     fi
