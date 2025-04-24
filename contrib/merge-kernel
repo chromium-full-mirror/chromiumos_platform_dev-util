@@ -128,32 +128,40 @@ EOF
   exit 0
 }
 
-# Find and report remote.
+# usage: find_remote URL...
+#
+# Find remote that matches any of the given urls and print the remote name.
 find_remote() {
-  local url="$1"
+  local urls=("$@")
+  local url
   local remote
+  local remote_url
 
   for remote in $(git remote 2>/dev/null); do
-    rurl=$(git remote get-url "${remote}")
-    # ignore trailing '/' when comparing repositories
-    if [[ "${rurl%/}" == "${url%/}" ]] ||
-       [[ "${rurl%/}" == "persistent-${url%/}" ]]; then
-      echo "${remote}"
-      break
-    fi
+    remote_url=$(git remote get-url "${remote}")
+    for url in "${urls[@]}"; do
+      # ignore trailing '/' when comparing repositories
+      if [[ "${remote_url%/}" == "${url%/}" ]] ||
+         [[ "${remote_url%/}" == "persistent-${url%/}" ]]; then
+        echo "${remote}"
+        return
+      fi
+    done
   done
 }
 
-# Find remote. If there is no remote pointing to the referenced
-# kernel repository, create one.
+# usage: find_create_remote DEFAULT_REMOTE_NAME URL...
+#
+# Find remote that matches any of the given urls and print the remote name. If
+# no remote is found, then create one with the first given url.
 find_create_remote() {
-  local url="$1"
-  local default="$2"
+  local default="$1"
+  local urls=("${@:2}")
   local result
 
-  result="$(find_remote "${url}")"
+  result=$(find_remote "${urls[@]}")
   if [[ -z "${result}" ]]; then
-    git remote add "${default}" "${url}"
+    git remote add "${default}" "${urls[0]}" || exit
     result="${default}"
   fi
 
@@ -164,25 +172,26 @@ find_create_remote() {
 # This is useful if the command runs on a checked out
 # tree with several remotes.
 find_chromeos() {
-  local url="https://chromium.googlesource.com/chromiumos/third_party/kernel"
-
-  find_remote "${url}"
+  find_remote "https://chromium.googlesource.com/chromiumos/third_party/kernel" \
+              "https://chromium.git.corp.google.com/chromiumos/third_party/kernel"
 }
 
 # Find stable remote. If there is no remote pointing to the stable
 # kernel repository, create one.
 find_stable() {
-  local url="https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git"
-
-  find_create_remote "${url}" "stable"
+  find_create_remote "stable" \
+    "https://kernel.googlesource.com/pub/scm/linux/kernel/git/stable/linux-stable.git" \
+    "https://kernel.googlesource.com/pub/scm/linux/kernel/git/stable/linux.git" \
+    "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git" \
+    "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git"
 }
 
 # Find stable remote. If there is no remote pointing to the stable
 # kernel repository, create one.
 find_stable_rc() {
-  local url="https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable-rc.git"
-
-  find_create_remote "${url}" "stable-rc"
+  find_create_remote "stable-rc" \
+    "https://kernel.googlesource.com/pub/scm/linux/kernel/git/stable/linux-stable-rc.git" \
+    "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable-rc.git"
 }
 
 # Given a R<N> release argument, auto-detect tbranch
