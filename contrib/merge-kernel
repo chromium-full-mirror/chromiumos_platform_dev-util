@@ -172,7 +172,7 @@ find_chromeos() {
 # Find stable remote. If there is no remote pointing to the stable
 # kernel repository, create one.
 find_stable() {
-  local url="git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git"
+  local url="https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git"
 
   find_create_remote "${url}" "stable"
 }
@@ -180,7 +180,7 @@ find_stable() {
 # Find stable remote. If there is no remote pointing to the stable
 # kernel repository, create one.
 find_stable_rc() {
-  local url="git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable-rc.git"
+  local url="https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable-rc.git"
 
   find_create_remote "${url}" "stable-rc"
 }
