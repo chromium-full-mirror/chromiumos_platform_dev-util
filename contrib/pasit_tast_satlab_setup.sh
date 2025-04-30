@@ -67,6 +67,14 @@ function start_passport() {
   ${CROS_CHECKOUT_DIR}/src/platform/passport/scripts/docker_on_remote.sh "${SATLAB_IP}"
 }
 
+function run_command_on_satlab() {
+  # runs command on satlab in a bash shell so that we get env vars
+  # and path as if we were running command from interactive shell
+  # this assumes that no variable expanision is needed on the remote
+  # ssh shell
+  ssh "${SATLAB_IP}" -t "bash -l -c '$*'"
+}
+
 function setup_servo() {
   echo -e "\n\nStarting servod container..."
   local DUT_INFO_FILE="$(mktemp)"
@@ -115,13 +123,14 @@ function setup_servo() {
   echo "BOARD: ${BOARD}"
   echo "MODEL: ${MODEL}"
 
-  ssh "${SATLAB_IP}" /usr/local/bin/satlab servod stop -host "${DUT_HOSTNAME}" > /dev/null 2>&1
-  if ! ssh "${SATLAB_IP}" /usr/local/bin/satlab servod start -host "${DUT_HOSTNAME}" -board "${BOARD}" -model "${MODEL}" -servo-serial "${SERVO_SERIAL}" -servod-container-name "${SERVO_CONTAINER_NAME}"; then
+  run_command_on_satlab satlab servod stop -host "${DUT_HOSTNAME}"
+  if ! run_command_on_satlab satlab servod start -host "${DUT_HOSTNAME}" -board "${BOARD}" -model "${MODEL}" -servo-serial "${SERVO_SERIAL}" -servod-container-name "${SERVO_CONTAINER_NAME}"; then
     echo -e "\n\nFailed to start servod for ${DUT_HOSTNAME}"
     exit 1
   fi
 
   SERVO_IP="$(ssh "${SATLAB_IP}" /usr/local/bin/docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${SERVO_CONTAINER_NAME}")"
+  echo "SERVO_IP: ${SERVO_IP}"
 }
 
 if [[ -z "${DUT_HOSTNAME}" ]]; then
@@ -144,12 +153,12 @@ pushd "${CROS_CHECKOUT_DIR}" > /dev/null
 
 echo -e "\n\nChecking if satlab ${SATLAB_IP} is logged in..."
 # check that we can ssh to the satlab and that we are logged in
-WHOAMI="$(ssh "${SATLAB_IP}" /usr/local/bin/satlab whoami 2>&1)"
+WHOAMI="$(run_command_on_satlab satlab whoami 2>&1)"
 if [[ "${WHOAMI}" =~ "Not logged in." ]]; then
   echo -e "\n\nYou are not logged in to satlab ${SATLAB_IP} please follow steps below to login:\n\n"
 
   echo "satlab login ${SATLAB_IP}"
-  if ! ssh "${SATLAB_IP}" -t /usr/local/bin/satlab login; then
+  if ! run_command_on_satlab satlab login; then
     echo -e "\n\nFailed to login to satlab ${SATLAB_IP}"
     exit 1
   fi
