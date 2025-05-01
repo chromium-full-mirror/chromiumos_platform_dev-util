@@ -47,6 +47,7 @@ UPSTREAM_URLS = (
     "git://git.kernel.org/pub/scm/bluetooth/bluez.git",
     "https://github.com/andersson/qrtr.git",
     "https://review.coreboot.org/flashrom.git",
+    "https://gitlab.freedesktop.org/mesa/mesa.git",
 )
 
 PATCHWORK_URLS = (
@@ -206,7 +207,7 @@ def _wrap_commit_line(prefix, content):
 
 
 def _get_patch_from_message_id(args, message_id):
-    for (url_template, mbox_suffix) in [
+    for url_template, mbox_suffix in [
         ("https://lore.kernel.org/r/%s", "raw"),
         # hostap project (and others) are here, but not kernel.org.
         ("https://marc.info/?i=%s", "&q=mbox"),
@@ -231,11 +232,13 @@ def _get_patch_from_message_id(args, message_id):
                 # redirect us and instead will show a disambiguation page.
                 # We'll use "re" to scrape. This is a bit fragile but
                 # marc.info doesn't seem to have any API to help us with this.
-                data = opener.read().decode('utf-8')
+                data = opener.read().decode("utf-8")
                 mo = re.search(r'<a href="\?l=([^&]*)\&m=([^"]*)', data)
                 if mo is not None:
                     l, m = mo.groups()
-                    errprint("Warning: multiple hits on marc.info; picking %s" % l)
+                    errprint(
+                        "Warning: multiple hits on marc.info; picking %s" % l
+                    )
                     new_url = "https://marc.info/?l=%s&m=%s&q=mbox" % (l, m)
                     opener = urllib.request.urlopen(new_url)
 
