@@ -76,7 +76,9 @@ def main():
     if not check_flags(board, variant, bug, continue_flag, abort_flag):
         return False
 
-    status = get_status(board, variant, bug, branch, trunk, continue_flag, abort_flag)
+    status = get_status(
+        board, variant, bug, branch, trunk, continue_flag, abort_flag
+    )
     if status is None:
         return False
 
@@ -175,7 +177,15 @@ def get_args():
     branch = args.branch or "None"
     trunk = args.trunk or "chromiumos"
 
-    return (board, variant, bug, branch, trunk, args.continue_flag, args.abort_flag)
+    return (
+        board,
+        variant,
+        bug,
+        branch,
+        trunk,
+        args.continue_flag,
+        args.abort_flag,
+    )
 
 
 def check_flags(board, variant, bug, continue_flag, abort_flag):
@@ -783,7 +793,13 @@ def fw_build_config(status):
     logging.info("Running step fw_build_config")
     fw_build_config_sh = os.path.join(status.my_loc, "fw_build_config.sh")
     rc = run_process(
-        [fw_build_config_sh, status.base, status.variant, status.trunk, status.bug]
+        [
+            fw_build_config_sh,
+            status.base,
+            status.variant,
+            status.trunk,
+            status.bug,
+        ]
     )
     if rc:
         status.commits[step_names.FW_BUILD_CONFIG] = get_git_commit_data(
@@ -1216,7 +1232,13 @@ def add_variant_to_public_yaml(status):
         status.my_loc, "add_variant_to_yaml.sh"
     )
     rc = run_process(
-        [add_variant_to_yaml_sh, status.base, status.variant, status.trunk, status.bug]
+        [
+            add_variant_to_yaml_sh,
+            status.base,
+            status.variant,
+            status.trunk,
+            status.bug,
+        ]
     )
     if rc:
         status.commits[step_names.ADD_PUB_YAML] = get_git_commit_data(
