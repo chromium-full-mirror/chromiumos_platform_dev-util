@@ -47,28 +47,37 @@ func RunCmd(ctx context.Context, cmd string, args []string, dut api.DutServiceCl
 	return string(execCmdResponse.Stdout), err
 }
 
-// ReadProtoJSONFile reads a protocol buffer from the given file.
-func ReadProtoJSONFile(ctx context.Context, filePath string, outputProto proto.Message) (retErr error) {
+// ReadJSONFile reads bytes from the given file.
+func ReadJSONFile(ctx context.Context, filePath string) (bytes []byte, retErr error) {
 	_, fileName := path.Split(filePath)
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("opening file %q: %w", fileName, err)
+		return nil, fmt.Errorf("opening JSON file %q: %w", fileName, err)
 	}
 	defer func() {
 		err := f.Close()
 		if err != nil && retErr == nil {
-			retErr = fmt.Errorf("error closing file %q: %w", fileName, err)
+			retErr = fmt.Errorf("error closing JSON file %q: %w", fileName, err)
 		}
 	}()
 
-	bytes, err := io.ReadAll(f)
+	bytes, err = io.ReadAll(f)
 	if err != nil {
-		return fmt.Errorf("reading file %q: %w", fileName, err)
+		return nil, fmt.Errorf("reading JSON file %q: %w", fileName, err)
 	}
 
-	log.Printf("proto successfully read from file: %s", string(bytes))
+	log.Printf("Successfully read from JSON file: %s", string(bytes))
+	return bytes, nil
+}
 
+// ReadProtoJSONFile reads a protocol buffer from the given file.
+func ReadProtoJSONFile(ctx context.Context, filePath string, outputProto proto.Message) (err error) {
+	_, fileName := path.Split(filePath)
+	bytes, err := ReadJSONFile(ctx, filePath)
+	if err != nil {
+		return err
+	}
 	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
 	err = opts.Unmarshal(bytes, outputProto)
 	if err != nil {
