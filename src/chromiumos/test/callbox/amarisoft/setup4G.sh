@@ -28,6 +28,10 @@ fi
 echo "#define CROS_SDR_COUNT ${cros_sdr_count}" > /root/enb/config/cros_sdr_count.cfg
 service lte start
 
+# Configure log rotation for lte services.
+printf 'source ots.default.cfg\nLOG_SIZE="5M"\nLOG_COUNT="10K"' > /root/ots/config/cros-ots.cfg
+ln -sfn cros-ots.cfg /root/ots/config/ots.cfg
+
 cd "${dir}"
 source setupCrosServer.sh
 source setupFileServer.sh
