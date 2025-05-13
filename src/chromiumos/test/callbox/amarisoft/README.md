@@ -28,4 +28,10 @@ Example: Set cell 1's gain to -200dB
 Check cell gain(ENB)
 >cell
 
+# Read service logs
+>journalctl -u cros_server -f
+>journalctl -u named --since "1 hour ago"
 
+# callbox log location
+>/tmp/mme.log\
+>/tmp/enb0.log
