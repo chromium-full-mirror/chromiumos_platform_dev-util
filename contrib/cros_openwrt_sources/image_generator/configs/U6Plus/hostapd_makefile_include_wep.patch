@@ -1,0 +1,15 @@
+diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
+index 8753782012..27cc357f4e 100644
+--- a/package/network/services/hostapd/Makefile
++++ b/package/network/services/hostapd/Makefile
+@@ -597,9 +597,7 @@ TARGET_CPPFLAGS := \
+ 
+ TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lucode -lm -lnl-tiny -ludebug
+ 
+-ifdef CONFIG_WPA_ENABLE_WEP
+-    DRIVER_MAKEOPTS += CONFIG_WEP=y
+-endif
++DRIVER_MAKEOPTS += CONFIG_WEP=y
+ 
+ define Build/RunMake
+ 	CFLAGS="$(TARGET_CPPFLAGS) $(TARGET_CFLAGS)" \

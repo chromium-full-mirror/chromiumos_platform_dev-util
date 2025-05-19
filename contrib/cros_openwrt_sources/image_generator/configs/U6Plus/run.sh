@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -e
+
+DEVICE_CONFIG_DIR="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
+OPENWRT_DIR=$(realpath -e "${DEVICE_CONFIG_DIR}/../..")
+
+cd "${OPENWRT_DIR}"
+exec > >(tee ./logs/run.log) 2>&1
+
+echo "Start feeds update and install"
+./scripts/feeds update -a
+./scripts/feeds install -a
+
+echo "Patching Makefile of hostapd"
+patch "package/network/services/hostapd/Makefile" "${DEVICE_CONFIG_DIR}/hostapd_makefile_include_wep.patch"
+
+echo "Apply config"
+cp "${DEVICE_CONFIG_DIR}/defconfig" "${OPENWRT_DIR}/.config"
+
+make defconfig
+
+echo "Run make download"
+make -j$(nproc) V=s download
+
+echo "Run make world -j=$(nproc) V=s"
+make -j$(nproc) V=s world || (echo "Rerun make -j1 V=sc world" && make -j1 V=sc world)
+
+echo "Images successfully generated"
