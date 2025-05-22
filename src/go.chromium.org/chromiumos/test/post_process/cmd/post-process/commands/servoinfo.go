@@ -19,7 +19,7 @@ const (
 	FixturesSuffix  = "fixtures"
 	MaxReadDirDepth = 100
 	ServoFileName   = "servo_info.json"
-	TastServoDir    = "servoHook"
+	TastServoDir    = "servoHook/"
 	TautoServoDir   = "sysinfo"
 	TestsPrefix     = "tests/"
 )
@@ -68,7 +68,7 @@ func ServoFilePath(logger *log.Logger, testResult *artifact.TestResult) string {
 			continue
 		}
 
-		testName := testCaseResult.GetTestCaseId().GetValue()
+		testName := testCaseResult.GetTestCaseMetadata().GetTestCase().GetName()
 		if testName == "" {
 			continue
 		}
@@ -84,7 +84,7 @@ func ServoFilePath(logger *log.Logger, testResult *artifact.TestResult) string {
 			// baseFixturesPath = cros-test-fd051ff7/cros-test/results/tast/fixtures
 			// filePath = cros-test-fd051ff7/cros-test/results/tast/fixtures/tastRootRemoteFixture_cros_20241120003832/servoHook/servo_info.json
 			suffix := TestsPrefix + testName
-			basePath, _ := strings.CutPrefix(resultDirPath, suffix)
+			basePath, _ := strings.CutSuffix(resultDirPath, suffix)
 			baseFixturesPath := basePath + FixturesSuffix
 			filePath = TastServoFilePath(logger, baseFixturesPath)
 		} else if strings.Contains(resultDirPath, common.TautoSubDir) {
