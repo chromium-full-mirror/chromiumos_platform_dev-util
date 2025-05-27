@@ -55,6 +55,7 @@ PARAMS_mali_drivers_valhall=(
   "asurada asurada chipset-mt8192"
   "cherry cherry chipset-mt8195"
   "geralt geralt chipset-mt8188g"
+  "skywalker skywalker chipset-mt8189"
 )
 
 # shellcheck disable=SC2034
