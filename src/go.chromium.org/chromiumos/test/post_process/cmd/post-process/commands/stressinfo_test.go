@@ -29,7 +29,7 @@ func TestStressInfo(t *testing.T) {
 			test: StressInfoFile,
 		}
 		got := stressTestInfos(ctx, emptyLogger, stressTestFiles)
-		wantStressTestInfo, _ := anypb.New(&artifact.DutInfo_StressTestInfo{
+		wantStressTestInfo, _ := anypb.New(&artifact.StressTestInfo{
 			Iterations: 10,
 		})
 		want := map[string]*anypb.Any{
@@ -43,7 +43,7 @@ func TestStressInfo(t *testing.T) {
 			test: "",
 		}
 		got := stressTestInfos(ctx, emptyLogger, stressTestFiles)
-		wantStressInfo, _ := anypb.New(&artifact.DutInfo_StressTestInfo{})
+		wantStressInfo, _ := anypb.New(&artifact.StressTestInfo{})
 		want := map[string]*anypb.Any{
 			test: wantStressInfo,
 		}

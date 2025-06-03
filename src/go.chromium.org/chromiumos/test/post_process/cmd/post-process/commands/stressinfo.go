@@ -38,11 +38,11 @@ func stressTestInfos(ctx context.Context, logger *log.Logger, stressTestFiles ma
 		logger.Printf("Fetch: %q for test: %q\n", stressTestFile, test)
 
 		// Converts the stress test info JSON file into stress test info proto.
-		stressTestInfo := &artifact.DutInfo_StressTestInfo{}
+		stressTestInfo := &artifact.StressTestInfo{}
 		err := util.ReadProtoJSONFile(ctx, stressTestFile, stressTestInfo)
 		if err != nil {
 			logger.Printf("Failed to read stress test info from file: %q for test: %q with err: %v\n", stressTestFile, test, err)
-			stressTestInfos[test], _ = anypb.New(&artifact.DutInfo_StressTestInfo{})
+			stressTestInfos[test], _ = anypb.New(&artifact.StressTestInfo{})
 			continue
 		}
 
