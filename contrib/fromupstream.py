@@ -51,7 +51,6 @@ UPSTREAM_URLS = (
 )
 
 PATCHWORK_URLS = (
-    "https://patchwork.kernel.org",
     "https://patchwork.ozlabs.org",
     "https://patchwork.freedesktop.org",
 )
