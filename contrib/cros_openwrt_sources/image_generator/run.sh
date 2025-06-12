@@ -20,7 +20,7 @@ if [ -n "${MAKE_ARCHIVE}" ]; then
     echo "Start creating tar archive"
     TARGETS_DIR="${OPENWRT_DIR}/bin/targets"
     BUILD_INFO_FILE_NAME="cros_openwrt_image_build_info.json"
-    sysupgrade_file_path=$(find "${TARGETS_DIR}" \( -name "*-${IMAGE_PROFILE}*-sysupgrade*.itb" -o -name "*-${IMAGE_PROFILE}*-sysupgrade*.bin" \) -print -quit)
+    sysupgrade_file_path=$(find "${TARGETS_DIR}" \( -name "*-${IMAGE_PROFILE}-squashfs-sysupgrade.itb" -o -name "*-${IMAGE_PROFILE}-squashfs-sysupgrade.bin" \) -print -quit)
     sysupgrade_basename=$(basename "${sysupgrade_file_path}")
     archive_name=${IMAGE_PROFILE}-sysupgrade_$(date +"%Y%m%d-%H%M%S").tar.xz
     sysupgrade_dir=$(dirname "${sysupgrade_file_path}")
@@ -33,10 +33,13 @@ if [ -n "${MAKE_ARCHIVE}" ]; then
         "sha256sums"
         "profiles.json"
     )
-    cp "/build/generated_files/etc/cros/${BUILD_INFO_FILE_NAME}" "${sysupgrade_dir}"
+    GENERATED_FILES_DIR="/build/generated_files"
+    OUTPUT_DIR="${GENERATED_FILES_DIR}/output"
+    cp "${GENERATED_FILES_DIR}/etc/cros/${BUILD_INFO_FILE_NAME}" "${sysupgrade_dir}"
 
-    cd /build/generated_files
-    cp "./etc/cros/${BUILD_INFO_FILE_NAME}" .
+    mkdir -p "${OUTPUT_DIR}"
+    cd "${OUTPUT_DIR}"
+    cp "${GENERATED_FILES_DIR}/etc/cros/${BUILD_INFO_FILE_NAME}" .
     tar -cJf "${archive_name}" -C "${sysupgrade_dir}" "${files_to_add[@]}"
     echo "Tar archive created"
 fi

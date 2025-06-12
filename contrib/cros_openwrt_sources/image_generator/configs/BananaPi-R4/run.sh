@@ -15,6 +15,7 @@ MTK_AUTOBUILD_DIR=${OPENWRT_DIR}/../mtk-openwrt-feeds/autobuild/unified
 echo "Prepare MTK folder with feed and config updates"
 cp "${DEVICE_CONFIG_DIR}/feed_revision" "${MTK_AUTOBUILD_DIR}"
 cp "${DEVICE_CONFIG_DIR}/defconfig" "${MTK_AUTOBUILD_DIR}/filogic/mac80211/mt7988_rfb/mt7996/24.10/"
+cp "${DEVICE_CONFIG_DIR}/900-add-hw-id.patch" "${OPENWRT_DIR}/package/boot/uboot-mediatek/patches/"
 cp -f "${DEVICE_CONFIG_DIR}/0003-hostapd-package-makefile-ucode-files.patch" "${MTK_AUTOBUILD_DIR}/filogic/mac80211/24.10/patches-base/0003-hostapd-package-makefile-ucode-files.patch"
 
 echo "Start autobuild from MTK"

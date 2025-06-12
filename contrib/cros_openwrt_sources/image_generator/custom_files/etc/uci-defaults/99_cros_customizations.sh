@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Copyright 2023 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -14,14 +14,72 @@
 # shellcheck source=/lib/functions/system.sh disable=SC1091
 . /lib/functions/system.sh
 
+#
+# get_network_device_prefix
+#
+# Description:
+#   Finds the full internal UCI prefix (e.g., network.cfg08927c) for a
+#   network device section, given its 'name' option.
+#
+# Usage:
+#   get_network_device_prefix <device_name>
+#
+# Arguments:
+#   $1 - The name of the device to find (e.g., "br-lan", "eth0").
+#
+# Output:
+#   - On success: Prints the full UCI prefix to standard output.
+#   - On failure: Prints an error message to standard error.
+#
+# Return Code:
+#   - 0 on success.
+#   - 1 on failure (e.g., device not found or argument missing).
+#
+get_network_device_prefix() {
+    if [ -z "$1" ]; then
+        echo "Error: No device name supplied to get_network_device_prefix." >&2
+        return 1
+    fi
+
+    local device_name="$1"
+    local prefix
+    local section_line
+
+    section_line=$(uci show network | grep ".name='${device_name}'")
+
+    if [ -n "${section_line}" ]; then
+        # 3. If found, extract the first two fields using '.' as a delimiter.
+        #    For a line like "network.cfg08927c.name='br-lan'", this will
+        #    extract "network.cfg08927c".
+        prefix=$(echo "${section_line}" | cut -d'.' -f1,2)
+        echo "${prefix}"
+        return 0
+    else
+        echo "Error: Device '${device_name}' not found." >&2
+        return 1
+    fi
+}
+
 setup_br_lan() {
   local board="$1"
   case ${board} in
-    bananapi,bpi-r3)
+    bananapi,bpi-r3|\
+    bananapi,bpi-r4)
       # Delete existing br-lan device which services the bpi internal LAN and rename
       # br-wan --> br-lan which to stay in line with other OpenWrt images.
-      uci del network.@device[0]
-      uci set network.@device[0].name='br-lan'
+      # Remove br-lan only if br-wan exists, prevent from unnecessary delete if run several times
+
+
+      if br_wan_device=$(get_network_device_prefix "br-wan"); then
+        if br_lan_device=$(get_network_device_prefix "br-lan"); then
+            uci del "${br_lan_device}"
+        fi
+
+        # update value, because it's changed after uci del above
+        br_wan_device=$(get_network_device_prefix "br-wan")
+        uci set "${br_wan_device}".name='br-lan'
+      fi
+
     ;;
     *)
       BR_LAN_L2_PORT="eth0"
@@ -29,16 +87,19 @@ setup_br_lan() {
         # Some devices already have a lan eth0 bridge that cannot be removed.
         BR_LAN_L2_PORT="lan"
       fi
-      uci set network.@device[0]=device
-      uci set network.@device[0].name='br-lan'
-      uci set network.@device[0].type='bridge'
-      uci set network.@device[0].ports="${BR_LAN_L2_PORT}"
+
+      br_lan_device=$(get_network_device_prefix "br-lan")
+      if [ -n "${br_lan_device}" ]; then
+        uci set "${br_lan_device}".type='bridge'
+        uci set "${br_lan_device}".ports="${BR_LAN_L2_PORT}"
+      fi
       ;;
   esac
 }
 
-uci del network.lan
-/etc/init.d/network reload
+if uci get network.lan >/dev/null 2>&1; then
+  uci del network.lan
+fi
 
 # Setup br-lan interface which acts as the network bridge for the WAN interface.
 setup_br_lan "$(board_name)"
@@ -51,11 +112,13 @@ uci set network.wan.device='br-lan'
 # Turn on wireless radios on by default.
 uci set wireless.radio0.disabled='0'
 uci set wireless.radio1.disabled='0'
+uci set wireless.radio2.disabled='0'
 
 # Remove unnecessary interfaces that will not be used in the lab. The tests will
 # create their own interfaces.
 uci del wireless.default_radio0
 uci del wireless.default_radio1
+uci del wireless.default_radio2
 
 # Commit and reload UCI changes.
 uci commit network

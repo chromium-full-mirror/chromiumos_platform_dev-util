@@ -13,5 +13,6 @@ ROUTER_FEATURES+=(
   'WIFI_ROUTER_FEATURE_IEEE_802_11_AX'
 )
 IMAGE_PROFILE="ubnt_unifi-6-plus"
+IMAGE_NAME="standard-0.0.1"
 
 build

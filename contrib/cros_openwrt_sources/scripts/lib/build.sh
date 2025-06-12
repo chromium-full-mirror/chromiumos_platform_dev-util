@@ -106,9 +106,11 @@ build() {
 
     #Build Docker container with OpenWRT and MTK feed repos inside it
     docker build "${DOCKER_BUILD_ARGS[@]}" .
+    START_TIME="$(date +%Y%m%d-%H%M%S)"
+    BUILD_DIR="${CROS_OPENWRT_DIR}/build_dir/${DEVICE}/${IMAGE_NAME}/${START_TIME}"
 
-    BUILD_DIR="${CROS_OPENWRT_DIR}/build_dir/${DEVICE}-${OPENWRT_COMMIT}"
     mkdir -p "${BUILD_DIR}"
+    ln -sfn "${BUILD_DIR}" "$(dirname ${BUILD_DIR})/latest"
 
     generate_cros_files "${BUILD_DIR}"
 

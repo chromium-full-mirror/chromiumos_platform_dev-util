@@ -16,5 +16,6 @@ ROUTER_FEATURES+=(
   'WIFI_ROUTER_FEATURE_GCMP'
 )
 IMAGE_PROFILE="bananapi_bpi-r4"
+IMAGE_NAME="standard-0.0.1"
 
 build
