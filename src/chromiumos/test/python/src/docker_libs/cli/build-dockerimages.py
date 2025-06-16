@@ -24,41 +24,14 @@ sys.path.append(
 
 # pylint: disable=import-error,wrong-import-position,import-modules-only
 from src.common.exceptions import ConfigError
-from src.docker_libs.build_libs.android_provision.android_provision_prep import (
-    AndroidProvisionDockerPrepper,
-)
 from src.docker_libs.build_libs.builders import DockerBuilder
 from src.docker_libs.build_libs.builders import GcloudDockerBuilder
 from src.docker_libs.build_libs.builders import LocalDockerBuilder
-from src.docker_libs.build_libs.cros_callbox.cros_callbox_prep import (
-    CrosCallBoxDockerPrepper,
-)
-from src.docker_libs.build_libs.cros_dut.cros_dut_prep import (
-    CrosDutDockerPrepper,
-)
-from src.docker_libs.build_libs.cros_fw_provision.cros_fw_provision_prep import (
-    CrosFWProvisionDockerPrepper,
-)
-from src.docker_libs.build_libs.cros_provision.cros_provision_prep import (
-    CrosProvisionDockerPrepper,
-)
-from src.docker_libs.build_libs.cros_publish.cros_publish_prep import (
-    CrosPublishDockerPrepper,
-)
-from src.docker_libs.build_libs.cros_servod.cros_servod_prep import (
-    CrosServodDockerPrepper,
-)
 from src.docker_libs.build_libs.cros_test.cros_test_prep import (
     CrosTestDockerPrepper,
 )
 from src.docker_libs.build_libs.cros_test_finder.cros_test_finder_prep import (
     CrosTestFinderDockerPrepper,
-)
-from src.docker_libs.build_libs.pre_process.pre_process_prep import (
-    PreProcessDockerPrepper,
-)
-from src.docker_libs.build_libs.shared.base_service_prep import (
-    BaseServicePrepper,
 )
 from src.docker_libs.build_libs.shared.common_service_prep import (
     CommonServiceDockerPrepper,
@@ -77,33 +50,14 @@ from src.docker_libs.build_libs.shared.common_service_prep import (
 # extremely simple/easy for a user to come in and add a new dockerfile.
 
 REGISTERED_BUILDS = {
-    "android-provision": {
-        "prepper": AndroidProvisionDockerPrepper,
-        "cloud": False,
-    },
-    "cros-callbox": {"prepper": CrosCallBoxDockerPrepper, "cloud": False},
-    "cros-dut": {"prepper": CrosDutDockerPrepper, "cloud": False},
-    "cros-provision": {"prepper": CrosProvisionDockerPrepper, "cloud": False},
-    "cros-fw-provision": {
-        "prepper": CrosFWProvisionDockerPrepper,
-        "cloud": False,
-    },
     "cros-test": {"prepper": CrosTestDockerPrepper, "cloud": True},
     "cros-test-cq-light": {"prepper": CrosTestDockerPrepper, "cloud": False},
     "cros-test-finder": {
         "prepper": CrosTestFinderDockerPrepper,
         "cloud": False,
     },
-    "cros-servod": {"prepper": CrosServodDockerPrepper, "cloud": False},
-    "cros-publish": {"prepper": CrosPublishDockerPrepper, "cloud": False},
-    "pre-process": {"prepper": PreProcessDockerPrepper, "cloud": False},
-    "vm-provision": {"prepper": CommonServiceDockerPrepper, "cloud": False},
-    "cros-hpt": {"prepper": CommonServiceDockerPrepper, "cloud": False},
+    # TODO(cdelagarza): Remove once post-process is moved to infra/infra.
     "post-process": {"prepper": CommonServiceDockerPrepper, "cloud": False},
-    "provision-filter": {"prepper": CommonServiceDockerPrepper, "cloud": False},
-    "firmware-filter": {"prepper": CommonServiceDockerPrepper, "cloud": False},
-    "cros-ddd-filter": {"prepper": BaseServicePrepper, "cloud": False},
-    "cros-legacy-hw-filter": {"prepper": BaseServicePrepper, "cloud": False},
 }
 
 # There is a ~1 in 10000 err with the fetching of the base container
