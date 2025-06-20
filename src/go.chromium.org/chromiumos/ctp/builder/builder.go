@@ -94,6 +94,8 @@ type CTPBuilder struct {
 	// SecondaryImages is a list containing the images of any secondary devices
 	// Should be of equal length to SecondaryBoards or zero
 	SecondaryImages []string
+	// Skip provisioning if true.
+	SkipProvisioning bool
 	// TestPlan is the test plan we want to execute
 	// These should not be built by hand, instead using a method in the CTP client lib
 	TestPlan *test_platform.Request_TestPlan
@@ -342,6 +344,7 @@ func (c *CTPBuilder) TestPlatformRequest(buildTags map[string]string) (*test_pla
 			Trv2StepsConfig:      cftSteps,
 			ScheduleViaScheduke:  c.UseScheduke,
 			Results:              c.ResultsUploadConfig,
+			SkipProvisioning:     c.SkipProvisioning,
 		},
 	}
 	// Handling multi-DUTs use case if secondaryBoards provided.

@@ -6,7 +6,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.9
 	go.chromium.org/chromiumos/config/go v0.0.0-20240309015314-b8a183866804
-	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20240521170946-ec61aab12a90
+	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20250623190020-bff867fc0474
 	go.chromium.org/luci v0.0.0-20230103053340-8a57daa72e32
 	google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef
 	google.golang.org/grpc v1.51.0
@@ -29,3 +29,5 @@ require (
 	google.golang.org/api v0.105.0 // indirect
 	google.golang.org/appengine v1.6.8-0.20220805212354-d981f2f002d3 // indirect
 )
+
+replace go.chromium.org/chromiumos/config/go => go.chromium.org/chromiumos/config/go/src/go.chromium.org/chromiumos/config/go v0.0.0-20250623185307-69444630c628
