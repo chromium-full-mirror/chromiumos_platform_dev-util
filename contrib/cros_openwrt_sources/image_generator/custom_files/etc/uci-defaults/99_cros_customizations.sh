@@ -45,7 +45,7 @@ get_network_device_prefix() {
     local prefix
     local section_line
 
-    section_line=$(uci show network | grep ".name='${device_name}'")
+    section_line=$(uci show network | grep ".name='${device_name}'" | head -n 1)
 
     if [ -n "${section_line}" ]; then
         # 3. If found, extract the first two fields using '.' as a delimiter.
@@ -69,7 +69,6 @@ setup_br_lan() {
       # br-wan --> br-lan which to stay in line with other OpenWrt images.
       # Remove br-lan only if br-wan exists, prevent from unnecessary delete if run several times
 
-
       if br_wan_device=$(get_network_device_prefix "br-wan"); then
         if br_lan_device=$(get_network_device_prefix "br-lan"); then
             uci del "${br_lan_device}"
@@ -78,6 +77,18 @@ setup_br_lan() {
         # update value, because it's changed after uci del above
         br_wan_device=$(get_network_device_prefix "br-wan")
         uci set "${br_wan_device}".name='br-lan'
+
+        BR_LAN_L2_PORT="wan"
+        uci set "${br_wan_device}".ports="${BR_LAN_L2_PORT}"
+
+        # For some reason by default uci has 2 device with 'wan' name and assigned macaddr.
+        # Remove them from config
+        if wan_device=$(get_network_device_prefix "wan"); then
+          uci delete "${wan_device}"
+          if wan_device=$(get_network_device_prefix "wan"); then
+            uci delete "${wan_device}"
+          fi
+        fi
       fi
 
     ;;
@@ -88,8 +99,7 @@ setup_br_lan() {
         BR_LAN_L2_PORT="lan"
       fi
 
-      br_lan_device=$(get_network_device_prefix "br-lan")
-      if [ -n "${br_lan_device}" ]; then
+      if br_lan_device=$(get_network_device_prefix "br-lan"); then
         uci set "${br_lan_device}".type='bridge'
         uci set "${br_lan_device}".ports="${BR_LAN_L2_PORT}"
       fi
