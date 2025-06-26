@@ -15,4 +15,4 @@ ROUTER_FEATURES+=(
 IMAGE_PROFILE="ubnt_unifi-6-plus"
 IMAGE_NAME="standard-0.0.1"
 
-build
+build "$@"

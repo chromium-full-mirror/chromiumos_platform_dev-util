@@ -87,8 +87,44 @@ EOF
     echo
 }
 
+export DEBUG_MODE=false
+export CREATE_ARCHIVE=false
+
+parse_args() {
+    local arg
+
+    # Loop through all arguments passed to this function
+    while [[ "$#" -gt 0 ]]; do
+        arg="$1" # Get the current argument
+
+        case "${arg}" in
+            --debug)
+                DEBUG_MODE=true
+                echo "DEBUG: Debug mode enabled."
+                ;;
+            --create_archive)
+                CREATE_ARCHIVE=true
+                echo "INFO: Archive creation enabled."
+                ;;
+            -*)
+                echo "ERROR: Unknown option '${arg}'"
+                exit 1
+                ;;
+            *)
+                # Handle unexpected positional arguments if any
+                # For this script, we don't expect any positional args after flags
+                echo "ERROR: Unexpected argument '${arg}'"
+                exit 1
+                ;;
+        esac
+        shift
+    done
+}
+
 build() {
     set -e
+
+    parse_args "$@"
 
     LIB_DIR="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
     CROS_OPENWRT_DIR="${LIB_DIR}"/../..
@@ -124,8 +160,8 @@ build() {
     "/build/openwrt/run.sh"
     "${DEVICE}"
     "${IMAGE_PROFILE}"
-    "BUILD_ARCHIVE"
-    "DEBUG"
+    "${CREATE_ARCHIVE}"
+    "${DEBUG_MODE}"
     )
     docker run "${DOCKER_RUN_ARGS[@]}"
 }

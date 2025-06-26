@@ -5,7 +5,7 @@
 
 DEVICE=$1
 IMAGE_PROFILE=$2
-MAKE_ARCHIVE=$3
+CREATE_ARCHIVE=$3
 DEBUG=$4
 
 set -e
@@ -16,7 +16,7 @@ source "${OPENWRT_DIR}/configs/${DEVICE}/run.sh"
 
 # Generate an archive with sysupgrade.bin and several other files.
 # This archive could be used to pass into cros_openwrt_image_builder to upload and apply for device
-if [ -n "${MAKE_ARCHIVE}" ]; then
+if [ "${CREATE_ARCHIVE}" = true ]; then
     echo "Start creating tar archive"
     TARGETS_DIR="${OPENWRT_DIR}/bin/targets"
     BUILD_INFO_FILE_NAME="cros_openwrt_image_build_info.json"
@@ -44,7 +44,7 @@ if [ -n "${MAKE_ARCHIVE}" ]; then
     echo "Tar archive created"
 fi
 
-if [ -n "${DEBUG}" ]; then
+if [ "${DEBUG}" = true ]; then
     echo "Keep container alive"
     /bin/bash
 fi
