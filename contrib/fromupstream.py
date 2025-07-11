@@ -15,6 +15,7 @@ import argparse
 from collections import OrderedDict
 import configparser
 import functools
+import json
 import mailbox
 import os
 import pprint
@@ -51,8 +52,9 @@ UPSTREAM_URLS = (
 )
 
 PATCHWORK_URLS = (
-    "https://patchwork.ozlabs.org",
-    "https://patchwork.freedesktop.org",
+    ("https://patchwork.kernel.org", "rest"),
+    ("https://patchwork.ozlabs.org", "xmlrpc"),
+    ("https://patchwork.freedesktop.org", "xmlrpc"),
 )
 
 COMMIT_MESSAGE_WIDTH = 75
@@ -334,18 +336,32 @@ def _match_msgid(match, args):
         print("_match_msgid: message_id=%s" % (msgid))
 
     url = None
-    for url in PATCHWORK_URLS:
-        rpc = xmlrpc.client.ServerProxy(url + "/xmlrpc/")
-        try:
-            # Patchwork requires the brackets so force it
-            res = rpc.patch_list({"msgid": "<" + msgid + ">"})
-        except ssl.SSLCertVerificationError:
-            errprint('Error: server "%s" gave an SSL error, skipping' % url)
-            continue
-        except socket.gaierror as e:
-            errprint(
-                'Error: server "%s" gave socket error "%s", skipping' % (url, e)
-            )
+    for url, approach in PATCHWORK_URLS:
+        res = None
+
+        if approach == "xmlrpc":
+            rpc = xmlrpc.client.ServerProxy(url + "/xmlrpc/")
+            try:
+                # Patchwork requires the brackets so force it
+                res = rpc.patch_list({"msgid": "<" + msgid + ">"})
+            except ssl.SSLCertVerificationError:
+                errprint('Error: server "%s" gave an SSL error, skipping' % url)
+                continue
+            except socket.gaierror as e:
+                errprint(
+                    'Error: server "%s" gave socket error "%s", skipping' % (url, e)
+                )
+        elif approach == "rest":
+            # See https://patchwork.readthedocs.io/en/latest/api/rest/schemas/v1.3/#get--api-1.3-patches.
+            rest_url = url + "/api/patches?msgid=" + msgid
+            try:
+                with urllib.request.urlopen(rest_url) as response:
+                    res = json.loads(response.read())
+            except urllib.error.HTTPError as e:
+                errprint(
+                    'Error: server "%s" gave an error "%s", skipping' % (url, e)
+                )
+
         if res:
             patch_id = res[0]["id"]
             break
