@@ -221,13 +221,20 @@ def _get_patch_from_message_id(args, message_id):
         if args["debug"]:
             print("Probing archive for message at: %s" % this_url)
         try:
-            opener = urllib.request.urlopen(this_url)
+            headers = {
+                "User-Agent": "fromupstream.py (ChromeOS)",
+            }
+            req = urllib.request.Request(this_url, headers=headers)
+            opener = urllib.request.urlopen(req)
 
             if (opener.url != this_url) and mbox_suffix:
                 # To actually get the patch from some servers we need to:
                 # - Let it redirect us to an actual list it's tracking.
                 # - Add a suffix
-                opener = urllib.request.urlopen(opener.url + mbox_suffix)
+                req = urllib.request.Request(
+                    opener.url + mbox_suffix, headers=headers
+                )
+                opener = urllib.request.urlopen(req)
             elif opener.url == this_url and "marc.info" in url_template:
                 # On "marc.info" if there are more than one hit then it _won't_
                 # redirect us and instead will show a disambiguation page.
@@ -241,7 +248,8 @@ def _get_patch_from_message_id(args, message_id):
                         "Warning: multiple hits on marc.info; picking %s" % l
                     )
                     new_url = "https://marc.info/?l=%s&m=%s&q=mbox" % (l, m)
-                    opener = urllib.request.urlopen(new_url)
+                    req = urllib.request.Request(new_url, headers=headers)
+                    opener = urllib.request.urlopen(req)
 
         except urllib.error.HTTPError as e:
             # Skip all HTTP errors. We can expect 404 for archives that
