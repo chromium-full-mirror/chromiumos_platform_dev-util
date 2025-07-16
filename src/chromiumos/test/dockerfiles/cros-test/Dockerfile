@@ -4,9 +4,12 @@
 
 FROM python:3.8-slim-buster AS build
 
+# Point to the Debian archive for the EoL "Buster" distribution, then update and install packages.
+# sox added as requested.
 # attr, unzip are for CTS specifically.
 # squashfs-tools, and zstd is for Uprev specifically.
-RUN apt-get update \
+RUN sed -i -e 's/deb.debian.org/archive.debian.org/g' -e 's|security.debian.org/debian-security|archive.debian.org/debian-security|g' -e '/buster-updates/d' /etc/apt/sources.list \
+    && apt-get update \
     && apt-get install -y \
       attr \
       ca-certificates \
@@ -15,6 +18,7 @@ RUN apt-get update \
       iputils-ping \
       python-pip \
       rsync \
+      sox \
       squashfs-tools \
       ssh \
       sudo \
