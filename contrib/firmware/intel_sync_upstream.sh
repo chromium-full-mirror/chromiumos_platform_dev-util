@@ -4,7 +4,7 @@
 # found in the LICENSE file.
 
 SOC_LIST=(tgl jsl adl adln mtl rpl twl ptl wcl )
-declare -A SOC_EDK_LOCAL_DIR_MAP=( ["tgl"]="branch2-private" ["jsl"]="branch1-private" ["adl"]="branch1-private" ["adln"]="branch1-private" ["mtl"]="branch1-private" ["rpl"]="branch2-private" ["twl"]="branch1-private" ["ptl"]="branch1-private" ["wcl"]="branch1-private"] )
+declare -A SOC_EDK_LOCAL_DIR_MAP=( ["tgl"]="branch2-private" ["jsl"]="branch1-private" ["adl"]="branch1-private" ["adln"]="branch1-private" ["mtl"]="branch1-private" ["rpl"]="branch2-private" ["twl"]="branch1-private" ["ptl"]="branch1-private" ["wcl"]="branch1-private" )
 
 # If FSP is using a staging repo that does not follow the format ${SOC}-staging,
 # then add the mapping here.
