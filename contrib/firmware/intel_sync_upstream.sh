@@ -139,20 +139,6 @@ git checkout "${UPREV_BRANCH}" -b "${STAGING_NAME}"-"${VERSION}"
 die $? "Can't checkout upstream/${VERSION}"
 echo "Checked out upstream/${VERSION} to branch ${STAGING_NAME}-${VERSION}"
 
-echo "Pushing to a staging repo to avoid 'forge commiter' permission issues"
-
-PUSH_ARGS=""
-if [[ "$run_external" == true ]]; then
-	echo "Detected --external flag: validation will be performed on git push"
-else
-	echo "No --external flag detected: Skipping validation on git push"
-	PUSH_ARGS="-o skip-validation -o nokeycheck"
-fi
-
-git push ${PUSH_ARGS} -o push-justification=b/"$4" cros-internal HEAD:refs/heads/staging/"${STAGING_PREFIX}"-"${VERSION}"
-
-die $? "Could not push to a staging repo"
-
 # Checkout a local branch from remotes/cros-internal/${CHROMEOS_BRANCH}
 git branch -D chrome-internal-tot
 git checkout -b chrome-internal-tot cros-internal/"${CHROMEOS_BRANCH}"
