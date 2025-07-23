@@ -67,7 +67,7 @@ generate_cros_openwrt_image_build_info_file() {
     "standardBuildConfig": {
         "openwrtRevision": "",
         "openwrtBuildTarget": "",
-        "buildProfile": "",
+        "buildProfile": "${IMAGE_PROFILE}",
         "deviceName": "${DEVICE_NAME}",
         "buildTargetPackages": [],
         "profilePackages": [],
@@ -131,7 +131,7 @@ build() {
 
     cd "${CROS_OPENWRT_DIR}"/image_generator
 
-    local DOCKER_TAG="openwrt-builder:${DEVICE}-${OPENWRT_COMMIT}"
+    local DOCKER_TAG="openwrt-builder:${IMAGE_PROFILE}-${OPENWRT_COMMIT}"
 
     local DOCKER_BUILD_ARGS=(
     -t "${DOCKER_TAG}"

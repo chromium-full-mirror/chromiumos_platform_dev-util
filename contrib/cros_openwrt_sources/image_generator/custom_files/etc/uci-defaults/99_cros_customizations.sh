@@ -140,6 +140,10 @@ uci commit wireless
 ln -s /usr/sbin/hostapd_cli /usr/bin/hostapd_cli
 
 # Configure cros init script.
-chmod 755 /etc/init.d/z_cros_test.sh
-/etc/init.d/z_cros_test.sh enable
-/etc/init.d/z_cros_test.sh start
+CROS_TEST_SERVICE_PATH="/etc/init.d/z_cros_test.sh"
+
+if [ -f "${CROS_TEST_SERVICE_PATH}" ]; then
+  chmod 755 "${CROS_TEST_SERVICE_PATH}"
+  ${CROS_TEST_SERVICE_PATH} enable
+  ${CROS_TEST_SERVICE_PATH} start
+fi

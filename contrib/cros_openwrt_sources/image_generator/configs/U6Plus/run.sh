@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright 2025 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
 
 set -e
 
@@ -21,9 +24,9 @@ cp "${DEVICE_CONFIG_DIR}/defconfig" "${OPENWRT_DIR}/.config"
 make defconfig
 
 echo "Run make download"
-make -j$(nproc) V=s download
+make -j"$(nproc)" V=s download
 
 echo "Run make world -j=$(nproc) V=s"
-make -j$(nproc) V=s world || (echo "Rerun make -j1 V=sc world" && make -j1 V=sc world)
+make -j"$(nproc)" V=s world || (echo "Rerun make -j1 V=sc world" && make -j1 V=sc world)
 
 echo "Images successfully generated"
