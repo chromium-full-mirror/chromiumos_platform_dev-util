@@ -13,7 +13,7 @@ for uploading to Binary Component Server (BCS).
 
 Usage: $0 [flags] tarball
 
-tarball: The firmware tarball to be repacked"
+tarball: The firmware tarball to be repacked (either GCS URI or local file)"
 
 # Flags.
 DEFINE_string model "" "Comma-separated list of models (variants)" m
@@ -76,17 +76,23 @@ main() {
     die "tarball missing"
   fi
 
-  local tarball
-  tarball=$(readlink -f "$1")
+  local temp_dir
+  temp_dir=$(mktemp -d)
+
+  local tarball="$1"
+
+  if [[ "${tarball}" == "gs://"* ]]; then
+    info "Downloading ${tarball} to ${temp_dir} ..."
+    gsutil cp "${tarball}" "${temp_dir}/"
+    tarball="${temp_dir}/$(basename "${tarball}")"
+  fi
+
+  tarball="$(readlink -v -f "${tarball}")"
   if [[ -z "${FLAGS_model}" ]]; then
     flags_help
     die "-m or --model required"
   fi
   IFS=',' read -ra models <<< "${FLAGS_model}"
-
-  # Extract from tarball
-  local temp_dir
-  temp_dir=$(mktemp -d)
 
   # Files such as component_manifest.json may not exist in the tarball,
   # so we cannot pass the file name to tar as "tar -xjf ${tarball} FILES".
