@@ -124,11 +124,19 @@ uci set wireless.radio0.disabled='0'
 uci set wireless.radio1.disabled='0'
 uci set wireless.radio2.disabled='0'
 
-# Remove unnecessary interfaces that will not be used in the lab. The tests will
-# create their own interfaces.
-uci del wireless.default_radio0
-uci del wireless.default_radio1
-uci del wireless.default_radio2
+if [ "$(board_name)" != 'bananapi,bpi-r4' ]; then
+  # Remove unnecessary interfaces that will not be used in the lab. The tests will
+  # create their own interfaces.
+  uci del wireless.default_radio0
+  uci del wireless.default_radio1
+else
+  # Disable default radio interfaces
+  uci set wireless.default_radio0.disabled='1'
+  uci set wireless.default_radio1.disabled='1'
+  uci set wireless.default_radio2.disabled='1'
+
+  uci set wireless.ap_mld_1.disabled='1'
+fi
 
 # Commit and reload UCI changes.
 uci commit network
