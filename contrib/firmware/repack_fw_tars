@@ -88,11 +88,6 @@ main() {
   fi
 
   tarball="$(readlink -v -f "${tarball}")"
-  if [[ -z "${FLAGS_model}" ]]; then
-    flags_help
-    die "-m or --model required"
-  fi
-  IFS=',' read -ra models <<< "${FLAGS_model}"
 
   # Files such as component_manifest.json may not exist in the tarball,
   # so we cannot pass the file name to tar as "tar -xjf ${tarball} FILES".
@@ -111,6 +106,20 @@ main() {
 
   info "Extracting images to ${temp_dir}..."
   (cd "${temp_dir}" && tar -xjf "${tarball}" "${opts[@]}")
+
+  if [[ -n "${FLAGS_model}" ]]; then
+    IFS=',' read -ra models <<< "${FLAGS_model}"
+  else
+    models=()
+    while IFS= read -r -d '' f; do
+      f="${f##*/}"
+      model="${f#image-}"
+      model="${model%.bin}"
+      models+=("${model}")
+    done < <(find "${temp_dir}" -maxdepth 1 -regextype posix-extended -regex \
+               ".*/image-[^.]+\.bin" -print0)
+    info "Found models: ${models[*]}"
+  fi
 
   for model in "${models[@]}"; do
     make_fw_tar "${temp_dir}" "${model}" "${FLAGS_output}"
