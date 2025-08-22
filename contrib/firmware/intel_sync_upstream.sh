@@ -41,6 +41,7 @@ fi;
 SOC="$1"
 DIR="$2"
 VERSION="$3"
+BUG_ID="$4"
 
 for arg in "$@"; do
   if [[ "$arg" == "--external" ]]; then
@@ -61,7 +62,7 @@ case ${DIR} in
         STAGING_NAME="${SOC}-staging"
     fi
     CHROMEOS_BRANCH=chromeos
-    SRC_DIR="${CHROMIUM_TOT_ROOT}/src/third_party/fsp/${SOC}/${DIR}/${LOCAL_DIR}"
+    SRC_DIR="${CHROMIUM_TOT_ROOT}/src/third_party/fsp/${SOC}/${DIR}/"
     STAGING_REPO="https://chrome-internal.googlesource.com/chromeos/third_party/intel-fsp/${STAGING_NAME}"
     ;;
 
@@ -167,7 +168,7 @@ if [ $? -ne 0 ]; then
         git commit
 
         if [[ $? -eq 0 ]]; then
-          COMMIT_ARGS="--amend --no-edit"
+          COMMIT_ARGS="--amend"
         else
           COMMIT_ARGS="-s"
         fi
@@ -177,7 +178,7 @@ if [ $? -ne 0 ]; then
         rm /tmp/merge-to-tag.patch
         git add .
 
-        git commit ${COMMIT_ARGS}
+        git commit ${COMMIT_ARGS} --message "Merge branch \`${VERSION}\` into chrome-internal-tot"$'\n\n'"BUG=b:${BUG_ID}" --edit
         break
         ;;
 
