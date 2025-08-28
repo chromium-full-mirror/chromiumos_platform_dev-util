@@ -91,7 +91,7 @@ func (c *FlashOsCommand) flashPartition(partition string) error {
 			return err
 		}
 	}
-	return errors.Reason("cannot find '" + partition + "' image").Err()
+	return errors.Reason("%s", "cannot find '" + partition + "' image").Err()
 }
 
 func (c *FlashOsCommand) flashAll() error {

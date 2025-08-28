@@ -22,10 +22,10 @@ func TestWriteMetadata_matchPort(t *testing.T) {
 	expect := "8024"
 	stdout, stderr, err := printPort()
 	if stderr != "" {
-		t.Fatalf(stderr)
+		t.Fatalf("%s", stderr)
 	}
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%s", err.Error())
 	}
 	if stdout != expect {
 		t.Fatalf("Result doesn't match\nexpect: %v\nactual: %v", expect, stdout)
@@ -42,10 +42,10 @@ func TestWriteMetadata_append_matchNewPort(t *testing.T) {
 	expect := "8025"
 	stdout, stderr, err := printPort()
 	if stderr != "" {
-		t.Fatalf(stderr)
+		t.Fatalf("%s", stderr)
 	}
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%s", err.Error())
 	}
 	if stdout != expect {
 		t.Fatalf("Result doesn't match\nexpect: %v\nactual: %v", expect, stdout)

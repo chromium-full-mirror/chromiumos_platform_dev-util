@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -24,7 +25,7 @@ type mockExecUtil struct {
 func (m *mockExecUtil) RunCmdAsync(ctx context.Context, cmd string, args []string, dut api.DutServiceClient) error {
 	if m.fail != nil {
 		if v, ok := m.fail[cmd]; ok && v != "" {
-			return fmt.Errorf("failing " + cmd + " " + v)
+			return fmt.Errorf("%s", "failing " + cmd + " " + v)
 		}
 	}
 	return nil
@@ -44,7 +45,7 @@ func (m *mockExecUtil) RunCmd(ctx context.Context, cmd string, args []string, du
 	}
 	if m.fail != nil {
 		if v, ok := m.fail[cmd]; ok && v != "" {
-			return "", fmt.Errorf("failing " + cmd + " " + v)
+			return "", errors.New("failing " + cmd + " " + v)
 		}
 	}
 	return "", nil

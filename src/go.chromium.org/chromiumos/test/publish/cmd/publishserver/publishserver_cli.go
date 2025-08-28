@@ -35,7 +35,7 @@ func (s *PublishService) RunCli(ctx context.Context, localDir string, gsDir stri
 			"check the log: %s",
 			localDir, gsDir, err, outputPath)
 		s.saveCliOutput(outputPath, response)
-		return errors.Reason(response.ErrorMessage).Err()
+		return errors.Reason("%s", response.ErrorMessage).Err()
 	}
 
 	s.saveCliOutput(outputPath, response)

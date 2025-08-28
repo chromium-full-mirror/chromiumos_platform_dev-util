@@ -111,7 +111,7 @@ func (s ServiceAdapter) Restart(ctx context.Context) error {
 
 	switch x := op.Result.(type) {
 	case *longrunning.Operation_Error:
-		return fmt.Errorf(x.Error.Message)
+		return fmt.Errorf("%s", x.Error.Message)
 	case *longrunning.Operation_Response:
 		return nil
 	}
@@ -157,7 +157,7 @@ func (s ServiceAdapter) PipeData(ctx context.Context, sourceUrl string, pipeComm
 
 	switch x := op.Result.(type) {
 	case *longrunning.Operation_Error:
-		return fmt.Errorf(x.Error.Message)
+		return fmt.Errorf("%s", x.Error.Message)
 	case *longrunning.Operation_Response:
 		return nil
 	}
@@ -193,7 +193,7 @@ func (s ServiceAdapter) CopyData(ctx context.Context, sourceUrl string, destPath
 
 	switch x := op.Result.(type) {
 	case *longrunning.Operation_Error:
-		return fmt.Errorf(x.Error.Message)
+		return fmt.Errorf("%s", x.Error.Message)
 	case *longrunning.Operation_Response:
 		return nil
 	}
@@ -248,7 +248,7 @@ loop:
 				switch x := op.Result.(type) {
 				case *longrunning.Operation_Error:
 					fmt.Printf("ForceReconnectWithBackoff ignoring LRO ERROR %s", x.Error.Message)
-					return fmt.Errorf(x.Error.Message)
+					return fmt.Errorf("%s", x.Error.Message)
 				case *longrunning.Operation_Response:
 					fmt.Printf("ForceReconnectWithBackoff LRO RESPONSE")
 					return nil

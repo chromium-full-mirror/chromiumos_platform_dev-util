@@ -371,7 +371,7 @@ func (rdblib *RdbLib) ReportMissingTestCases(ctx context.Context, testNames []st
 			break
 		}
 		if errMsg != "" {
-			return fmt.Errorf(errMsg)
+			return fmt.Errorf("%s", errMsg)
 		}
 	}
 	return nil
@@ -489,7 +489,7 @@ func (rdblib *RdbLib) Exonerate(ctx context.Context, testExonerations []*rdb_pb.
 		if err != nil {
 			errMsg := fmt.Sprintf("error in rdb-rpc-batch-exoneration batch %d: %s", batchNum, err.Error())
 			log.Println(errMsg)
-			return fmt.Errorf(errMsg)
+			return fmt.Errorf("%s", errMsg)
 		}
 	}
 	return nil

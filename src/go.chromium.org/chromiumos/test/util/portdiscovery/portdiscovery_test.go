@@ -16,7 +16,7 @@ func TestWriteMetadata(t *testing.T) {
 	meta := Metadata{Name: "cros-provision", Port: "8024", Version: "1.2"}
 	err := util.WriteMetadata(meta)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%s", err.Error())
 	}
 }
 
@@ -27,7 +27,7 @@ func TestWriteMetadata_append(t *testing.T) {
 	meta = Metadata{Port: "8025"}
 	err := util.WriteMetadata(meta)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%s", err.Error())
 	}
 }
 
@@ -48,7 +48,7 @@ func TestGetPortFromAddress_ipv6(t *testing.T) {
 	expect := "38809"
 	port, err := util.GetPortFromAddress("[::]:38809")
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%s", err.Error())
 	}
 	if port != expect {
 		t.Fatalf("Result doesn't match\nexpect: %v\nactual: %v", expect, port)
@@ -59,7 +59,7 @@ func TestGetPortFromAddress_ipv4(t *testing.T) {
 	expect := "38809"
 	port, err := util.GetPortFromAddress("127.0.0.1:38809")
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	if port != expect {
 		t.Fatalf("Result doesn't match\nexpect: %v\nactual: %v", expect, port)
