@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"go.chromium.org/chromiumos/config/go/test/api"
 	"go.chromium.org/chromiumos/ctp/buildbucket"
 	"go.chromium.org/chromiumos/ctp/site"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
@@ -27,6 +28,18 @@ import (
 // sampleTestPlan is a minimal test plan object for use in our testing
 var sampleTestPlan = &test_platform.Request_TestPlan{
 	Suite: []*test_platform.Request_Suite{&test_platform.Request_Suite{Name: "test"}},
+}
+
+// alTestPlan is an al specific test plan
+var alTestPlan = &test_platform.Request_TestPlan{
+	Suite: []*test_platform.Request_Suite{&test_platform.Request_Suite{Name: "test"}},
+	TestArgs: &api.AutotestExecutionMetadata{
+		Args: []*api.AutotestExecutionMetadata_Arg{
+			{
+				Flag:  "is_al_run",
+				Value: "true",
+			},
+		}},
 }
 
 // CmpOpts enables comparisons of the listed protos with unexported fields.
@@ -53,6 +66,8 @@ var CmpOpts = cmpopts.IgnoreUnexported(
 	common.CftStepsConfig{},
 	common.CftStepsConfig_HwTestConfig{},
 	common.HwTestConfig{},
+	api.AutotestExecutionMetadata{},
+	api.AutotestExecutionMetadata_Arg{},
 )
 
 var testValidateAndAddDefaultsData = []struct {
@@ -500,93 +515,188 @@ func TestSecondaryDevices(t *testing.T) {
 	}
 }
 
-func TestTestPlatformRequest(t *testing.T) {
-	t.Parallel()
-	b := &CTPBuilder{
-		Board:           "sample-board",
-		ImageBucket:     "sample-bucket",
-		Image:           "sample-image",
-		Pool:            "MANAGED_POOL_SUITES",
-		Model:           "sample-model",
-		QSAccount:       "sample-qs-account",
-		Priority:        100,
-		MaxRetries:      0,
-		TimeoutMins:     30,
-		ProvisionLabels: map[string]string{"cros-version": "foo-cros"},
-		Dimensions:      map[string]string{"foo-dim": "bar-dim"},
-		Keyvals:         map[string]string{"foo-key": "foo-val"},
-		CFT:             true,
-		RunCtpv2WithQs:  true,
-		ResultsUploadConfig: &test_platform.Request_Params_ResultsUploadConfig{
-			Mode: test_platform.Request_Params_ResultsUploadConfig_TEST_RESULTS_VISIBILITY_CUSTOM_REALM,
-		},
-		TRV2:         true,
-		CpconPublish: true,
-		TestPlan:     sampleTestPlan,
-		UseScheduke:  true,
-	}
-	buildTags := map[string]string{"foo-tag": "bar-tag"}
-
-	cftSteps := &common.CftStepsConfig{
-		ConfigType: &common.CftStepsConfig_HwTestConfig{
-			HwTestConfig: &common.HwTestConfig{
-				RunCpconPublish: true,
-			},
-		},
-	}
-	wantRequest := &test_platform.Request{
-		TestPlan: sampleTestPlan,
-		Params: &test_platform.Request_Params{
-			Scheduling: &test_platform.Request_Params_Scheduling{
-				Pool:      &test_platform.Request_Params_Scheduling_ManagedPool_{ManagedPool: 3},
-				QsAccount: "sample-qs-account",
-			},
-			FreeformAttributes: &test_platform.Request_Params_FreeformAttributes{
-				SwarmingDimensions: []string{"foo-dim:bar-dim"},
-			},
-			HardwareAttributes: &test_platform.Request_Params_HardwareAttributes{
-				Model: "sample-model",
-			},
-			SoftwareAttributes: &test_platform.Request_Params_SoftwareAttributes{
-				BuildTarget: &chromiumos.BuildTarget{Name: "sample-board"},
-			},
-			SoftwareDependencies: []*test_platform.Request_Params_SoftwareDependency{
-				{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuild{ChromeosBuild: "foo-cros"}},
-				{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuildGcsBucket{ChromeosBuildGcsBucket: "sample-bucket"}},
-				{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuild{ChromeosBuild: "sample-image"}},
-			},
-			Decorations: &test_platform.Request_Params_Decorations{
-				AutotestKeyvals: map[string]string{"foo-key": "foo-val"},
-				Tags:            []string{"foo-tag:bar-tag"},
-			},
-			Retry: &test_platform.Request_Params_Retry{
-				Max:   0,
-				Allow: false,
-			},
-			Metadata: &test_platform.Request_Params_Metadata{
-				TestMetadataUrl:        "gs://sample-bucket/sample-image",
-				DebugSymbolsArchiveUrl: "gs://sample-bucket/sample-image",
-				ContainerMetadataUrl:   "gs://sample-bucket/sample-image/metadata/containers.jsonpb",
-			},
-			Time: &test_platform.Request_Params_Time{
-				MaximumDuration: durationpb.New(time.Duration(1800000000000)),
-			},
-			RunViaCft:           true,
-			RunViaTrv2:          true,
-			RunCtpv2WithQs:      true,
-			Trv2StepsConfig:     cftSteps,
-			ScheduleViaScheduke: true,
-			Results: &test_platform.Request_Params_ResultsUploadConfig{
+var TestTestPlatformRequestData = []struct {
+	name        string
+	input       CTPBuilder
+	wantRequest *test_platform.Request
+}{
+	{
+		"sample request",
+		CTPBuilder{
+			Board:           "sample-board",
+			ImageBucket:     "sample-bucket",
+			Image:           "sample-image",
+			Pool:            "MANAGED_POOL_SUITES",
+			Model:           "sample-model",
+			QSAccount:       "sample-qs-account",
+			Priority:        100,
+			MaxRetries:      0,
+			TimeoutMins:     30,
+			ProvisionLabels: map[string]string{"cros-version": "foo-cros"},
+			Dimensions:      map[string]string{"foo-dim": "bar-dim"},
+			Keyvals:         map[string]string{"foo-key": "foo-val"},
+			CFT:             true,
+			RunCtpv2WithQs:  true,
+			ResultsUploadConfig: &test_platform.Request_Params_ResultsUploadConfig{
 				Mode: test_platform.Request_Params_ResultsUploadConfig_TEST_RESULTS_VISIBILITY_CUSTOM_REALM,
 			},
+			TRV2:         true,
+			CpconPublish: true,
+			TestPlan:     sampleTestPlan,
+			UseScheduke:  true,
 		},
-	}
-	gotRequest, err := b.TestPlatformRequest(buildTags)
-	if err != nil {
-		t.Fatalf("unexpected error constructing Test Platform request: %v", err)
-	}
-	if diff := cmp.Diff(wantRequest, gotRequest, CmpOpts); diff != "" {
-		t.Errorf("unexpected diff (%s)", diff)
+		&test_platform.Request{
+			TestPlan: sampleTestPlan,
+			Params: &test_platform.Request_Params{
+				Scheduling: &test_platform.Request_Params_Scheduling{
+					Pool:      &test_platform.Request_Params_Scheduling_ManagedPool_{ManagedPool: 3},
+					QsAccount: "sample-qs-account",
+				},
+				FreeformAttributes: &test_platform.Request_Params_FreeformAttributes{
+					SwarmingDimensions: []string{"foo-dim:bar-dim"},
+				},
+				HardwareAttributes: &test_platform.Request_Params_HardwareAttributes{
+					Model: "sample-model",
+				},
+				SoftwareAttributes: &test_platform.Request_Params_SoftwareAttributes{
+					BuildTarget: &chromiumos.BuildTarget{Name: "sample-board"},
+				},
+				SoftwareDependencies: []*test_platform.Request_Params_SoftwareDependency{
+					{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuild{ChromeosBuild: "foo-cros"}},
+					{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuildGcsBucket{ChromeosBuildGcsBucket: "sample-bucket"}},
+					{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuild{ChromeosBuild: "sample-image"}},
+				},
+				Decorations: &test_platform.Request_Params_Decorations{
+					AutotestKeyvals: map[string]string{"foo-key": "foo-val"},
+					Tags:            []string{"foo-tag:bar-tag"},
+				},
+				Retry: &test_platform.Request_Params_Retry{
+					Max:   0,
+					Allow: false,
+				},
+				Metadata: &test_platform.Request_Params_Metadata{
+					TestMetadataUrl:        "gs://sample-bucket/sample-image",
+					DebugSymbolsArchiveUrl: "gs://sample-bucket/sample-image",
+					ContainerMetadataUrl:   "gs://sample-bucket/sample-image/metadata/containers.jsonpb",
+				},
+				Time: &test_platform.Request_Params_Time{
+					MaximumDuration: durationpb.New(time.Duration(1800000000000)),
+				},
+				RunViaCft:      true,
+				RunViaTrv2:     true,
+				RunCtpv2WithQs: true,
+				Trv2StepsConfig: &common.CftStepsConfig{
+					ConfigType: &common.CftStepsConfig_HwTestConfig{
+						HwTestConfig: &common.HwTestConfig{
+							RunCpconPublish: true,
+						},
+					},
+				},
+				ScheduleViaScheduke: true,
+				Results: &test_platform.Request_Params_ResultsUploadConfig{
+					Mode: test_platform.Request_Params_ResultsUploadConfig_TEST_RESULTS_VISIBILITY_CUSTOM_REALM,
+				},
+				IsAlRun: false,
+			},
+		},
+	},
+	{
+		"test plan with al run",
+		CTPBuilder{
+			Board:           "sample-board",
+			ImageBucket:     "sample-bucket",
+			Image:           "sample-image",
+			Pool:            "MANAGED_POOL_SUITES",
+			Model:           "sample-model",
+			QSAccount:       "sample-qs-account",
+			Priority:        100,
+			MaxRetries:      0,
+			TimeoutMins:     30,
+			ProvisionLabels: map[string]string{"cros-version": "foo-cros"},
+			Dimensions:      map[string]string{"foo-dim": "bar-dim"},
+			Keyvals:         map[string]string{"foo-key": "foo-val"},
+			CFT:             true,
+			RunCtpv2WithQs:  true,
+			ResultsUploadConfig: &test_platform.Request_Params_ResultsUploadConfig{
+				Mode: test_platform.Request_Params_ResultsUploadConfig_TEST_RESULTS_VISIBILITY_CUSTOM_REALM,
+			},
+			TRV2:         true,
+			CpconPublish: true,
+			TestPlan:     alTestPlan,
+			UseScheduke:  true,
+		},
+		&test_platform.Request{
+			TestPlan: alTestPlan,
+			Params: &test_platform.Request_Params{
+				Scheduling: &test_platform.Request_Params_Scheduling{
+					Pool:      &test_platform.Request_Params_Scheduling_ManagedPool_{ManagedPool: 3},
+					QsAccount: "sample-qs-account",
+				},
+				FreeformAttributes: &test_platform.Request_Params_FreeformAttributes{
+					SwarmingDimensions: []string{"foo-dim:bar-dim"},
+				},
+				HardwareAttributes: &test_platform.Request_Params_HardwareAttributes{
+					Model: "sample-model",
+				},
+				SoftwareAttributes: &test_platform.Request_Params_SoftwareAttributes{
+					BuildTarget: &chromiumos.BuildTarget{Name: "sample-board"},
+				},
+				SoftwareDependencies: []*test_platform.Request_Params_SoftwareDependency{
+					{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuild{ChromeosBuild: "foo-cros"}},
+					{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuildGcsBucket{ChromeosBuildGcsBucket: "sample-bucket"}},
+					{Dep: &test_platform.Request_Params_SoftwareDependency_ChromeosBuild{ChromeosBuild: "sample-image"}},
+				},
+				Decorations: &test_platform.Request_Params_Decorations{
+					AutotestKeyvals: map[string]string{"foo-key": "foo-val"},
+					Tags:            []string{"foo-tag:bar-tag"},
+				},
+				Retry: &test_platform.Request_Params_Retry{
+					Max:   0,
+					Allow: false,
+				},
+				Metadata: &test_platform.Request_Params_Metadata{
+					TestMetadataUrl:        "gs://sample-bucket/sample-image",
+					DebugSymbolsArchiveUrl: "gs://sample-bucket/sample-image",
+					ContainerMetadataUrl:   "gs://sample-bucket/sample-image/metadata/containers.jsonpb",
+				},
+				Time: &test_platform.Request_Params_Time{
+					MaximumDuration: durationpb.New(time.Duration(1800000000000)),
+				},
+				RunViaCft:      true,
+				RunViaTrv2:     true,
+				RunCtpv2WithQs: true,
+				Trv2StepsConfig: &common.CftStepsConfig{
+					ConfigType: &common.CftStepsConfig_HwTestConfig{
+						HwTestConfig: &common.HwTestConfig{
+							RunCpconPublish: true,
+						},
+					},
+				},
+				ScheduleViaScheduke: true,
+				Results: &test_platform.Request_Params_ResultsUploadConfig{
+					Mode: test_platform.Request_Params_ResultsUploadConfig_TEST_RESULTS_VISIBILITY_CUSTOM_REALM,
+				},
+				IsAlRun: true,
+			},
+		},
+	},
+}
+
+func TestTestPlatformRequest(t *testing.T) {
+	t.Parallel()
+	buildTags := map[string]string{"foo-tag": "bar-tag"}
+	for _, tt := range TestTestPlatformRequestData {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			gotRequest, err := tt.input.TestPlatformRequest(buildTags)
+			if err != nil {
+				t.Fatalf("unexpected error constructing Test Platform request: %v", err)
+			}
+			if diff := cmp.Diff(tt.wantRequest, gotRequest, CmpOpts); diff != "" {
+				t.Errorf("unexpected diff (%s)", diff)
+			}
+		})
 	}
 }
 

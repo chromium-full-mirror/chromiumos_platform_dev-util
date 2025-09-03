@@ -7,6 +7,7 @@ package builder
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -308,6 +309,17 @@ func (c *CTPBuilder) TestPlatformRequest(buildTags map[string]string) (*test_pla
 			},
 		},
 	}
+	isAlRun := false
+	if testArgs := c.TestPlan.GetTestArgs(); testArgs != nil {
+		for _, arg := range testArgs.GetArgs() {
+			if arg.Flag == "is_al_run" {
+				if v, err := strconv.ParseBool(arg.Value); err == nil {
+					isAlRun = v
+				}
+				break
+			}
+		}
+	}
 	request := &test_platform.Request{
 		TestPlan: c.TestPlan,
 		Params: &test_platform.Request_Params{
@@ -345,6 +357,7 @@ func (c *CTPBuilder) TestPlatformRequest(buildTags map[string]string) (*test_pla
 			ScheduleViaScheduke:  c.UseScheduke,
 			Results:              c.ResultsUploadConfig,
 			SkipProvisioning:     c.SkipProvisioning,
+			IsAlRun:              isAlRun,
 		},
 	}
 	// Handling multi-DUTs use case if secondaryBoards provided.
