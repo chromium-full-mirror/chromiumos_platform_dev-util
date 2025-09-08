@@ -16,7 +16,7 @@ get_macaddr_for_hw_id() {
   local MAC_PREFIX="02:b4:79"
 
   if [ -z "${hw_id}" ]; then
-      exit 0
+    exit 0
   fi
 
   OLD_IFS="${IFS}"
@@ -24,7 +24,6 @@ get_macaddr_for_hw_id() {
   set -- ${hw_id}
   IFS="${OLD_IFS}"
 
-  # $1 $2 %3 $4 ould store all components like e5510793, 216655bc, 731c89c8, 61a9e4bc
   val_1=$1
   val_2=$2
   val_3=$3
@@ -32,7 +31,29 @@ get_macaddr_for_hw_id() {
   byte_part2=${val_2:start_char:2}
   byte_part3=${val_3:start_char:2}
 
-  echo "${MAC_PREFIX}:${byte_part1}:${byte_part2}:${byte_part3}"
+  current_mac="${MAC_PREFIX}:${byte_part1}:${byte_part2}:${byte_part3}"
+
+  # This hack added to keep MAC address on br-wan same as it was on first image were wan had same MAC as eth0
+  # Now eth0 would be 1 less, and uci scripts would assign eth0 MAC + 1 to eth2 and wan,
+  # so br-wan would be same as before but different from eth0 and no updates required for already flashed BPi's
+
+  # --- START: REPLACEMENT CODE ---
+  # Remove the colons from the MAC address string
+  mac_no_colons=$(echo "${current_mac}" | tr -d ':')
+
+  # Use shell arithmetic to convert from hex to decimal, subtract 1
+  # The shell understands "0x..." as a hex number inside ((...))
+  prev_mac_decimal=$((0x${mac_no_colons} - 1))
+
+  # Use printf to convert the new decimal value back to a 12-character
+  # hexadecimal string, padded with leading zeros.
+  prev_mac_hex=$(printf "%012X" "${prev_mac_decimal}")
+  # --- END: REPLACEMENT CODE ---
+
+  # Finally, use sed to insert the colons every two characters.
+  prev_mac=$(echo "${prev_mac_hex}" | sed 's/../&:/g;s/:$//')
+
+  echo "${prev_mac}"
   return 0
 }
 

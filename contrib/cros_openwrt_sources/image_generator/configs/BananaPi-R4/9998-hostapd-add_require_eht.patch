@@ -1,0 +1,90 @@
+Index: hostapd-2025.02.09~c8c7d56a/hostapd/config_file.c
+===================================================================
+--- hostapd-2025.02.09~c8c7d56a.orig/hostapd/config_file.c
++++ hostapd-2025.02.09~c8c7d56a/hostapd/config_file.c
+@@ -5456,6 +5456,8 @@ static int hostapd_config_fill(struct ho
+ #ifdef CONFIG_IEEE80211BE
+ 	} else if (os_strcmp(buf, "ieee80211be") == 0) {
+ 		conf->ieee80211be = atoi(pos);
++	} else if (os_strcmp(buf, "require_eht") == 0) {
++		conf->require_eht = atoi(pos);
+ 	} else if (os_strcmp(buf, "eht_oper_chwidth") == 0) {
+ 		conf->eht_oper_chwidth = atoi(pos);
+ 	} else if (os_strcmp(buf, "eht_oper_centr_freq_seg0_idx") == 0) {
+Index: hostapd-2025.02.09~c8c7d56a/hostapd/hostapd.conf
+===================================================================
+--- hostapd-2025.02.09~c8c7d56a.orig/hostapd/hostapd.conf
++++ hostapd-2025.02.09~c8c7d56a/hostapd/hostapd.conf
+@@ -1096,6 +1096,9 @@ wmm_ac_vo_acm=0
+ # 1 = enabled
+ #ieee80211be=1
+
++# Require stations to support EHT PHY (reject association if they do not)
++#require_eht=1
++
+ #disable_11be: Boolean (0/1) to disable EHT for a specific BSS
+ #disable_11be=0
+
+Index: hostapd-2025.02.09~c8c7d56a/src/ap/ap_config.h
+===================================================================
+--- hostapd-2025.02.09~c8c7d56a.orig/src/ap/ap_config.h
++++ hostapd-2025.02.09~c8c7d56a/src/ap/ap_config.h
+@@ -1282,6 +1282,7 @@ struct hostapd_config {
+ 	enum oper_chan_width eht_oper_chwidth;
+ 	u8 eht_oper_centr_freq_seg0_idx;
+ 	struct eht_phy_capabilities_info eht_phy_capab;
++	int require_eht;
+ 	u16 punct_bitmap; /* a bitmap of disabled 20 MHz channels */
+ 	u8 punct_acs_threshold;
+ 	u8 eht_default_pe_duration;
+Index: hostapd-2025.02.09~c8c7d56a/src/ap/ieee802_11.c
+===================================================================
+--- hostapd-2025.02.09~c8c7d56a.orig/src/ap/ieee802_11.c
++++ hostapd-2025.02.09~c8c7d56a/src/ap/ieee802_11.c
+@@ -153,6 +153,12 @@ static size_t hostapd_supp_rates(struct
+                *pos++ = 0x80 | BSS_MEMBERSHIP_SELECTOR_HE_PHY;
+ #endif /* CONFIG_IEEE80211AX */
+
++#ifdef CONFIG_IEEE80211BE
++       if (hapd->iconf->ieee80211be && hapd->iconf->require_eht) {
++               *pos++ = 0x80 | BSS_MEMBERSHIP_SELECTOR_EHT_PHY;
++       }
++#endif
++
+ #ifdef CONFIG_SAE
+        if ((hapd->conf->sae_pwe == SAE_PWE_HASH_TO_ELEMENT ||
+                hostapd_sae_pw_id_in_use(hapd->conf) == 2) &&
+@@ -4222,6 +4222,13 @@ static int __check_assoc_ies(struct host
+ 			if (resp != WLAN_STATUS_SUCCESS)
+ 				return resp;
+ 		}
++
++		if (hapd->iconf->require_eht && !(sta->flags & WLAN_STA_EHT)) {
++			hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
++							HOSTAPD_LEVEL_INFO, "Station does not support "
++							"mandatory EHT PHY - reject association");
++			return WLAN_STATUS_DENIED_EHT_NOT_SUPPORTED;
++		}
+ 	}
+ #endif /* CONFIG_IEEE80211BE */
+
+Index: hostapd-2025.02.09~c8c7d56a/src/common/ieee802_11_defs.h
+===================================================================
+--- hostapd-2025.02.09~c8c7d56a.orig/src/common/ieee802_11_defs.h
++++ hostapd-2025.02.09~c8c7d56a/src/common/ieee802_11_defs.h
+@@ -221,6 +221,7 @@
+ #define WLAN_STATUS_DENIED_HE_NOT_SUPPORTED 124
+ #define WLAN_STATUS_SAE_HASH_TO_ELEMENT 126
+ #define WLAN_STATUS_SAE_PK 127
++#define WLAN_STATUS_DENIED_EHT_NOT_SUPPORTED 135
+ #define WLAN_STATUS_DENIED_STA_AFF_WITH_MLD_WITH_EXISTING_ASSOC 130
+ #define WLAN_STATUS_EPCS_DENIED_UNAUTHORIZED 131
+ #define WLAN_STATUS_EPCS_DENIED 132
+@@ -1441,6 +1442,7 @@ struct ieee80211_ampe_ie {
+ #define HT_OPER_PARAM_PCO_PHASE                                ((u16) BIT(11))
+ /* B36..B39 - Reserved */
+
++#define BSS_MEMBERSHIP_SELECTOR_EHT_PHY 121
+ #define BSS_MEMBERSHIP_SELECTOR_HE_PHY 122
+ #define BSS_MEMBERSHIP_SELECTOR_SAE_H2E_ONLY 123
+ #define BSS_MEMBERSHIP_SELECTOR_EPD 124

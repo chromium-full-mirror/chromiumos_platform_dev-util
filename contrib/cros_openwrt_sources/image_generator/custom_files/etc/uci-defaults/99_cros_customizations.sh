@@ -63,8 +63,7 @@ get_network_device_prefix() {
 setup_br_lan() {
   local board="$1"
   case ${board} in
-    bananapi,bpi-r3|\
-    bananapi,bpi-r4)
+    bananapi,bpi-r3)
       # Delete existing br-lan device which services the bpi internal LAN and rename
       # br-wan --> br-lan which to stay in line with other OpenWrt images.
       # Remove br-lan only if br-wan exists, prevent from unnecessary delete if run several times
@@ -92,6 +91,16 @@ setup_br_lan() {
       fi
 
     ;;
+    bananapi,bpi-r4)
+      echo "Create static lan interface"
+
+      uci set network.lan='interface'
+      uci set network.lan.device='br-lan'
+      uci set network.lan.proto='static'
+      uci set network.lan.ipaddr='192.168.1.1'
+      uci set network.lan.netmask='255.255.255.0'
+      uci set network.lan.ip6assign='60'
+    ;;
     *)
       BR_LAN_L2_PORT="eth0"
       if [ -f /sys/class/net/lan/operstate ]; then
@@ -117,7 +126,12 @@ setup_br_lan "$(board_name)"
 # Add an interface to connect to lab network (wan) as a DHCP client.
 uci set network.wan=interface
 uci set network.wan.proto='dhcp'
-uci set network.wan.device='br-lan'
+
+if [ "$(board_name)" != 'bananapi,bpi-r4' ]; then
+  uci set network.wan.device='br-lan'
+else
+  uci set network.wan.device='br-wan'
+fi
 
 # Turn on wireless radios on by default.
 uci set wireless.radio0.disabled='0'
@@ -150,7 +164,7 @@ ln -s /usr/sbin/hostapd_cli /usr/bin/hostapd_cli
 # Configure cros init script.
 CROS_TEST_SERVICE_PATH="/etc/init.d/z_cros_test.sh"
 
-if [ -f "${CROS_TEST_SERVICE_PATH}" ]; then
+if [ -f "${CROS_TEST_SERVICE_PATH}" ] && [ "$(board_name)" != 'bananapi,bpi-r4' ]; then
   chmod 755 "${CROS_TEST_SERVICE_PATH}"
   ${CROS_TEST_SERVICE_PATH} enable
   ${CROS_TEST_SERVICE_PATH} start
