@@ -75,8 +75,6 @@ NON_CRITICAL = set(
         "android-provision",
         "cros-ddd-filter",
         "cros-legacy-hw-filter",
-        "cros-fw-provision",
-        "firmware-filter",
     ]
 )
 
