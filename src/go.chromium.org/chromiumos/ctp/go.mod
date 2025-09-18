@@ -7,7 +7,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	go.chromium.org/chromiumos/config/go v0.0.0-20240309015314-b8a183866804
 	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20250623190020-bff867fc0474
-	go.chromium.org/luci v0.0.0-20250918002626-41a4636920e8
+	go.chromium.org/luci v0.0.0-20250918161027-3efc1468fd3a
 	google.golang.org/genproto v0.0.0-20250818200422-3122310a409c
 	google.golang.org/grpc v1.75.0
 	google.golang.org/protobuf v1.36.8

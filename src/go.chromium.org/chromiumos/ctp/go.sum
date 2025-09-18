@@ -80,8 +80,8 @@ go.chromium.org/chromiumos/config/go/src/go.chromium.org/chromiumos/config/go v0
 go.chromium.org/chromiumos/config/go/src/go.chromium.org/chromiumos/config/go v0.0.0-20250623185307-69444630c628/go.mod h1:JR2kUZJhcMXE7Uw+DZIWn6+a4P21Rutfiak7MGK2gQY=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20250623190020-bff867fc0474 h1:9AggFoeosPDPEooxk2wDX83tZiL2VI+ngwaMnO2ELk0=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20250623190020-bff867fc0474/go.mod h1:FA/cWXnIm9fHk7ZY1UX9yvquxllhmGuyOoaf6xmgT3k=
-go.chromium.org/luci v0.0.0-20250918002626-41a4636920e8 h1:SDNwiOhztjF3RTMITX2zDJpHRo9/c2/BH0AmI/xT+pE=
-go.chromium.org/luci v0.0.0-20250918002626-41a4636920e8/go.mod h1:pTWXN7+U3okn5hmixSZhdUROZYQ4Y3tPAyIMJk4hHIg=
+go.chromium.org/luci v0.0.0-20250918161027-3efc1468fd3a h1:olOxX3ULHaA1VhDbmq9ozu6Pqqg382XJg+b6EfPp1/Q=
+go.chromium.org/luci v0.0.0-20250918161027-3efc1468fd3a/go.mod h1:pTWXN7+U3okn5hmixSZhdUROZYQ4Y3tPAyIMJk4hHIg=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=
 go.opentelemetry.io/auto/sdk v1.1.0/go.mod h1:3wSPjt5PWp2RhlCcmmOial7AvC4DQqZb7a7wCow3W8A=
 go.opentelemetry.io/otel v1.37.0 h1:9zhNfelUvx0KBfu/gb+ZgeAfAgtWrfHJZcAqFC228wQ=

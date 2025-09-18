@@ -12,6 +12,7 @@ import (
 	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/buildbucket"
 	buildbucketpb "go.chromium.org/luci/buildbucket/proto"
+	buildbucketgrpcpb "go.chromium.org/luci/buildbucket/proto/grpcpb"
 	"go.chromium.org/luci/common/errors"
 	"go.chromium.org/luci/grpc/prpc"
 	"go.chromium.org/luci/lucictx"
@@ -51,7 +52,7 @@ func NewClient(
 		Options: site.DefaultPRPCOptions,
 	}
 
-	buildsClient := buildbucketpb.NewBuildsPRPCClient(prpcClient)
+	buildsClient := buildbucketgrpcpb.NewBuildsClient(prpcClient)
 
 	return buildsClient, nil
 }
