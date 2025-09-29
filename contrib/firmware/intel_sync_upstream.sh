@@ -142,9 +142,9 @@ echo "Checked out upstream/${VERSION} to branch ${STAGING_NAME}-${VERSION}"
 
 # Checkout a local branch from remotes/cros-internal/${CHROMEOS_BRANCH}
 git branch -D chrome-internal-tot
-git checkout -b chrome-internal-tot cros-internal/"${CHROMEOS_BRANCH}"
-die $? "Error checking out cros-internal/${CHROMEOS_BRANCH}"
-echo "Checked out cros-internal/${CHROMEOS_BRANCH} to branch chrome-internal-tot"
+git checkout -b chrome-internal-tot remotes/cros-internal/"${CHROMEOS_BRANCH}"
+die $? "Error checking out remotes/cros-internal/${CHROMEOS_BRANCH}"
+echo "Checked out remotes/cros-internal/${CHROMEOS_BRANCH} to branch chrome-internal-tot"
 
 # Merge from staging branch
 git merge "${STAGING_NAME}-${VERSION}" --strategy-option theirs --no-ff --log
@@ -214,7 +214,7 @@ restore_file() {
 
   if [ ! -f "${full_path}" ]; then
     echo "File '${file_name}' is missing. Restoring..."
-    if git -C "${SRC_DIR}" checkout cros-internal/"${CHROMEOS_BRANCH}" -- "${file_name}"; then
+    if git -C "${SRC_DIR}" checkout remotes/cros-internal/"${CHROMEOS_BRANCH}" -- "${file_name}"; then
       git commit --amend --no-edit > /dev/null
       echo "File '${file_name}' restored successfully."
     else
