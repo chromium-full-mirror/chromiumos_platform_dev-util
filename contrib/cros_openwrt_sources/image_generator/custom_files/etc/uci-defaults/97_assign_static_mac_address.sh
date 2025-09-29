@@ -27,9 +27,18 @@ get_macaddr_for_hw_id() {
   val_1=$1
   val_2=$2
   val_3=$3
-  byte_part1=${val_1:start_char:2}
-  byte_part2=${val_2:start_char:2}
-  byte_part3=${val_3:start_char:2}
+
+  # Extract raw substrings. Use :-0 default to prevent errors if a string is too short
+  # and the substring returns nothing.
+  raw_p1=${val_1:start_char:2}
+  raw_p2=${val_2:start_char:2}
+  raw_p3=${val_3:start_char:2}
+
+  # Force formatting as a 2-digit hex number. This converts "0" to "00".
+  # We must prepend "0x" so the shell arithmetic ((...)) treats the string as hex.
+  byte_part1=$(printf "%02X" $((0x${raw_p1:-0})))
+  byte_part2=$(printf "%02X" $((0x${raw_p2:-0})))
+  byte_part3=$(printf "%02X" $((0x${raw_p3:-0})))
 
   current_mac="${MAC_PREFIX}:${byte_part1}:${byte_part2}:${byte_part3}"
 

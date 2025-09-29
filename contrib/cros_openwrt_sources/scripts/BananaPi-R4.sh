@@ -19,6 +19,6 @@ ROUTER_FEATURES+=(
   'WIFI_ROUTER_FEATURE_NOT_U6PLUS_ROUTER'
 )
 IMAGE_PROFILE="bananapi_bpi-r4"
-IMAGE_NAME="standard-0.0.1"
+IMAGE_NAME="standard-0.0.2"
 
 build "$@"
