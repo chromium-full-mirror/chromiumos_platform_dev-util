@@ -26,6 +26,36 @@ function die()
   fi;
 }
 
+function fix_permissions()
+{
+  # edk2/edk2-platform - when submodules are stored as regular files
+  # we see files with 000 permissions
+  local dir_type="$1"
+  local staging_name="$2"
+  local version="$3"
+
+  # Only apply permission fixes for non-FSP directories
+  if [[ "${dir_type}" != "fsp" ]]; then
+    echo "Checking for files with 000 permissions in ${dir_type}..."
+
+    # Find files with 000 permissions directly
+    local files_with_000_perms
+    files_with_000_perms=$(git diff --name-only \
+      chrome-internal-tot.."${staging_name}"-"${version}" | \
+      xargs -I {} find {} -perm 000 2>/dev/null)
+
+    if [[ -n "${files_with_000_perms}" ]]; then
+      echo "Found files with 000 permissions that will be fixed:"
+      echo "${files_with_000_perms}"
+      echo "Fixing permissions for ${dir_type}..."
+      echo "${files_with_000_perms}" | xargs chmod 664
+      echo "Permissions fixed."
+    else
+      echo "No files with 000 permissions found for ${dir_type}."
+    fi
+  fi
+}
+
 function usage()
 {
   echo "Error: missing parameter."
@@ -176,6 +206,10 @@ if [ $? -ne 0 ]; then
         git diff -a chrome-internal-tot.."${STAGING_NAME}"-"${VERSION}" > /tmp/merge-to-tag.patch
         patch -p1 < /tmp/merge-to-tag.patch
         rm /tmp/merge-to-tag.patch
+
+        # edk2/edk2-platforms - fix  permission issues when submodules handled as regular files
+        # git add fails without this change
+        fix_permissions "${DIR}" "${STAGING_NAME}" "${VERSION}"
         git add .
 
         git commit ${COMMIT_ARGS} --message "Merge branch \`${VERSION}\` into chrome-internal-tot"$'\n\n'"BUG=b:${BUG_ID}" --edit
