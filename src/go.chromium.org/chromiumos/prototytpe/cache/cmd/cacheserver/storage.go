@@ -7,6 +7,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"sync"
 )
 
 // Node is a simple Double-Linked-List Node
@@ -140,12 +141,12 @@ func (d *Deque) removeFinal() *Node {
 }
 
 // LRU is a least recently used cache for KVs
-// TODO(jaquesc) synchronize (i.e.: Add locks)
 type LRU struct {
 	maxSize          int64
 	deletionCallBack func(string, string)
 	deque            *Deque
 	hashMap          map[string]*Node
+	mu               sync.Mutex
 }
 
 func MakeLRU(maxSize int64, cb func(string, string)) (*LRU, error) {
@@ -161,6 +162,9 @@ func MakeLRU(maxSize int64, cb func(string, string)) (*LRU, error) {
 }
 
 func (l *LRU) Add(key, val string) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	n := l.deque.PushToBack(key, val)
 	l.hashMap[key] = n
 
@@ -178,7 +182,10 @@ func (l *LRU) Add(key, val string) error {
 }
 
 func (l *LRU) Get(key string) (string, error) {
-	if !l.Exists(key) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if !l.exists(key) {
 		return "", fmt.Errorf("key does not exist, %s", key)
 	}
 
@@ -187,18 +194,30 @@ func (l *LRU) Get(key string) (string, error) {
 
 	// Update last used
 	l.deque.Pop(n)
-	l.deque.PushToBack(n.Key, n.Val)
+	l.hashMap[key] = l.deque.PushToBack(n.Key, n.Val)
 
 	return val, nil
 }
 
-func (l *LRU) Exists(key string) bool {
+// exists is the non-locking version of Exists for internal use.
+func (l *LRU) exists(key string) bool {
 	_, ok := l.hashMap[key]
 	return ok
 }
 
+func (l *LRU) Exists(key string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.exists(key)
+}
+
 func (l *LRU) Delete() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	for key, n := range l.hashMap {
 		l.deletionCallBack(key, n.Val)
 	}
+	l.hashMap = make(map[string]*Node)
+	l.deque = MakeDeque()
 }
