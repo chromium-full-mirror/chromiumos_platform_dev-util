@@ -188,7 +188,7 @@ func (h *HTTPHandlers) cacheLocalHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-// getCacgeLocalHandler handles GET requests to local files
+// getCacheLocalHandler handles GET requests to local files
 func (h *HTTPHandlers) getCacheLocalHandler(w http.ResponseWriter, r *http.Request) {
 	log.Print("got GET request for local file")
 	localPath := r.URL.Query().Get(sourceURLKey)
