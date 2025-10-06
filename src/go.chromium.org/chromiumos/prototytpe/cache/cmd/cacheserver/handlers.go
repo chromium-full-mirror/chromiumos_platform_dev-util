@@ -112,8 +112,10 @@ func (h *HTTPHandlers) cacheGSHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		h.getCacheGSHandler(w, strings.TrimPrefix(r.URL.EscapedPath(), downloadPrefix))
+	case http.MethodHead:
+		h.headCacheGSHandler(w, strings.TrimPrefix(r.URL.EscapedPath(), downloadPrefix))
 	default:
-		http.Error(w, "Only GETs are supported.", http.StatusNotFound)
+		http.Error(w, "Only GETs and HEADs are supported.", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -138,17 +140,19 @@ func (h *HTTPHandlers) stageHandler(w http.ResponseWriter, r *http.Request) {
 
 // staticHandler handles GET requests to GS cache
 func (h *HTTPHandlers) staticHandler(w http.ResponseWriter, r *http.Request) {
+	bucketParam, ok := r.URL.Query()[gsBucketParam]
+	if !ok || len(bucketParam) != 1 {
+		http.Error(w, "URL must have a bucket query parameter", http.StatusUnprocessableEntity)
+		return
+	}
+	gsPath := path.Join(bucketParam[0], strings.TrimPrefix(r.URL.Path, staticPrefix))
 	switch r.Method {
 	case http.MethodGet:
-		bucketParam, ok := r.URL.Query()[gsBucketParam]
-		if !ok || len(bucketParam) != 1 {
-			http.Error(w, "URL must have a bucket query parameter", http.StatusUnprocessableEntity)
-			return
-		}
-		gsPath := path.Join(bucketParam[0], strings.TrimPrefix(r.URL.Path, staticPrefix))
 		h.getCacheGSHandler(w, gsPath)
+	case http.MethodHead:
+		h.headCacheGSHandler(w, gsPath)
 	default:
-		http.Error(w, "Only GETs are supported.", http.StatusNotFound)
+		http.Error(w, "Only GETs and HEADs are supported.", http.StatusMethodNotAllowed)
 	}
 }
 
@@ -176,6 +180,30 @@ func (h *HTTPHandlers) getCacheGSHandler(w http.ResponseWriter, gsPath string) {
 	// Internal impl should stream here
 	io.Copy(w, fr)
 	log.Printf("sent file, %s", localPath)
+}
+
+// headCacheGSHandler handles HEAD requests to GS cache
+func (h *HTTPHandlers) headCacheGSHandler(w http.ResponseWriter, gsPath string) {
+	log.Printf("got HEAD request for GS file: %v", gsPath)
+	if gsPath == "" {
+		http.Error(w, "URL must have a path to download", http.StatusUnprocessableEntity)
+		return
+	}
+
+	localPath, err := h.cache.Get(gsPath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Unable to cache %s, %v", gsPath, err), http.StatusBadRequest)
+		return
+	}
+
+	fi, err := os.Stat(localPath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Unable to stat local cache %s, %v", localPath, err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", fi.Size()))
+	w.WriteHeader(http.StatusOK)
 }
 
 // cacheLocalHandler handles the cache for local files
