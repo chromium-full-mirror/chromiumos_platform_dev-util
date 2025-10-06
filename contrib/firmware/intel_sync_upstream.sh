@@ -16,6 +16,14 @@ declare -A SOC_EDK_BRANCH_PREFIX_MAP=( ["adln"]="chromeos-adl-n" )
 
 # If edk2/edk2-platforms are using a repo name with a suffix (e.g. are not edk-staging or edk-platforms-staging)
 declare -A SOC_EDK_REPO_SUFFIX_MAP=( ["mtl"]="intelcollab" ["rpl"]="intelcollab" ["twl"]="intelcollab" ["ptl"]="intelcollab" ["wcl"]="intelcollab" )
+# Binary package repository mapping for FSP binary patch creation
+declare -A SOC_BIN_PACKAGE_REPO_MAP=( ["ptl"]="https://github.com/otcshare/CCG-PTL-Generic-Binaries" ["wcl"]="https://github.com/otcshare/CCG-WCL-Generic-Binaries" )
+
+# Binary file paths mapping for each SOC - configurable for future changes
+declare -A SOC_BIN_FILE_PATHS=(
+  ["ptl"]="Binaries/PantherLakeBinPkg/MemoryInit/GreenMrc.bin Binaries/PantherLakeBinPkg/MemoryInit/ReleaseGreenMrc.bin"
+  ["wcl"]="Binaries/PantherLakeBinPkg/MemoryInit/GreenMrc.bin Binaries/PantherLakeBinPkg/MemoryInit/ReleaseGreenMrc.bin"
+)
 
 function die()
 {
@@ -56,11 +64,109 @@ function fix_permissions()
   fi
 }
 
+function prompt_and_push()
+{
+  local branch="$1"
+  local description="$2"
+
+  while true
+  do
+    read -r -p "Do you want to push your changes to cros-internal? [y/n] >" input
+
+    case ${input} in
+      [yY][eE][sS]|[yY])
+        git push cros-internal HEAD:refs/for/"${branch}"
+        echo "Pushed ${description}, ready for review."
+        break
+        ;;
+
+      [nN][oO]|[nN])
+        echo "Ready to push ${description}."
+        echo "Execute 'git push cros-internal HEAD:refs/for/${branch}' to push change."
+        break
+        ;;
+
+      *)
+        echo "Invalid input..."
+        ;;
+    esac
+  done
+}
+
+function update_binaries()
+{
+  local soc="$1"
+  local version="$2"
+  local repo_path="$3"
+  local src_dir="${CHROMIUM_TOT_ROOT}/src/third_party/fsp/${soc}/fsp/"
+
+  echo "Creating binary patch for SOC: ${soc}, Version: ${version}"
+
+  # Check if destination directory exists
+  [[ -d "${src_dir}" ]] || { echo "Error: Destination directory does not exist: ${src_dir}"; exit 1; }
+
+  # Change to destination directory for git operations
+  pushd "${src_dir}" > /dev/null || { echo "Cannot navigate to ${src_dir}"; exit 1; }
+
+  # Reset repository to clean state from remote origin
+  echo "Resetting repository to cros-internal/chromeos..."
+  git fetch cros-internal && git reset --hard cros-internal/chromeos && git clean -fd
+
+  # Get binary files and extract unique folders in one pass
+  local bin_files=(${SOC_BIN_FILE_PATHS[${soc}]})
+  local restored_folders=""
+
+  # Process each file: restore folder (if needed) and copy file
+  for file_path in "${bin_files[@]}"; do
+    local rel_path="${file_path#Binaries/}"
+    local folder_name="${rel_path%%/*}"
+
+    # Restore folder if not already done
+    if [[ ! " ${restored_folders} " =~ " ${folder_name} " ]]; then
+      echo "Restoring previous version of ${folder_name}..."
+      git checkout HEAD~1 -- "${folder_name}" 2>/dev/null && \
+        echo "Successfully restored ${folder_name}" || \
+        echo "No previous ${folder_name} found (first time addition)"
+      restored_folders+=" ${folder_name}"
+    fi
+
+    # Copy binary file
+    local src_file="${repo_path}/${file_path}"
+    local dest_file="${src_dir}${rel_path}"
+    local dest_dir="${dest_file%/*}"
+
+    [[ -d "${dest_dir}" ]] || { echo "Error: Destination directory does not exist: ${dest_dir}"; exit 1; }
+    echo "Copying: ${rel_path}"
+    cp "${src_file}" "${dest_file}" || { echo "Failed to copy ${rel_path}"; exit 1; }
+  done
+
+  popd > /dev/null
+  echo "All binary files copied successfully!"
+}
+
+function clone_repo()
+{
+  local repo_url="$1"
+  local local_path="$2"
+  local version="$3"
+
+  # Clean up any existing directory
+  rm -rf "${local_path}"
+
+  echo "Cloning repository..."
+  git clone --depth 1 --branch "${version}" "${repo_url}" "${local_path}" || {
+    echo "Tag '${version}' not found. Available tags:"
+    git ls-remote --tags "${repo_url}" | tail -10
+    die 1 "Tag '${version}' does not exist"
+  }
+}
+
 function usage()
 {
   echo "Error: missing parameter."
-  echo "Usage: $0 SOC [fsp|edk2|edk2-platforms|coreboot] version_string bug_id"
+  echo "Usage: $0 SOC [fsp|edk2|edk2-platforms|coreboot|bin] version_string bug_id"
   echo "Example: $0 tgl fsp 'TGL.2527_17' 123456"
+  echo "Example: $0 ptl bin 'PTL.123.45' 123456"
   exit 1
 }
 
@@ -117,6 +223,57 @@ case ${DIR} in
     CHROMEOS_BRANCH=chromeos
     SRC_DIR="${CHROMIUM_TOT_ROOT}/src/third_party/coreboot-intel-private/${SOC}"
     STAGING_REPO="https://chrome-internal.googlesource.com/chromeos/third_party/coreboot-intel-private/${STAGING_NAME}"
+    ;;
+
+  bin)
+    # Check if SOC is supported for binary packages
+    [[ -v SOC_BIN_PACKAGE_REPO_MAP["${SOC}"] ]] || die 1 "SOC '${SOC}' is not supported for binary package repositories"
+
+    bin_repo_url="${SOC_BIN_PACKAGE_REPO_MAP[${SOC}]}"
+
+    # Debug output
+    echo "Processing binary package repository for SOC: ${SOC}"
+    echo "Repository URL: '${bin_repo_url}'"
+
+    # Validate URL is not empty
+    [[ -n "${bin_repo_url}" ]] || die 1 "Repository URL is empty for SOC: ${SOC}"
+
+    repo_name="${bin_repo_url##*/}"    # Extract repo name (e.g., "CCG-WCL-Generic-Binaries.git")
+    repo_name="${repo_name%.git}"      # Remove .git suffix (e.g., "CCG-WCL-Generic-Binaries")
+    fsp_dir="${CHROMIUM_TOT_ROOT}/src/third_party/fsp/${SOC}/fsp/"
+    local_clone_path="/tmp/${repo_name}"
+
+    # Clone repository with specific tag
+    clone_repo "${bin_repo_url}" "${local_clone_path}" "${VERSION}"
+
+    # Copy binary files and clean up in one step
+    update_binaries "${SOC}" "${VERSION}" "${local_clone_path}"
+    rm -rf "${local_clone_path}"
+
+    # Navigate to FSP directory and commit changes
+    pushd "${fsp_dir}" > /dev/null || die 1 "Can't find ${fsp_dir}"
+
+    git add . || die 1 "Failed to stage binary files"
+
+    # Generate commit message with file list efficiently
+    file_list=""
+    bin_files=(${SOC_BIN_FILE_PATHS[${SOC}]})
+    for file_path in "${bin_files[@]}"; do
+      file_list+="- ${file_path#Binaries/}"$'\n'
+    done
+
+    # Commit changes or exit gracefully if no changes
+    git commit -m "Update ${SOC} binaries to version ${VERSION}"$'\n\n'"Updated binaries:"$'\n'"${file_list}"$'\n'"BUG=b:${BUG_ID}" || {
+      popd > /dev/null
+      echo "No changes to commit - binary package processing complete"
+      exit 0
+    }
+
+    echo "Binary package processing complete, ready for upload."
+    prompt_and_push "chromeos" "binary update for ${SOC}-${VERSION}"
+
+    popd > /dev/null
+    exit 0
     ;;
 
   *)
@@ -262,25 +419,5 @@ for file in "${FILES_TO_RESTORE[@]}"; do
   restore_file "${file}"
 done
 
-while true
-do
-  read -r -p "Do you want to push your changes to cros-internal? [y/n] >" input
-
-  case ${input} in
-    [yY][eE][sS]|[yY])
-      git push cros-internal HEAD:refs/for/"${CHROMEOS_BRANCH}"
-      echo "Pushed merge of ${STAGING_NAME}-${VERSION}, ready for review."
-      break
-      ;;
-
-    [nN][oO]|[nN])
-      echo "Ready to push merge of ${STAGING_NAME}-${VERSION}."
-      echo "Execute 'git push cros-internal HEAD:refs/for/${CHROMEOS_BRANCH}' to push change."
-      break
-      ;;
-
-    *)
-      echo "Invalid input..."
-      ;;
-  esac
-done
+# Use the reusable push function
+prompt_and_push "${CHROMEOS_BRANCH}" "merge of ${STAGING_NAME}-${VERSION}"
