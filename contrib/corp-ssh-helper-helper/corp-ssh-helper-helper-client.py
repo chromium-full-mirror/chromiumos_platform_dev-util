@@ -47,6 +47,14 @@ def main() -> int:
         "-relay",
         help="The relay address to use for proxying connections.",
     )
+    arg_parser.add_argument(
+        "--proxy-mode",
+        help="The proxy mode.",
+    )
+    arg_parser.add_argument(
+        "-dst_username",
+        help="The dst user name.",
+    )
     arg_parser.add_argument("host")
     arg_parser.add_argument("port")
     args = arg_parser.parse_args()
@@ -73,6 +81,8 @@ def main() -> int:
                 "dest4": args.dest4,
                 "dest6": args.dest6,
                 "relay": args.relay,
+                "proxy_mode": args.proxy_mode,
+                "dst_username": args.dst_username,
             }
         ).encode("utf-8")
         fds = [sys.stdin.fileno(), sys.stdout.fileno(), sys.stderr.fileno()]

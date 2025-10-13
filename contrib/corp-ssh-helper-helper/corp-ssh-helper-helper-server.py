@@ -88,9 +88,11 @@ def _handle_request(
     """Handles an incoming connection request from a client."""
     with conn:
         # Run corp-ssh-helper with the passed parameters.
-        with os.fdopen(fds[0], "rb") as stdin, os.fdopen(
-            fds[1], "wb"
-        ) as stdout, os.fdopen(fds[2], "wb") as stderr:
+        with (
+            os.fdopen(fds[0], "rb") as stdin,
+            os.fdopen(fds[1], "wb") as stdout,
+            os.fdopen(fds[2], "wb") as stderr,
+        ):
             # Check if the given host name is a valid IPv4 address, IPv6
             # address, or a host name which satisfies the spec described in
             # `man hosts`.
@@ -115,6 +117,10 @@ def _handle_request(
                 args.append("-dest6")
             if msg["relay"]:
                 args.extend(("-relay", msg["relay"]))
+            if msg["proxy_mode"]:
+                args.extend(("--proxy-mode", msg["proxy_mode"]))
+            if msg["dst_username"]:
+                args.extend(("-dst_username", msg["dst_username"]))
             args.append(host)
             args.append(port)
 
@@ -183,7 +189,7 @@ def main() -> int:
                     msg_bytes = json.dumps({"kill": True}).encode("utf-8")
                     s.sendmsg([msg_bytes])
                     logging.info(
-                        "Sent a kill request to the existing server " "process."
+                        "Sent a kill request to the existing server process."
                     )
                     return 0
 
