@@ -87,3 +87,4 @@ CONFIG_ZSTD_OPTIMIZE_O3=y
 # CONFIG_PACKAGE_libfido2 is not set
 # CONFIG_PACKAGE_libudev-zero is not set
 CONFIG_WPA_ENABLE_WEP=y
+CONFIG_PACKAGE_rsync=y
