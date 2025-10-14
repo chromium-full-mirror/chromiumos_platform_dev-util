@@ -149,7 +149,11 @@ else
   uci set wireless.default_radio1.disabled='1'
   uci set wireless.default_radio2.disabled='1'
 
-  uci set wireless.ap_mld_1.disabled='1'
+  # Delete MLD interfaces
+  uci del wireless.ap_mld_1
+  uci del wireless.default_radio0_mld
+  uci del wireless.default_radio1_mld
+  uci del wireless.default_radio2_mld
 fi
 
 # Commit and reload UCI changes.
