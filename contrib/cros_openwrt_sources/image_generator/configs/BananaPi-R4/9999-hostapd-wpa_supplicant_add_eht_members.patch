@@ -1,17 +1,16 @@
-Index: hostapd-2025.02.09~c8c7d56a/src/drivers/driver.h
+Index: hostapd-2025.05.23~4b8ac10c/src/drivers/driver.h
 ===================================================================
---- hostapd-2025.02.09~c8c7d56a.orig/src/drivers/driver.h
-+++ hostapd-2025.02.09~c8c7d56a/src/drivers/driver.h
-@@ -254,7 +254,7 @@ struct eht_capabilities {
+--- hostapd-2025.05.23~4b8ac10c.orig/src/drivers/driver.h
++++ hostapd-2025.05.23~4b8ac10c/src/drivers/driver.h
+@@ -262,6 +262,7 @@ struct eht_capabilities {
  #define HOSTAPD_MODE_FLAG_HT_INFO_KNOWN BIT(0)
  #define HOSTAPD_MODE_FLAG_VHT_INFO_KNOWN BIT(1)
  #define HOSTAPD_MODE_FLAG_HE_INFO_KNOWN BIT(2)
--
 +#define HOSTAPD_MODE_FLAG_EHT_INFO_KNOWN BIT(3)
 
+
  enum ieee80211_op_mode {
- 	IEEE80211_MODE_INFRA = 0,
-@@ -7544,6 +7544,8 @@ int ht_supported(const struct hostapd_hw
+@@ -7636,6 +7637,8 @@ int ht_supported(const struct hostapd_hw
  int vht_supported(const struct hostapd_hw_modes *mode);
  bool he_supported(const struct hostapd_hw_modes *hw_mode,
  		  enum ieee80211_op_mode op_mode);
@@ -20,35 +19,35 @@ Index: hostapd-2025.02.09~c8c7d56a/src/drivers/driver.h
 
  struct wowlan_triggers *
  wpa_get_wowlan_triggers(const char *wowlan_triggers,
-Index: hostapd-2025.02.09~c8c7d56a/src/drivers/driver_common.c
+Index: hostapd-2025.05.23~4b8ac10c/src/drivers/driver_common.c
 ===================================================================
---- hostapd-2025.02.09~c8c7d56a.orig/src/drivers/driver_common.c
-+++ hostapd-2025.02.09~c8c7d56a/src/drivers/driver_common.c
-@@ -202,6 +202,19 @@ bool he_supported(const struct hostapd_h
+--- hostapd-2025.05.23~4b8ac10c.orig/src/drivers/driver_common.c
++++ hostapd-2025.05.23~4b8ac10c/src/drivers/driver_common.c
+@@ -203,6 +203,19 @@ bool he_supported(const struct hostapd_h
  	return hw_mode->he_capab[op_mode].he_supported;
  }
 
 +int eht_supported(const struct hostapd_hw_modes *hw_mode,
 +		  enum ieee80211_op_mode op_mode)
 +{
-+       if (!(hw_mode->flags & HOSTAPD_MODE_FLAG_EHT_INFO_KNOWN)) {
-+               /*
-+                * The driver did not indicate whether it supports EHT. Assume
-+                * it does to avoid connection issues.
-+                */
-+               return 1;
-+       }
++	if (!(hw_mode->flags & HOSTAPD_MODE_FLAG_EHT_INFO_KNOWN)) {
++		/*
++		* The driver did not indicate whether it supports EHT. Assume
++		* it does to avoid connection issues.
++		*/
++		return 1;
++	}
 +
-+       return hw_mode->eht_capab[op_mode].eht_supported;
++	return hw_mode->eht_capab[op_mode].eht_supported;
 +}
 
  static int wpa_check_wowlan_trigger(const char *start, const char *trigger,
  				    int capa_trigger, u8 *param_trigger)
-Index: hostapd-2025.02.09~c8c7d56a/src/drivers/driver_nl80211_capa.c
+Index: hostapd-2025.05.23~4b8ac10c/src/drivers/driver_nl80211_capa.c
 ===================================================================
---- hostapd-2025.02.09~c8c7d56a.orig/src/drivers/driver_nl80211_capa.c
-+++ hostapd-2025.02.09~c8c7d56a/src/drivers/driver_nl80211_capa.c
-@@ -2143,7 +2143,8 @@ static int phy_info_band(struct phy_info
+--- hostapd-2025.05.23~4b8ac10c.orig/src/drivers/driver_nl80211_capa.c
++++ hostapd-2025.05.23~4b8ac10c/src/drivers/driver_nl80211_capa.c
+@@ -2154,7 +2154,8 @@ static int phy_info_band(struct phy_info
  		mode->mode = NUM_HOSTAPD_MODES;
  		mode->flags = HOSTAPD_MODE_FLAG_HT_INFO_KNOWN |
  			HOSTAPD_MODE_FLAG_VHT_INFO_KNOWN |
@@ -58,21 +57,21 @@ Index: hostapd-2025.02.09~c8c7d56a/src/drivers/driver_nl80211_capa.c
 
  		/*
  		 * Unsupported VHT MCS stream is defined as value 3, so the VHT
-Index: hostapd-2025.02.09~c8c7d56a/wpa_supplicant/events.c
+Index: hostapd-2025.05.23~4b8ac10c/wpa_supplicant/events.c
 ===================================================================
---- hostapd-2025.02.09~c8c7d56a.orig/wpa_supplicant/events.c
-+++ hostapd-2025.02.09~c8c7d56a/wpa_supplicant/events.c
-@@ -1043,6 +1043,17 @@ static int rate_match(struct wpa_supplic
+--- hostapd-2025.05.23~4b8ac10c.orig/wpa_supplicant/events.c
++++ hostapd-2025.05.23~4b8ac10c/wpa_supplicant/events.c
+@@ -1036,6 +1036,17 @@ static int rate_match(struct wpa_supplic
  				continue;
  			}
 
 +			if (flagged && ((rate_ie[j] & 0x7f) ==
-+						BSS_MEMBERSHIP_SELECTOR_EHT_PHY)) {
++					BSS_MEMBERSHIP_SELECTOR_EHT_PHY)) {
 +				if (!eht_supported(mode, IEEE80211_MODE_INFRA)) {
-+						if (debug_print)
-+								wpa_dbg(wpa_s, MSG_DEBUG,
-+										"   hardware does not support EHT PHY");
-+						return 0;
++					if (debug_print)
++							wpa_dbg(wpa_s, MSG_DEBUG,
++									"   hardware does not support EHT PHY");
++					return 0;
 +				}
 +				continue;
 +			}

@@ -17,7 +17,7 @@ cp "${DEVICE_CONFIG_DIR}/feed_revision" "${MTK_AUTOBUILD_DIR}"
 cp "${DEVICE_CONFIG_DIR}/defconfig" "${MTK_AUTOBUILD_DIR}/filogic/mac80211/mt7988_rfb/mt7996/24.10/"
 cp "${DEVICE_CONFIG_DIR}/900-add-hw-id.patch" "${OPENWRT_DIR}/package/boot/uboot-mediatek/patches/"
 cp "${DEVICE_CONFIG_DIR}/defconfig_common" "${MTK_AUTOBUILD_DIR}/filogic/mac80211/mt7988_rfb/24.10/defconfig"
-cp -f "${DEVICE_CONFIG_DIR}/0003-hostapd-package-makefile-ucode-files.patch" "${MTK_AUTOBUILD_DIR}/filogic/mac80211/24.10/patches-base/0003-hostapd-package-makefile-ucode-files.patch"
+# cp -f "${DEVICE_CONFIG_DIR}/0003-hostapd-package-makefile-ucode-files.patch" "${MTK_AUTOBUILD_DIR}/filogic/mac80211/24.10/patches-base/0003-hostapd-package-makefile-ucode-files.patch"
 
 cp "${DEVICE_CONFIG_DIR}/9998-hostapd-add_require_eht.patch" "${MTK_AUTOBUILD_DIR}/filogic/mac80211/24.10/files/package/network/services/hostapd/patches/"
 cp "${DEVICE_CONFIG_DIR}/9999-hostapd-wpa_supplicant_add_eht_members.patch" "${MTK_AUTOBUILD_DIR}/filogic/mac80211/24.10/files/package/network/services/hostapd/patches/"
