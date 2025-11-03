@@ -39,7 +39,8 @@ generate_ssh_banner() {
     echo "
     ------------------------------------------------------------
     ChromeOS Test OpenWRT
-    * Device: ${DEVICE}
+    * Documentation: go/cros-openwrt
+    * Device: ${DEVICE_NAME}
     * ImageUUID: ${IMAGE_UUID}
     ------------------------------------------------------------
     " > "${ROOTFS_SSH_BANNER_FILE}"
