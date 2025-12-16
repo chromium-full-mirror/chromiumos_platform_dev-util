@@ -204,9 +204,9 @@ update_firmware() {
 #   or
 # src/project/@@BOARD@@/MODEL/config.star
 #
-# And then, run this command from the src/platform/dev/contrib directory:
+# And then, enter the chroot and run this command from the src/platform/dev/contrib directory:
 #
-# ~/trunk/src/platform/dev/contrib/cros_update_firmware --board @@BOARD@@
+# ~/chromiumos/src/platform/dev/contrib/cros_update_firmware --board @@BOARD@@
 #
 # Verify the changes by running:
 #
