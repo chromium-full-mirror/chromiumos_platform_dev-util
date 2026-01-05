@@ -141,7 +141,7 @@ def get_opts(argv):
         help="Remove even the latest version of unused ebuilds",
     )
     opts = parser.parse_args(argv)
-    opts.Freeze()
+    opts.freeze()
     return opts
 
 

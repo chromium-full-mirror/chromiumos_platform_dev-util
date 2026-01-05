@@ -160,7 +160,7 @@ def get_opts(argv):
         help="Bus identifiers of USB devices to forward",
     )
     opts = parser.parse_args(argv)
-    opts.Freeze()
+    opts.freeze()
     return opts
 
 
