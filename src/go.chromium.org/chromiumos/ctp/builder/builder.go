@@ -106,6 +106,8 @@ type CTPBuilder struct {
 	// TimeoutMins is the timeout of the CTP run in minutes
 	// If not set, will default to 360
 	TimeoutMins int
+	// TrHours is used to extend the TestRunner child builders spawned by CTP
+	TrHours int64
 	// UseScheduke determines if we use Scheduke to schedule the CTP build
 	UseScheduke bool
 	// UserDefinedFilters are run within CTPv2.
@@ -434,6 +436,8 @@ func (c *CTPBuilder) schedulingParams() *test_platform.Request_Params_Scheduling
 	} else {
 		s.Priority = c.Priority
 	}
+
+	s.TrHours = c.TrHours
 
 	return s
 }

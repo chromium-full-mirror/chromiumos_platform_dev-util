@@ -323,6 +323,19 @@ var testSchedulingParamsData = []struct {
 		},
 	},
 	{
+		"TR hours",
+		CTPBuilder{
+			Priority: 123,
+			Pool:     "foobar",
+			TrHours:  48,
+		},
+		&test_platform.Request_Params_Scheduling{
+			Pool:     &test_platform.Request_Params_Scheduling_UnmanagedPool{UnmanagedPool: "foobar"},
+			Priority: 123,
+			TrHours:  48,
+		},
+	},
+	{
 		"managed pool",
 		CTPBuilder{
 			Priority: 123,
