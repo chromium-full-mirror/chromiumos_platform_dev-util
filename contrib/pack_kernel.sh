@@ -280,29 +280,33 @@ dd if="$OUT_BIN" of="$TARGET_DEV" bs=4K conv=fsync
 # Helper: get new kernel version string from modules.tar.gz
 get_new_kver() {
   # Extract the first-level directory name from modules.tar.gz (should be the kernel version)
-  tar -tzf modules.tar.gz | head -n1 | cut -d/ -f2
+  tar -tzf modules.tar.gz | sed -n '2p' | cut -d/ -f3
 }
 
 # Sync files:
+NEW_KVER="$(get_new_kver)"
+if [ -z "$NEW_KVER" ]; then
+  echo "Failed to detect new kernel version for modules cleanup."
+  exit 30
+fi
+OLD_KVER=$(uname -r)
+DO_RENAME=0
+if [ "${OLD_KVER}" != "${NEW_KVER}" ]; then
+  DO_RENAME=1
+fi
+
 if [ "$DO_AB" -eq 0 ]; then
   # In-place: update current rootfs
   echo "Updating /boot from boot.tar.gz ..."
+  if [ "$DO_RENAME" -eq 1 ]; then
+    rename "${OLD_KVER}" "${NEW_KVER}" /boot/* 2>/dev/null || true
+  fi
   tar -xzf boot.tar.gz -C /
   echo "Updating /lib/modules from modules.tar.gz ..."
   # Remove old /lib/modules directories except the new one
-  NEW_KVER="$(get_new_kver)"
-  if [ -z "$NEW_KVER" ]; then
-    echo "Failed to detect new kernel version for modules cleanup."
-    exit 30
+  if [ "$DO_RENAME" -eq 1 ] && [ -d "/lib/modules/${OLD_KVER}" ]; then
+    mv "/lib/modules/${OLD_KVER}" "/lib/modules/${NEW_KVER}"
   fi
-  for d in /lib/modules/*; do
-    [ -d "$d" ] || continue
-    base="$(basename "$d")"
-    if [ "$base" != "$NEW_KVER" ]; then
-      echo "Removing old modules directory: $d"
-      rm -rf "$d"
-    fi
-  done
   tar -xzf modules.tar.gz -C /
 else
   # AB: update TARGET rootfs by mounting it rw and extracting there
@@ -319,24 +323,15 @@ else
     exit 22
   fi
   echo "Updating $root_mnt/boot from boot.tar.gz ..."
+  if [ "$DO_RENAME" -eq 1 ]; then
+    rename "${OLD_KVER}" "${NEW_KVER}" "$root_mnt"/boot/* 2>/dev/null || true
+  fi
   tar -xzf boot.tar.gz -C "$root_mnt"
   echo "Updating $root_mnt/lib/modules from modules.tar.gz ..."
   # Remove old $root_mnt/lib/modules directories except the new one
-  NEW_KVER="$(get_new_kver)"
-  if [ -z "$NEW_KVER" ]; then
-    echo "Failed to detect new kernel version for modules cleanup."
-    umount "$root_mnt" || true
-    rmdir "$root_mnt" || true
-    exit 31
+  if [ "$DO_RENAME" -eq 1 ] && [ -d "${root_mnt}/lib/modules/${OLD_KVER}" ]; then
+    mv "${root_mnt}/lib/modules/${OLD_KVER}" "${root_mnt}/lib/modules/${NEW_KVER}"
   fi
-  for d in "$root_mnt"/lib/modules/*; do
-    [ -d "$d" ] || continue
-    base="$(basename "$d")"
-    if [ "$base" != "$NEW_KVER" ]; then
-      echo "Removing old modules directory: $d"
-      rm -rf "$d"
-    fi
-  done
   tar -xzf modules.tar.gz -C "$root_mnt"
   sync
   umount "$root_mnt" || true
