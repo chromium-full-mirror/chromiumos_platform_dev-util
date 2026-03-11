@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
+	"regexp"
 	"runtime"
 	"strings"
 	"syscall"
@@ -111,9 +113,9 @@ func (h *HTTPHandlers) cacheGSHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() { <-gsHandlerConcurrencySem }()
 	switch r.Method {
 	case http.MethodGet:
-		h.getCacheGSHandler(w, strings.TrimPrefix(r.URL.EscapedPath(), downloadPrefix))
+		h.getCacheGSHandler(r.Context(), w, strings.TrimPrefix(r.URL.EscapedPath(), downloadPrefix))
 	case http.MethodHead:
-		h.headCacheGSHandler(w, strings.TrimPrefix(r.URL.EscapedPath(), downloadPrefix))
+		h.headCacheGSHandler(r.Context(), w, strings.TrimPrefix(r.URL.EscapedPath(), downloadPrefix))
 	default:
 		http.Error(w, "Only GETs and HEADs are supported.", http.StatusMethodNotAllowed)
 	}
@@ -148,24 +150,93 @@ func (h *HTTPHandlers) staticHandler(w http.ResponseWriter, r *http.Request) {
 	gsPath := path.Join(bucketParam[0], strings.TrimPrefix(r.URL.Path, staticPrefix))
 	switch r.Method {
 	case http.MethodGet:
-		h.getCacheGSHandler(w, gsPath)
+		h.getCacheGSHandler(r.Context(), w, gsPath)
 	case http.MethodHead:
-		h.headCacheGSHandler(w, gsPath)
+		h.headCacheGSHandler(r.Context(), w, gsPath)
 	default:
 		http.Error(w, "Only GETs and HEADs are supported.", http.StatusMethodNotAllowed)
 	}
 }
 
+// rewriteAndroidURL rewrites a URL for an android artifact to a GCS path.
+// Returns the new path and true if it was rewritten.
+func rewriteAndroidURL(gsPath string) (string, bool) {
+	// android-build/builds/14099659/brya-trunk_staging-userdebug/attempts/latest/artifacts/partition-common-cgpt.sh
+	// ->
+	// android-build/builds/*-linux-brya-trunk_staging-userdebug/14099659/*/1/partition-common-cgpt.sh
+	r := regexp.MustCompile(`^android-build/builds/(\d+)/(.+)/attempts/latest/artifacts/(.+)`)
+	matches := r.FindStringSubmatch(gsPath)
+	if len(matches) == 4 {
+		buildID := matches[1]
+		target := matches[2]
+		artifact := matches[3]
+		newPath := fmt.Sprintf("android-build/builds/*-linux-%s/%s/*/1/%s", target, buildID, artifact)
+		return newPath, true
+	}
+	return gsPath, false
+}
+
+// resolveGSPath fetches a GCS path, downloading it if necessary, and returns the local path.
+func (h *HTTPHandlers) resolveGSPath(ctx context.Context, gsPath string) (string, error) {
+	// Check if it's an android URL that should be fetched with fetch_artifact
+	r := regexp.MustCompile(`^android-build/builds/(\d+)/(.+)/attempts/latest/artifacts/(.+)`)
+	matches := r.FindStringSubmatch(gsPath)
+
+	if len(matches) == 4 {
+		buildID := matches[1]
+		target := matches[2]
+		artifact := matches[3]
+
+		fetcher := func(destPath string) error {
+			// Stubby is only available on corp.
+			// If running off corp we need to use Cloud ADC.
+			useApplicationDefaultCredentials := false
+			if _, err := exec.LookPath("network-detect"); err == nil {
+				if err := exec.Command("network-detect").Run(); err != nil {
+					// ExitCode 1 means off corp.
+					if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+						useApplicationDefaultCredentials = true
+					}
+				}
+			}
+
+			args := []string{"--bid", buildID, "--target", target, artifact, destPath}
+			if useApplicationDefaultCredentials {
+				args = append([]string{"--use_adc"}, args...)
+			}
+
+			cmd := exec.CommandContext(ctx, "fetch_artifact", args...)
+			log.Printf("Fetching android artifact with: %s", cmd)
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
+			err := cmd.Run()
+			if err != nil {
+				return fmt.Errorf("fetch_artifact failed: %v\n%s", err, stderr.String())
+			}
+			return nil
+		}
+		return h.cache.GetWithFetcher(gsPath, fetcher)
+
+	}
+	// Fallback to original GCS logic for other URLs
+	if newPath, ok := rewriteAndroidURL(gsPath); ok {
+		log.Printf("rewriting android url from %s to %s", gsPath, newPath)
+		gsPath = newPath
+	}
+	return h.cache.Get(gsPath)
+}
+
 // getCacheGSHandler handles GET requests to GS cache
-func (h *HTTPHandlers) getCacheGSHandler(w http.ResponseWriter, gsPath string) {
+func (h *HTTPHandlers) getCacheGSHandler(ctx context.Context, w http.ResponseWriter, gsPath string) {
 	log.Printf("got GET request for GS file: %v", gsPath)
 	if gsPath == "" {
 		http.Error(w, "URL must have a path to download", http.StatusUnprocessableEntity)
 		return
 	}
-	localPath, err := h.cache.Get(gsPath)
+
+	localPath, err := h.resolveGSPath(ctx, gsPath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Unable to cache %s, %v", gsPath, err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Unable to get artifact %s, %v", gsPath, err), http.StatusBadRequest)
 		return
 	}
 
@@ -183,16 +254,16 @@ func (h *HTTPHandlers) getCacheGSHandler(w http.ResponseWriter, gsPath string) {
 }
 
 // headCacheGSHandler handles HEAD requests to GS cache
-func (h *HTTPHandlers) headCacheGSHandler(w http.ResponseWriter, gsPath string) {
+func (h *HTTPHandlers) headCacheGSHandler(ctx context.Context, w http.ResponseWriter, gsPath string) {
 	log.Printf("got HEAD request for GS file: %v", gsPath)
 	if gsPath == "" {
 		http.Error(w, "URL must have a path to download", http.StatusUnprocessableEntity)
 		return
 	}
 
-	localPath, err := h.cache.Get(gsPath)
+	localPath, err := h.resolveGSPath(ctx, gsPath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Unable to cache %s, %v", gsPath, err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Unable to get artifact %s, %v", gsPath, err), http.StatusBadRequest)
 		return
 	}
 

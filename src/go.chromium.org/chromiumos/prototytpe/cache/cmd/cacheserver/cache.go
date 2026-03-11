@@ -16,6 +16,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/google/uuid"
+	"google.golang.org/api/iterator"
 )
 
 const cacheSize = 128
@@ -52,25 +53,36 @@ func MakeCacheFromexisting(location string) *Cache {
 
 // Get retrieves the local path to the gsPath. If none exist, download.
 func (c *Cache) Get(gsPath string) (string, error) {
-	log.Printf("attempting to fetch %s from cache", gsPath)
-	if c.pathToLocal.Exists(gsPath) {
-		localPath, err := c.pathToLocal.Get(gsPath)
+	fetcher := func(destPath string) error {
+		return c.fetchFromGS(gsPath, destPath)
+	}
+	return c.GetWithFetcher(gsPath, fetcher)
+}
+
+// GetWithFetcher retrieves the local path to the key. If none exist, it uses the
+// provided fetcher function to download the file.
+func (c *Cache) GetWithFetcher(key string, fetcher func(destPath string) error) (string, error) {
+	log.Printf("attempting to fetch %s from cache", key)
+	if c.pathToLocal.Exists(key) {
+		localPath, err := c.pathToLocal.Get(key)
 		if err != nil {
 			return "", err
 		}
-		log.Printf("%s already cached at location %s", gsPath, localPath)
+		log.Printf("%s already cached at location %s", key, localPath)
 		return localPath, nil
 	}
 	localPath := path.Join(c.location, uuid.New().String())
-	log.Printf("%s not cached, retrieving at %s", gsPath, localPath)
-	if err := c.fetchFromGS(gsPath, localPath); err != nil {
-		log.Printf("error when fetching from gs", err)
+	log.Printf("%s not cached, retrieving at %s", key, localPath)
+	if err := fetcher(localPath); err != nil {
+		log.Printf("error when fetching artifact: %v", err)
+		// Clean up empty file if fetcher created it.
+		os.Remove(localPath)
 		return "", err
 	}
-	log.Printf("successfully downloaded %s", gsPath)
+	log.Printf("successfully downloaded %s", key)
 
 	// storing in local cache
-	c.pathToLocal.Add(gsPath, localPath)
+	c.pathToLocal.Add(key, localPath)
 	return localPath, nil
 }
 
@@ -85,10 +97,20 @@ func (c *Cache) fetchFromGS(gsPath, localPath string) error {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	log.Printf("Fetching object %s from bucket %s", object, bucket)
-	rc, err := c.gcsClient.Bucket(bucket).Object(object).NewReader(ctx)
+	resolvedObject := object
+	if strings.Contains(object, "*") {
+		log.Printf("Resolving wildcard in object path: %s", object)
+		resolved, err := c.resolveGSWildcard(ctx, bucket, object)
+		if err != nil {
+			return fmt.Errorf("failed to resolve wildcard path %s: %w", gsPath, err)
+		}
+		resolvedObject = resolved
+	}
+
+	log.Printf("Fetching object %s from bucket %s", resolvedObject, bucket)
+	rc, err := c.gcsClient.Bucket(bucket).Object(resolvedObject).NewReader(ctx)
 	if err != nil {
-		return fmt.Errorf("could not get a reader for GCS object %q in bucket %q, %w", object, bucket, err)
+		return fmt.Errorf("could not get a reader for GCS object %q in bucket %q, %w", resolvedObject, bucket, err)
 	}
 	defer rc.Close()
 
@@ -107,6 +129,37 @@ func (c *Cache) fetchFromGS(gsPath, localPath string) error {
 	}
 
 	return nil
+}
+
+// resolveGSWildcard finds a GCS object given a pattern with one or two wildcards.
+// If multiple objects match, the most recently updated one is returned.
+func (c *Cache) resolveGSWildcard(ctx context.Context, bucket, objectPattern string) (string, error) {
+	log.Printf("Searching for object with glob %q in bucket %q", objectPattern, bucket)
+
+	query := &storage.Query{MatchGlob: objectPattern}
+	it := c.gcsClient.Bucket(bucket).Objects(ctx, query)
+
+	var newestObject *storage.ObjectAttrs
+	for {
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return "", fmt.Errorf("error iterating objects in bucket %q with glob %q: %w", bucket, objectPattern, err)
+		}
+
+		if newestObject == nil || attrs.Updated.After(newestObject.Updated) {
+			newestObject = attrs
+		}
+	}
+
+	if newestObject == nil {
+		return "", fmt.Errorf("could not find object matching pattern %s in bucket %s", objectPattern, bucket)
+	}
+
+	log.Printf("Found object: %s (updated at %s)", newestObject.Name, newestObject.Updated)
+	return newestObject.Name, nil
 }
 
 // parseGSURL retrieves the bucket and object from a GS URL.
