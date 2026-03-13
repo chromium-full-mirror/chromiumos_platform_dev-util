@@ -412,7 +412,7 @@ func softwareDepsFromProvisionLabels(labels map[string]string) ([]*test_platform
 				RwFirmwareBuild: value,
 			}
 		default:
-			return nil, errors.Reason("invalid provisionable label %s", label).Err()
+			return nil, errors.Reason("invalid provisionable label %s", label)
 		}
 		deps = append(deps, dep)
 	}
