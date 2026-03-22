@@ -1,0 +1,35 @@
+set shell := ["bash", "-eu", "-c"]
+
+# We must build the project before running any tests. This step is unnecessary
+# for a user who only wishes to run the tool because the script at
+# ./bin/cros-ksm automatically builds the project before running.
+[doc("build project")]
+all:
+    uv sync
+
+# Dependency order here is significant. Check for typing and lint errors before
+# running tests.
+[doc("run pre-commit checks")]
+check: all pyrefly ruff pytest
+    @
+
+[doc("run python type checker")]
+pyrefly:
+    uv run pyrefly check
+
+[doc("run python linter")]
+ruff:
+    uv run ruff check
+
+[doc("fix ruff errors")]
+ruff-fix:
+    uv run ruff check --fix
+
+[doc("run python tests")]
+pytest:
+    @if [[ -z "${CROS_KSM_TEST_KERNEL_GIT_DIR:-}" ]]; then \
+        echo 'error: env var CROS_KSM_TEST_KERNEL_GIT_DIR must be set'; \
+        echo 'example: export CROS_KSM_TEST_KERNEL_GIT_DIR="$CROS_TOP/src/third_party/kernel/v6.12/.git"'; \
+        false; \
+    fi
+    uv run pytest -v

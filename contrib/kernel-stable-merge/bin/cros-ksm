@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Copyright 2026 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+set -u
+
+this_file=$(realpath -s -- "${BASH_SOURCE}") || exit
+bin_dir=$(dirname -- "${this_file}") || exit
+top_dir=$(dirname -- "${bin_dir}") || exit
+
+if ! which -s uv; then
+    echo >&2 "error: failed to find command 'uv'"
+    echo >&2 "see cros-ksm README for installation instructions"
+    exit 1
+fi
+
+exec uv --project="${top_dir}" run -- "${top_dir}/src/cros_ksm" "$@"

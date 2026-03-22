@@ -1,0 +1,68 @@
+[project]
+name = "cros-ksm"
+version = "0.1.0"
+description = "Tool for managing ChromeOS kernel stable merges"
+requires-python = ">=3.13"
+dependencies = [
+    "click>=8.3.1",
+    "click-aliases>=1.0.5",
+    "multidict>=6.7.1",
+    "parsy>=2.2",
+    "pygit2>=1.19.1",
+]
+
+[dependency-groups]
+dev = [
+    "pyrefly>=0.58.0",
+    "pytest>=9.1.1",
+    "ruff>=0.15.20",
+]
+
+[build-system]
+# If a build system is defined, then uv will install the project package into
+# the development venv as an editable package, as opposed to not installing it
+# all. This prevents many problems with tools like ruff and pytest.
+requires = [
+    # Specify both lower and upper version bounds. Otherwise, uv complains.
+    "uv_build>=0.10.12,<0.11.0",
+]
+build-backend = "uv_build"
+
+[tool.pyrefly]
+project-includes = ["**/*.py*"]
+project-excludes = ["old/"]
+
+[tool.pytest.ini_options]
+# Override the import mode, as recommended by the pytest docs.
+# See (https://docs.pytest.org/en/7.1.x/explanation/goodpractices.html).
+addopts = [
+    "--import-mode=importlib",
+]
+# Report failure if a test result unexpectedly changes from fail to pass.
+strict_xfail = true
+
+[tool.ruff]
+src = ["src", "test"]
+exclude = ["old/"]
+# Enable preview mode. Required (as of ruff-0.15.20) for inline lint instructions (comments that
+# begin with "ruff:").
+preview = true
+
+[tool.ruff.lint]
+# Ruff rules are documented at (https://docs.astral.sh/ruff/rules/).
+#
+# Extend ruff's default set of rules.
+extend-select = [
+    "PL", # pylint
+]
+ignore = [
+    # Use the default text encoding for IO.
+    "PLW1514", # unspecified-encoding (pylint-warning)
+
+    # Useless warning about large modules and classes.
+    "PLR0904", # too-many-public-methods (pylint-refactor)
+
+    # Long parameter lists are acceptable if they consist mostly of keyword
+    # arguments.
+    "PLR0913", # too-many-arguments (pylint-refactor)
+]
