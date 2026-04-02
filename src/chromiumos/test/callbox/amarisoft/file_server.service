@@ -2,12 +2,14 @@
 Description=CROS cellular callbox test file server
 After=lte.service
 StartLimitIntervalSec=0
+
 [Service]
 Type=simple
 Restart=always
 RestartSec=1
 User=root
-ExecStart=/root/file_server/target/release/file_server
+ExecStartPre=mkdir -p /var/run/file_server
+ExecStart=/root/file_server/target/release/file_server --serving-dir=/var/run/file_server
 
 [Install]
 WantedBy=multi-user.target
