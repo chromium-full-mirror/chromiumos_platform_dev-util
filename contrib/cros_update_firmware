@@ -255,6 +255,16 @@ EOF
   done
 }
 
+verify_environment() {
+  local board="$1"
+
+  if [ ! -d "/build/${board}" ]; then
+    echo "setup_board has NOT been run for ${board}."
+    echo "Attempting to run setup_board --board=${board} --force."
+    setup_board --board="${board}" --force
+  fi
+}
+
 main() {
   if [[ -z "${FLAGS_board}" ]]; then
     die "-b or --board required."
@@ -265,7 +275,7 @@ main() {
   if [[ -z "${FLAGS_project}" && "${FLAGS_project_srcuris}" == "${FLAGS_TRUE}" ]]; then
     die "--project must be set when --project_srcuris is set"
   fi
-
+  verify_environment "${FLAGS_board}"
   update_firmware "${FLAGS_board}" "${FLAGS_project}" "${FLAGS_quiet}" "${FLAGS_append_srcuris}" "${FLAGS_project_srcuris}"
 }
 
