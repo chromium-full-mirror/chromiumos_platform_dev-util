@@ -7,10 +7,15 @@ set -e
 
 DEVICE_CONFIG_DIR="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
 OPENWRT_DIR=$(realpath -e "${DEVICE_CONFIG_DIR}/../..")
+MTK_DIR=${OPENWRT_DIR}/../mtk-openwrt-feeds
+
+cd "${MTK_DIR}"
+cp "${DEVICE_CONFIG_DIR}/hostapd_sh.patch" "${MTK_DIR}"
+git apply hostapd_sh.patch
 
 cd "${OPENWRT_DIR}"
 
-MTK_AUTOBUILD_DIR=${OPENWRT_DIR}/../mtk-openwrt-feeds/autobuild/unified
+MTK_AUTOBUILD_DIR=${MTK_DIR}/autobuild/unified
 
 echo "Prepare MTK folder with feed and config updates"
 cp "${DEVICE_CONFIG_DIR}/feed_revision" "${MTK_AUTOBUILD_DIR}"
