@@ -19,6 +19,7 @@ import (
 
 // InventoryServer implementation of inventory_service.proto
 type InventoryServer struct {
+	api.UnimplementedInventoryServiceServer
 	logger      *log.Logger
 	dutTopology *api.DutTopology
 }
