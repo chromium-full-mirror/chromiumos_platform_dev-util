@@ -168,7 +168,7 @@ ln -s /usr/sbin/hostapd_cli /usr/bin/hostapd_cli
 # Configure cros init script.
 CROS_TEST_SERVICE_PATH="/etc/init.d/z_cros_test.sh"
 
-if [ -f "${CROS_TEST_SERVICE_PATH}" ] && [ "$(board_name)" != 'bananapi,bpi-r4' ]; then
+if [ -f "${CROS_TEST_SERVICE_PATH}" ]; then
   chmod 755 "${CROS_TEST_SERVICE_PATH}"
   ${CROS_TEST_SERVICE_PATH} enable
   ${CROS_TEST_SERVICE_PATH} start
