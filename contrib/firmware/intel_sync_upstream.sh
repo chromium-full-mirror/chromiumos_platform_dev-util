@@ -3,8 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-SOC_LIST=(tgl jsl adl adln mtl rpl twl ptl wcl )
-declare -A SOC_EDK_LOCAL_DIR_MAP=( ["tgl"]="branch2-private" ["jsl"]="branch1-private" ["adl"]="branch1-private" ["adln"]="branch1-private" ["mtl"]="branch1-private" ["rpl"]="branch2-private" ["twl"]="branch1-private" ["ptl"]="branch1-private" ["wcl"]="branch1-private" )
+SOC_LIST=(tgl jsl adl adln mtl rpl twl ptl wcl nvl )
+declare -A SOC_EDK_LOCAL_DIR_MAP=( ["tgl"]="branch2-private" ["jsl"]="branch1-private" ["adl"]="branch1-private" ["adln"]="branch1-private" ["mtl"]="branch1-private" ["rpl"]="branch2-private" ["twl"]="branch1-private" ["ptl"]="branch1-private" ["wcl"]="branch1-private" ["nvl"]="branch1-private" )
 
 # If FSP is using a staging repo that does not follow the format ${SOC}-staging,
 # then add the mapping here.
@@ -15,14 +15,19 @@ declare -A SOC_FSP_STAGING_REPO_MAP=( ["adl"]="ccg-adl-generic-full" ["adln"]="a
 declare -A SOC_EDK_BRANCH_PREFIX_MAP=( ["adln"]="chromeos-adl-n" )
 
 # If edk2/edk2-platforms are using a repo name with a suffix (e.g. are not edk-staging or edk-platforms-staging)
-declare -A SOC_EDK_REPO_SUFFIX_MAP=( ["mtl"]="intelcollab" ["rpl"]="intelcollab" ["twl"]="intelcollab" ["ptl"]="intelcollab" ["wcl"]="intelcollab" )
+declare -A SOC_EDK_REPO_SUFFIX_MAP=( ["mtl"]="intelcollab" ["rpl"]="intelcollab" ["twl"]="intelcollab" ["ptl"]="intelcollab" ["wcl"]="intelcollab" ["nvl"]="intelcollab" )
 # Binary package repository mapping for FSP binary patch creation
-declare -A SOC_BIN_PACKAGE_REPO_MAP=( ["ptl"]="https://github.com/otcshare/CCG-PTL-Generic-Binaries" ["wcl"]="https://github.com/otcshare/CCG-WCL-Generic-Binaries" )
+declare -A SOC_BIN_PACKAGE_REPO_MAP=(
+  ["ptl"]="https://github.com/otcshare/CCG-PTL-Generic-Binaries"
+  ["wcl"]="https://github.com/otcshare/CCG-WCL-Generic-Binaries"
+  ["nvl"]="https://github.com/otcshare/CCG-NVL-Mobile-Generic-Binaries"
+)
 
 # Binary file paths mapping for each SOC - configurable for future changes
 declare -A SOC_BIN_FILE_PATHS=(
   ["ptl"]="Binaries/PantherLakeBinPkg/MemoryInit/GreenMrc.bin Binaries/PantherLakeBinPkg/MemoryInit/ReleaseGreenMrc.bin"
   ["wcl"]="Binaries/PantherLakeBinPkg/MemoryInit/GreenMrc.bin Binaries/PantherLakeBinPkg/MemoryInit/ReleaseGreenMrc.bin"
+  ["nvl"]="Binaries/NovaLakeBinPkg/MemoryInit/GreenMrc.bin Binaries/NovaLakeBinPkg/MemoryInit/ReleaseGreenMrc.bin"
 )
 
 function die()
