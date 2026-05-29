@@ -644,6 +644,15 @@ def main(args):
         "https://repoURL#branch/HASH or "
         "'https://repoURL/commit/?h=branch&id=HASH'",
     )
+    parser.add_argument(
+        "--branches_dispatch",
+        "-bd",
+        default="N/A",
+        type=str,
+        help="Kernel branches where the fix should be dispatched. Set N/A if "
+        "the patch should not land in any version "
+        "(see go/kernel-cl-dispatch-docs).",
+    )
 
     args = vars(parser.parse_args(args))
 
@@ -788,6 +797,7 @@ def main(args):
         commit_message += "\n".join("BUG=%s" % bug for bug in bug_lines)
         commit_message += "\n"
         commit_message += "\n".join("TEST=%s" % t for t in test_lines)
+        commit_message += "\nBranches: %s" % args["branches_dispatch"]
 
         extra = []
         if args["signoff"]:
