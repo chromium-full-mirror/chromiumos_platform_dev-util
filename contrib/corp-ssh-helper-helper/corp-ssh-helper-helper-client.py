@@ -59,7 +59,7 @@ def main() -> int:
     arg_parser.add_argument("port")
     args = arg_parser.parse_args()
 
-    path = os.path.expanduser("~/chromiumos/.corp-ssh-helper-helper.sock")
+    path = os.path.expanduser("~/chromiumos/.cshh.sock")
     with socket.socket(socket.AF_UNIX) as s:
         try:
             s.connect(path)

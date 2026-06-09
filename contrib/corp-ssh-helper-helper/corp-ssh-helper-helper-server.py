@@ -161,8 +161,10 @@ def main() -> int:
         logging.error("Please run this script under a ChromiumOS checkout.")
         return 1
 
-    socket_path = os.path.join(chromeos_path, ".corp-ssh-helper-helper.sock")
-
+    # Change to chromeos_path to reduce socket path length.
+    # Needed for short socket paths (which have a limit of 108 chars).
+    os.chdir(chromeos_path)
+    socket_path = ".cshh.sock"
     if os.path.exists(socket_path):
         # Try connecting to the existing socket to check if there is an existing
         # server process.
