@@ -61,9 +61,9 @@ The same goes for tools like `tast run` and `cros deploy`.
 
 ## Uninstall
 
-You can uninstall this tool by deleting ~/chromiumos/corp-ssh-helper-helper.sock and deleting the corp-ssh-helper mount point from .local_mounts  **inside** the chroot.
+You can uninstall this tool by deleting ~/chromiumos/.cshh.sock and deleting the corp-ssh-helper mount point from .local_mounts  **inside** the chroot.
 
 ```shell
-(inside the chroot) $ rm ~/chromiumos/.corp-ssh-helper-helper.sock
+(inside the chroot) $ rm ~/chromiumos/.cshh.sock
 (inside the chroot) $ vi ~/chromiumos/src/scripts/.local_mounts  # To remove the corp-ssh-helper mount point
 ```
