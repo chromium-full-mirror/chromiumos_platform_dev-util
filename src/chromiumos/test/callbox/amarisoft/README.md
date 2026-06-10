@@ -4,7 +4,7 @@ To setup the callbox, copy all files from this directory to anywhere in the call
 Run the setup script corresponding to the configuration you want for the callbox.
 
 Example:
->cd /tmp; bash setup4G.sh
+>cd /tmp; bash setup5G.sh
 
 
 # Some basic commands to troubleshoot issues on the callbox:
