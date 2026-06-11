@@ -28,8 +28,6 @@ except ImportError:
     # and the auto-update test fails.
     psutil = None
 
-import setup_chromite  # pylint: disable=unused-import
-
 
 def _Log(message, *args):
     """Module-local log function."""
