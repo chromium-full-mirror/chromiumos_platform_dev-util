@@ -141,7 +141,7 @@ build() {
     --build-arg DEVICE="${DEVICE}"
     )
 
-    #Build Docker container with OpenWRT and MTK feed repos inside it
+    # Build Docker container with OpenWRT and MTK feed repos inside it
     docker build "${DOCKER_BUILD_ARGS[@]}" .
     START_TIME="$(date +%Y%m%d-%H%M%S)"
     BUILD_DIR="${CROS_OPENWRT_DIR}/build_dir/${DEVICE}/${IMAGE_NAME}/${START_TIME}"
@@ -151,18 +151,60 @@ build() {
 
     generate_cros_files "${BUILD_DIR}"
 
-    local DOCKER_RUN_ARGS=(
-    -it
-    --rm
-    -v "${BUILD_DIR}/logs:/build/openwrt/logs"
-    -v "${BUILD_DIR}/bin:/build/openwrt/bin"
-    -v "${BUILD_DIR}/generated_files:/build/generated_files"
-    "${DOCKER_TAG}"
-    "/build/openwrt/run.sh"
-    "${DEVICE}"
-    "${IMAGE_PROFILE}"
-    "${CREATE_ARCHIVE}"
-    "${DEBUG_MODE}"
-    )
-    docker run "${DOCKER_RUN_ARGS[@]}"
+    # --- Debug Mode Container Lifecycle ---
+    if [ "${DEBUG_MODE}" = true ]; then
+        local CONTAINER_NAME="openwrt_debug_${DEVICE}"
+
+        # Clean up any lingering container from an older aborted run
+        docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+
+        echo "DEBUG MODE: Launching persistent container in background..."
+        docker run -d \
+            --name "${CONTAINER_NAME}" \
+            -v "${BUILD_DIR}/logs:/build/openwrt/logs" \
+            -v "${BUILD_DIR}/bin:/build/openwrt/bin" \
+            -v "${BUILD_DIR}/generated_files:/build/generated_files" \
+            "${DOCKER_TAG}" \
+            tail -f /dev/null
+
+        echo "DEBUG MODE: Executing build layer..."
+        set +e  # Temporarily disable immediate script exit to catch the fail
+        docker exec -it "${CONTAINER_NAME}" /build/openwrt/run.sh "${DEVICE}" "${IMAGE_PROFILE}" "${CREATE_ARCHIVE}" "${DEBUG_MODE}"
+        BUILD_EXIT_CODE=$?
+        set -e  # Re-enable error catching
+
+        if [ ${BUILD_EXIT_CODE} -ne 0 ]; then
+            echo "--------------------------------------------------------"
+            echo "🔴 BUILD FAILED inside container (Exit Code: ${BUILD_EXIT_CODE})"
+            echo "As requested via --debug, the container has been kept alive."
+            echo "Run this command to drop into the shell right where it died:"
+            echo ""
+            echo "    docker exec -it ${CONTAINER_NAME} bash"
+            echo ""
+            echo "When done investigating, destroy the container using:"
+            echo "    docker rm -f ${CONTAINER_NAME}"
+            echo "--------------------------------------------------------"
+            exit ${BUILD_EXIT_CODE}
+        else
+            echo "🟢 Debug Build Successful. Tearing down container environments."
+            docker rm -f "${CONTAINER_NAME}"
+        fi
+
+    # --- Standard Mode Container Lifecycle (Original) ---
+    else
+        local DOCKER_RUN_ARGS=(
+        -it
+        --rm
+        -v "${BUILD_DIR}/logs:/build/openwrt/logs"
+        -v "${BUILD_DIR}/bin:/build/openwrt/bin"
+        -v "${BUILD_DIR}/generated_files:/build/generated_files"
+        "${DOCKER_TAG}"
+        "/build/openwrt/run.sh"
+        "${DEVICE}"
+        "${IMAGE_PROFILE}"
+        "${CREATE_ARCHIVE}"
+        "${DEBUG_MODE}"
+        )
+        docker run "${DOCKER_RUN_ARGS[@]}"
+    fi
 }

@@ -1,9 +1,9 @@
 Add require_eht in hostapd
-Index: hostapd-2025.05.23~4b8ac10c/hostapd/config_file.c
+Index: hostapd-2026.02.19~53d12cd4/hostapd/config_file.c
 ===================================================================
---- hostapd-2025.05.23~4b8ac10c.orig/hostapd/config_file.c
-+++ hostapd-2025.05.23~4b8ac10c/hostapd/config_file.c
-@@ -5214,6 +5214,8 @@ static int hostapd_config_fill(struct ho
+--- hostapd-2026.02.19~53d12cd4.orig/hostapd/config_file.c
++++ hostapd-2026.02.19~53d12cd4/hostapd/config_file.c
+@@ -5226,6 +5226,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  #ifdef CONFIG_IEEE80211BE
  	} else if (os_strcmp(buf, "ieee80211be") == 0) {
  		conf->ieee80211be = atoi(pos);
@@ -12,25 +12,27 @@ Index: hostapd-2025.05.23~4b8ac10c/hostapd/config_file.c
  	} else if (os_strcmp(buf, "eht_oper_chwidth") == 0) {
  		conf->eht_oper_chwidth = atoi(pos);
  	} else if (os_strcmp(buf, "eht_oper_centr_freq_seg0_idx") == 0) {
-Index: hostapd-2025.05.23~4b8ac10c/hostapd/hostapd.conf
+
+Index: hostapd-2026.02.19~53d12cd4/hostapd/hostapd.conf
 ===================================================================
---- hostapd-2025.05.23~4b8ac10c.orig/hostapd/hostapd.conf
-+++ hostapd-2025.05.23~4b8ac10c/hostapd/hostapd.conf
-@@ -1096,6 +1096,9 @@ wmm_ac_vo_acm=0
+--- hostapd-2026.02.19~53d12cd4.orig/hostapd/hostapd.conf
++++ hostapd-2026.02.19~53d12cd4/hostapd/hostapd.conf
+@@ -1103,6 +1103,9 @@ wmm_ac_vo_acm=0
  # 1 = enabled
  #ieee80211be=1
-
+ 
 +# Require stations to support EHT PHY (reject association if they do not)
 +#require_eht=1
 +
  #disable_11be: Boolean (0/1) to disable EHT for a specific BSS
  #disable_11be=0
+ 
 
-Index: hostapd-2025.05.23~4b8ac10c/src/ap/ap_config.h
+Index: hostapd-2026.02.19~53d12cd4/src/ap/ap_config.h
 ===================================================================
---- hostapd-2025.05.23~4b8ac10c.orig/src/ap/ap_config.h
-+++ hostapd-2025.05.23~4b8ac10c/src/ap/ap_config.h
-@@ -1263,6 +1263,7 @@ struct hostapd_config {
+--- hostapd-2026.02.19~53d12cd4.orig/src/ap/ap_config.h
++++ hostapd-2026.02.19~53d12cd4/src/ap/ap_config.h
+@@ -1283,6 +1283,7 @@ struct hostapd_config {
  	enum oper_chan_width eht_oper_chwidth;
  	u8 eht_oper_centr_freq_seg0_idx;
  	struct eht_phy_capabilities_info eht_phy_capab;
@@ -38,14 +40,15 @@ Index: hostapd-2025.05.23~4b8ac10c/src/ap/ap_config.h
  	u16 punct_bitmap; /* a bitmap of disabled 20 MHz channels */
  	u8 punct_acs_threshold;
  	u8 eht_default_pe_duration;
-Index: hostapd-2025.05.23~4b8ac10c/src/ap/ieee802_11.c
+
+Index: hostapd-2026.02.19~53d12cd4/src/ap/ieee802_11.c
 ===================================================================
---- hostapd-2025.05.23~4b8ac10c.orig/src/ap/ieee802_11.c
-+++ hostapd-2025.05.23~4b8ac10c/src/ap/ieee802_11.c
-@@ -155,6 +155,12 @@ static size_t hostapd_supp_rates(struct
+--- hostapd-2026.02.19~53d12cd4.orig/src/ap/ieee802_11.c
++++ hostapd-2026.02.19~53d12cd4/src/ap/ieee802_11.c
+@@ -158,6 +158,12 @@ static size_t hostapd_supp_rates(struct hostapd_data *hapd, u8 *buf)
  		*pos++ = 0x80 | BSS_MEMBERSHIP_SELECTOR_HE_PHY;
  #endif /* CONFIG_IEEE80211AX */
-
+ 
 +#ifdef CONFIG_IEEE80211BE
 +	if (hapd->iconf->ieee80211be && hapd->iconf->require_eht) {
 +		*pos++ = 0x80 | BSS_MEMBERSHIP_SELECTOR_EHT_PHY;
@@ -55,28 +58,38 @@ Index: hostapd-2025.05.23~4b8ac10c/src/ap/ieee802_11.c
  #ifdef CONFIG_SAE
  	if ((hapd->conf->sae_pwe == SAE_PWE_HASH_TO_ELEMENT ||
  	     hostapd_sae_pw_id_in_use(hapd->conf) == 2) &&
-@@ -4462,6 +4468,13 @@ static int __check_assoc_ies(struct host
+@@ -4690,6 +4696,7 @@ static int __check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
  			if (resp != WLAN_STATUS_SUCCESS)
- 				return resp;
+ 				goto out;
+ 		}
++
+ 	}
+ #endif /* CONFIG_IEEE80211AX */
+ #ifdef CONFIG_IEEE80211BE
+@@ -4709,6 +4716,14 @@ static int __check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
+ 			if (resp != WLAN_STATUS_SUCCESS)
+ 				goto out;
  		}
 +
 +		if (hapd->iconf->require_eht && !(sta->flags & WLAN_STA_EHT)) {
 +			hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
-+							HOSTAPD_LEVEL_INFO, "Station does not support "
-+							"mandatory EHT PHY - reject association");
-+			return WLAN_STATUS_DENIED_EHT_NOT_SUPPORTED;
++				       HOSTAPD_LEVEL_INFO, "Station does not support "
++				       "mandatory EHT PHY - reject association");
++			resp = WLAN_STATUS_DENIED_EHT_NOT_SUPPORTED;
++			goto out;
 +		}
  	}
  #endif /* CONFIG_IEEE80211BE */
  	check_mtk_vendor_elem(hapd, sta, elems);
-Index: hostapd-2025.05.23~4b8ac10c/src/common/ieee802_11_defs.h
+
+Index: hostapd-2026.02.19~53d12cd4/src/common/ieee802_11_defs.h
 ===================================================================
---- hostapd-2025.05.23~4b8ac10c.orig/src/common/ieee802_11_defs.h
-+++ hostapd-2025.05.23~4b8ac10c/src/common/ieee802_11_defs.h
-@@ -1455,6 +1455,7 @@ struct ieee80211_ampe_ie {
+--- hostapd-2026.02.19~53d12cd4.orig/src/common/ieee802_11_defs.h
++++ hostapd-2026.02.19~53d12cd4/src/common/ieee802_11_defs.h
+@@ -1471,6 +1471,7 @@ struct ieee80211_ampe_ie {
  #define HT_OPER_PARAM_PCO_PHASE				((u16) BIT(11))
  /* B36..B39 - Reserved */
-
+ 
 +#define BSS_MEMBERSHIP_SELECTOR_EHT_PHY 121
  #define BSS_MEMBERSHIP_SELECTOR_HE_PHY 122
  #define BSS_MEMBERSHIP_SELECTOR_SAE_H2E_ONLY 123

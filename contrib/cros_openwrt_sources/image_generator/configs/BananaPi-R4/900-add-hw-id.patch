@@ -1,7 +1,7 @@
-Index: u-boot-2024.10/bananapi_bpi-r4_emmc_env
+Index: u-boot-2025.10/defenvs/bananapi_bpi-r4_emmc_env
 ===================================================================
---- u-boot-2024.10.orig/bananapi_bpi-r4_emmc_env
-+++ u-boot-2024.10/bananapi_bpi-r4_emmc_env
+--- u-boot-2025.10.orig/defenvs/bananapi_bpi-r4_emmc_env
++++ u-boot-2025.10/defenvs/bananapi_bpi-r4_emmc_env
 @@ -2,7 +2,7 @@ ipaddr=192.168.1.1
  serverip=192.168.1.254
  loadaddr=0x50000000
@@ -16,10 +16,10 @@ Index: u-boot-2024.10/bananapi_bpi-r4_emmc_env
  _switch_to_menu=setenv _switch_to_menu ; setenv bootdelay 3 ; setenv bootmenu_delay 3 ; setenv bootmenu_0 $bootmenu_0d ; setenv bootmenu_0d ; run _bootmenu_update_title
  _bootmenu_update_title=setenv _bootmenu_update_title ; setenv bootmenu_title "$bootmenu_title       [33m$ver[0m"
 +generate_hw_id=echo "U-Boot: Generating unique MAC..."; setexpr.l val_0 *0x11f50140; setexpr.l val_1 *0x11f50144; setexpr.l val_2 *0x11f50148; setexpr.l val_3 *0x11f5014c;setenv hw_id ${val_0}:${val_1}:${val_2}:${val_3};  echo "U-Boot: Set hw_id to ${hw_id}"; saveenv; saveenv;
-Index: u-boot-2024.10/bananapi_bpi-r4_sdmmc_env
+Index: u-boot-2025.10/defenvs/bananapi_bpi-r4_sdmmc_env
 ===================================================================
---- u-boot-2024.10.orig/bananapi_bpi-r4_sdmmc_env
-+++ u-boot-2024.10/bananapi_bpi-r4_sdmmc_env
+--- u-boot-2025.10.orig/defenvs/bananapi_bpi-r4_sdmmc_env
++++ u-boot-2025.10/defenvs/bananapi_bpi-r4_sdmmc_env
 @@ -2,7 +2,7 @@ ipaddr=192.168.1.1
  serverip=192.168.1.254
  loadaddr=0x50000000
@@ -34,10 +34,10 @@ Index: u-boot-2024.10/bananapi_bpi-r4_sdmmc_env
  _switch_to_menu=setenv _switch_to_menu ; setenv bootdelay 3 ; setenv bootmenu_delay 3 ; setenv bootmenu_0 $bootmenu_0d ; setenv bootmenu_0d ; run _bootmenu_update_title
  _bootmenu_update_title=setenv _bootmenu_update_title ; setenv bootmenu_title "$bootmenu_title       [33m$ver[0m"
 +generate_hw_id=echo "U-Boot: Generating unique MAC..."; setexpr.l val_0 *0x11f50140; setexpr.l val_1 *0x11f50144; setexpr.l val_2 *0x11f50148; setexpr.l val_3 *0x11f5014c;setenv hw_id ${val_0}:${val_1}:${val_2}:${val_3};  echo "U-Boot: Set hw_id to ${hw_id}"; saveenv; saveenv;
-Index: u-boot-2024.10/bananapi_bpi-r4_snand_env
+Index: u-boot-2025.10/defenvs/bananapi_bpi-r4_snand_env
 ===================================================================
---- u-boot-2024.10.orig/bananapi_bpi-r4_snand_env
-+++ u-boot-2024.10/bananapi_bpi-r4_snand_env
+--- u-boot-2025.10.orig/defenvs/bananapi_bpi-r4_snand_env
++++ u-boot-2025.10/defenvs/bananapi_bpi-r4_snand_env
 @@ -4,7 +4,7 @@ loadaddr=0x50000000
  bootargs=console=ttyS0,115200n1 pci=pcie_bus_perf root=/dev/fit0 rootwait ubi.block=0,fit
  bootconf=config-mt7988a-bananapi-bpi-r4
