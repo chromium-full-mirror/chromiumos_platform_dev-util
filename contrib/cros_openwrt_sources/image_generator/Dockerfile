@@ -1,6 +1,6 @@
 # Dockerfile to set up an OpenWrt build environment for MediaTek Filogic
 # Base Image: Ubuntu 22.04 LTS
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # OPENWRT_COMMIT sha of commit from which image would be build
 ARG OPENWRT_COMMIT=""
@@ -34,7 +34,6 @@ RUN apt-get update && \
     git \
     libncurses-dev \
     libssl-dev \
-    python3-distutils \
     python3-setuptools \
     python-is-python3 \
     rsync \
@@ -47,7 +46,17 @@ RUN apt-get update && \
     uuid-runtime \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up the main build directory
+# --- User Permission Fix ---
+# Create a standard non-root user to prevent 'tar' from enforcing root umask permissions.
+# This prevents cryptographic hash mismatches during 'make download'.
+RUN useradd -m -s /bin/bash openwrtuser
+
+# Set up the main build directory and grant ownership to the new user BEFORE switching
+RUN mkdir -p /build/openwrt && \
+    chown -R openwrtuser:openwrtuser /build
+
+# Switch to the non-root user for all subsequent commands
+USER openwrtuser
 WORKDIR /build
 
 # --- Source Code Checkout ---
@@ -63,7 +72,7 @@ RUN git clone https://git.openwrt.org/openwrt/openwrt.git openwrt && \
 RUN \
     if [ -n "${MTK_OPENWRT_FEEDS_COMMIT}" ]; then \
         echo "MTK_OPENWRT_FEEDS_COMMIT is set. Proceeding with MediaTek feeds clone and checkout." && \
-        git clone https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds mtk-openwrt-feeds && \
+        git clone https://github.com/mediatek/mtk-openwrt-feeds mtk-openwrt-feeds && \
         cd mtk-openwrt-feeds && \
         echo "Checking out mtk-openwrt-feeds commit ${MTK_OPENWRT_FEEDS_COMMIT}" && \
         git checkout "${MTK_OPENWRT_FEEDS_COMMIT}" && \
@@ -80,10 +89,10 @@ WORKDIR /build/openwrt
 VOLUME /build/openwrt/bin
 VOLUME /build/openwrt/logs
 
-COPY custom_files /build/openwrt/files
-COPY custom_packages /build/openwrt/package
-COPY configs /build/openwrt/configs
-COPY run.sh /build/openwrt/
+COPY --chown=openwrtuser:openwrtuser custom_files /build/openwrt/files
+COPY --chown=openwrtuser:openwrtuser custom_packages /build/openwrt/package
+COPY --chown=openwrtuser:openwrtuser configs /build/openwrt/configs
+COPY --chown=openwrtuser:openwrtuser run.sh /build/openwrt/
 
 # Potentially needed by some configure scripts within the OpenWrt build,
 # especially if run by a script that might have elevated (root) context perception.

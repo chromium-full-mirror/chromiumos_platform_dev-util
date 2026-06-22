@@ -1,9 +1,30 @@
-CONFIG_PACKAGE_dropbear=m
+CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_bananapi_bpi-r4=y
+# CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_bananapi_bpi-r4-poe is not set
+# CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_bananapi_bpi-r4-lite is not set
+# CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_bananapi_bpi-r4-mini is not set
+# CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_bananapi_bpi-r4-pro is not set
+# CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_mediatek_mt7987a-rfb is not set
+# CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_mediatek_mt7988a-rfb is not set
+# CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_mediatek_mt7988d-rfb is not set
+
+# CONFIG_PACKAGE_mt7981-wo-firmware is not set
+# CONFIG_PACKAGE_mt7986-wo-firmware is not set
+CONFIG_PACKAGE_mt7988-wo-firmware=y
+CONFIG_PACKAGE_kmod-mt76qos=y
+# CONFIG_PACKAGE_kmod-mt7915e is not set
+# CONFIG_PACKAGE_kmod-mt7981-firmware is not set
+# CONFIG_PACKAGE_kmod-mt7986-firmware is not set
+CONFIG_PACKAGE_kmod-mt7990-firmware=y
+CONFIG_PACKAGE_kmod-mt7992-23-firmware=y
+CONFIG_PACKAGE_kmod-mt7992-firmware=y
+CONFIG_PACKAGE_kmod-mt7996-233-firmware=y
+CONFIG_PACKAGE_kmod-mt7996-firmware=y
+
+# CONFIG_PACKAGE_dropbear is not set
 CONFIG_PACKAGE_sudo=y
 CONFIG_PACKAGE_python3-idna=y
 CONFIG_PACKAGE_python3-urllib=y
 CONFIG_PACKAGE_rsync=y
-CONFIG_PACKAGE_iptables-nft=y
 CONFIG_PACKAGE_openssh-server=y
 CONFIG_WPA_ENABLE_WEP=y
 CONFIG_PACKAGE_cros-iperf=y
@@ -18,10 +39,10 @@ CONFIG_DRIVER_11AC_SUPPORT=y
 CONFIG_DRIVER_11AX_SUPPORT=y
 CONFIG_WPA_MBO_SUPPORT=y
 CONFIG_PACKAGE_tcpdump=y
-# CONFIG_BUSYBOX_CONFIG_TAR is not set
+CONFIG_BUSYBOX_CONFIG_TAR=y
 CONFIG_PACKAGE_iperf3=y
 CONFIG_BUSYBOX_CUSTOM=y
 CONFIG_BUSYBOX_CONFIG_TIMEOUT=y
 CONFIG_PACKAGE_libopenssl=y
 CONFIG_PACKAGE_libopenssl-conf=y
-CONFIG_PACKAGE_libopenssl-legacy=y
+CONFIG_PACKAGE_kmod-veth=y

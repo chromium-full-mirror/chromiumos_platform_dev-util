@@ -195,7 +195,19 @@ record_and_verify_boot() {
   fi
 }
 
+disable_sku_limit() {
+  if [ -f /lib/functions/system.sh ]; then
+    . /lib/functions/system.sh
+    if [ "$(board_name)" = 'bananapi,bpi-r4' ]; then
+      if [ -f /sys/kernel/debug/ieee80211/phy0/mt76/sku_disable ]; then
+        echo 0 > /sys/kernel/debug/ieee80211/phy0/mt76/sku_disable
+      fi
+    fi
+  fi
+}
+
 start() {
+  disable_sku_limit
   record_and_verify_boot
   prepare_tmp_test_dir
 }

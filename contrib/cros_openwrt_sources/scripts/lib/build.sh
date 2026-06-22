@@ -149,6 +149,14 @@ build() {
     mkdir -p "${BUILD_DIR}"
     ln -sfn "${BUILD_DIR}" "$(dirname ${BUILD_DIR})/latest"
 
+    # Pre-create the volume folders on the host so the Docker daemon doesn't create them as root.
+    mkdir -p "${BUILD_DIR}/logs"
+    mkdir -p "${BUILD_DIR}/bin"
+    mkdir -p "${BUILD_DIR}/generated_files"
+
+    # Make them globally writable so the container's internal 'openwrtuser' has clearance.
+    chmod 777 "${BUILD_DIR}/logs" "${BUILD_DIR}/bin" "${BUILD_DIR}/generated_files"
+
     generate_cros_files "${BUILD_DIR}"
 
     # --- Debug Mode Container Lifecycle ---
