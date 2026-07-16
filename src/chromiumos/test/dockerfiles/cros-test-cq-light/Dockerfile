@@ -2,18 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-FROM us-docker.pkg.dev/cros-registry/base-images/ubuntu:ubuntuProd
-
-RUN apt-get update \
-    && apt-get install -y \
-      ca-certificates \
-      curl \
-      iproute2 \
-      iputils-ping \
-      ssh \
-      sudo \
-      wget \
-      xxd
+FROM us-docker.pkg.dev/cros-registry/test-services/cros-test-base:prod_cros-test-base
 
 
 # Config the user
