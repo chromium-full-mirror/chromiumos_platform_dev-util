@@ -6,7 +6,8 @@ set -e
 SCRIPT_DIR="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
 source "${SCRIPT_DIR}/lib/build.sh"
 
-OPENWRT_COMMIT="1fad1b4965dc6f4e5f4ba7b9605987f443a4c276"
+# Openwrt 24.10.5
+OPENWRT_COMMIT="4f7e6e554be2aef6a55be36f9f954d56705eb2ee"
 DEVICE="U6Plus"
 DEVICE_NAME="Ubiquiti UniFi U6+"
 ROUTER_FEATURES+=(
@@ -14,6 +15,6 @@ ROUTER_FEATURES+=(
   'WIFI_ROUTER_FEATURE_U6PLUS_OR_U6LITE'
 )
 IMAGE_PROFILE="ubnt_unifi-6-plus"
-IMAGE_NAME="standard-0.0.1"
+IMAGE_NAME="standard-0.0.2"
 
 build "$@"
