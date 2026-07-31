@@ -12,7 +12,7 @@ OPENWRT_VERSION=25.12
 
 cd "${MTK_DIR}"
 cp "${DEVICE_CONFIG_DIR}/hostapd_sh.patch" "${MTK_DIR}"
-git apply hostapd_sh.patch
+git apply --reverse --check hostapd_sh.patch >/dev/null 2>&1 || git apply hostapd_sh.patch
 cd "${OPENWRT_DIR}"
 
 MTK_AUTOBUILD_DIR=${MTK_DIR}/autobuild/unified
@@ -26,6 +26,4 @@ cp "${DEVICE_CONFIG_DIR}/9998-hostapd-add_require_eht.patch" "${MTK_AUTOBUILD_DI
 cp "${DEVICE_CONFIG_DIR}/9999-hostapd-wpa_supplicant_add_eht_members.patch" "${MTK_AUTOBUILD_DIR}/filogic/mac80211/${OPENWRT_VERSION}/files/package/network/services/hostapd/patches/"
 
 echo "Start autobuild from MTK"
-
-
 bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt798x_rfb-wifi7_nic log_file=logs/make_bpir4
