@@ -54,7 +54,6 @@ import setup_chromite  # pylint: disable=unused-import
 from six.moves import http_client
 
 from chromite.lib import cros_build_lib
-from chromite.lib.xbuddy import android_build
 from chromite.lib.xbuddy import artifact_info
 from chromite.lib.xbuddy import build_artifact
 from chromite.lib.xbuddy import common_util
@@ -188,23 +187,6 @@ def _get_artifacts(kwargs):
     )
 
 
-def _is_android_build_request(kwargs):
-    """Check if a devserver call is for Android build, based on the arguments.
-
-    This method exams the request's arguments (os_type) to determine if the
-    request is for Android build. If os_type is set to `android`, returns True.
-    If os_type is not set or has other values, returns False.
-
-    Args:
-      kwargs: Keyword arguments for the request.
-
-    Returns:
-      True if the request is for Android build. False otherwise.
-    """
-    os_type = kwargs.get("os_type", None)
-    return os_type == "android"
-
-
 def _get_downloader(kwargs):
     """Returns the downloader based on passed in arguments.
 
@@ -222,36 +204,23 @@ def _get_downloader(kwargs):
             updater.static_dir, local_path, delete_source=delete_source
         )
 
-    if not _is_android_build_request(kwargs):
-        archive_url = kwargs.get("archive_url")
-        if not archive_url and not local_path:
-            raise DevServerError(
-                "Requires archive_url or local_path to be specified."
-            )
-        if archive_url and local_path:
-            raise DevServerError(
-                "archive_url and local_path can not both be specified."
-            )
-        if not dl:
-            archive_url = _canonicalize_archive_url(archive_url)
-            dl = downloader.GoogleStorageDownloader(
-                updater.static_dir,
-                archive_url,
-                downloader.GoogleStorageDownloader.GetBuildIdFromArchiveURL(
-                    archive_url
-                ),
-            )
-    elif not dl:
-        target = kwargs.get("target", None)
-        branch = kwargs.get("branch", None)
-        build_id = kwargs.get("build_id", None)
-        if not target or not branch or not build_id:
-            raise DevServerError(
-                "target, branch, build ID must all be specified for "
-                "downloading Android build."
-            )
-        dl = downloader.AndroidBuildDownloader(
-            updater.static_dir, branch, build_id, target
+    archive_url = kwargs.get("archive_url")
+    if not archive_url and not local_path:
+        raise DevServerError(
+            "Requires archive_url or local_path to be specified."
+        )
+    if archive_url and local_path:
+        raise DevServerError(
+            "archive_url and local_path can not both be specified."
+        )
+    if not dl:
+        archive_url = _canonicalize_archive_url(archive_url)
+        dl = downloader.GoogleStorageDownloader(
+            updater.static_dir,
+            archive_url,
+            downloader.GoogleStorageDownloader.GetBuildIdFromArchiveURL(
+                archive_url
+            ),
         )
 
     return dl
@@ -270,8 +239,6 @@ def _get_downloader_and_factory(kwargs):
         dl, (downloader.GoogleStorageDownloader, downloader.LocalDownloader)
     ):
         factory_class = build_artifact.ChromeOSArtifactFactory
-    elif isinstance(dl, downloader.AndroidBuildDownloader):
-        factory_class = build_artifact.AndroidArtifactFactory
     else:
         raise DevServerError(
             "Unrecognized value for downloader type: %s" % type(dl)
@@ -897,16 +864,6 @@ class DevServerRoot(object):
                 http_client.INTERNAL_SERVER_ERROR, "Error: target= is required!"
             )
 
-        if _is_android_build_request(kwargs):
-            branch = kwargs.get("branch", None)
-            target = kwargs.get("target", None)
-            if not target or not branch:
-                raise DevServerError(
-                    "Both target and branch must be specified to query"
-                    " for the latest Android build."
-                )
-            return android_build.BuildAccessor.GetLatestBuildID(target, branch)
-
         try:
             return common_util.GetLatestBuildVersion(
                 updater.static_dir,
@@ -1347,13 +1304,6 @@ def main():
         help="If set, allow xbuddy to manage images in" "build/images.",
     )
     parser.add_option(
-        "-a",
-        "--android_build_credential",
-        default=None,
-        help="Path to a json file which contains the credential "
-        "needed to access Android builds.",
-    )
-    parser.add_option(
         "--infra_removal",
         action="store_true",
         default=False,
@@ -1423,18 +1373,6 @@ def main():
 
     if options.portfile:
         cherrypy_ext.PortFile(cherrypy.engine, options.portfile).subscribe()
-
-    if options.android_build_credential and os.path.exists(
-        options.android_build_credential
-    ):
-        try:
-            with open(options.android_build_credential) as f:
-                android_build.BuildAccessor.credential_info = json.load(f)
-        except ValueError as e:
-            _Log(
-                "Failed to load the android build credential: %s. Error: %s."
-                % (options.android_build_credential, e)
-            )
 
     cherrypy.tree.mount(
         health_checker_app, "/check_health", config=health_checker.get_config()
