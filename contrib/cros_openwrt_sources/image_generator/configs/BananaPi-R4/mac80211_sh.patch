@@ -1,0 +1,21 @@
+diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/lib/netifd/wireless/mac80211.sh b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/lib/netifd/wireless/mac80211.sh
+index a89b086a..5ffb328d 100755
+--- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/lib/netifd/wireless/mac80211.sh
++++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/lib/netifd/wireless/mac80211.sh
+@@ -226,6 +226,7 @@ function setup() {
+ 		case 'sta':
+ 		case 'adhoc':
+ 		case 'mesh':
++		case 'monitor':
+ 			if (mode != "ap")
+ 				data.config.noscan = true;
+ 			validate('iface', v.config);
+@@ -289,7 +290,7 @@ function setup() {
+ 	if (fs.access('/usr/sbin/hostapd', 'x'))
+ 		hostapd.setup(data);
+ 
+-	system(`ucode /usr/share/hostap/wdev.uc ${data.phy}${data.phy_suffix} set_config '${printf("%J", wdev_data)}' ${join(' ', active_ifnames)}`);
++	system(`ucode /usr/share/hostap/wdev.uc ${data.phy}${data.phy_suffix} set_config '${sprintf("%J", wdev_data)}' ${join(' ', active_ifnames)}`);
+ 
+ 	if (length(supplicant_data) > 0)
+ 		supplicant.start(data);

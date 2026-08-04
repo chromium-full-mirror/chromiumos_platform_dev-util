@@ -1,0 +1,14 @@
+diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/wdev.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/wdev.uc
+index 166e9403..f82d6051 100644
+--- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/wdev.uc
++++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/wdev.uc
+@@ -91,7 +91,8 @@ function add_existing(phydev, config)
+ 		if (config[wdev])
+ 			return;
+ 
+-		if (trim(readfile(`/sys/class/net/${wdev}/operstate`)) == "down")
++		let operstate = trim(readfile(`/sys/class/net/${wdev}/operstate`));
++		if (operstate == "down" || operstate == "unknown")
+ 			config[wdev] = {};
+ 	});
+ }

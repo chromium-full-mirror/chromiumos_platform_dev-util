@@ -1,0 +1,25 @@
+diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
+index ce0d298d..d42ba082 100644
+--- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
++++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
+@@ -101,12 +101,14 @@ function wdev_create(phy, name, data)
+ 		req["4addr"] = data["4addr"];
+ 	if (data.macaddr)
+ 		req.mac = data.macaddr;
+-	if (data.radio_mask > 0)
+-		req.vif_radio_mask = data.radio_mask;
+-	else if (data.radio != null && data.radio >= 0)
+-		req.vif_radio_mask = 1 << data.radio;
+-	else if (data.mld_radio_mask != null && data.mld_radio_mask > 0)
+-		req.vif_radio_mask = data.mld_radio_mask;
++	if (data.mode != "monitor") {
++		if (data.radio_mask > 0)
++			req.vif_radio_mask = data.radio_mask;
++		else if (data.radio != null && data.radio >= 0)
++			req.vif_radio_mask = 1 << data.radio;
++		else if (data.mld_radio_mask != null && data.mld_radio_mask > 0)
++			req.vif_radio_mask = data.mld_radio_mask;
++	}
+ 
+ 	nl80211.error();
+ 
