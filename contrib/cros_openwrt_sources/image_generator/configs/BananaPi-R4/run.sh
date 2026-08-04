@@ -13,6 +13,8 @@ OPENWRT_VERSION=25.12
 cd "${MTK_DIR}"
 cp "${DEVICE_CONFIG_DIR}/hostapd_sh.patch" "${MTK_DIR}"
 git apply --reverse --check hostapd_sh.patch >/dev/null 2>&1 || git apply hostapd_sh.patch
+cp "${DEVICE_CONFIG_DIR}/common_uc.patch" "${MTK_DIR}"
+git apply --reverse --check common_uc.patch >/dev/null 2>&1 || git apply common_uc.patch
 cd "${OPENWRT_DIR}"
 
 MTK_AUTOBUILD_DIR=${MTK_DIR}/autobuild/unified

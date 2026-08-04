@@ -1,0 +1,14 @@
+diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc
+index de939b0c..113f8de4 100644
+--- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc
++++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc
+@@ -57,6 +57,9 @@ function escape_string(value) {
+ 	if (length(filter(chars, (v) => (v < 32 || v >= 128))) > 0)
+ 		return hexenc(value);
+ 
++	if (substr(value, 0, 2) == 'P"')
++		return value;
++
+ 	return `"${value}"`;
+ }
+ 
