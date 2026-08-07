@@ -97,7 +97,7 @@ setup_br_lan() {
       uci set network.lan='interface'
       uci set network.lan.device='br-lan'
       uci set network.lan.proto='static'
-      uci set network.lan.ipaddr='192.168.1.1'
+      uci set network.lan.ipaddr='192.168.200.1'
       uci set network.lan.netmask='255.255.255.0'
       uci set network.lan.ip6assign='60'
     ;;
