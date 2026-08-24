@@ -1,0 +1,17 @@
+--- a/src/ap/wnm_ap.c
++++ b/src/ap/wnm_ap.c
+@@ -909,12 +909,6 @@ static void set_disassoc_timer(struct h
+ 			       int disassoc_timer)
+ {
+ 	int timeout, beacon_int;
+
+-	/*
+-	 * Prevent STA from reconnecting using cached PMKSA to force
+-	 * full authentication with the authentication server (which may
+-	 * decide to reject the connection),
+-	 */
+-	wpa_auth_pmksa_remove(hapd->wpa_auth, sta->addr);
+
+ 	beacon_int = hapd->iconf->beacon_int;
+
+

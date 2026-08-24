@@ -1,0 +1,19 @@
+--- a/src/eapol_auth/eapol_auth_sm.c
++++ b/src/eapol_auth/eapol_auth_sm.c
+@@ -20,6 +20,7 @@
+ #include "eap_common/eap_defs.h"
+ #include "eap_common/eap_common.h"
+ #include "eap_server/eap.h"
++#include "eap_server/eap_i.h"
+ #include "eapol_auth_sm.h"
+ #include "eapol_auth_sm_i.h"
+ 
+@@ -321,6 +322,8 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
+ 		extra = " (pre-authentication)";
+ 	else if (sm->flags & EAPOL_SM_FROM_PMKSA_CACHE)
+ 		extra = " (PMKSA cache)";
++	if (sm->eap && sm->eap_type_authsrv == EAP_TYPE_NONE)
++		sm->eap_type_authsrv = sm->eap->currentMethod;
+ 	eapol_auth_vlogger(sm->eapol, sm->addr, EAPOL_LOGGER_INFO,
+ 			   "authenticated - EAP type: %d (%s)%s",
+ 			   sm->eap_type_authsrv,

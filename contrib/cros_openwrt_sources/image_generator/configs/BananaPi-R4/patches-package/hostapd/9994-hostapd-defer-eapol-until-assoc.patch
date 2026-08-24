@@ -1,0 +1,21 @@
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -4895,7 +4895,8 @@ void hostapd_new_assoc_sta(struct hostap
+ 	}
+
+ 	/* Start IEEE 802.1X authentication process for new stations */
+-	ieee802_1x_new_station(hapd, sta);
++	if (sta->flags & WLAN_STA_ASSOC)
++		ieee802_1x_new_station(hapd, sta);
+
+ #ifdef CONFIG_ENC_ASSOC
+ 		if (ap_sta_is_epp(sta) && sta->wpa_sm && sta->pasn) {
+@@ -4911,7 +4912,7 @@ void hostapd_new_assoc_sta(struct hostap
+ 		}
+ #endif /* CONFIG_ENC_ASSOC */
+
+-	if (reassoc) {
++	if (reassoc && wpa_auth_sta_get_pmksa(sta->wpa_sm)) {
+ 		if (sta->auth_alg != WLAN_AUTH_FT &&
+ 		    sta->auth_alg != WLAN_AUTH_FILS_SK &&
+ 		    sta->auth_alg != WLAN_AUTH_FILS_SK_PFS &&

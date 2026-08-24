@@ -2,7 +2,25 @@ diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/conf
 index a89b086a..5ffb328d 100755
 --- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/lib/netifd/wireless/mac80211.sh
 +++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/lib/netifd/wireless/mac80211.sh
-@@ -226,6 +226,7 @@ function setup() {
+@@ -123,11 +123,16 @@ function iw_htmode(config) {
+-	if (substr(config.htmode, 2) == "40") {
++	if (substr(config.htmode, 2) == "40" || substr(config.htmode, 3) == "40") {
+ 		switch (config.band) {
+ 		case "2g":
+ 			if (+config.channel < 7)
+ 				return "HT40+";
+ 			else
+ 				return "HT40-";
++		case "6g":
++			let ch = +config.channel;
++			let c_base = int((ch - 1) / 8) * 8 + 1;
++			let center_freq = 5950 + (c_base + 2) * 5;
++			return "40 " + center_freq;
+ 		default:
+ 			return ((+config.channel / 4) % 2) ? "HT40+" : "HT40-";
+ 		}
+ 	}
+@@ -226,6 +231,7 @@ function setup() {
  		case 'sta':
  		case 'adhoc':
  		case 'mesh':
