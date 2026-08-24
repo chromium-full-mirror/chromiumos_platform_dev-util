@@ -12,6 +12,12 @@ OPENWRT_VERSION=25.12
 MTK_AUTOBUILD_DIR=${MTK_DIR}/autobuild/unified
 AUTOBUILD_VARIANT_DIR="${MTK_AUTOBUILD_DIR}/filogic/mac80211/mt798x_rfb/wifi7_nic/${OPENWRT_VERSION}"
 
+# 0. Pre-flight Patch Validation
+VALIDATOR="${OPENWRT_DIR}/validate_patches.sh"
+if [ -x "${VALIDATOR}" ]; then
+	"${VALIDATOR}" "${DEVICE_CONFIG_DIR}"
+fi
+
 # 1. Apply Feed Git Patches to mtk-openwrt-feeds
 echo "=== Applying feed patches to mtk-openwrt-feeds ==="
 cd "${MTK_DIR}"
