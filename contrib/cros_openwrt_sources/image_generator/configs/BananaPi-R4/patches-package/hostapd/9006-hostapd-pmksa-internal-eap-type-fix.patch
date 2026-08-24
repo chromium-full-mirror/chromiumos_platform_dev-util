@@ -1,29 +1,52 @@
+From: Alexander Astrovsky <astrouski@google.com>
+Date: Sun, 23 Aug 2026 21:10:00 +0000
+Subject: [PATCH] eapol_auth: report EAP type from internal EAP server
+
+When hostapd uses its integrated internal EAP server rather than an
+external RADIUS authentication server, sm->eap_type_authsrv is not
+populated. Consequently, the log message upon successful authentication
+prints "authenticated - EAP type: 0 (NONE)" instead of the actual EAP
+method used (e.g., EAP-TLS, PEAP, TTLS).
+
+Add eap_server_get_eap_type() accessor to retrieve the current EAP method
+from the internal EAP server, and populate sm->eap_type_authsrv in
+SM_STATE(AUTH_PAE, AUTHENTICATED) so the EAP method is accurately logged
+and reported.
+
+Signed-off-by: Alexander Astrovsky <astrouski@google.com>
+---
+ src/eap_server/eap.h           | 1 +
+ src/eap_server/eap_server.c    | 13 +++++++++++++
+ src/eapol_auth/eapol_auth_sm.c | 2 ++
+ 3 files changed, 16 insertions(+)
+
 --- a/src/eap_server/eap.h
 +++ b/src/eap_server/eap.h
-@@ -296,6 +296,7 @@ int eap_server_sm_step(struct eap_sm *sm
- void eap_sm_abort(struct eap_sm *sm);
- int eap_user_get(struct eap_sm *sm, const u8 *identity, size_t identity_len,
- 		 int phase2);
-+int eap_server_get_type(struct eap_sm *sm);
+@@ -293,6 +293,7 @@ const u8 * eap_get_identity(struct eap_s
+ const char * eap_get_serial_num(struct eap_sm *sm);
+ const char * eap_get_method(struct eap_sm *sm);
+ const char * eap_get_imsi(struct eap_sm *sm);
++enum eap_type eap_server_get_eap_type(struct eap_sm *sm);
  struct eap_eapol_interface * eap_get_interface(struct eap_sm *sm);
  void eap_server_clear_identity(struct eap_sm *sm);
- 
+ void eap_server_mschap_rx_callback(struct eap_sm *sm, const char *source,
 --- a/src/eap_server/eap_server.c
 +++ b/src/eap_server/eap_server.c
-@@ -2046,6 +2046,15 @@ void eap_sm_abort(struct eap_sm *sm)
+@@ -2045,6 +2045,19 @@ void eap_erp_update_identity(struct eap_
  
  
  /**
-+ * eap_server_get_type - Get current EAP type from internal EAP server
++ * eap_server_get_eap_type - Get current EAP type from internal EAP server
 + * @sm: Pointer to EAP state machine allocated with eap_server_sm_init()
 + * Returns: Current EAP type or EAP_TYPE_NONE if not initialized
 + */
-+int eap_server_get_type(struct eap_sm *sm)
++enum eap_type eap_server_get_eap_type(struct eap_sm *sm)
 +{
 +	if (!sm)
 +		return EAP_TYPE_NONE;
 +	return sm->currentMethod;
 +}
++
 +
 +/**
   * eap_get_interface - Get pointer to EAP-EAPOL interface data
@@ -31,12 +54,12 @@
   * Returns: Pointer to the EAP-EAPOL interface data
 --- a/src/eapol_auth/eapol_auth_sm.c
 +++ b/src/eapol_auth/eapol_auth_sm.c
-@@ -320,6 +320,8 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
+@@ -318,6 +318,8 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
  		extra = " (pre-authentication)";
  	else if (sm->flags & EAPOL_SM_FROM_PMKSA_CACHE)
  		extra = " (PMKSA cache)";
 +	if (sm->eap && sm->eap_type_authsrv == EAP_TYPE_NONE)
-+		sm->eap_type_authsrv = eap_server_get_type(sm->eap);
++		sm->eap_type_authsrv = eap_server_get_eap_type(sm->eap);
  	eapol_auth_vlogger(sm->eapol, sm->addr, EAPOL_LOGGER_INFO,
  			   "authenticated - EAP type: %d (%s)%s",
  			   sm->eap_type_authsrv,
