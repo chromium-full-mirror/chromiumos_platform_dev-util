@@ -53,4 +53,4 @@ These patches are applied directly to the `mtk-openwrt-feeds` git repository bef
 ### `uboot-mediatek` (`patches-package/uboot-mediatek/`)
 | Patch File | Type | Target | Description |
 | :--- | :--- | :--- | :--- |
-| `0900-add-hw-id.patch` | Board Quirk | `package/boot/uboot-mediatek` | Add board hardware ID detection for BananaPi-R4 |
+| `9001-add-hw-id.patch` | Board Quirk | `package/boot/uboot-mediatek` | Add board hardware ID detection for BananaPi-R4 |

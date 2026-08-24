@@ -29,9 +29,10 @@ patches-package/
 ├── mac80211/               <-- package/kernel/mac80211/patches/subsys
 │   └── 9001-mac80211-mlo-mgmt-tx-link-sta.patch
 ├── mt76/                   <-- package/kernel/mt76
-│   └── 9001-mt76-flush-stale-station-offload-and-wcid.patch
+│   ├── 9001-mt76-flush-stale-station-offload-and-wcid.patch
+│   └── 9002-mt76-mt7996-fix-disable-inband-discovery.patch
 └── uboot-mediatek/         <-- package/boot/uboot-mediatek
-    └── 0900-add-hw-id.patch
+    └── 9001-add-hw-id.patch
 ```
 
 ---
@@ -43,7 +44,7 @@ Patch filenames must follow the 4-digit prefix pattern: `NNNN-<component>-<descr
 | Prefix Range | Category | Description | Example |
 | :--- | :--- | :--- | :--- |
 | `0001`–`0899` | **Upstream / Vendor Backports** | Fixes cherry-picked from upstream OpenWrt or vendor feeds before the feed is bumped. | `0191-hostapd-add-support-...patch` |
-| `0900`–`0999` | **Board / Hardware Quirks** | Specific hardware adaptation or board identification patches. | `0900-add-hw-id.patch` |
+| `9000`–`9999` | **Downstream Bugfixes & Quirks** | Bugfixes and board quirks applied after upstream package patches. | `9001-add-hw-id.patch` |
 | `1000`–`8999` | **Downstream Features** | ChromeOS-specific features not intended for upstream OpenWrt. | `1001-hostapd-add_require_eht.patch` |
 | `9000`–`9999` | **Downstream Bugfixes (PRs)** | Bugfixes developed locally and submitted upstream as PRs. | `9001-hostapd-do-not-send-AID-...patch` |
 
