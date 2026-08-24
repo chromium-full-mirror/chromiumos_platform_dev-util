@@ -1,6 +1,6 @@
 --- a/src/eapol_auth/eapol_auth_sm.c
 +++ b/src/eapol_auth/eapol_auth_sm.c
-@@ -436,7 +436,8 @@ static void eapol_auth_step_auth_pae(str
+@@ -436,7 +436,8 @@ SM_STEP(AUTH_PAE)
  				SM_ENTER(AUTH_PAE, DISCONNECTED);
  			break;
  		case AUTH_PAE_AUTHENTICATING:
