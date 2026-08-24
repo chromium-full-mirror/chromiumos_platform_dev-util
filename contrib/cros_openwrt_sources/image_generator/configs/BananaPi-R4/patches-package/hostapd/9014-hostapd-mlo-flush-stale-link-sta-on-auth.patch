@@ -1,0 +1,29 @@
+Index: hostapd-2026.02.19~53d12cd4/src/ap/ieee802_11.c
+===================================================================
+--- hostapd-2026.02.19~53d12cd4.orig/src/ap/ieee802_11.c
++++ hostapd-2026.02.19~53d12cd4/src/ap/ieee802_11.c
+@@ -3747,8 +3747,23 @@ static void handle_auth(struct hostapd_d
+ 	 * Keep it separate from the association's binding, which is only
+ 	 * established by the (Re)Association Request.
+ 	 */
+-	if (mld_sta && auth_transaction == 1)
++	if (mld_sta && auth_transaction == 1) {
++		u8 link_id = hapd->mld_link_id;
++		const u8 *old_addr = sta->mld_info.links[link_id].peer_addr;
++
++		if (sta->added_unassoc && !is_zero_ether_addr(old_addr) &&
++		    os_memcmp(old_addr, mgmt->sa, ETH_ALEN) != 0) {
++			wpa_printf(MSG_DEBUG, "MLD: Link %u STA address changed from "
++				   MACSTR " to " MACSTR " - flush stale unassoc STA",
++				   link_id, MAC2STR(old_addr), MAC2STR(mgmt->sa));
++			hostapd_drv_sta_remove(hapd, old_addr);
++			sta->added_unassoc = 0;
++			if (sta->sae)
++				sae_set_state(sta, SAE_NOTHING, "MLD link address changed");
++		}
++
+ 		os_memcpy(sta->auth_link_addr, mgmt->sa, ETH_ALEN);
++	}
+ 
+ 	/* Set the non-AP MLD information based on the initial Authentication
+ 	 * frame. Once the STA entry has been added to the driver, the driver

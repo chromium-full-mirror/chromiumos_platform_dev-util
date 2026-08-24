@@ -18,8 +18,11 @@ from typing import List, Optional
 
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-REPO_ROOT = os.path.realpath(os.path.join(SCRIPT_DIR, "../../../.."))
-IMAGE_GEN_DIR = os.path.join(REPO_ROOT, "contrib/cros_openwrt_sources/image_generator")
+REPO_ROOT = os.path.realpath(os.path.join(SCRIPT_DIR, "../../.."))
+if os.path.isdir(os.path.join(REPO_ROOT, "image_generator")):
+    IMAGE_GEN_DIR = os.path.join(REPO_ROOT, "image_generator")
+else:
+    IMAGE_GEN_DIR = os.path.join(REPO_ROOT, "contrib/cros_openwrt_sources/image_generator")
 
 PACKAGE_PATH_MAP = {
     "hostapd": "package/network/services/hostapd",
@@ -58,9 +61,14 @@ def run_docker_cmd(
 
 def find_package_build_dir(container: str, package: str) -> str:
     """Finds the build directory for a package in the container."""
-    find_cmd = f"find /build/openwrt/build_dir -maxdepth 2 -type d -name '{package}*' | head -n 1"
+    find_cmd = f"find /build/openwrt/build_dir -name '.quilt_used' -path '*/{package}*' -printf '%h\\n' | head -n 1"
     res = run_docker_cmd(container, find_cmd, capture_output=True, check=True)
     build_dir = res.stdout.strip()
+    if not build_dir:
+        # Fallback to general find
+        find_cmd = f"find /build/openwrt/build_dir -maxdepth 3 -type d -name '{package}*' | tail -n 1"
+        res = run_docker_cmd(container, find_cmd, capture_output=True, check=True)
+        build_dir = res.stdout.strip()
     if not build_dir:
         raise RuntimeError(
             f"Build directory for package '{package}' not found. Run 'prepare' first."
