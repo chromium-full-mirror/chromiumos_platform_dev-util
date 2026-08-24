@@ -14,7 +14,6 @@ patches-package/
 ├── hostapd/                <-- package/network/services/hostapd
 │   ├── 1001-hostapd-add_require_eht.patch
 │   ├── 1002-hostapd-wpa_supplicant_add_eht_members.patch
-│   ├── 9001-hostapd-do-not-send-AID-and-listen_interval-on-set-sta.patch
 │   ├── 9002-hostapd-mlo-auth-reply-bssid.patch
 │   ├── 9003-hostapd-defer-eapol-until-assoc.patch
 │   ├── 9004-hostapd-pmksa-no-remove-on-bsstm.patch

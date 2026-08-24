@@ -27,7 +27,6 @@ These patches are applied directly to the `mtk-openwrt-feeds` git repository bef
 | :--- | :--- | :--- | :--- |
 | `1001-hostapd-add_require_eht.patch` | Feature | Downstream Feature | Add `require_eht` configuration option |
 | `1002-hostapd-wpa_supplicant_add_eht_members.patch` | Feature | Downstream Feature | Add EHT station member tracking |
-| `9001-hostapd-do-not-send-AID-and-listen_interval-on-set-sta.patch` | Bugfix | PR branch: [`hostapd-nl80211-fix-sta-modify-associated`](https://github.com/astrouski-google/openwrt/tree/hostapd-nl80211-fix-sta-modify-associated) | Do not send AID/listen_interval on `SET_STATION` for associated clients |
 | `9002-hostapd-mlo-auth-reply-bssid.patch` | Bugfix | PR branch: [`fix_hostapd_mld_auth_bssid_and_unassoc_lookup`](https://github.com/astrouski-google/openwrt/tree/fix_hostapd_mld_auth_bssid_and_unassoc_lookup) | Set `reply->bssid` to `hapd->own_addr` in `send_auth_reply` |
 | `9003-hostapd-defer-eapol-until-assoc.patch` | Bugfix | PR branch: [`hostapd-eapol-pmksa-fixes`](https://github.com/astrouski-google/openwrt/tree/hostapd-eapol-pmksa-fixes) | Defer EAPOL packet transmission until association completes |
 | `9004-hostapd-pmksa-no-remove-on-bsstm.patch` | Bugfix | PR branch: [`hostapd-eapol-pmksa-fixes`](https://github.com/astrouski-google/openwrt/tree/hostapd-eapol-pmksa-fixes) | Prevent invalid PMKSA cache deletion on BSS Transition management |
