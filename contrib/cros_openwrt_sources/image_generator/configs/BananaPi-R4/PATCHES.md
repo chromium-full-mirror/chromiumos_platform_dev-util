@@ -32,7 +32,9 @@ These patches are applied directly to the `mtk-openwrt-feeds` git repository bef
 | `9004-hostapd-pmksa-no-remove-on-bsstm.patch` | Bugfix | `hostapd-eapol-pmksa-fixes` | Prevent invalid PMKSA cache deletion on BSS Transition management |
 | `9005-hostapd-pmksa-cache-set-portvalid.patch` | Bugfix | `hostapd-eapol-pmksa-fixes` | Require `portValid == true` after 4-way handshake on PMKSA cache transition |
 | `9006-hostapd-pmksa-internal-eap-type-fix.patch` | Bugfix | `hostapd-eapol-pmksa-fixes` | Populate `eap_type_authsrv` from internal EAP server method |
-| `9007-hostapd-mlo-partner-link-assoc.patch` | Bugfix | Pending upstream PR | Sync partner link station MFP/SPP-AMSDU flags and clean up stale partner STAs |
+| `9007-hostapd-mlo-skip-partner-link-ssid-and-wpa-ie-checks.patch` | Bugfix | Pending upstream PR | Skip redundant SSID and WPA IE checks when parsing partner link profiles |
+| `9008-hostapd-mlo-sync-partner-link-mfp-and-spp-amsdu.patch` | Bugfix | Pending upstream PR | Propagate `WLAN_STA_MFP` and `WLAN_STA_SPP_AMSDU` flags from `assoc_wpa_sm` |
+| `9009-hostapd-mlo-free-stale-partner-link-sta-on-reassoc.patch` | Bugfix | Pending upstream PR | Clean up stale partner link stations during re-association |
 
 ### `mt76` (`patches-package/mt76/`)
 | Patch File | Type | Upstream / Tracking PR | Description |

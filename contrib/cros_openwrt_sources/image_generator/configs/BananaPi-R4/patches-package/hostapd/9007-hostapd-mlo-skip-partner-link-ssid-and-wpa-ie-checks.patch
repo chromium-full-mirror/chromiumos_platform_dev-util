@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Alexandr Astrouski <astrouski@google.com>
+Date: Mon, 24 Aug 2026 10:40:00 +0000
+Subject: [PATCH] hostapd: skip redundant SSID and WPA IE checks for partner links
+
+In IEEE 802.11be MLO, the SSID and RSN/WPA IEs are carried in the outer
+(Re)Association Request frame at the MLD level. Per-STA Profile
+subelements for partner links do not duplicate outer SSID or WPA IEs.
+
+Skip check_ssid() and WPA IE presence checks when parsing partner link
+profiles that already have an established association link / wpa_sm.
+
+Upstream-Status: Pending
+---
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -4629,7 +4629,7 @@ static int __check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
+ #endif /* CONFIG_ENC_ASSOC */
+ #endif /* CONFIG_SAE */
+ 
+-	if (type != LINK_PARSE_RECONF) {
++	if (type != LINK_PARSE_RECONF && !sta->mld_assoc_sta) {
+ 		resp = check_ssid(hapd, sta, elems->ssid, elems->ssid_len);
+ 		if (resp != WLAN_STATUS_SUCCESS)
+ 			goto out;
+@@ -4813,7 +4813,7 @@ static int __check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
+ 		sta->flags |= WLAN_STA_MAYBE_WPS;
+ 	} else
+ #endif /* CONFIG_WPS */
+-	if (hapd->conf->wpa && wpa_ie == NULL) {
++	if (hapd->conf->wpa && wpa_ie == NULL && !assoc_wpa_sm) {
+ 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
+ 			       HOSTAPD_LEVEL_INFO,
+ 			       "No WPA/RSN IE in association request");

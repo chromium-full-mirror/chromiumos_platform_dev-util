@@ -33,7 +33,9 @@ patches-package/
 │   ├── 9004-hostapd-pmksa-no-remove-on-bsstm.patch
 │   ├── 9005-hostapd-pmksa-cache-set-portvalid.patch
 │   ├── 9006-hostapd-pmksa-internal-eap-type-fix.patch
-│   └── 9007-hostapd-mlo-partner-link-assoc.patch
+│   ├── 9007-hostapd-mlo-skip-partner-link-ssid-and-wpa-ie-checks.patch
+│   ├── 9008-hostapd-mlo-sync-partner-link-mfp-and-spp-amsdu.patch
+│   └── 9009-hostapd-mlo-free-stale-partner-link-sta-on-reassoc.patch
 ├── mac80211/               <-- package/kernel/mac80211/patches/subsys
 │   └── 9001-mac80211-mlo-mgmt-tx-link-sta.patch
 ├── mt76/                   <-- package/kernel/mt76
