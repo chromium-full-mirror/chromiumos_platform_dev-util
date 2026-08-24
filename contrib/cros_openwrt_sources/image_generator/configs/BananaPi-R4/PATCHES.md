@@ -16,6 +16,7 @@ These patches are applied directly to the `mtk-openwrt-feeds` git repository bef
 | `common_uc.patch` | `wifi-scripts` (`common.uc`) | Custom ucode script additions | In-tree feed overlay |
 | `hostap_common_uc.patch` | `hostapd` (`hostap.common.uc`) | Ucode link configuration updates | In-tree feed overlay |
 | `wdev_uc.patch` | `wifi-scripts` (`wdev.uc`) | Only manage wdev interfaces recorded in statefile (drop `add_existing`) | **Backport:** [OpenWrt commit `e6bd2af652`](https://github.com/openwrt/openwrt/commit/e6bd2af652721a9c238a21a987e923333738c508) |
+| `ap_uc.patch` | `wifi-scripts` (`ap.uc`, `wireless.wifi-iface.json`) | Add `rnr_colocation` option to schema and preserve explicit `sae_pwe` in UCI | In-tree feed overlay |
 
 ---
 
@@ -38,6 +39,7 @@ These patches are applied directly to the `mtk-openwrt-feeds` git repository bef
 | `9010-hostapd-mlo-open-auth-link-addr.patch` | Backport | Upstream OpenWrt Patch 192 | Do not address open authentication replies to MLD MAC |
 | `9011-hostapd-mlo-sae-auth-link-addr.patch` | Backport | Upstream OpenWrt Patch 193 | Address SAE Authentication replies to peer link address |
 | `9012-hostapd-mlo-tx-status-link-sta.patch` | Backport | Upstream OpenWrt Patch 194 | Fall back to link address lookup in TX status callbacks |
+| `9013-hostapd-add-rnr-colocation-option.patch` | Feature | Downstream Feature | Add `rnr_colocation` option to suppress 6GHz RNR in lower-band beacons (b/389178440) |
 
 ### `mt76` (`patches-package/mt76/`)
 | Patch File | Type | Upstream / Tracking PR | Description |

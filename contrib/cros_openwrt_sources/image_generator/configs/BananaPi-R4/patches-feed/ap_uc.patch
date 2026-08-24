@@ -1,0 +1,68 @@
+diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json
+index 090e8d3d..5c5ae104 100644
+--- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json
++++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json
+@@ -949,6 +949,11 @@
+ 			"type": "boolean",
+ 			"default": true
+ 		},
++		"rnr_colocation": {
++			"description": "Enable co-located reduced neighbor reporting",
++			"type": "boolean",
++			"default": true
++		},
+ 		"roaming_consortium": {
+ 			"description": "Roaming Consortium List",
+ 			"type": "array",
+diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc
+index 28b5476f..c60092a3 100644
+--- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc
++++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc
+@@ -88,8 +88,12 @@ function iface_auth_type(config) {
+ 	if (config.auth_type in [ 'sae', 'sae-ext', 'owe', 'eap2', 'eap192' ]) {
+ 		config.ieee80211w = 2;
+ 		config.sae_require_mfp = 1;
+-		if (!config.ppsk)
+-			config.sae_pwe = 2;
++		if (!config.ppsk) {
++			if (config.band == '6g')
++				set_default(config, 'sae_pwe', 1);
++			else
++				set_default(config, 'sae_pwe', 2);
++		}
+ 	}
+ 
+ 	if (config.auth_type in [ 'psk-sae', 'psk-sae-ext', 'eap-eap2' ]) {
+@@ -97,8 +101,12 @@ function iface_auth_type(config) {
+ 		if (config.rsn_override)
+ 			config.rsn_override_mfp = 2;
+ 		config.sae_require_mfp = 1;
+-		if (!config.ppsk)
+-			config.sae_pwe = 2;
++		if (!config.ppsk) {
++			if (config.band == '6g')
++				set_default(config, 'sae_pwe', 1);
++			else
++				set_default(config, 'sae_pwe', 2);
++		}
+ 	}
+ 
+ 	if (config.own_ip_addr)
+@@ -245,7 +253,7 @@ function iface_rrm(config) {
+ 	set_default(config, 'rrm_beacon_report', config.ieee80211k);
+ 
+ 	append_vars(config, [
+-		'rrm_neighbor_report', 'rrm_beacon_report', 'rnr', 'ftm_responder',
++		'rrm_neighbor_report', 'rrm_beacon_report', 'rnr', 'rnr_colocation', 'ftm_responder',
+ 	]);
+ }
+ 
+@@ -487,7 +495,7 @@ function iface_mtk_options(config) {
+ 			      'fils_discovery_min_interval',
+ 			      'fils_discovery_max_interval',
+ 			      'rssi_reject_assoc_timeout',
+-			      'rnr', 'mld_addr', 'group_cipher',
++			      'rnr', 'rnr_colocation', 'mld_addr', 'group_cipher',
+ 			      'assocresp_elements',
+ 			      'eml_disable',
+ 			      'emlsr_on_one_link' ]);

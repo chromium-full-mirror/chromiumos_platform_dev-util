@@ -1,0 +1,73 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Alexandr Astrouski <astrouski@google.com>
+Date: Mon, 24 Aug 2026 14:39:00 +0000
+Subject: [PATCH] hostapd: add rnr_colocation option to control 6GHz RNR in 2.4/5GHz beacons
+
+By default, hostapd adds 6 GHz RNR neighbor reports to 2.4 GHz and 5 GHz
+beacons for co-located APs as required by IEEE 802.11ax/be.
+
+In certain automated wireless testbeds (such as Mobly/Tast test suites),
+tests require explicit isolation between bands and need to prevent 6GHz
+RNR elements from being broadcast in lower-band beacons without having to
+tear down the entire multi-band configuration.
+
+Add a configuration option `rnr_colocation` (default: 1) to struct
+hostapd_bss_config. When set to 0 via hostapd.conf or hostapd_options,
+generation of co-located 6GHz RNR elements in 2.4/5GHz beacons is suppressed.
+
+Bug: 389178440
+Upstream-Status: Pending
+---
+--- a/hostapd/config_file.c
++++ b/hostapd/config_file.c
+@@ -5207,6 +5207,8 @@
+ 			return 1;
+ 	} else if (os_strcmp(buf, "rnr") == 0) {
+ 		bss->rnr = atoi(pos);
++	} else if (os_strcmp(buf, "rnr_colocation") == 0) {
++		bss->rnr_colocation = atoi(pos);
+ 	} else if (os_strcmp(buf, "ssid_protection") == 0) {
+ 		int val = atoi(pos);
+
+--- a/src/ap/ap_config.c
++++ b/src/ap/ap_config.c
+@@ -54,6 +54,8 @@
+ 	bss->logger_syslog = (unsigned int) -1;
+ 	bss->logger_stdout = (unsigned int) -1;
+
++	bss->rnr_colocation = 1;
++
+ #ifdef CONFIG_WEP
+ 	bss->auth_algs = WPA_AUTH_ALG_OPEN | WPA_AUTH_ALG_SHARED;
+
+--- a/src/ap/ap_config.h
++++ b/src/ap/ap_config.h
+@@ -970,6 +970,7 @@
+ 	u8 ext_capa[EXT_CAPA_MAX_LEN];
+
+ 	u8 rnr;
++	u8 rnr_colocation;
+ 	char *config_id;
+
+ 	bool ssid_protection;
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -9007,6 +9007,9 @@
+ 	size_t len = 0;
+ 	size_t i;
+
++	if (!hapd->conf->rnr_colocation)
++		return 0;
++
+ 	if (!hapd->iface || !hapd->iface->interfaces)
+ 		return 0;
+
+@@ -9347,6 +9350,9 @@
+ 	struct hostapd_iface *iface;
+ 	size_t i;
+
++	if (!hapd->conf->rnr_colocation)
++		return eid;
++
+ 	if (!hapd->iface || !hapd->iface->interfaces)
+ 		return eid;
