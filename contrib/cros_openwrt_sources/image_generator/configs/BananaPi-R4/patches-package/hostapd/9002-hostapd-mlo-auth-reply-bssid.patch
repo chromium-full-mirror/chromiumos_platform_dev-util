@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Alexandr Astrouski <astrouski@google.com>
+Date: Mon, 24 Aug 2026 11:00:00 +0000
+Subject: [PATCH] hostapd: use link BSSID in MLO authentication replies
+
+In send_auth_reply() for an MLD AP, sa is set to hapd->mld->mld_addr.
+Setting reply->bssid to sa causes the authentication frame to carry
+the MLD MAC address in Address 3 (BSSID) instead of the affiliated
+AP link BSSID (hapd->own_addr).
+
+Set reply->bssid to hapd->own_addr so the BSSID matches the transmitting
+link AP.
+
+Upstream-Status: Pending
+Signed-off-by: Alexandr Astrouski <astrouski@google.com>
+---
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -455,3 +455,3 @@ static int send_auth_reply(struct hostap
+ 	os_memcpy(reply->sa, sa, ETH_ALEN);
+-	os_memcpy(reply->bssid, sa, ETH_ALEN);
++	os_memcpy(reply->bssid, hapd->own_addr, ETH_ALEN);
+ 

@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Felix Fietkau <nbd@nbd.name>
+Date: Tue, 4 Aug 2026 19:08:24 +0200
+Subject: [PATCH] AP: find MLD stations by link address in the TX status handler
+
+When an Authentication frame is addressed to the peer link address, the
+driver reports the TX status callback with the frame's destination
+address, which is the peer's link address.
+
+ap_get_sta() looks up only by sta->addr, which for an MLD is the MLD
+MAC address. As a result, the lookup fails and the TX status callback
+for the Authentication frame is dropped.
+
+Fall back to ap_get_link_sta() when ap_get_sta() returns NULL so the
+driver TX status is properly processed for MLD stations.
+
+Signed-off-by: Felix Fietkau <nbd@nbd.name>
+---
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -7573,6 +7573,10 @@ static void handle_auth_cb(struct hostap
+ 	bool success_status;
+
+ 	sta = ap_get_sta(hapd, mgmt->da);
++#ifdef CONFIG_IEEE80211BE
++	if (!sta)
++		sta = ap_get_link_sta(hapd, mgmt->da);
++#endif /* CONFIG_IEEE80211BE */
+ 	if (!sta) {
+ 		wpa_printf(MSG_DEBUG, "handle_auth_cb: STA " MACSTR
+ 			   " not found",
+@@ -7745,6 +7749,10 @@ static void handle_assoc_cb(struct hosta
+ 	int new_assoc = 1;
+
+ 	sta = ap_get_sta(hapd, mgmt->da);
++#ifdef CONFIG_IEEE80211BE
++	if (!sta)
++		sta = ap_get_link_sta(hapd, mgmt->da);
++#endif /* CONFIG_IEEE80211BE */
+ 	if (!sta) {
+ 		wpa_printf(MSG_INFO, "handle_assoc_cb: STA " MACSTR " not found",
+ 			   MAC2STR(mgmt->da));

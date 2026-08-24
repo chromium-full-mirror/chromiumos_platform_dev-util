@@ -1,41 +1,31 @@
-# Package Patch Naming & Organization Convention
+# Package Patches Guide (`patches-package/`)
 
-This directory contains package build patches for BananaPi-R4, categorized by target package.
-
-OpenWrt's build system applies patches in **alphabetical (numerical) sort order**. To ensure predictable patch ordering, avoid collisions with vendor feeds, and simplify upstream tracking, all patches follow this standardized numbering convention.
-
----
-
-## 1. Numbering Scheme
-
-| Prefix Range | Category | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **`0001` – `0899`** | **Upstream / Vendor Backports** | Backports from newer upstream OpenWrt, kernel, or MediaTek feeds. | `0100-backport-eht-rates.patch` |
-| **`0900` – `0999`** | **Hardware / Board Quirks** | Permanent device-specific fixes (e.g., board ID detection, PHY calibration). | `0900-add-hw-id.patch` |
-| **`1000` – `8999`** | **Downstream Features** | Long-term ChromiumOS / lab-specific custom features not intended for upstream OpenWrt. | `1001-hostapd-add_require_eht.patch` |
-| **`9000` – `9999`** | **Downstream Bugfixes (Under Upstream Review)** | Temporary bugfixes created for ChromiumOS tests that have active upstream Pull Requests. **These patches must be deleted when their upstream PR merges.** | `9005-hostapd-pmksa-cache-set-portvalid.patch` |
+This directory contains target package patches applied during the OpenWrt image compilation.
+Patches placed here are copied into the corresponding `package/.../patches/` directories during the autobuild process.
 
 ---
 
-## 2. Directory Structure
+## Directory Organization
 
-Each subfolder matches the target OpenWrt package path:
+Each subdirectory matches the target package being patched:
 
 ```text
 patches-package/
-├── README.md               <-- This documentation
 ├── hostapd/                <-- package/network/services/hostapd
 │   ├── 1001-hostapd-add_require_eht.patch
 │   ├── 1002-hostapd-wpa_supplicant_add_eht_members.patch
 │   ├── 9001-hostapd-do-not-send-AID-and-listen_interval-on-set-sta.patch
-│   ├── 9002-hostapd-mlo-auth-dest-link-mac.patch
+│   ├── 9002-hostapd-mlo-auth-reply-bssid.patch
 │   ├── 9003-hostapd-defer-eapol-until-assoc.patch
 │   ├── 9004-hostapd-pmksa-no-remove-on-bsstm.patch
 │   ├── 9005-hostapd-pmksa-cache-set-portvalid.patch
 │   ├── 9006-hostapd-pmksa-internal-eap-type-fix.patch
 │   ├── 9007-hostapd-mlo-skip-partner-link-ssid-and-wpa-ie-checks.patch
 │   ├── 9008-hostapd-mlo-sync-partner-link-mfp-and-spp-amsdu.patch
-│   └── 9009-hostapd-mlo-free-stale-partner-link-sta-on-reassoc.patch
+│   ├── 9009-hostapd-mlo-free-stale-partner-link-sta-on-reassoc.patch
+│   ├── 9010-hostapd-mlo-open-auth-link-addr.patch
+│   ├── 9011-hostapd-mlo-sae-auth-link-addr.patch
+│   └── 9012-hostapd-mlo-tx-status-link-sta.patch
 ├── mac80211/               <-- package/kernel/mac80211/patches/subsys
 │   └── 9001-mac80211-mlo-mgmt-tx-link-sta.patch
 ├── mt76/                   <-- package/kernel/mt76
@@ -46,43 +36,57 @@ patches-package/
 
 ---
 
-## 3. Patch Header Standard
+## Numbering Convention
 
-Every patch file should include standard metadata headers at the top:
+Patch filenames must follow the 4-digit prefix pattern: `NNNN-<component>-<description>.patch`.
+
+| Prefix Range | Category | Description | Example |
+| :--- | :--- | :--- | :--- |
+| `0001`–`0899` | **Upstream / Vendor Backports** | Fixes cherry-picked from upstream OpenWrt or vendor feeds before the feed is bumped. | `0191-hostapd-add-support-...patch` |
+| `0900`–`0999` | **Board / Hardware Quirks** | Specific hardware adaptation or board identification patches. | `0900-add-hw-id.patch` |
+| `1000`–`8999` | **Downstream Features** | ChromeOS-specific features not intended for upstream OpenWrt. | `1001-hostapd-add_require_eht.patch` |
+| `9000`–`9999` | **Downstream Bugfixes (PRs)** | Bugfixes developed locally and submitted upstream as PRs. | `9001-hostapd-do-not-send-AID-...patch` |
+
+---
+
+## Patch Header Requirements
+
+Every patch file must include standard Git headers (`From:`, `Date:`, `Subject:`, `Upstream-Status:`):
 
 ```patch
-From: Author Name <email@example.com>
-Subject: [PATCH] package: short description of change
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Author Name <author@google.com>
+Date: Mon, 24 Aug 2026 10:00:00 +0000
+Subject: [PATCH] component: concise description of change
 
-Detailed explanation of why this fix is needed and what issue it resolves.
+Detailed explanation of why this patch is necessary, what failure it
+addresses, and how it was tested.
 
-Upstream-Status: Submitted | Backport | Inappropriate | Merged
-Upstream-PR: https://github.com/openwrt/openwrt/pull/XXXXX
+Upstream-Status: Pending / Backport [commit <hash>] / Inappropriate [reason]
+Signed-off-by: Author Name <author@google.com>
 ---
 --- a/path/to/file.c
 +++ b/path/to/file.c
-@@ ... @@
+@@ -100,6 +100,7 @@
 ```
 
 ---
 
-## 4. How to Add a New Patch
+## Adding a New Patch
 
-1. Identify the target package (`hostapd`, `mt76`, `mac80211`, `uboot-mediatek`).
-2. Pick the next available number in the appropriate range:
-   * If submitting an upstream PR: use `9000+`
-   * If adding a permanent local feature: use `1000+`
-   * If adding a hardware quirk: use `0900+`
-3. Save the patch in `patches-package/<package>/<number>-<package>-<description>.patch`.
-4. Update `PATCHES.md` with the patch filename, description, and PR link.
-5. Run `./image_generator/validate_patches.sh configs/BananaPi-R4` to confirm it applies cleanly with 0 errors.
+1. Place the `.patch` file in `patches-package/<package_name>/`.
+2. Follow the numbering convention based on patch category.
+3. Update [`../PATCHES.md`](../PATCHES.md) to document the patch and upstream PR tracking link.
+4. Run the pre-flight validator:
+   ```bash
+   ../../validate_patches.sh ../BananaPi-R4
+   ```
 
 ---
 
-## 5. How to Retire a Merged Patch
+## Retiring a Patch
 
-When an upstream PR is merged:
-1. Run `./image_generator/check_patch_status.sh configs/BananaPi-R4` (it will mark the patch as `[RETIRED]`).
-2. `git rm patches-package/<package>/<patch-name>.patch`
-3. Update `PATCHES.md`.
-4. Re-run `./image_generator/validate_patches.sh configs/BananaPi-R4` to verify the build remains clean.
+When an upstream feed bump or PR merge makes a patch obsolete:
+1. Run `../../check_patch_status.sh ../BananaPi-R4` to detect merged patches.
+2. Remove the retired patch file from `patches-package/<package>/`.
+3. Update `../PATCHES.md` to reflect the retirement.

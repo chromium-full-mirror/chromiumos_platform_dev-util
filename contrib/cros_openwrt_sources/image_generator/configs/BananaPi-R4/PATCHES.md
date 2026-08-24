@@ -1,6 +1,6 @@
 # BananaPi-R4 Custom Patch Inventory
 
-This document tracks all custom patches maintained in `configs/BananaPi-R4/` for feed updates and package builds.
+This document tracks all custom patches maintained in `configs/BananaPi-R4/` for feed updates and package builds, along with their upstream OpenWrt PR and commit references.
 
 For details on the patch naming and numbering rules, see [`patches-package/README.md`](patches-package/README.md).
 
@@ -9,13 +9,13 @@ For details on the patch naming and numbering rules, see [`patches-package/READM
 ## 1. Feed Patches (`patches-feed/`)
 These patches are applied directly to the `mtk-openwrt-feeds` git repository before running autobuild:
 
-| File | Component | Description | Upstream PR / Status |
+| File | Component | Description | Upstream PR / Reference |
 | :--- | :--- | :--- | :--- |
-| `hostapd_sh.patch` | `wifi-scripts` (`hostapd.sh`) | Use `json_for_each_item` to prevent word-splitting on spaces in `hostapd_options` | PR submitted: `fix-hostapd-options-json-for-each` |
-| `mac80211_sh.patch` | `wifi-scripts` (`mac80211.sh`) | Fix 6 GHz 40 MHz channel configuration in `iw_htmode` | Merged upstream (PR #24843) |
+| `hostapd_sh.patch` | `wifi-scripts` (`hostapd.sh`) | Use `json_for_each_item` to prevent word-splitting on spaces in `hostapd_options` | PR branch: [`fix-hostapd-options-json-for-each`](https://github.com/astrouski-google/openwrt/tree/fix-hostapd-options-json-for-each) |
+| `mac80211_sh.patch` | `wifi-scripts` (`mac80211.sh`) | Fix 6 GHz 40 MHz channel configuration in `iw_htmode` | **Merged Upstream:** [OpenWrt PR #24843](https://github.com/openwrt/openwrt/pull/24843) |
 | `common_uc.patch` | `wifi-scripts` (`common.uc`) | Custom ucode script additions | In-tree feed overlay |
 | `hostap_common_uc.patch` | `hostapd` (`hostap.common.uc`) | Ucode link configuration updates | In-tree feed overlay |
-| `wdev_uc.patch` | `wifi-scripts` (`wdev.uc`) | Only manage wdev interfaces recorded in statefile (drop `add_existing`) | Backport [commit `e6bd2af652`] |
+| `wdev_uc.patch` | `wifi-scripts` (`wdev.uc`) | Only manage wdev interfaces recorded in statefile (drop `add_existing`) | **Backport:** [OpenWrt commit `e6bd2af652`](https://github.com/openwrt/openwrt/commit/e6bd2af652721a9c238a21a987e923333738c508) |
 
 ---
 
@@ -26,25 +26,28 @@ These patches are applied directly to the `mtk-openwrt-feeds` git repository bef
 | :--- | :--- | :--- | :--- |
 | `1001-hostapd-add_require_eht.patch` | Feature | Downstream Feature | Add `require_eht` configuration option |
 | `1002-hostapd-wpa_supplicant_add_eht_members.patch` | Feature | Downstream Feature | Add EHT station member tracking |
-| `9001-hostapd-do-not-send-AID-and-listen_interval-on-set-sta.patch` | Bugfix | `hostapd-nl80211-fix-sta-modify-associated` | Do not send AID/listen_interval on `SET_STATION` for associated clients |
-| `9002-hostapd-mlo-auth-dest-link-mac.patch` | Bugfix | `fix_hostapd_mld_auth_bssid_and_unassoc_lookup` | Match unassociated MLD stations in `ap_get_link_sta` via `auth_link_addr` |
-| `9003-hostapd-defer-eapol-until-assoc.patch` | Bugfix | `hostapd-eapol-pmksa-fixes` | Defer EAPOL packet transmission until association completes |
-| `9004-hostapd-pmksa-no-remove-on-bsstm.patch` | Bugfix | `hostapd-eapol-pmksa-fixes` | Prevent invalid PMKSA cache deletion on BSS Transition management |
-| `9005-hostapd-pmksa-cache-set-portvalid.patch` | Bugfix | `hostapd-eapol-pmksa-fixes` | Require `portValid == true` after 4-way handshake on PMKSA cache transition |
-| `9006-hostapd-pmksa-internal-eap-type-fix.patch` | Bugfix | `hostapd-eapol-pmksa-fixes` | Populate `eap_type_authsrv` from internal EAP server method |
-| `9007-hostapd-mlo-skip-partner-link-ssid-and-wpa-ie-checks.patch` | Bugfix | Pending upstream PR | Skip redundant SSID and WPA IE checks when parsing partner link profiles |
-| `9008-hostapd-mlo-sync-partner-link-mfp-and-spp-amsdu.patch` | Bugfix | Pending upstream PR | Propagate `WLAN_STA_MFP` and `WLAN_STA_SPP_AMSDU` flags from `assoc_wpa_sm` |
-| `9009-hostapd-mlo-free-stale-partner-link-sta-on-reassoc.patch` | Bugfix | Pending upstream PR | Clean up stale partner link stations during re-association |
+| `9001-hostapd-do-not-send-AID-and-listen_interval-on-set-sta.patch` | Bugfix | PR branch: [`hostapd-nl80211-fix-sta-modify-associated`](https://github.com/astrouski-google/openwrt/tree/hostapd-nl80211-fix-sta-modify-associated) | Do not send AID/listen_interval on `SET_STATION` for associated clients |
+| `9002-hostapd-mlo-auth-reply-bssid.patch` | Bugfix | PR branch: [`fix_hostapd_mld_auth_bssid_and_unassoc_lookup`](https://github.com/astrouski-google/openwrt/tree/fix_hostapd_mld_auth_bssid_and_unassoc_lookup) | Set `reply->bssid` to `hapd->own_addr` in `send_auth_reply` |
+| `9003-hostapd-defer-eapol-until-assoc.patch` | Bugfix | PR branch: [`hostapd-eapol-pmksa-fixes`](https://github.com/astrouski-google/openwrt/tree/hostapd-eapol-pmksa-fixes) | Defer EAPOL packet transmission until association completes |
+| `9004-hostapd-pmksa-no-remove-on-bsstm.patch` | Bugfix | PR branch: [`hostapd-eapol-pmksa-fixes`](https://github.com/astrouski-google/openwrt/tree/hostapd-eapol-pmksa-fixes) | Prevent invalid PMKSA cache deletion on BSS Transition management |
+| `9005-hostapd-pmksa-cache-set-portvalid.patch` | Bugfix | PR branch: [`hostapd-eapol-pmksa-fixes`](https://github.com/astrouski-google/openwrt/tree/hostapd-eapol-pmksa-fixes) | Require `portValid == true` after 4-way handshake on PMKSA cache transition |
+| `9006-hostapd-pmksa-internal-eap-type-fix.patch` | Bugfix | PR branch: [`hostapd-eapol-pmksa-fixes`](https://github.com/astrouski-google/openwrt/tree/hostapd-eapol-pmksa-fixes) | Populate `eap_type_authsrv` from internal EAP server method |
+| `9007-hostapd-mlo-skip-partner-link-ssid-and-wpa-ie-checks.patch` | Bugfix | PR branch: [`hostapd-mlo-partner-link-fixes`](https://github.com/astrouski-google/openwrt/tree/hostapd-mlo-partner-link-fixes) | Skip redundant SSID and WPA IE checks when parsing partner link profiles |
+| `9008-hostapd-mlo-sync-partner-link-mfp-and-spp-amsdu.patch` | Bugfix | PR branch: [`hostapd-mlo-partner-link-fixes`](https://github.com/astrouski-google/openwrt/tree/hostapd-mlo-partner-link-fixes) | Propagate `WLAN_STA_MFP` and `WLAN_STA_SPP_AMSDU` flags from `assoc_wpa_sm` |
+| `9009-hostapd-mlo-free-stale-partner-link-sta-on-reassoc.patch` | Bugfix | PR branch: [`hostapd-mlo-partner-link-fixes`](https://github.com/astrouski-google/openwrt/tree/hostapd-mlo-partner-link-fixes) | Clean up stale partner link stations during re-association |
+| `9010-hostapd-mlo-open-auth-link-addr.patch` | Backport | Upstream OpenWrt Patch 192 | Do not address open authentication replies to MLD MAC |
+| `9011-hostapd-mlo-sae-auth-link-addr.patch` | Backport | Upstream OpenWrt Patch 193 | Address SAE Authentication replies to peer link address |
+| `9012-hostapd-mlo-tx-status-link-sta.patch` | Backport | Upstream OpenWrt Patch 194 | Fall back to link address lookup in TX status callbacks |
 
 ### `mt76` (`patches-package/mt76/`)
 | Patch File | Type | Upstream / Tracking PR | Description |
 | :--- | :--- | :--- | :--- |
-| `9001-mt76-flush-stale-station-offload-and-wcid.patch` | Bugfix | `astrouski-google/mt76#fix_sta_remove_purge_tx_queues` | Call `mt76_wcid_cleanup()` before `dev->drv->sta_remove()` to flush pending TX queues |
+| `9001-mt76-flush-stale-station-offload-and-wcid.patch` | Bugfix | PR branch: [`fix_sta_remove_purge_tx_queues`](https://github.com/astrouski-google/mt76/tree/fix_sta_remove_purge_tx_queues) | Call `mt76_wcid_cleanup()` before `dev->drv->sta_remove()` to flush pending TX queues |
 
 ### `mac80211` (`patches-package/mac80211/`)
 | Patch File | Type | Upstream / Tracking PR | Description |
 | :--- | :--- | :--- | :--- |
-| `9001-mac80211-mlo-mgmt-tx-link-sta.patch` | Bugfix | `mac80211-mlo-mgmt-tx-link-sta` | Fall back to `link_sta_info_get_bss` and honor `params->link_id` in `ieee80211_mgmt_tx` |
+| `9001-mac80211-mlo-mgmt-tx-link-sta.patch` | Bugfix | **Submitted Upstream:** [OpenWrt PR #24880](https://github.com/openwrt/openwrt/pull/24880) | Fall back to `link_sta_info_get_bss` and honor `params->link_id` in `ieee80211_mgmt_tx` |
 
 ### `uboot-mediatek` (`patches-package/uboot-mediatek/`)
 | Patch File | Type | Target | Description |
