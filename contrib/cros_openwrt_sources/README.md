@@ -216,3 +216,17 @@ The CROS customizations disable the router's DHCP server and do not turn on any 
 As long as you know the IP address of the router and can connect to the network the router is connected to, you can SSH into the router as the `root` user using the regular cros [testing_rsa](../../../../../chromeos-admin/puppet/modules/profiles/files/user-common/ssh/testing_rsa) private key. This is the same way DUTs and Gale routers are accessed.
 
 If you do not know the IP address of the router, you will need to obtain it by checking the network the router is connected to and identifying the router using its MAC address. It is recommended to configure the parent network to statically assign the router a consistent IP based on its MAC address for long-term usage.
+
+---
+
+## Development & Patch Management (Jetski Skill)
+
+When developing or modifying package patches (`hostapd`, `mt76`, `mac80211`, `uboot-mediatek`), use the automated [`cros-openwrt-patcher`](./skills/cros-openwrt-patcher/SKILL.md) skill.
+
+The skill provides automated `quilt` workflows inside the debug Docker container:
+* **Prepares** the package source tree with all vendor and upstream patches applied (`QUILT=1`).
+* **Creates & edits** patches with canonical headers and automatic `9000`-series numbering.
+* **Test compiles** packages in seconds (`make package/<pkg>/compile`) inside the container.
+* **Exports & validates** patches against `validate_patches.sh` automatically before committing.
+
+See [`./skills/cros-openwrt-patcher/SKILL.md`](./skills/cros-openwrt-patcher/SKILL.md) for full instructions and examples.
