@@ -15,7 +15,7 @@ These patches are applied directly to the `mtk-openwrt-feeds` git repository bef
 | `mac80211_sh.patch` | `wifi-scripts` (`mac80211.sh`) | Fix 6 GHz 40 MHz channel configuration in `iw_htmode` | Merged upstream (PR #24843) |
 | `common_uc.patch` | `wifi-scripts` (`common.uc`) | Custom ucode script additions | In-tree feed overlay |
 | `hostap_common_uc.patch` | `hostapd` (`hostap.common.uc`) | Ucode link configuration updates | In-tree feed overlay |
-| `wdev_uc.patch` | `wifi-scripts` (`wdev.uc`) | Wireless device ucode helpers | In-tree feed overlay |
+| `wdev_uc.patch` | `wifi-scripts` (`wdev.uc`) | Only manage wdev interfaces recorded in statefile (drop `add_existing`) | Backport [commit `e6bd2af652`] |
 
 ---
 

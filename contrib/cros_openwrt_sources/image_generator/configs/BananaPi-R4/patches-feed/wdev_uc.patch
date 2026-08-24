@@ -1,14 +1,42 @@
-diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/wdev.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/wdev.uc
-index 166e9403..f82d6051 100644
+From: Felix Fietkau <nbd@nbd.name>
+Date: Fri, 10 Jul 2026 15:03:54 +0200
+Subject: [PATCH] wifi-scripts: only manage wdev interfaces recorded in the statefile
+
+wdev.uc adopted every operstate-down netdev on the phy and then removed any
+not in its new config. hostapd BSS netdevs are legitimately operstate-down
+while stopped (co-located STA down, or start_disabled), so a reload deleted
+them and hostapd, seeing an unchanged config, never recreated them. Drop the
+adopt-existing step; the statefile already tracks the interfaces wdev.uc
+owns.
+
+Upstream-Status: Backport [openwrt/openwrt commit e6bd2af652721a9c238a21a987e923333738c508]
+Signed-off-by: Felix Fietkau <nbd@nbd.name>
+---
 --- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/wdev.uc
 +++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files/usr/share/hostap/wdev.uc
-@@ -91,7 +91,8 @@ function add_existing(phydev, config)
- 		if (config[wdev])
- 			return;
- 
--		if (trim(readfile(`/sys/class/net/${wdev}/operstate`)) == "down")
-+		let operstate = trim(readfile(`/sys/class/net/${wdev}/operstate`));
-+		if (operstate == "down" || operstate == "unknown")
- 			config[wdev] = {};
- 	});
+@@ -88,17 +88,6 @@ function delete_ifname(config)
+ 		delete config[key].ifname;
  }
+ 
+-function add_existing(phydev, config)
+-{
+-	phydev.for_each_wdev((wdev) => {
+-		if (config[wdev])
+-			return;
+-
+-		if (trim(readfile(`/sys/class/net/${wdev}/operstate`)) == "down")
+-			config[wdev] = {};
+-	});
+-}
+-
+ function usage()
+ {
+ 	warn(`Usage: ${basename(sourcepath())} <phy> <command> [<arguments>]
+@@ -135,7 +124,6 @@ const commands = {
+ 		if (type(old_config) == "object")
+ 			config.data = old_config;
+ 
+-		add_existing(phydev, config.data);
+ 		add_ifname(config.data);
+ 		drop_inactive(config.data);
+ 
