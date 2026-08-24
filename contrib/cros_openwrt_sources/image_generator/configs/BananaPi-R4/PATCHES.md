@@ -43,6 +43,7 @@ These patches are applied directly to the `mtk-openwrt-feeds` git repository bef
 | Patch File | Type | Upstream / Tracking PR | Description |
 | :--- | :--- | :--- | :--- |
 | `9001-mt76-flush-stale-station-offload-and-wcid.patch` | Bugfix | PR branch: [`fix_sta_remove_purge_tx_queues`](https://github.com/astrouski-google/mt76/tree/fix_sta_remove_purge_tx_queues) | Call `mt76_wcid_cleanup()` before `dev->drv->sta_remove()` to flush pending TX queues |
+| `9002-mt76-mt7996-fix-disable-inband-discovery.patch` | Bugfix | PR branch: [`fix_disable_inband_discovery`](https://github.com/astrouski-google/mt76/tree/fix_disable_inband_discovery) | Properly disable in-band discovery in MCU when interval is 0 (b/389178357) |
 
 ### `mac80211` (`patches-package/mac80211/`)
 | Patch File | Type | Upstream / Tracking PR | Description |
