@@ -63,7 +63,7 @@ func NewHTTPClient(ctx context.Context, o *auth.Options) (*http.Client, error) {
 
 	c, err := a.Client()
 	if err != nil {
-		return nil, errors.Annotate(err, "failed to create HTTP client")
+		return nil, errors.Fmt("failed to create HTTP client: %w", err)
 	}
 	return c, nil
 }
@@ -111,7 +111,7 @@ func ScheduleBuild(ctx context.Context, props map[string]interface{}, dims map[s
 	}
 	build, err := client.ScheduleBuild(ctx, request)
 	if err != nil {
-		return nil, errors.Annotate(err, "schedule build")
+		return nil, errors.Fmt("schedule build: %w", err)
 	}
 	return build, nil
 }
@@ -154,7 +154,7 @@ func GetBuild(ctx context.Context, client BBClient, ID int64, fields ...string) 
 	}
 	build, err := client.GetBuild(ctx, request)
 	if err != nil {
-		return nil, errors.Annotate(err, "get build")
+		return nil, errors.Fmt("get build: %w", err)
 	}
 	return build, nil
 }
