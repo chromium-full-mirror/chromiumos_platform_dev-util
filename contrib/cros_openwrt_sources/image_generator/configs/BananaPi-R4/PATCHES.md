@@ -13,10 +13,10 @@ These patches are applied directly to the `mtk-openwrt-feeds` git repository bef
 | :--- | :--- | :--- | :--- |
 | `hostapd_sh.patch` | `wifi-scripts` (`hostapd.sh`) | Use `json_for_each_item` to prevent word-splitting on spaces in `hostapd_options` | PR branch: [`fix-hostapd-options-json-for-each`](https://github.com/astrouski-google/openwrt/tree/fix-hostapd-options-json-for-each) |
 | `mac80211_sh.patch` | `wifi-scripts` (`mac80211.sh`) | Fix 6 GHz 40 MHz channel configuration in `iw_htmode` | **Merged Upstream:** [OpenWrt PR #24843](https://github.com/openwrt/openwrt/pull/24843) |
-| `common_uc.patch` | `wifi-scripts` (`common.uc`) | Custom ucode script additions | In-tree feed overlay |
+| `common_uc.patch` | `wifi-scripts` (`common.uc`) | Add `append_list` for multi-line hostapd parameters and raw hex PSK quoting bypass | In-tree feed overlay |
 | `hostap_common_uc.patch` | `hostapd` (`hostap.common.uc`) | Ucode link configuration updates | In-tree feed overlay |
 | `wdev_uc.patch` | `wifi-scripts` (`wdev.uc`) | Only manage wdev interfaces recorded in statefile (drop `add_existing`) | **Backport:** [OpenWrt commit `e6bd2af652`](https://github.com/openwrt/openwrt/commit/e6bd2af652721a9c238a21a987e923333738c508) |
-| `ap_uc.patch` | `wifi-scripts` (`ap.uc`, `wireless.wifi-iface.json`) | Add `rnr_colocation` option to schema and set default `sae_pwe` based on band (1 for 6G, 2 for 2.4/5G) | In-tree feed overlay |
+| `ap_uc.patch` | `wifi-scripts` (`ap.uc`, `wireless.wifi-iface.json`) | Add `rnr_colocation` option, set default `sae_pwe` by band, add `append_list` for RADIUS/ANQP, add `transition_disable`, dynamic `group_mgmt_cipher`, enforce `wmm_enabled=1`, and concatenate `vendor_elements` | **Backport:** [commit `2db148c062`](https://github.com/openwrt/openwrt/commit/2db148c062), [commit `68165c85c8`](https://github.com/openwrt/openwrt/commit/68165c85c8), [commit `4062d625ae`](https://github.com/openwrt/openwrt/commit/4062d625ae) |
 | `hostapd_uc.patch` | `wifi-scripts` (`hostapd.uc`) | Align `EHT320` channelization and offset, fix `device_extended_features` bit test, fix VHT160/beamformee antenna count, and protect HE center freq for 6E discovery | **Backport:** [commit `a8bdb1e6d6`](https://github.com/openwrt/openwrt/commit/a8bdb1e6d6), [commit `28c6f5e6f7`](https://github.com/openwrt/openwrt/commit/28c6f5e6f7), [commit `fc5aed2ff2`](https://github.com/openwrt/openwrt/commit/fc5aed2ff2), [commit `02e2065203`](https://github.com/openwrt/openwrt/commit/02e2065203) |
 
 ---

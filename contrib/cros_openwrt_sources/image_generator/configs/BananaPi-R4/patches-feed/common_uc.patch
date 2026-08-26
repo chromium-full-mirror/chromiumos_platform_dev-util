@@ -1,14 +1,25 @@
 diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc
-index de939b0c..113f8de4 100644
+index de939b0c..a59f7649 100644
 --- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc
 +++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc
-@@ -57,6 +57,9 @@ function escape_string(value) {
- 	if (length(filter(chars, (v) => (v < 32 || v >= 128))) > 0)
- 		return hexenc(value);
+@@ -72,6 +72,20 @@ export function append_vars(dict, keys) {
+ 		append(key, dict[key]);
+ };
  
-+	if (substr(value, 0, 2) == 'P"')
-+		return value;
++/* emit one "key=value" line per list element (for options hostapd parses
++ * one entry per line, which must not be space-joined) */
++export function append_list(dict, keys) {
++	for (let key in keys) {
++		let val = dict[key];
++		if (val == null)
++			continue;
++		if (type(val) != 'array')
++			val = [ val ];
++		for (let v in val)
++			append(key, v);
++	}
++};
 +
- 	return `"${value}"`;
- }
- 
+ export function append_string_vars(dict, keys) {
+ 	for (let key in keys)
+ 		append_string(key, dict[key]);
