@@ -1,0 +1,103 @@
+diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/hostapd.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/hostapd.uc
+index aa176cac..f7a349e3 100644
+--- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/hostapd.uc
++++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/hostapd.uc
+@@ -292,7 +292,7 @@ function device_htmode_append(config) {
+ 		case 'EHT320-1':
+ 		case 'EHT320-2':
+ 			let eht_center_seg0_map = [
+-				[ 61, 31 ], [ 125, 95 ], [ 189, 159 ]
++				[ 61, 31 ], [ 125, 95 ], [ 189, 159 ], [ 221, 191 ]
+ 			];
+ 
+ 			if (config.htmode == 'EHT320-2' || (config.htmode == 'EHT320' && config.channel > 189)) {
+@@ -309,20 +309,21 @@ function device_htmode_append(config) {
+ 			config.op_class = 137;
+ 			config.eht_oper_chwidth = 9;
+ 
+-			switch(config.htmode) {
+-				case 'EHT320':
+-					config.eht_bw320_offset = 0;
+-					break;
+-
+-				case 'EHT320-1':
+-					config.eht_bw320_offset = 1;
+-					break;
+-
+-				case 'EHT320-2':
+-					config.eht_bw320_offset = 1;
+-					break;
+-
+-			}
++			if (config.htmode == 'EHT320-1' || config.htmode == 'EHT320-2')
++				config.eht_bw320_offset = 1;
++			else
++				config.eht_bw320_offset = (config.channel < config.eht_oper_centr_freq_seg0_idx) ? 0 : 1;
++
++			/*
++			 * Set HE operation values for 160MHz backward compatibility
++			 * with WiFi 6E clients. Pick the 160MHz half that contains
++			 * the primary channel.
++			 */
++			config.he_oper_chwidth = 3;
++			if (config.channel < config.eht_oper_centr_freq_seg0_idx)
++				config.he_oper_centr_freq_seg0_idx = config.eht_oper_centr_freq_seg0_idx - 16;
++			else
++				config.he_oper_centr_freq_seg0_idx = config.eht_oper_centr_freq_seg0_idx + 16;
+ 			break;
+ 
+ 		case 'HE40':
+@@ -385,12 +386,12 @@ function device_htmode_append(config) {
+ 		if (vht_capab & 0x800 && config.su_beamformer)
+ 			config.vht_capab += '[SOUNDING-DIMENSION-' + min(((vht_capab >> 16) & 3) + 1, config.beamformer_antennas) + ']';
+ 		if (vht_capab & 0x1000 && config.su_beamformee)
+-			config.vht_capab += '[BF-ANTENNA-' + min(((vht_capab >> 13) & 3) + 1, config.beamformer_antennas) + ']';
++			config.vht_capab += '[BF-ANTENNA-' + min(((vht_capab >> 13) & 3) + 1, config.beamformee_antennas) + ']';
+ 
+ 		/* supported Channel widths */
+-		if ((vht_capab & 0xc) == 8 && config.vht160 <= 2)
++		if ((vht_capab & 0xc) == 8 && config.vht160 >= 2)
+ 			config.vht_capab += '[VHT160-80PLUS80]';
+-		else if ((vht_capab & 0xc) == 4 && config.vht160 <= 2)
++		else if (((vht_capab & 0xc) == 4 || (vht_capab & 0xc) == 8) && config.vht160 >= 1)
+ 			config.vht_capab += '[VHT160]';
+ 
+ 		/* maximum MPDU length */
+@@ -428,8 +429,15 @@ function device_htmode_append(config) {
+ 		config.ieee80211ax = true;
+ 
+ 		if (config.hw_mode == 'a') {
+-			config.he_oper_chwidth = config.vht_oper_chwidth;
+-			config.he_oper_centr_freq_seg0_idx = config.vht_oper_centr_freq_seg0_idx;
++			/*
++			 * Only set HE values from VHT if not already set.
++			 * For 6GHz 320MHz, these are pre-set for 160MHz backward
++			 * compatibility with WiFi 6E clients.
++			 */
++			if (!config.he_oper_chwidth)
++				config.he_oper_chwidth = config.vht_oper_chwidth;
++			if (!config.he_oper_centr_freq_seg0_idx)
++				config.he_oper_centr_freq_seg0_idx = config.vht_oper_centr_freq_seg0_idx;
+ 		}
+ 
+ 		if (config.band == "6g") {
+@@ -459,7 +467,9 @@ function device_htmode_append(config) {
+ 			config.he_mu_beamformer = false;
+ 		if (!(he_phy_cap[7] & 0x1))
+ 			config.he_spr_psr_enabled = false;
+-		if (!(he_mac_cap[0] & 0x1))
++		if (!(he_mac_cap[0] & 0x4))
++			config.he_twt_responder = false;
++		if (!config.he_twt_responder)
+ 			config.he_twt_required= false;
+ 
+ 		if (!config.etxbfen) {
+@@ -507,7 +517,7 @@ function device_htmode_append(config) {
+ }
+ 
+ function device_extended_features(data, flag) {
+-	return !!(data[flag / 8] | (1 << (flag % 8)));
++	return !!(data[flag / 8] & (1 << (flag % 8)));
+ }
+ 
+ function device_capabilities(config) {
