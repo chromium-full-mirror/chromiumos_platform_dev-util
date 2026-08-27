@@ -37,4 +37,5 @@ ln -sfn cros-ots.cfg /root/ots/config/ots.cfg
 cd "${dir}"
 source setupCrosServer.sh
 source setupFileServer.sh
+source setupNAT64.sh
 source setupDNS.sh
