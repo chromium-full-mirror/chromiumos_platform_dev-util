@@ -222,7 +222,7 @@ def _get_patch_from_message_id(args, message_id):
             print("Probing archive for message at: %s" % this_url)
         try:
             headers = {
-                "User-Agent": "fromupstream.py (ChromeOS)",
+                "User-Agent": "fromupstream.py on behalf of pwclient (ChromeOS)",
             }
             req = urllib.request.Request(this_url, headers=headers)
             opener = urllib.request.urlopen(req)
