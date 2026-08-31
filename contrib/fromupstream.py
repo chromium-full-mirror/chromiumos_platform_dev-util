@@ -276,9 +276,13 @@ def _pick_fromlist(url, patch_id, args, message_id=None):
 
     if patch_id is not None:
         try:
-            opener = urllib.request.urlopen(
-                "%s/patch/%s/mbox" % (url, patch_id)
+            headers = {
+                "User-Agent": "fromupstream.py on behalf of pwclient (ChromeOS)",
+            }
+            req = urllib.request.Request(
+                "%s/patch/%s/mbox" % (url, patch_id), headers=headers
             )
+            opener = urllib.request.urlopen(req)
         except urllib.error.HTTPError as e:
             errprint("Error: could not download patch: %s" % e)
             sys.exit(1)
