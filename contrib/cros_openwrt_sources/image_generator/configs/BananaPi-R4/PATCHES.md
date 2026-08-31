@@ -40,6 +40,8 @@ These patches are applied directly to the `mtk-openwrt-feeds` git repository bef
 | `9011-hostapd-mlo-sae-auth-link-addr.patch` | Backport | Upstream OpenWrt Patch 193 | Address SAE Authentication replies to peer link address |
 | `9012-hostapd-mlo-tx-status-link-sta.patch` | Backport | Upstream OpenWrt Patch 194 | Fall back to link address lookup in TX status callbacks |
 | `9013-hostapd-add-rnr-colocation-option.patch` | Feature | Downstream Feature | Add `rnr_colocation` option to suppress 6GHz RNR in lower-band beacons (b/389178440) |
+| `9014-hostapd-mlo-flush-stale-link-sta-on-auth.patch` | Bugfix | PR branch: [`hostapd-mlo-partner-link-fixes`](https://github.com/astrouski-google/openwrt/tree/hostapd-mlo-partner-link-fixes) | Flush stale link station on receiving authentication frame |
+| `9015-hostapd-fix-eht-mcs-validation-for-narrower-sta.patch` | Bugfix | PR branch: [`hostapd-fix-eht-mcs-validation-narrower-sta`](https://github.com/astrouski-google/openwrt/tree/hostapd-fix-eht-mcs-validation-narrower-sta) | Fix EHT MCS validation and out-of-bounds access for narrower bandwidth STAs on 320 MHz APs |
 
 ### `mt76` (`patches-package/mt76/`)
 | Patch File | Type | Upstream / Tracking PR | Description |
