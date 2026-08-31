@@ -12,9 +12,9 @@ cp -r mme/* /root/mme/ || exit
 
 cd /root/enb/config/ || exit
 # setup 4G radio
-#ln -sfn cros.enb.cfg enb.cfg
+ln -sfn cros.enb.cfg enb.cfg
 # setup 5G radio with handover
-ln -sfn cros-gnb-nsa-ho-lte.cfg enb.cfg
+#ln -sfn cros-gnb-nsa-ho-lte.cfg enb.cfg
 
 cd /root/mme/config/ || exit
 ln -sfn cros-mme-ims.cfg mme.cfg
