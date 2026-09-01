@@ -1,8 +1,38 @@
 diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc
-index de939b0c..a59f7649 100644
+index de939b0c..c968ce9b 100644
 --- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc
 +++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/common.uc
-@@ -72,6 +72,20 @@ export function append_vars(dict, keys) {
+@@ -53,6 +53,9 @@ export function append(key, value) {
+ };
+ 
+ function escape_string(value) {
++	if (match(value, /^hex:[0-9a-fA-F]+/))
++		return substr(value, 4);
++
+ 	let chars = map(split(value, ''), (v) => ord(v));
+ 	if (length(filter(chars, (v) => (v < 32 || v >= 128))) > 0)
+ 		return hexenc(value);
+@@ -60,6 +63,19 @@ function escape_string(value) {
+ 	return `"${value}"`;
+ }
+ 
++export function prepare_key_wep(key) {
++	if (!key)
++		return null;
++
++	if (match(key, /^[0-9a-fA-F]+$/) && (length(key) == 10 || length(key) == 26 || length(key) == 32))
++		return key;
++
++	if (substr(key, 0, 2) == 's:')
++		key = substr(key, 2);
++
++	return hexenc(key);
++};
++
+ export function append_string(key, value) {
+ 	if (value == null)
+ 		return;
+@@ -72,6 +88,20 @@ export function append_vars(dict, keys) {
  		append(key, dict[key]);
  };
  

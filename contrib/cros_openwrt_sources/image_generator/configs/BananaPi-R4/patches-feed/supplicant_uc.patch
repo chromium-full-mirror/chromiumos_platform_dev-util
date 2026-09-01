@@ -1,0 +1,41 @@
+diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/supplicant.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/supplicant.uc
+index b81c303e..d7d9f2e5 100644
+--- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/supplicant.uc
++++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/supplicant.uc
+@@ -3,7 +3,7 @@
+ import {
+ 	append, append_raw, append_vars, network_append, network_append_raw, network_append_vars,
+ 	network_append_string_vars, set_default, dump_network, flush_network,
+-	wiphy_info, wiphy_band
++	prepare_key_wep, wiphy_info, wiphy_band
+ } from 'wifi.common';
+ import * as netifd from 'wifi.netifd';
+ import * as iface from 'wifi.iface';
+@@ -160,6 +160,27 @@ function setup_sta(data, config) {
+ 	case 'none':
+ 		break;
+ 
++	case 'wep':
++		for (let i = 0; i < 4; i++) {
++			let k = prepare_key_wep(config[`key${i + 1}`]);
++			if (k)
++				network_append(`wep_key${i}`, k);
++		}
++		if (config.key && config.key >= 1 && config.key <= 4)
++			network_append('wep_tx_keyidx', config.key - 1);
++		else if (config.key && config.key >= 0 && config.key <= 3)
++			network_append('wep_tx_keyidx', config.key);
++		else
++			network_append('wep_tx_keyidx', 0);
++		if (config.auth_algs == 2)
++			network_append('auth_alg', 'SHARED');
++		else if (config.auth_algs == 3)
++			network_append('auth_alg', 'OPEN SHARED');
++		else
++			network_append('auth_alg', 'OPEN');
++		network_append('key_mgmt', 'NONE');
++		break;
++
+ 	case 'owe':
+ 		iface.wpa_key_mgmt(config);
+ 		break;

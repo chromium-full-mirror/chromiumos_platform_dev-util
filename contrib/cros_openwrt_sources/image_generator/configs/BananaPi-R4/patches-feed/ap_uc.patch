@@ -1,8 +1,49 @@
 diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json
-index 090e8d3d..5c5ae104 100644
+index 090e8d3d..1e5861e4 100644
 --- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json
 +++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-iface.json
-@@ -949,6 +949,11 @@
+@@ -130,6 +130,17 @@
+ 			"description": "Defines the phase 2 (inner) authentication method, only applicable if eap_type is peap or ttl",
+ 			"type": "string"
+ 		},
++		"auth_algs": {
++			"description": "Authentication algorithm (1: open, 2: shared, 3: open+shared)",
++			"type": "number",
++			"minimum": 1,
++			"maximum": 3
++		},
++		"auth_mode": {
++			"description": "WEP authentication mode (open, shared, mixed)",
++			"type": "string",
++			"enum": [ "open", "shared", "mixed" ]
++		},
+ 		"auth_cache": {
+ 			"type": "alias",
+ 			"default": "okc"
+@@ -555,6 +566,22 @@
+ 			"description": "Encryption key",
+ 			"type": "string"
+ 		},
++		"key1": {
++			"description": "WEP Key 1",
++			"type": "string"
++		},
++		"key2": {
++			"description": "WEP Key 2",
++			"type": "string"
++		},
++		"key3": {
++			"description": "WEP Key 3",
++			"type": "string"
++		},
++		"key4": {
++			"description": "WEP Key 4",
++			"type": "string"
++		},
+ 		"lci": {
+ 			"description": "The content of a LCI measurement subelement",
+ 			"type": "string"
+@@ -949,6 +976,11 @@
  			"type": "boolean",
  			"default": true
  		},
@@ -14,8 +55,23 @@ index 090e8d3d..5c5ae104 100644
  		"roaming_consortium": {
  			"description": "Roaming Consortium List",
  			"type": "array",
+@@ -1126,6 +1158,14 @@
+ 			"type": "boolean",
+ 			"default": false
+ 		},
++		"wep_rekey": {
++			"type": "alias",
++			"default": "wep_rekey_period"
++		},
++		"wep_rekey_period": {
++			"description": "WEP rekey period in seconds",
++			"type": "number"
++		},
+ 		"wpa_gmk_rekey": {
+ 			"description": "Time interval for rekeying GMK (master key used internally to generate GTKs)",
+ 			"type": "number"
 diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc
-index 28b5476f..75c3a042 100644
+index 28b5476f..efcafc37 100644
 --- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc
 +++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/ap.uc
 @@ -4,7 +4,7 @@ import * as libuci from 'uci';
@@ -23,7 +79,7 @@ index 28b5476f..75c3a042 100644
  import * as fs from 'fs';
  
 -import { append, append_raw, append_value, append_vars, append_string_vars, comment, push_config, set_default, touch_file } from 'wifi.common';
-+import { append, append_raw, append_value, append_vars, append_list, append_string_vars, comment, push_config, set_default, touch_file } from 'wifi.common';
++import { append, append_raw, append_value, append_vars, append_list, append_string_vars, comment, prepare_key_wep, push_config, set_default, touch_file } from 'wifi.common';
  import * as netifd from 'wifi.netifd';
  import * as iface from 'wifi.iface';
  
@@ -81,7 +137,29 @@ index 28b5476f..75c3a042 100644
  	}
  
  	if (config.own_ip_addr)
-@@ -245,7 +257,7 @@ function iface_rrm(config) {
+@@ -119,6 +131,21 @@ function iface_auth_type(config) {
+ 		]);
+ 		break;
+ 
++	case 'wep':
++		for (let i = 0; i < 4; i++) {
++			let k = prepare_key_wep(config[`key${i + 1}`]);
++			if (k)
++				append(`wep_key${i}`, k);
++		}
++		if (config.key && config.key >= 1 && config.key <= 4)
++			append('wep_default_key', config.key - 1);
++		else if (config.key && config.key >= 0 && config.key <= 3)
++			append('wep_default_key', config.key);
++		else
++			append('wep_default_key', 0);
++		append_vars(config, [ 'wep_rekey_period' ]);
++		break;
++
+ 	case 'psk':
+ 	case 'psk2':
+ 	case 'sae':
+@@ -245,7 +272,7 @@ function iface_rrm(config) {
  	set_default(config, 'rrm_beacon_report', config.ieee80211k);
  
  	append_vars(config, [
@@ -90,7 +168,7 @@ index 28b5476f..75c3a042 100644
  	]);
  }
  
-@@ -402,22 +414,73 @@ function iface_roaming(config) {
+@@ -402,22 +429,73 @@ function iface_roaming(config) {
  	]);
  }
  
@@ -168,7 +246,7 @@ index 28b5476f..75c3a042 100644
  function iface_key_caching(config) {
  	if (config.wpa < 2)
  		return;
-@@ -448,8 +511,9 @@ function iface_hs20(config) {
+@@ -448,8 +526,9 @@ function iface_hs20(config) {
  	append_vars(config, [
  		'hs20', 'disable_dgaf', 'anqp_domain_id', 'hs20_deauth_req_timeout',
  		'hs20_wan_metrics', 'hs20_operating_class', 'hs20_t_c_filename', 'hs20_t_c_timestamp',
@@ -179,7 +257,7 @@ index 28b5476f..75c3a042 100644
  }
  
  function iface_interworking(config) {
-@@ -462,13 +526,14 @@ function iface_interworking(config) {
+@@ -462,13 +541,14 @@ function iface_interworking(config) {
  		config.domain_name = join(',', config.domain_name);
  
  	if (config.anqp_3gpp_cell_net)
@@ -197,7 +275,7 @@ index 28b5476f..75c3a042 100644
  }
  
  function iface_rates(config, dev_config) {
-@@ -487,7 +552,7 @@ function iface_mtk_options(config) {
+@@ -487,7 +567,7 @@ function iface_mtk_options(config) {
  			      'fils_discovery_min_interval',
  			      'fils_discovery_max_interval',
  			      'rssi_reject_assoc_timeout',
@@ -206,7 +284,7 @@ index 28b5476f..75c3a042 100644
  			      'assocresp_elements',
  			      'eml_disable',
  			      'emlsr_on_one_link' ]);
-@@ -545,6 +610,8 @@ export function generate(interface, data, config, vlans, stas, phy_features) {
+@@ -545,6 +625,8 @@ export function generate(interface, data, config, vlans, stas, phy_features) {
  
  	iface_mfp(config);
  

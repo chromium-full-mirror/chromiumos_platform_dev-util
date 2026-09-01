@@ -1,0 +1,25 @@
+diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/iface.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/iface.uc
+index c0516c99..2741ad96 100644
+--- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/iface.uc
++++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/iface.uc
+@@ -24,6 +24,20 @@ export function parse_encryption(config, dev_config) {
+ 		wpa3_pairwise = 'GCMP-256 ' + wpa3_pairwise;
+ 
+ 	switch(config.auth_type) {
++	case 'wep':
++	case 'wep-open':
++	case 'wep-shared':
++		let is_shared = (config.auth_type == 'wep-shared' || encryption[1] in [ 'shared', 'shared-key' ] || config.auth_mode == 'shared');
++		let is_mixed = (encryption[1] in [ 'open+shared', 'mixed' ] || config.auth_mode in [ 'mixed', 'open+shared' ]);
++		config.auth_type = 'wep';
++		if (is_shared)
++			config.auth_algs ??= 2;
++		else if (is_mixed)
++			config.auth_algs ??= 3;
++		else
++			config.auth_algs ??= 1;
++		break;
++
+ 	case 'owe':
+ 		config.auth_type = 'owe';
+ 		break;
