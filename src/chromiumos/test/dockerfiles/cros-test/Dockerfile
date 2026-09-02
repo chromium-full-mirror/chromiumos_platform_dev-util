@@ -2,45 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-FROM python:3.8-slim-buster AS build
-
-# Point to the Debian archive for the EoL "Buster" distribution, then update and install packages.
-# sox added as requested.
-# attr, unzip are for CTS specifically.
-# squashfs-tools, and zstd is for Uprev specifically.
-RUN sed -i -e 's/deb.debian.org/archive.debian.org/g' -e 's|security.debian.org/debian-security|archive.debian.org/debian-security|g' -e '/buster-updates/d' /etc/apt/sources.list \
-    && apt-get update \
-    && apt-get install -y \
-      attr \
-      ca-certificates \
-      curl \
-      iproute2 \
-      iputils-ping \
-      python-pip \
-      rsync \
-      sox \
-      squashfs-tools \
-      ssh \
-      sudo \
-      unzip \
-      wget \
-      xxd \
-      zstd
-
-# grab gsutil
-RUN echo \
-    "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] \
-    http://packages.cloud.google.com/apt cloud-sdk main" | \
-    tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
-    apt-key --keyring /usr/share/keyrings/cloud.google.gpg  \
-    add - && apt-get update -y && apt-get install google-cloud-sdk=369.0.0-0 -y
-RUN rm -rf /usr/lib/google-cloud-sdk/bin/anthoscli \
-  /usr/lib/google-cloud-sdk/bin/kuberun
-
-# Point /usr/bin/python3 to usr/local/bin/python3. See b/191884161
-RUN sudo rm /usr/bin/python3*; exit 0
-RUN sudo ln -s /usr/local/bin/python3 /usr/bin/python3
+# Inherit from prebuilt cros-test-full-base image containing google-cloud-cli, gcc, and bzip2
+FROM us-docker.pkg.dev/cros-registry/test-services/cros-test-full-base:prod_cros-test-full-base
 
 # Config the user
 # dialout added for b/273797484
