@@ -32,7 +32,7 @@ index aa176cac..713bdd3e 100644
  			];
  
  			if (config.htmode == 'EHT320-2' || (config.htmode == 'EHT320' && config.channel > 189)) {
-@@ -309,20 +309,21 @@ function device_htmode_append(config) {
+@@ -309,20 +309,23 @@ function device_htmode_append(config) {
  			config.op_class = 137;
  			config.eht_oper_chwidth = 9;
  
@@ -50,10 +50,12 @@ index aa176cac..713bdd3e 100644
 -					break;
 -
 -			}
-+			if (config.htmode == 'EHT320-1' || config.htmode == 'EHT320-2')
++			if (config.htmode == 'EHT320-2' || (config.htmode == 'EHT320' && (config.eht_oper_centr_freq_seg0_idx - 31) % 64 != 0))
++				config.eht_bw320_offset = 2;
++			else if (config.htmode == 'EHT320-1' || config.htmode == 'EHT320')
 +				config.eht_bw320_offset = 1;
 +			else
-+				config.eht_bw320_offset = (config.channel < config.eht_oper_centr_freq_seg0_idx) ? 0 : 1;
++				config.eht_bw320_offset = 0;
 +
 +			/*
 +			 * Set HE operation values for 160MHz backward compatibility

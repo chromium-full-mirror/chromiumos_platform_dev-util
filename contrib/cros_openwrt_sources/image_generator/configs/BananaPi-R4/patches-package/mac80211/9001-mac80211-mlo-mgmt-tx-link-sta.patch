@@ -1,18 +1,33 @@
 --- a/net/mac80211/offchannel.c
 +++ b/net/mac80211/offchannel.c
-@@ -858,6 +858,11 @@ int ieee80211_mgmt_tx(struct wiphy *wiph
+@@ -858,6 +858,16 @@ int ieee80211_mgmt_tx(struct wiphy *wiph
  
  		rcu_read_lock();
  		sta = sta_info_get_bss(sdata, mgmt->da);
 +		if (!sta) {
-+			struct link_sta_info *link_sta = link_sta_info_get_bss(sdata, mgmt->da);
-+			if (link_sta)
++			struct link_sta_info *link_sta;
++
++			link_sta = link_sta_info_get_bss(sdata, mgmt->da);
++			if (link_sta) {
 +				sta = link_sta->sta;
++				if (params->link_id < 0)
++					link_id = link_sta->link_id;
++			}
 +		}
  		mlo_sta = sta && sta->sta.mlo;
  
  		if (!ieee80211_is_action(mgmt->frame_control) ||
-@@ -922,7 +927,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiph
+@@ -874,7 +884,8 @@ int ieee80211_mgmt_tx(struct wiphy *wiph
+ 			rcu_read_unlock();
+ 			return -ENOLINK;
+ 		}
+-		link_id = params->link_id;
++		if (params->link_id >= 0)
++			link_id = params->link_id;
+ 		rcu_read_unlock();
+ 		break;
+ 	case NL80211_IFTYPE_STATION:
+@@ -922,7 +933,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiph
  
  		rcu_read_lock();
  
@@ -21,17 +36,15 @@
  		    ether_addr_equal(sdata->vif.addr, mgmt->sa)) {
  			unsigned long links = sdata->vif.active_links;
  
-@@ -934,7 +939,12 @@ int ieee80211_mgmt_tx(struct wiphy *wiph
+@@ -934,7 +945,10 @@ int ieee80211_mgmt_tx(struct wiphy *wiph
  				if (!chanctx_conf)
  					continue;
  
 -				if (params->chan == chanctx_conf->def.chan) {
-+				if (params->link_id >= 0) {
-+					if (params->link_id == link) {
-+						link_id = link;
-+						break;
-+					}
-+				} else if (params->chan == chanctx_conf->def.chan) {
++				if (params->link_id >= 0 && params->link_id != link)
++					continue;
++
++				if (params->chan == chanctx_conf->def.chan) {
  					link_id = link;
  					break;
  				}
