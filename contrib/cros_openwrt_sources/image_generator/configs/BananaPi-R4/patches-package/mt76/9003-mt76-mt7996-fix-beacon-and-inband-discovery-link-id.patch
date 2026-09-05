@@ -1,0 +1,48 @@
+Index: mt76-2026.03.05~9f95baf9/mt7996/mac.c
+===================================================================
+--- mt76-2026.03.05~9f95baf9.orig/mt7996/mac.c
++++ mt76-2026.03.05~9f95baf9/mt7996/mac.c
+@@ -861,8 +861,10 @@ void mt7996_mac_write_txwi(struct mt7996
+ 	if (mvif) {
+ 		if (wcid->offchannel)
+ 			mlink = rcu_dereference(mvif->mt76.offchannel_link);
+-		if (!mlink)
++		if (!mlink && link_id < IEEE80211_MLD_MAX_NUM_LINKS)
+ 			mlink = rcu_dereference(mvif->mt76.link[link_id]);
++		if (!mlink)
++			mlink = &mvif->deflink.mt76;
+ 	}
+ 
+ 	if (mlink) {
+Index: mt76-2026.03.05~9f95baf9/mt7996/mcu.c
+===================================================================
+--- mt76-2026.03.05~9f95baf9.orig/mt7996/mcu.c
++++ mt76-2026.03.05~9f95baf9/mt7996/mcu.c
+@@ -4624,6 +4624,7 @@ mt7996_mcu_beacon_cont(struct mt7996_dev
+ 		       struct ieee80211_mutable_offsets *offs)
+ {
+ 	u8 *buf, keyidx = link->msta_link.wcid.hw_key_idx2;
++	struct ieee80211_tx_info *info;
+ 	struct mt76_wcid *wcid;
+ 
+ 	if (is_mt7990(&dev->mt76) && (keyidx == 6 || keyidx == 7))
+@@ -4643,6 +4644,10 @@ mt7996_mcu_beacon_cont(struct mt7996_dev
+ 			bcn->bcc_ie_pos = cpu_to_le16(offset - 3);
+ 	}
+ 
++	info = IEEE80211_SKB_CB(skb);
++	info->control.flags |= u32_encode_bits(link_conf->link_id,
++					       IEEE80211_TX_CTRL_MLO_LINK);
++
+ 	buf = (u8 *)bcn + sizeof(*bcn);
+ 	mt7996_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, NULL, 0, 0,
+ 			      BSS_CHANGED_BEACON);
+@@ -5115,6 +5120,8 @@ int mt7996_mcu_beacon_inband_discov(stru
+ 
+ 	info = IEEE80211_SKB_CB(skb);
+ 	info->control.vif = vif;
++	info->control.flags |= u32_encode_bits(link_conf->link_id,
++					       IEEE80211_TX_CTRL_MLO_LINK);
+ 	info->band = band;
+ 	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, phy->mt76->band_idx);
+ 
