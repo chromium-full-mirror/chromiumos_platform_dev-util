@@ -5,6 +5,9 @@
 # Inherit from prebuilt cros-test-full-base image containing google-cloud-cli, gcc, and bzip2
 FROM us-docker.pkg.dev/cros-registry/test-services/cros-test-full-base:prod_cros-test-full-base
 
+# Dependency of cheets_STS
+RUN apt-get update && apt-get install -y file fakeroot
+
 # Config the user
 # dialout added for b/273797484
 RUN useradd -m chromeos-test -G dialout
