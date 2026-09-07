@@ -1,5 +1,26 @@
+diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-device.json b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-device.json
+index a011e08d..3a5ad87c 100644
+--- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-device.json
++++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/schema/wireless.wifi-device.json
+@@ -745,6 +745,16 @@
+ 			"type": "boolean",
+ 			"default": true
+ 		},
++		"edcca_enable": {
++			"description": "MediaTek EDCCA enable/disable (0 = disable, 1 = enable)",
++			"type": "number",
++			"minimum": 0,
++			"maximum": 1
++		},
++		"edcca_compensation": {
++			"description": "MediaTek EDCCA compensation value",
++			"type": "number"
++		},
+ 		"pp_mode": {
+ 			"description": "PP mode. 0: disabled, 1: FW mode, 2: user mode",
+ 			"type": "number",
 diff --git a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/hostapd.uc b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/hostapd.uc
-index aa176cac..f7a349e3 100644
+index aa176cac..713bdd3e 100644
 --- a/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/hostapd.uc
 +++ b/autobuild/unified/filogic/mac80211/25.12/files/package/network/config/wifi-scripts/files-ucode/usr/share/ucode/wifi/hostapd.uc
 @@ -292,7 +292,7 @@ function device_htmode_append(config) {
@@ -101,3 +122,11 @@ index aa176cac..f7a349e3 100644
  }
  
  function device_capabilities(config) {
+@@ -531,6 +541,7 @@ function device_capabilities(config) {
+ 
+ function device_mtk_options(config) {
+ 	append_vars(config, [ 'pp_mode', 'mu_onoff',
++			      'edcca_enable', 'edcca_compensation',
+ 			      'background_cert_mode', 'he_twt_responder', 'lpi_psd',
+ 			      'lpi_bcn_enhance', 'sku_idx', 'lpi_sku_idx' ]);
+ 

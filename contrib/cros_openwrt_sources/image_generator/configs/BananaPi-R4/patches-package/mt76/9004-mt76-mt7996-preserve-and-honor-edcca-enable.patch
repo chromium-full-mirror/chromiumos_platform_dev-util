@@ -1,0 +1,45 @@
+Index: mt76-2026.03.05~9f95baf9/mt7996/main.c
+===================================================================
+--- mt76-2026.03.05~9f95baf9.orig/mt7996/main.c
++++ mt76-2026.03.05~9f95baf9/mt7996/main.c
+@@ -68,6 +68,7 @@ int mt7996_run(struct mt7996_phy *phy)
+ 	if (ret)
+ 		return ret;
+ 
++	phy->edcca_enable = true;
+ 	memset(phy->user_edcca_threshold, MT7996_EDCCA_DEFAULT_THRESHOLD,
+ 	       EDCCA_MAX_BW_NUM);
+ 
+@@ -786,7 +787,7 @@ int mt7996_set_channel(struct mt76_phy *
+ 	}
+ 
+ 	if (mphy->chanctx && mphy->chanctx->state == MT76_CHANCTX_STATE_ADD) {
+-		ret = mt7996_mcu_edcca_enable(phy, true);
++		ret = mt7996_mcu_edcca_enable(phy, phy->edcca_enable);
+ 		if (ret)
+ 			goto out;
+ 
+Index: mt76-2026.03.05~9f95baf9/mt7996/mt7996.h
+===================================================================
+--- mt76-2026.03.05~9f95baf9.orig/mt7996/mt7996.h
++++ mt76-2026.03.05~9f95baf9/mt7996/mt7996.h
+@@ -811,6 +811,7 @@ struct mt7996_phy {
+ 	bool thermal_protection_enable:1;
+ 	bool mru_probe_enable:1;
+ #endif
++	bool edcca_enable;
+ 	u8 user_edcca_threshold[EDCCA_MAX_BW_NUM];
+ 	/* Index 0 (TxBSS) is not used */
+ 	struct mt7996_vif_link __rcu *mbssid_conf[MT7996_MAX_MBSSID];
+Index: mt76-2026.03.05~9f95baf9/mt7996/vendor.c
+===================================================================
+--- mt76-2026.03.05~9f95baf9.orig/mt7996/vendor.c
++++ mt76-2026.03.05~9f95baf9/mt7996/vendor.c
+@@ -748,6 +748,7 @@ static int mt7996_vendor_edcca_ctrl(stru
+ 			return -EINVAL;
+ 
+ 		edcca_enable = nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL]);
++		phy->edcca_enable = !!edcca_enable;
+ 
+ 		return mt7996_mcu_edcca_enable(phy, !!edcca_enable);
+ 	case EDCCA_CTRL_SET_THRES:

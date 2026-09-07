@@ -43,10 +43,20 @@ index 090e8d3d..1e5861e4 100644
  		"lci": {
  			"description": "The content of a LCI measurement subelement",
  			"type": "string"
-@@ -949,6 +976,11 @@
+@@ -949,6 +976,21 @@
  			"type": "boolean",
  			"default": true
  		},
++		"edcca_enable": {
++			"description": "MediaTek EDCCA enable/disable (0 = disable, 1 = enable)",
++			"type": "number",
++			"minimum": 0,
++			"maximum": 1
++		},
++		"edcca_compensation": {
++			"description": "MediaTek EDCCA compensation value",
++			"type": "number"
++		},
 +		"rnr_colocation": {
 +			"description": "Enable co-located reduced neighbor reporting",
 +			"type": "boolean",
@@ -55,7 +65,7 @@ index 090e8d3d..1e5861e4 100644
  		"roaming_consortium": {
  			"description": "Roaming Consortium List",
  			"type": "array",
-@@ -1126,6 +1158,14 @@
+@@ -1126,6 +1168,14 @@
  			"type": "boolean",
  			"default": false
  		},
@@ -275,16 +285,17 @@ index 28b5476f..efcafc37 100644
  }
  
  function iface_rates(config, dev_config) {
-@@ -487,7 +567,7 @@ function iface_mtk_options(config) {
+@@ -487,7 +567,8 @@ function iface_mtk_options(config) {
  			      'fils_discovery_min_interval',
  			      'fils_discovery_max_interval',
  			      'rssi_reject_assoc_timeout',
 -			      'rnr', 'mld_addr', 'group_cipher',
 +			      'rnr', 'rnr_colocation', 'mld_addr', 'group_cipher',
++			      'edcca_enable', 'edcca_compensation',
  			      'assocresp_elements',
  			      'eml_disable',
  			      'emlsr_on_one_link' ]);
-@@ -545,6 +625,8 @@ export function generate(interface, data, config, vlans, stas, phy_features) {
+@@ -545,6 +626,8 @@ export function generate(interface, data, config, vlans, stas, phy_features) {
  
  	iface_mfp(config);
  
