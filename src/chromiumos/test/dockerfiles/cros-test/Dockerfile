@@ -165,6 +165,7 @@ RUN sudo mkdir -p /opt/browser-tools
 RUN sudo mv /usr/bin/vpython3 /opt/browser-tools/vpython3
 RUN sudo mv /usr/bin/3.8/ /opt/browser-tools/3.8/
 RUN sudo mv /usr/bin/3.11/ /opt/browser-tools/3.11/
+RUN sudo mv /usr/bin/uv/ /opt/browser-tools/uv/
 # vpython3 relies on CIPD to activate virtual env.
 COPY --chown=chromeos-test:chromeos-test cipd /opt/browser-tools/cipd
 
