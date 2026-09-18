@@ -53,7 +53,7 @@ import health_checker
 import setup_chromite  # pylint: disable=unused-import
 from six.moves import http_client
 
-from chromite.lib import cros_build_lib
+from chromite.lib import compression_lib
 from chromite.lib.xbuddy import artifact_info
 from chromite.lib.xbuddy import build_artifact
 from chromite.lib.xbuddy import common_util
@@ -73,11 +73,17 @@ def _Log(message, *args):
 CACHED_ENTRIES = 12
 
 TELEMETRY_FOLDER = "telemetry_src"
+# Each entry lists the compression variants of one dependency, in the order
+# they are tried. Older builds only publish bzip2 and transitional builds may
+# publish both. bzip2 goes first because extracting it needs no extra tooling,
+# whereas zstd makes chromite find or fetch pzstd; zstd is used once a build
+# stops publishing bzip2. The variants are local files, so the order costs no
+# extra request.
 TELEMETRY_DEPS = [
-    "dep-telemetry_dep.tar.bz2",
-    "dep-page_cycler_dep.tar.bz2",
-    "dep-chrome_test.tar.bz2",
-    "dep-perf_data_dep.tar.bz2",
+    ("dep-telemetry_dep.tar.bz2", "dep-telemetry_dep.tar.zst"),
+    ("dep-page_cycler_dep.tar.bz2", "dep-page_cycler_dep.tar.zst"),
+    ("dep-chrome_test.tar.bz2", "dep-chrome_test.tar.zst"),
+    ("dep-perf_data_dep.tar.bz2", "dep-perf_data_dep.tar.zst"),
 ]
 
 # Sets up global to share between classes.
@@ -746,14 +752,24 @@ class DevServerRoot(object):
             common_util.MkDirP(telemetry_path)
 
             # Copy over the required deps tar balls to the telemetry directory.
-            for dep in TELEMETRY_DEPS:
-                dep_path = os.path.join(deps_path, dep)
-                if not os.path.exists(dep_path):
+            for variants in TELEMETRY_DEPS:
+                dep_path = None
+                for variant in variants:
+                    candidate = os.path.join(deps_path, variant)
+                    if os.path.exists(candidate):
+                        dep_path = candidate
+                        break
+                if dep_path is None:
                     # This dep does not exist (could be new), do not extract it.
                     continue
+                _Log(
+                    "Extracting telemetry dependency %s to %s",
+                    dep_path,
+                    telemetry_path,
+                )
                 try:
-                    cros_build_lib.ExtractTarball(dep_path, telemetry_path)
-                except cros_build_lib.TarballError as e:
+                    compression_lib.extract_tarball(dep_path, telemetry_path)
+                except compression_lib.TarballError as e:
                     shutil.rmtree(telemetry_path)
                     raise DevServerError(str(e))
 
