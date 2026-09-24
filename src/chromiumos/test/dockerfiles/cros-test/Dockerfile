@@ -5,8 +5,8 @@
 # Inherit from prebuilt cros-test-full-base image containing google-cloud-cli, gcc, and bzip2
 FROM us-docker.pkg.dev/cros-registry/test-services/cros-test-full-base:prod_cros-test-full-base
 
-# Dependency of cheets_STS
-RUN apt-get update && apt-get install -y file fakeroot
+# Dependency of cheets_STS and tast-cmd (app-arch/xz-utils for .tar.xz extraction)
+RUN apt-get update && apt-get install -y file fakeroot xz-utils/bullseye
 
 # Config the user
 # dialout added for b/273797484
