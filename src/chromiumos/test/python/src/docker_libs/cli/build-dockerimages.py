@@ -3,6 +3,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# /// script
+# requires-python = '>=3.11,<3.12'
+# ///
+
 """Entry point for cros-test cloudbuild."""
 
 import argparse
