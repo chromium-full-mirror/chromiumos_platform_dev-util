@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # Copyright 2009-2012 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -24,6 +23,7 @@ how to update and which payload to give to a requester.
 
 from __future__ import print_function
 
+import http.client
 import json
 import logging
 from logging import handlers
@@ -38,7 +38,7 @@ import tempfile
 import threading
 import types
 
-import autoupdate
+import autoupdate  # pylint: disable=import-error
 
 # pylint: disable=no-name-in-module, import-error
 import cherrypy
@@ -51,7 +51,6 @@ import health_checker
 # anything from chromite.  Otherwise, really bad things will happen, and
 # you will _not_ understand why.
 import setup_chromite  # pylint: disable=unused-import
-from six.moves import http_client
 
 from chromite.lib import compression_lib
 from chromite.lib.xbuddy import artifact_info
@@ -112,7 +111,7 @@ class DevServerError(Exception):
 
 
 class DeprecatedRPCError(DevServerError):
-    """Exception class used when an RPC is deprecated but is still being used."""
+    """Exception class used when an RPC is deprecated but still being used."""
 
     def __init__(self, rpc_name):
         """Constructor for DeprecatedRPCError class.
@@ -132,8 +131,8 @@ class DevServerHTTPError(cherrypy.HTTPError):
         """CherryPy error with logging.
 
         Args:
-          status: HTTPResponse status.
-          message: Message associated with the response.
+            status: HTTPResponse status.
+            message: Message associated with the response.
         """
         cherrypy.HTTPError.__init__(self, status, message)
         _Log("HTTPError status: %s message: %s", status, message)
@@ -143,7 +142,7 @@ def _canonicalize_archive_url(archive_url):
     """Canonicalizes archive_url strings.
 
     Raises:
-      DevserverError: if archive_url is not set.
+        DevserverError: if archive_url is not set.
     """
     if archive_url:
         if not archive_url.startswith("gs://"):
@@ -160,7 +159,7 @@ def _canonicalize_local_path(local_path):
     """Canonicalizes |local_path| strings.
 
     Raises:
-      DevserverError: if |local_path| is not set.
+        DevserverError: if |local_path| is not set.
     """
     # Restrict staging of local content to only files within the static
     # directory.
@@ -178,7 +177,7 @@ def _get_artifacts(kwargs):
     """Returns a tuple of named and file artifacts given the stage rpc kwargs.
 
     Raises:
-      DevserverError if no artifacts would be returned.
+        DevserverError if no artifacts would be returned.
     """
     artifacts = kwargs.get("artifacts")
     files = kwargs.get("files")
@@ -197,7 +196,7 @@ def _get_downloader(kwargs):
     """Returns the downloader based on passed in arguments.
 
     Args:
-      kwargs: Keyword arguments for the request.
+        kwargs: Keyword arguments for the request.
     """
     local_path = kwargs.get("local_path")
     if local_path:
@@ -236,7 +235,7 @@ def _get_downloader_and_factory(kwargs):
     """Returns the downloader and artifact factory based on passed in arguments.
 
     Args:
-      kwargs: Keyword arguments for the request.
+        kwargs: Keyword arguments for the request.
     """
     artifacts, files = _get_artifacts(kwargs)
     dl = _get_downloader(kwargs)
@@ -259,10 +258,10 @@ def _LeadingWhiteSpaceCount(string):
     """Count the amount of leading whitespace in a string.
 
     Args:
-      string: The string to count leading whitespace in.
+        string: The string to count leading whitespace in.
 
     Returns:
-      number of white space chars before characters start.
+        number of white space chars before characters start.
     """
     matched = re.match(r"^\s+", string)
     if matched:
@@ -275,10 +274,10 @@ def _PrintDocStringAsHTML(func):
     """Make a functions docstring somewhat HTML style.
 
     Args:
-      func: The function to return the docstring from.
+        func: The function to return the docstring from.
 
     Returns:
-      A string that is somewhat formated for a web browser.
+        A string that is somewhat formated for a web browser.
     """
     # TODO(scottz): Make this parse Args/Returns in a prettier way.
     # Arguments could be bolded and indented etc.
@@ -299,10 +298,10 @@ def _GetUpdateTimestampHandler(static_dir):
     This handler resets the stage.timestamp whenever static content is accessed.
 
     Args:
-      static_dir: Directory from which static content is being staged.
+        static_dir: Directory from which static content is being staged.
 
     Returns:
-      A cherrypy handler to update the timestamp of accessed content.
+        A cherrypy handler to update the timestamp of accessed content.
     """
 
     def UpdateTimestampHandler():
@@ -371,11 +370,11 @@ def _GetRecursiveMemberObject(root, member_list):
     """Returns an object corresponding to a nested member list.
 
     Args:
-      root: the root object to search
-      member_list: list of nested members to search
+        root: the root object to search
+        member_list: list of nested members to search
 
     Returns:
-      An object corresponding to the member name list; None otherwise.
+        An object corresponding to the member name list; None otherwise.
     """
     for member in member_list:
         next_root = root.__class__.__dict__.get(member)
@@ -394,11 +393,12 @@ def _GetExposedMethod(nested_member):
     """Returns a CherryPy-exposed method, if such exists.
 
     Args:
-      nested_member: a slash-joined path to the nested member
+        nested_member: a slash-joined path to the nested member
 
     Returns:
-      A function object corresponding to the path defined by |nested_member| from
-      the app root object registered, if the function is exposed; None otherwise.
+        A function object corresponding to the path defined by |nested_member|
+        from the app root object registered, if the function is exposed; None
+        otherwise.
     """
     for app in cherrypy.tree.apps.values():
         # Use the 'index' function doc as the doc of the app.
@@ -418,12 +418,12 @@ def _FindExposedMethods(root, prefix, unlisted=None):
     """Finds exposed CherryPy methods.
 
     Args:
-      root: the root object for searching
-      prefix: slash-joined chain of members leading to current object
-      unlisted: URLs to be excluded regardless of their exposed status
+        root: the root object for searching
+        prefix: slash-joined chain of members leading to current object
+        unlisted: URLs to be excluded regardless of their exposed status
 
     Returns:
-      List of exposed URLs that are not unlisted.
+        List of exposed URLs that are not unlisted.
     """
     method_list = []
     for member in root.__class__.__dict__.keys():
@@ -433,8 +433,8 @@ def _FindExposedMethods(root, prefix, unlisted=None):
         member_obj = root.__class__.__dict__[member]
         if _IsExposed(member_obj):
             if isinstance(member_obj, types.FunctionType):
-                # Regard the app name as exposed "method" name if it exposed 'index'
-                # function.
+                # Regard the app name as exposed "method" name if it exposed
+                # 'index' function.
                 if prefix and member == "index":
                     method_list.append(prefix)
                 else:
@@ -450,14 +450,15 @@ def _parse_boolean_arg(kwargs, key):
     """Parse boolean arg from kwargs.
 
     Args:
-      kwargs: the parameters to be checked.
-      key: the key to be parsed.
+        kwargs: the parameters to be checked.
+        key: the key to be parsed.
 
     Returns:
-      The boolean value of kwargs[key], or False if key doesn't exist in kwargs.
+        The boolean value of kwargs[key], or False if key doesn't exist in
+        kwargs.
 
     Raises:
-      DevServerHTTPError if kwargs[key] is not a boolean variable.
+        DevServerHTTPError if kwargs[key] is not a boolean variable.
     """
     if key in kwargs:
         if kwargs[key] == "True":
@@ -466,7 +467,7 @@ def _parse_boolean_arg(kwargs, key):
             return False
         else:
             raise DevServerHTTPError(
-                http_client.INTERNAL_SERVER_ERROR,
+                http.client.INTERNAL_SERVER_ERROR,
                 "The value for key %s is not boolean." % key,
             )
     else:
@@ -477,11 +478,12 @@ def _parse_string_arg(kwargs, key):
     """Parse string arg from kwargs.
 
     Args:
-      kwargs: the parameters to be checked.
-      key: the key to be parsed.
+        kwargs: the parameters to be checked.
+        key: the key to be parsed.
 
     Returns:
-      The string value of kwargs[key], or None if key doesn't exist in kwargs.
+        The string value of kwargs[key], or None if key doesn't exist in
+        kwargs.
     """
     if key in kwargs:
         return kwargs[key]
@@ -493,11 +495,11 @@ def _build_uri_from_build_name(build_name):
     """Get build url from a given build name.
 
     Args:
-      build_name: the build name to be parsed, whose format is
-          'board/release_version'.
+        build_name: the build name to be parsed, whose format is
+            'board/release_version'.
 
     Returns:
-      The release_archive_url on Google Storage for this build name.
+        The release_archive_url on Google Storage for this build name.
     """
     # TODO(ahassani): This function doesn't seem to be used anywhere since its
     # previous use of lib.paygen.gspath was broken and it doesn't seem to be
@@ -514,7 +516,7 @@ def is_deprecated_server():
     return cherrypy.config.get("infra_removal", False)
 
 
-class DevServerRoot(object):
+class DevServerRoot:
     """The Root Class for the Dev Server.
 
     CherryPy works as follows:
@@ -550,7 +552,7 @@ class DevServerRoot(object):
         if is_deprecated_server():
             raise DeprecatedRPCError("build")
 
-        import builder
+        import builder  # pylint: disable=import-error
 
         if self._builder is None:
             self._builder = builder.Builder()
@@ -561,21 +563,21 @@ class DevServerRoot(object):
         """Check if artifacts have been downloaded.
 
         Examples:
-          To check if autotest and test_suites are staged:
-            http://devserver_url:<port>/is_staged?archive_url=gs://your_url/path&
-                artifacts=autotest,test_suites
+            To check if autotest and test_suites are staged:
+                http://devserver_url:<port>/is_staged?archive_url=gs://your_url/path&
+                    artifacts=autotest,test_suites
 
         Args:
-          async: True to return without waiting for download to complete.
-          artifacts: Comma separated list of named artifacts to download.
-            These are defined in artifact_info and have their implementation
-            in build_artifact.py.
-          files: Comma separated list of file artifacts to stage. These
-            will be available as is in the corresponding static directory with no
-            custom post-processing.
+            async: True to return without waiting for download to complete.
+            artifacts: Comma separated list of named artifacts to download.
+                These are defined in artifact_info and have their implementation
+                in build_artifact.py.
+            files: Comma separated list of file artifacts to stage. These
+                will be available as is in the corresponding static directory
+                with no custom post-processing.
 
         Returns:
-          True of all artifacts are staged.
+            True of all artifacts are staged.
         """
         dl, factory = _get_downloader_and_factory(kwargs)
         response = str(dl.IsStaged(factory))
@@ -587,15 +589,16 @@ class DevServerRoot(object):
         """Take an archive url and list the contents in its staged directory.
 
         Examples:
-          To list the contents of where this devserver should have staged
-          gs://image-archive/<board>-release/<build> call:
-          http://devserver_url:<port>/list_image_dir?archive_url=<gs://..>
+            To list the contents of where this devserver should have staged
+            gs://image-archive/<board>-release/<build> call:
+            http://devserver_url:<port>/list_image_dir?archive_url=<gs://..>
 
         Args:
-          archive_url: Google Storage URL for the build.
+            archive_url: Google Storage URL for the build.
 
         Returns:
-          A string with information about the contents of the image directory.
+            A string with information about the contents of the image
+            directory.
         """
         dl = _get_downloader(kwargs)
         try:
@@ -613,54 +616,55 @@ class DevServerRoot(object):
     def stage(self, **kwargs):
         """Downloads and caches build artifacts.
 
-        Downloads and caches build artifacts, possibly from a Google Storage URL,
-        or from Android's build server. Returns once these have been downloaded
-        on the devserver. A call to this will attempt to cache non-specified
-        artifacts in the background for the given from the given URL following
-        the principle of spatial locality. Spatial locality of different
-        artifacts is explicitly defined in the build_artifact module.
+        Downloads and caches build artifacts, possibly from a Google Storage
+        URL, or from Android's build server. Returns once these have been
+        downloaded on the devserver. A call to this will attempt to cache
+        non-specified artifacts in the background for the given from the given
+        URL following the principle of spatial locality. Spatial locality of
+        different artifacts is explicitly defined in the build_artifact module.
 
         These artifacts will then be available from the static/ sub-directory of
         the devserver.
 
         Examples:
-          To download the autotest and test suites tarballs:
-            http://devserver_url:<port>/stage?archive_url=gs://your_url/path&
-                artifacts=autotest,test_suites
-          To download the full update payload:
-            http://devserver_url:<port>/stage?archive_url=gs://your_url/path&
-                artifacts=full_payload
-          To download just a file called blah.bin:
-            http://devserver_url:<port>/stage?archive_url=gs://your_url/path&
-                files=blah.bin
+            To download the autotest and test suites tarballs:
+                http://devserver_url:<port>/stage?archive_url=gs://your_url/path&
+                    artifacts=autotest,test_suites
+            To download the full update payload:
+                http://devserver_url:<port>/stage?archive_url=gs://your_url/path&
+                    artifacts=full_payload
+            To download just a file called blah.bin:
+                http://devserver_url:<port>/stage?archive_url=gs://your_url/path&
+                    files=blah.bin
 
-          For both these examples, one could find these artifacts at:
-            http://devserver_url:<port>/static/<relative_path>*
+            For both these examples, one could find these artifacts at:
+                http://devserver_url:<port>/static/<relative_path>*
 
-          Note for this example, relative path is the archive_url stripped of its
-          basename i.e. path/ in the examples above. Specific example:
+            Note for this example, relative path is the archive_url stripped of
+            its basename i.e. path/ in the examples above. Specific example:
 
-          gs://chromeos-image-archive/x86-mario-release/R26-3920.0.0
+            gs://chromeos-image-archive/x86-mario-release/R26-3920.0.0
 
-          Will get staged to:
+            Will get staged to:
 
-          http://devserver_url:<port>/static/x86-mario-release/R26-3920.0.0
+            http://devserver_url:<port>/static/x86-mario-release/R26-3920.0.0
 
         Args:
-          archive_url: Google Storage URL for the build.
-          local_path: Local path for the build.
-          delete_source: Only meaningful with local_path. bool to indicate if the
-              source files should be deleted. This is especially useful when staging
-              a file locally in resource constrained environments as it allows us to
-              move the relevant files locally instead of copying them.
-          async: True to return without waiting for download to complete.
-          artifacts: Comma separated list of named artifacts to download.
-            These are defined in artifact_info and have their implementation
-            in build_artifact.py.
-          files: Comma separated list of files to stage. These
-            will be available as is in the corresponding static directory with no
-            custom post-processing.
-          clean: True to remove any previously staged artifacts first.
+            archive_url: Google Storage URL for the build.
+            local_path: Local path for the build.
+            delete_source: Only meaningful with local_path. bool to indicate if
+                the source files should be deleted. This is especially useful
+                when staging a file locally in resource constrained environments
+                as it allows us to move the relevant files locally instead of
+                copying them.
+            async: True to return without waiting for download to complete.
+            artifacts: Comma separated list of named artifacts to download.
+                These are defined in artifact_info and have their implementation
+                in build_artifact.py.
+            files: Comma separated list of files to stage. These
+                will be available as is in the corresponding static directory
+                with no custom post-processing.
+            clean: True to remove any previously staged artifacts first.
         """
         dl, factory = _get_downloader_and_factory(kwargs)
 
@@ -682,18 +686,18 @@ class DevServerRoot(object):
     def locate_file(self, **kwargs):
         """Get the path to the given file name.
 
-        This method looks up the given file name inside specified build artifacts.
-        One use case is to help caller to locate an apk file inside a build
-        artifact. The location of the apk file could be different based on the
-        branch and target.
+        This method looks up the given file name inside specified build
+        artifacts. One use case is to help caller to locate an apk file inside
+        a build artifact. The location of the apk file could be different based
+        on the branch and target.
 
         Args:
-          file_name: Name of the file to look for.
-          artifacts: A list of artifact names to search for the file.
+            file_name: Name of the file to look for.
+            artifacts: A list of artifact names to search for the file.
 
         Returns:
-          Path to the file with the given name. It's relative to the folder for the
-          build, e.g., DATA/priv-app/sl4a/sl4a.apk
+            Path to the file with the given name. It's relative to the folder
+            for the build, e.g., DATA/priv-app/sl4a/sl4a.apk
         """
         if is_deprecated_server():
             raise DeprecatedRPCError("locate_file")
@@ -710,12 +714,12 @@ class DevServerRoot(object):
         build_path = dl.GetBuildDir()
         for artifact in artifacts:
             # Get the unzipped folder of the artifact. If it's not defined in
-            # ARTIFACT_UNZIP_FOLDER_MAP, assume the files are unzipped to the build
-            # directory directly.
+            # ARTIFACT_UNZIP_FOLDER_MAP, assume the files are unzipped to the
+            # build directory directly.
             folder = artifact_info.ARTIFACT_UNZIP_FOLDER_MAP.get(artifact, "")
             artifact_path = os.path.join(build_path, folder)
             for root, _, filenames in os.walk(artifact_path):
-                if file_name in set([f for f in filenames]):
+                if file_name in filenames:
                     return os.path.relpath(
                         os.path.join(root, file_name), build_path
                     )
@@ -732,10 +736,11 @@ class DevServerRoot(object):
         the devserver to be used by the drones and the telemetry tests.
 
         Args:
-          archive_url: Google Storage URL for the build.
+            archive_url: Google Storage URL for the build.
 
         Returns:
-          Path to the source folder for the telemetry codebase once it is staged.
+            Path to the source folder for the telemetry codebase once it is
+            staged.
         """
         dl = _get_downloader(kwargs)
 
@@ -774,12 +779,14 @@ class DevServerRoot(object):
                     raise DevServerError(str(e))
 
             # By default all the tarballs extract to test_src but some parts of
-            # the telemetry code specifically hardcoded to exist inside of 'src'.
+            # the telemetry code specifically hardcoded to exist inside of
+            # 'src'.
             test_src = os.path.join(telemetry_path, "test_src")
             try:
                 shutil.move(test_src, src_folder)
             except shutil.Error:
-                # This can occur if src_folder already exists. Remove and retry move.
+                # This can occur if src_folder already exists. Remove and retry
+                # move.
                 shutil.rmtree(src_folder)
                 raise DevServerError(
                     "Failure in telemetry setup for build %s. Appears that the "
@@ -798,8 +805,8 @@ class DevServerRoot(object):
         binary-formatted minidump to symbolicate.
 
         Args:
-          archive_url: Google Storage URL for the build.
-          minidump: The binary minidump file to symbolicate.
+            archive_url: Google Storage URL for the build.
+            minidump: The binary minidump file to symbolicate.
         """
         if is_deprecated_server():
             raise DeprecatedRPCError("symbolicate_dump")
@@ -835,7 +842,7 @@ class DevServerRoot(object):
             )
 
             # The location of minidump_stackwalk is defined in chromeos-admin.
-            stackwalk = subprocess.Popen(
+            with subprocess.Popen(
                 [
                     "/usr/local/bin/minidump_stackwalk",
                     local.name,
@@ -843,9 +850,8 @@ class DevServerRoot(object):
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-            )
-
-            to_return, error_text = stackwalk.communicate()
+            ) as stackwalk:
+                to_return, error_text = stackwalk.communicate()
             if stackwalk.returncode != 0:
                 raise DevServerError(
                     "Can't generate stack trace: %s (rc=%d)"
@@ -859,15 +865,15 @@ class DevServerRoot(object):
         """Return a string representing the latest build for a given target.
 
         Args:
-          target: The build target, typically a combination of the board and the
-              type of build e.g. x86-mario-release.
-          milestone: The milestone to filter builds on. E.g. R16. Optional, if not
-              provided the latest RXX build will be returned.
+            target: The build target, typically a combination of the board and
+                the type of build e.g. x86-mario-release.
+            milestone: The milestone to filter builds on. E.g. R16. Optional, if
+                not provided the latest RXX build will be returned.
 
         Returns:
-          A string representation of the latest build if one exists, i.e.
-              R19-1993.0.0-a1-b1480.
-          An empty string if no latest could be found.
+            A string representation of the latest build if one exists, i.e.
+                R19-1993.0.0-a1-b1480.
+            An empty string if no latest could be found.
         """
         if is_deprecated_server():
             raise DeprecatedRPCError("latestbuild")
@@ -877,7 +883,7 @@ class DevServerRoot(object):
 
         if "target" not in kwargs:
             raise DevServerHTTPError(
-                http_client.INTERNAL_SERVER_ERROR, "Error: target= is required!"
+                http.client.INTERNAL_SERVER_ERROR, "Error: target= is required!"
             )
 
         try:
@@ -888,7 +894,7 @@ class DevServerRoot(object):
             )
         except common_util.CommonUtilError as errmsg:
             raise DevServerHTTPError(
-                http_client.INTERNAL_SERVER_ERROR, str(errmsg)
+                http.client.INTERNAL_SERVER_ERROR, str(errmsg)
             )
 
     @cherrypy.expose
@@ -896,16 +902,17 @@ class DevServerRoot(object):
         """Return a list of contents of all known control files.
 
         Example URL:
-          To List all control files' content:
-          http://dev-server/list_suite_controls?suite_name=bvt&
-          build=daisy_spring-release/R29-4279.0.0
+            To List all control files' content:
+            http://dev-server/list_suite_controls?suite_name=bvt&
+            build=daisy_spring-release/R29-4279.0.0
 
         Args:
-          build: The build i.e. x86-alex-release/R18-1514.0.0-a1-b1450.
-          suite_name: List the control files belonging to that suite.
+            build: The build i.e. x86-alex-release/R18-1514.0.0-a1-b1450.
+            suite_name: List the control files belonging to that suite.
 
         Returns:
-          A dictionary of all control files's path to its content for given suite.
+            A dictionary of all control files's path to its content for given
+            suite.
         """
         if is_deprecated_server():
             raise DeprecatedRPCError("list_suite_controls")
@@ -915,12 +922,12 @@ class DevServerRoot(object):
 
         if "build" not in kwargs:
             raise DevServerHTTPError(
-                http_client.INTERNAL_SERVER_ERROR, "Error: build= is required!"
+                http.client.INTERNAL_SERVER_ERROR, "Error: build= is required!"
             )
 
         if "suite_name" not in kwargs:
             raise DevServerHTTPError(
-                http_client.INTERNAL_SERVER_ERROR,
+                http.client.INTERNAL_SERVER_ERROR,
                 "Error: suite_name= is required!",
             )
 
@@ -933,10 +940,10 @@ class DevServerRoot(object):
 
         control_file_content_dict = {}
         for control_path in control_file_list:
-            control_file_content_dict[
-                control_path
-            ] = common_util.GetControlFile(
-                updater.static_dir, kwargs["build"], control_path
+            control_file_content_dict[control_path] = (
+                common_util.GetControlFile(
+                    updater.static_dir, kwargs["build"], control_path
+                )
             )
 
         return json.dumps(control_file_content_dict)
@@ -946,26 +953,27 @@ class DevServerRoot(object):
         """Return a control file or a list of all known control files.
 
         Example URL:
-          To List all control files:
-          http://dev-server/controlfiles?suite_name=&build=daisy_spring-release/R29-4279.0.0
-          To List all control files for, say, the bvt suite:
-          http://dev-server/controlfiles?suite_name=bvt&build=daisy_spring-release/R29-4279.0.0
-          To return the contents of a path:
-          http://dev-server/controlfiles?board=x86-alex-release&build=R18-1514.0.0&control_path=client/sleeptest/control
+            To List all control files:
+            http://dev-server/controlfiles?suite_name=&build=daisy_spring-release/R29-4279.0.0
+            To List all control files for, say, the bvt suite:
+            http://dev-server/controlfiles?suite_name=bvt&build=daisy_spring-release/R29-4279.0.0
+            To return the contents of a path:
+            http://dev-server/controlfiles?board=x86-alex-release&build=R18-1514.0.0&control_path=client/sleeptest/control
 
         Args:
-          build: The build i.e. x86-alex-release/R18-1514.0.0-a1-b1450.
-          control_path: If you want the contents of a control file set this
-            to the path. E.g. client/site_tests/sleeptest/control
-            Optional, if not provided return a list of control files is returned.
-          suite_name: If control_path is not specified but a suite_name is
-            specified, list the control files belonging to that suite instead of
-            all control files. The empty string for suite_name will list all control
-            files for the build.
+            build: The build i.e. x86-alex-release/R18-1514.0.0-a1-b1450.
+            control_path: If you want the contents of a control file set this
+                to the path. E.g. client/site_tests/sleeptest/control
+                Optional, if not provided return a list of control files is
+                returned.
+            suite_name: If control_path is not specified but a suite_name is
+                specified, list the control files belonging to that suite
+                instead of all control files. The empty string for suite_name
+                will list all control files for the build.
 
         Returns:
-          Contents of a control file if control_path is provided.
-          A list of control files if no control_path is provided.
+            Contents of a control file if control_path is provided.
+            A list of control files if no control_path is provided.
         """
         if is_deprecated_server():
             raise DeprecatedRPCError("controlfiles")
@@ -975,7 +983,7 @@ class DevServerRoot(object):
 
         if "build" not in kwargs:
             raise DevServerHTTPError(
-                http_client.INTERNAL_SERVER_ERROR, "Error: build= is required!"
+                http.client.INTERNAL_SERVER_ERROR, "Error: build= is required!"
             )
 
         if "control_path" not in kwargs:
@@ -997,17 +1005,18 @@ class DevServerRoot(object):
         """Translates an xBuddy path to a real path to artifact if it exists.
 
         Args:
-          args: An xbuddy path in the form of {local|remote}/build_id/artifact.
-            Local searches the devserver's static directory. Remote searches a
-            Google Storage image archive.
+            *args: An xbuddy path in the form of
+                {local|remote}/build_id/artifact.
+                Local searches the devserver's static directory. Remote searches
+                a Google Storage image archive.
 
         Kwargs:
-          image_dir: Google Storage image archive to search in if requesting a
-            remote artifact. If none uses the default bucket.
+            image_dir: Google Storage image archive to search in if requesting
+                a remote artifact. If none uses the default bucket.
 
         Returns:
-          String in the format of build_id/artifact as stored on the local server
-          or in Google Storage.
+            String in the format of build_id/artifact as stored on the local
+            server or in Google Storage.
         """
         if is_deprecated_server():
             raise DeprecatedRPCError("xbuddy_translate")
@@ -1024,41 +1033,44 @@ class DevServerRoot(object):
         """The full xBuddy call, returns resource specified by path_parts.
 
         Args:
-          path_parts: the path following xbuddy/ in the call url is split into the
-            components of the path. The path can be understood as
-            "{local|remote}/build_id/artifact" where build_id is composed of
-            "board/version."
+            path_parts: the path following xbuddy/ in the call url is split into
+                the components of the path. The path can be understood as
+                "{local|remote}/build_id/artifact" where build_id is composed of
+                "board/version."
 
-            The first path element is optional, and can be "remote" or "local"
-              If local (the default), devserver will not attempt to access Google
-              Storage, and will only search the static directory for the files.
-              If remote, devserver will try to obtain the artifact off GS if it's
-              not found locally.
-            The board is the familiar board name, optionally suffixed.
-            The version can be the google storage version number, and may also be
-              any of a number of xBuddy defined version aliases that will be
-              translated into the latest built image that fits the description.
-              Defaults to latest.
-            The artifact is one of a number of image or artifact aliases used by
-              xbuddy, defined in xbuddy:ALIASES. Defaults to test.
+                The first path element is optional, and can be
+                "remote" or "local"
+                    If local (the default), devserver will not attempt to
+                    access Google Storage, and will only search the static
+                    directory for the files.
+                    If remote, devserver will try to obtain the artifact off GS
+                    if it's not found locally.
+                The board is the familiar board name, optionally suffixed.
+                The version can be the google storage version number, and may
+                    also be any of a number of xBuddy defined version aliases
+                    that will be translated into the latest built image that
+                    fits the description. Defaults to latest.
+                The artifact is one of a number of image or artifact aliases
+                    used by xbuddy, defined in xbuddy:ALIASES. Defaults to test.
 
         Kwargs:
-          return_dir: {true|false}
-                      if set to true, returns the url to the update.gz
-          relative_path: {true|false}
-                         if set to true, returns the relative path to the payload
-                         directory from static_dir.
+            return_dir: {true|false}
+                if set to true, returns the url to the update.gz
+            relative_path: {true|false}
+                if set to true, returns the relative path to the payload
+                directory from static_dir.
         Example URL:
-          http://host:port/xbuddy/x86-generic/R26-4000.0.0/test
-          or
-          http://host:port/xbuddy/x86-generic/R26-4000.0.0/test?return_dir=true
+            http://host:port/xbuddy/x86-generic/R26-4000.0.0/test
+            or
+            http://host:port/xbuddy/x86-generic/R26-4000.0.0/test?return_dir=true
 
         Returns:
-          If |return_dir|, return a uri to the folder where the artifact is. E.g.,
-            http://host:port/static/x86-generic-release/R26-4000.0.0/
-          If |relative_path| is true, return a relative path the folder where the
-          payloads are. E.g.,
-            archive/x86-generic-release/R26-4000.0.0
+            If |return_dir|, return a uri to the folder where the artifact
+            is. E.g.,
+                http://host:port/static/x86-generic-release/R26-4000.0.0/
+            If |relative_path| is true, return a relative path the folder where
+            the payloads are. E.g.,
+                archive/x86-generic-release/R26-4000.0.0
         """
         if is_deprecated_server():
             raise DeprecatedRPCError("xbuddy")
@@ -1070,7 +1082,7 @@ class DevServerRoot(object):
 
         if return_dir and relative_path:
             raise DevServerHTTPError(
-                http_client.INTERNAL_SERVER_ERROR,
+                http.client.INTERNAL_SERVER_ERROR,
                 "Cannot specify both return_dir and relative_path",
             )
 
@@ -1133,7 +1145,7 @@ class DevServerRoot(object):
         """Shows the documentation for available methods / URLs.
 
         Examples:
-          http://myhost/doc/update
+            http://myhost/doc/update
         """
         if is_deprecated_server():
             raise DeprecatedRPCError("doc")
@@ -1152,8 +1164,9 @@ class DevServerRoot(object):
     def update(self, *args, **kwargs):
         """Handles an update check from a Chrome OS client.
 
-        The HTTP request should contain the standard Omaha-style XML blob. The URL
-        line may contain an additional intermediate path to the update payload.
+        The HTTP request should contain the standard Omaha-style XML blob. The
+        URL line may contain an additional intermediate path to the update
+        payload.
 
         This request can be handled in one of 4 ways, depending on the devsever
         settings and intermediate path.
@@ -1161,31 +1174,33 @@ class DevServerRoot(object):
         1. No intermediate path. DEPRECATED
 
         2. Path explicitly invokes XBuddy
-        If there is a path given, it can explicitly invoke xbuddy by prefixing it
-        with 'xbuddy'. This path is then used to acquire an image binary for the
-        devserver to generate an update payload from. Devserver then serves this
-        payload.
+        If there is a path given, it can explicitly invoke xbuddy by prefixing
+        it with 'xbuddy'. This path is then used to acquire an image binary for
+        the devserver to generate an update payload from. Devserver then serves
+        this payload.
 
         3. Path is left for the devserver to interpret.
-        If the path given doesn't explicitly invoke xbuddy, devserver will attempt
-        to generate a payload from the test image in that directory and serve it.
+        If the path given doesn't explicitly invoke xbuddy, devserver will
+        attempt to generate a payload from the test image in that directory and
+        serve it.
 
         Examples:
-          2. Explicitly invoke xbuddy
-          update_engine_client --omaha_url=
-          http://myhost/update/xbuddy/remote/board/version/dev
-          This would go to GS to download the dev image for the board, from which
-          the devserver would generate a payload to serve.
+            2. Explicitly invoke xbuddy
+            update_engine_client --omaha_url=
+            http://myhost/update/xbuddy/remote/board/version/dev
+            This would go to GS to download the dev image for the board, from
+            which the devserver would generate a payload to serve.
 
-          3. Give a path for devserver to interpret
-          update_engine_client --omaha_url=http://myhost/update/some/random/path
-          This would attempt, in order to:
-            a) Generate an update from a test image binary if found in
-               static_dir/some/random/path.
-            b) Serve an update payload found in static_dir/some/random/path.
-            c) Hope that some/random/path takes the form "board/version" and
-               and attempt to download an update payload for that board/version
-               from GS.
+            3. Give a path for devserver to interpret
+            update_engine_client --omaha_url=
+            http://myhost/update/some/random/path
+            This would attempt, in order to:
+                a) Generate an update from a test image binary if found in
+                   static_dir/some/random/path.
+                b) Serve an update payload found in static_dir/some/random/path.
+                c) Hope that some/random/path takes the form "board/version" and
+                   and attempt to download an update payload for that
+                   board/version from GS.
         """
         label = "/".join(args)
         body_length = int(cherrypy.request.headers.get("Content-Length", 0))
@@ -1198,8 +1213,8 @@ def _CleanCache(cache_dir, wipe):
     """Wipes any excess cached items in the cache_dir.
 
     Args:
-      cache_dir: the directory we are wiping from.
-      wipe: If True, wipe all the contents -- not just the excess.
+        cache_dir: the directory we are wiping from.
+        wipe: If True, wipe all the contents -- not just the excess.
     """
     if wipe:
         # Clear the cache and exit on error.
@@ -1223,8 +1238,8 @@ def _AddTestingOptions(parser):
         parser,
         "Advanced Testing Options",
         "These are used by test scripts and "
-        "developers writing integration tests utilizing the devserver. They are "
-        "not intended to be really used outside the scope of someone "
+        "developers writing integration tests utilizing the devserver. They "
+        "are not intended to be really used outside the scope of someone "
         "knowledgable about the test.",
     )
     group.add_option(
@@ -1239,13 +1254,13 @@ def _AddProductionOptions(parser):
     group = optparse.OptionGroup(
         parser,
         "Advanced Server Options",
-        "These options can be used to changed " "for advanced server behavior.",
+        "These options can be used to changed for advanced server behavior.",
     )
     group.add_option(
         "--clear_cache",
         action="store_true",
         default=False,
-        help="At startup, removes all cached entries from the"
+        help="At startup, removes all cached entries from the "
         "devserver's cache.",
     )
     group.add_option(
@@ -1317,7 +1332,7 @@ def main():
         "--xbuddy_manage_builds",
         action="store_true",
         default=False,
-        help="If set, allow xbuddy to manage images in" "build/images.",
+        help="If set, allow xbuddy to manage images in build/images.",
     )
     parser.add_option(
         "--infra_removal",
