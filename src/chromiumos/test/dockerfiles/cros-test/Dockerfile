@@ -163,8 +163,11 @@ COPY shadow_config.ini .
 # Install it to an uncommon path invisible to other users by default.
 RUN sudo mkdir -p /opt/browser-tools
 RUN sudo mv /usr/bin/vpython3 /opt/browser-tools/vpython3
-RUN sudo mv /usr/bin/3.8/ /opt/browser-tools/3.8/
-RUN sudo mv /usr/bin/3.11/ /opt/browser-tools/3.11/
+RUN for ver in 3.8 3.11 3.14; do \
+        if [ -d "/usr/bin/${ver}" ]; then \
+            sudo mv "/usr/bin/${ver}/" "/opt/browser-tools/${ver}/"; \
+        fi; \
+    done
 RUN sudo mv /usr/bin/uv/ /opt/browser-tools/uv/
 # vpython3 relies on CIPD to activate virtual env.
 COPY --chown=chromeos-test:chromeos-test cipd /opt/browser-tools/cipd
