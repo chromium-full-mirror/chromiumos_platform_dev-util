@@ -712,7 +712,8 @@ def main(args):
                    ^Change-Id:| # or Change-Id:
                    ^BUG=|       # or following BUG=
                    ^TEST=|      # or another TEST=
-                   ^UPSTREAM-TASK=) # or UPSTREAM-TASK
+                   ^UPSTREAM-TASK=| # or UPSTREAM-TASK
+                   ^Branches:)  # or Branches:
                 """,
                 old_commit_message,
                 re.MULTILINE | re.DOTALL | re.VERBOSE,
