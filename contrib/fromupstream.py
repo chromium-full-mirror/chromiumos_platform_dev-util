@@ -652,6 +652,8 @@ class ChromeOSStyle(CommitStyle):
         )
 
     def validate(self, parser, args, bug_lines, test_lines):
+        if args["link"]:
+            parser.error("--link is only allowed with --style android")
         if not bug_lines or not test_lines:
             parser.error(
                 "BUG=/TEST= lines are required; --replace can help "
@@ -674,6 +676,59 @@ class ChromeOSStyle(CommitStyle):
         return ["Branches: %s" % args["branches_dispatch"]]
 
 
+class AndroidStyle(CommitStyle):
+    """Android commit message tag style."""
+
+    bug_label = "Bug: "
+    test_label = "Test: "
+
+    def format_bugs(self, args):
+        return ["%d" % x for x in args["buganizer"]]
+
+    def extract_tests(self, old_commit_message):
+        # Note: use (?=...) to avoid to consume the source string
+        return re.findall(
+            rf"""
+            ^{self.test_label}(.*?) # Match start from Test: until
+            \n                      # (to remove the tailing newlines)
+            (?=^$|                  # a blank line
+               ^Cq-Depend:|         # or Cq-Depend:
+               ^Change-Id:|         # or Change-Id:
+               ^{self.bug_label}|   # or following Bug:
+               ^{self.test_label}|  # or another Test:
+               ^Link:)              # or another Link:
+            """,
+            old_commit_message,
+            re.MULTILINE | re.DOTALL | re.VERBOSE,
+        )
+
+    def validate(self, parser, args, bug_lines, test_lines):
+        if args["bug"] or args["crbug"]:
+            parser.error("--bug/--crbug are not allowed with --style android")
+        if not bug_lines:
+            parser.error(
+                "Bug: lines are required; --replace can help "
+                "automate, or set via --buganizer"
+            )
+
+    def record_fromlist(self, args, url, patch_id, message_id, alt_url):
+        if alt_url is None:
+            alt_url, _ = _get_patch_from_message_id(args, message_id)
+
+        if patch_id is not None:
+            args["link"] += ["%s/patch/%s" % (url, patch_id)]
+        args["link"] += ["%s" % alt_url]
+
+    def extra_trailers(self, args):
+        return ["Link: %s" % l for l in args["link"]]
+
+
+STYLES = {
+    "chromeos": ChromeOSStyle,
+    "android": AndroidStyle,
+}
+
+
 def main(args):
     """This is the main entrypoint for fromupstream.
 
@@ -685,6 +740,12 @@ def main(args):
     """
     parser = argparse.ArgumentParser()
 
+    parser.add_argument(
+        "--style",
+        choices=STYLES.keys(),
+        default="chromeos",
+        help="Commit message tag style (default: %(default)s)",
+    )
     parser.add_argument(
         "--bug", "-b", action="append", default=[], type=str, help="BUG= line"
     )
@@ -729,6 +790,7 @@ def main(args):
         help="Overrides the source line, last line, ex: "
         "(am from http://....)",
     )
+    parser.add_argument("--link", action="append", default=[])
     parser.add_argument(
         "locations",
         nargs="+",
@@ -755,7 +817,7 @@ def main(args):
     )
 
     args = vars(parser.parse_args(args))
-    args["style"] = ChromeOSStyle()
+    args["style"] = STYLES[args["style"]]()
 
     cq_depends = [args["cqdepend"]] if args["cqdepend"] else []
 
@@ -854,8 +916,9 @@ def main(args):
         # Remove stray Change-Id, most likely from merge resolution
         commit_message = re.sub(r"Change-Id:.*\n?", "", commit_message)
 
-        # Note the source location before tagging anything else
-        commit_message += "\n" + args["source_line"]
+        if args["source_line"] is not None:
+            # Note the source location before tagging anything else
+            commit_message += "\n" + args["source_line"]
 
         # add automatic Change ID, BUG, and TEST (and maybe signoff too) so
         # next commands know where to work on
