@@ -304,15 +304,7 @@ def _pick_fromlist(url, patch_id, args, message_id=None):
         errprint("Error: Need a message ID or a patchwork ID")
         sys.exit(1)
 
-    if args["source_line"] is None:
-        if alt_url is None:
-            alt_url, _ = _get_patch_from_message_id(args, message_id)
-
-        if patch_id is not None:
-            args["source_line"] = "(am from %s/patch/%s/)" % (url, patch_id)
-            args["source_line"] += "\n(also found at %s)" % alt_url
-        else:
-            args["source_line"] = "(am from %s)" % alt_url
+    args["style"].record_fromlist(args, url, patch_id, message_id, alt_url)
 
     # Auto-snarf the Change-Id if it was encoded into the Message-Id.
     mo = re.match(r".*(I[a-f0-9]{40})@changeid$", message_id)
@@ -578,6 +570,110 @@ def _remove_dup_bugs(bugs):
     return bugs
 
 
+class CommitStyle:
+    """Base class for commit message tag and trailer handling."""
+
+    bug_label = ""
+    test_label = ""
+
+    def format_bugs(self, args):
+        """Format bug arguments from CLI into lines."""
+        raise NotImplementedError
+
+    def format_tests(self, args):
+        """Format test arguments from CLI into lines."""
+        return [_wrap_commit_line(self.test_label, x) for x in args["test"]]
+
+    def extract_bugs(self, old_commit_message):
+        """Extract bug lines from an existing commit message."""
+        return re.findall(
+            rf"^{self.bug_label}(.*)$", old_commit_message, re.MULTILINE
+        )
+
+    def extract_tests(self, old_commit_message):
+        """Extract test lines from an existing commit message."""
+        raise NotImplementedError
+
+    def validate(self, parser, args, bug_lines, test_lines):
+        """Validate style-specific arguments and required lines."""
+        raise NotImplementedError
+
+    def record_fromlist(self, args, url, patch_id, message_id, alt_url):
+        """Record patchwork and mailing list URLs for a FROMLIST patch."""
+        raise NotImplementedError
+
+    def extra_trailers(self, args):
+        """Return style-specific trailer lines."""
+        raise NotImplementedError
+
+    def format_trailers(self, args, bug_lines, test_lines):
+        """Format bug, test, and style-specific trailer lines."""
+        lines = [f"{self.bug_label}{bug}" for bug in bug_lines]
+        lines.extend(f"{self.test_label}{t}" for t in test_lines)
+        lines.extend(self.extra_trailers(args))
+        return "\n".join(lines)
+
+
+class ChromeOSStyle(CommitStyle):
+    """ChromeOS commit message tag style."""
+
+    bug_label = "BUG="
+    test_label = "TEST="
+
+    def format_bugs(self, args):
+        bugs = args["bug"]
+        bugs += ["b:%d" % x for x in args["buganizer"]]
+        bugs += ["chromium:%d" % x for x in args["crbug"]]
+        bugs = ", ".join(bugs)
+        bugs = _remove_dup_bugs(bugs)
+        if bugs:
+            return [
+                x.strip(" ,")
+                for x in _wrap_commit_line(self.bug_label, bugs).split("\n")
+            ]
+        return []
+
+    def extract_tests(self, old_commit_message):
+        # Note: use (?=...) to avoid to consume the source string
+        return re.findall(
+            rf"""
+            ^{self.test_label}(.*?) # Match start from TEST= until
+            \n                      # (to remove the tailing newlines)
+            (?=^$|                  # a blank line
+               ^Cq-Depend:|         # or Cq-Depend:
+               ^Change-Id:|         # or Change-Id:
+               ^{self.bug_label}|   # or following BUG=
+               ^{self.test_label}|  # or another TEST=
+               ^UPSTREAM-TASK=|     # or UPSTREAM-TASK=
+               ^Branches:)          # or Branches:
+            """,
+            old_commit_message,
+            re.MULTILINE | re.DOTALL | re.VERBOSE,
+        )
+
+    def validate(self, parser, args, bug_lines, test_lines):
+        if not bug_lines or not test_lines:
+            parser.error(
+                "BUG=/TEST= lines are required; --replace can help "
+                "automate, or set via --bug/--test"
+            )
+
+    def record_fromlist(self, args, url, patch_id, message_id, alt_url):
+        if args["source_line"] is not None:
+            return
+        if alt_url is None:
+            alt_url, _ = _get_patch_from_message_id(args, message_id)
+
+        if patch_id is not None:
+            args["source_line"] = "(am from %s/patch/%s/)" % (url, patch_id)
+            args["source_line"] += "\n(also found at %s)" % alt_url
+        else:
+            args["source_line"] = "(am from %s)" % alt_url
+
+    def extra_trailers(self, args):
+        return ["Branches: %s" % args["branches_dispatch"]]
+
+
 def main(args):
     """This is the main entrypoint for fromupstream.
 
@@ -659,22 +755,12 @@ def main(args):
     )
 
     args = vars(parser.parse_args(args))
+    args["style"] = ChromeOSStyle()
 
     cq_depends = [args["cqdepend"]] if args["cqdepend"] else []
 
-    bugs = args["bug"]
-    bugs += ["b:%d" % x for x in args["buganizer"]]
-    bugs += ["chromium:%d" % x for x in args["crbug"]]
-    bugs = ", ".join(bugs)
-    bugs = _remove_dup_bugs(bugs)
-    if bugs:
-        bug_lines = [
-            x.strip(" ,") for x in _wrap_commit_line("BUG=", bugs).split("\n")
-        ]
-    else:
-        bug_lines = []
-
-    test_lines = [_wrap_commit_line("TEST=", x) for x in args["test"]]
+    bug_lines = args["style"].format_bugs(args)
+    test_lines = args["style"].format_tests(args)
 
     upstream_task = args.get("upstream_task")
     if upstream_task and not upstream_task.startswith("b:"):
@@ -697,27 +783,10 @@ def main(args):
             )
 
         if not bug_lines:
-            bug_lines = re.findall(
-                r"^BUG=(.*)$", old_commit_message, re.MULTILINE
-            )
+            bug_lines = args["style"].extract_bugs(old_commit_message)
 
         if not test_lines:
-            # Note: use (?=...) to avoid to consume the source string
-            test_lines = re.findall(
-                r"""
-                ^TEST=(.*?)     # Match start from TEST= until
-                \n              # (to remove the tailing newlines)
-                (?=^$|          # a blank line
-                   ^Cq-Depend:| # or Cq-Depend:
-                   ^Change-Id:| # or Change-Id:
-                   ^BUG=|       # or following BUG=
-                   ^TEST=|      # or another TEST=
-                   ^UPSTREAM-TASK=| # or UPSTREAM-TASK
-                   ^Branches:)  # or Branches:
-                """,
-                old_commit_message,
-                re.MULTILINE | re.DOTALL | re.VERBOSE,
-            )
+            test_lines = args["style"].extract_tests(old_commit_message)
 
         upstream_task_match = re.search(
             "^UPSTREAM-TASK=(.*)$", old_commit_message, re.MULTILINE
@@ -725,11 +794,7 @@ def main(args):
         if upstream_task is None and upstream_task_match:
             upstream_task = upstream_task_match.group(1)
 
-    if not bug_lines or not test_lines:
-        parser.error(
-            "BUG=/TEST= lines are required; --replace can help "
-            "automate, or set via --bug/--test"
-        )
+    args["style"].validate(parser, args, bug_lines, test_lines)
 
     if args["debug"]:
         pprint.pprint(args)
@@ -799,10 +864,9 @@ def main(args):
         if upstream_task:
             commit_message += "\nUPSTREAM-TASK=%s" % upstream_task
         commit_message += "\n"
-        commit_message += "\n".join("BUG=%s" % bug for bug in bug_lines)
-        commit_message += "\n"
-        commit_message += "\n".join("TEST=%s" % t for t in test_lines)
-        commit_message += "\nBranches: %s" % args["branches_dispatch"]
+        commit_message += args["style"].format_trailers(
+            args, bug_lines, test_lines
+        )
 
         extra = []
         if args["signoff"]:
