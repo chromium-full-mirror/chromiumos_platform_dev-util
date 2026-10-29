@@ -132,6 +132,50 @@ def fetch_milestone_branch_date(milestone: int, /) -> datetime:
     except (KeyError, IndexError, TypeError, ValueError) as e:
         die(f"error: failed to parse branch_point for milestone {milestone}: {e}")
 
+def _parse_milestone_entry(item: dict, /) -> tuple[int, datetime]:
+    mstone = item["mstone"]
+    branch_point = item["branch_point"]
+    if not isinstance(mstone, int):
+        raise TypeError("mstone is not an int")
+    if not isinstance(branch_point, str):
+        raise TypeError("branch_point is not a string")
+    return mstone, parse_utc_datetime(branch_point, default_tz=MTV_TZ)
+
+def fetch_next_milestone_branch_date(
+    *,
+    now: datetime | None = None,
+) -> tuple[int, datetime]:
+    """Fetch the next even milestone and its branch_point date (in UTC)."""
+    if now is None:
+        now = NOW
+
+    # offset=0 is the current branched milestone. Fetch 4 consecutive
+    # milestones so at least one upcoming even milestone (branch_date > now)
+    # is included even if offset=0 (or offset=1) has already passed.
+    url = f"{CHROMIUMDASH_SCHEDULE_URL}?offset=0&n=4"
+    log.debug("fetch milestone schedule: %s", url)
+
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            data = json.load(resp)
+    except (OSError, ValueError) as e:
+        die(f"error: failed to fetch milestone schedule: {e}")
+
+    try:
+        mstones = data["mstones"]
+        if not isinstance(mstones, list):
+            raise TypeError("mstones is not a list")
+        entries = [_parse_milestone_entry(item) for item in mstones]
+    except (KeyError, TypeError, ValueError) as e:
+        die(f"error: failed to parse milestone schedule: {e}")
+
+    for mstone, branch_date in entries:
+        if mstone % 2 == 0 and branch_date > now:
+            log.debug("chose next even milestone: %d (%s)", mstone, format_utc(branch_date))
+            return mstone, branch_date
+
+    die("error: failed to find next even milestone")
+
 DEBUG = env_get_bool("CROS_KSM_DEBUG", False)
 
 def _init_log():

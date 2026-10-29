@@ -46,6 +46,7 @@ from cros_ksm.util import (
     die,
     eprint,
     fetch_milestone_branch_date,
+    fetch_next_milestone_branch_date,
     format_utc,
     log,
     parse_utc_datetime,
@@ -288,6 +289,16 @@ def _parse_milestone_param(
         evaluation date when calculating release tag age.
     """),
 )
+@click.option(
+    "next_milestone",
+    "-M", "--next-milestone",
+    is_flag = True,
+    help = dedent("""\
+        Use the next even ChromeOS milestone's branch date from
+        https://chromiumdash.appspot.com/schedule as the evaluation date
+        when calculating release tag age.
+    """),
+)
 @option_kernel_major_version
 @click.pass_context
 def cmd_choose_release(
@@ -296,11 +307,16 @@ def cmd_choose_release(
     verbose: bool,
     eval_date: datetime | None,
     milestone: int | None,
+    next_milestone: bool,
 ):
-    if eval_date is not None and milestone is not None:
-        ctx.fail("flags --date and --milestone are mutually exclusive")
+    if sum([eval_date is not None, milestone is not None, next_milestone]) > 1:
+        ctx.fail(
+            "flags --date, --milestone, and --next-milestone are mutually exclusive"
+        )
 
-    if milestone is not None:
+    if next_milestone:
+        milestone, eval_date = fetch_next_milestone_branch_date()
+    elif milestone is not None:
         eval_date = fetch_milestone_branch_date(milestone)
 
     repo = cli_open_repo(ctx)
