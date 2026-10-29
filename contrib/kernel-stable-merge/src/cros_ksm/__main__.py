@@ -45,6 +45,7 @@ from cros_ksm.util import (
     chomp,
     die,
     eprint,
+    fetch_milestone_branch_date,
     format_utc,
     log,
     parse_utc_datetime,
@@ -230,6 +231,19 @@ def _parse_date_param(
     except ValueError:
         raise click.BadParameter(f"invalid ISO 8601 date: {value}")
 
+def _parse_milestone_param(
+    _ctx: click.Context,
+    _param: click.Parameter,
+    value: int | None,
+) -> int | None:
+    if value is None:
+        return None
+
+    if value <= 0 or value % 2 != 0:
+        raise click.BadParameter(f"milestone must be a positive even number: {value}")
+
+    return value
+
 @main.command(
     name = "choose-release",
     help = dedent("""\
@@ -263,6 +277,17 @@ def _parse_date_param(
         Dates without a timezone offset are assumed to be in UTC.
     """),
 )
+@click.option(
+    "-m", "--milestone",
+    metavar = "<milestone>",
+    type = int,
+    callback = _parse_milestone_param,
+    help = dedent("""\
+        Specify an even ChromeOS milestone (e.g. 158) and use its branch
+        date from https://chromiumdash.appspot.com/schedule as the
+        evaluation date when calculating release tag age.
+    """),
+)
 @option_kernel_major_version
 @click.pass_context
 def cmd_choose_release(
@@ -270,7 +295,14 @@ def cmd_choose_release(
     /, *,
     verbose: bool,
     eval_date: datetime | None,
+    milestone: int | None,
 ):
+    if eval_date is not None and milestone is not None:
+        ctx.fail("flags --date and --milestone are mutually exclusive")
+
+    if milestone is not None:
+        eval_date = fetch_milestone_branch_date(milestone)
+
     repo = cli_open_repo(ctx)
     info = repo.get_target_release_info(eval_date=eval_date)
 
@@ -282,6 +314,8 @@ def cmd_choose_release(
                 eprint(f"{pretty_name}: {tag.name} {format_utc(tag.tagger_date)}")
 
         eprint(f"kernel major version: {info.kernel_major_version}")
+        if milestone is not None:
+            eprint(f"milestone: {milestone}")
         eprint(f"eval date: {format_utc(info.eval_date)}")
         eprint(f"search min age: {info.search_min_age}")
         eprint(f"search max date: {format_utc(info.search_max_date)}")
