@@ -94,6 +94,16 @@ def format_utc(d: datetime, /) -> str:
         raise ValueError("datetime is naive")
     return format(d.astimezone(UTC), "%Y-%m-%dT%H:%M:%SZ")
 
+def parse_utc_datetime(text: str, /) -> datetime:
+    """Parse an ISO 8601 date or datetime string and convert to UTC.
+
+    If the parsed datetime is timezone-naive, it is assumed to be UTC.
+    """
+    d = datetime.fromisoformat(text)
+    if datetime_is_naive(d):
+        d = d.replace(tzinfo=UTC)
+    return d.astimezone(UTC)
+
 DEBUG = env_get_bool("CROS_KSM_DEBUG", False)
 
 def _init_log():

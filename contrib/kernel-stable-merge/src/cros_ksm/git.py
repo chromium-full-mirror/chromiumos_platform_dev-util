@@ -917,14 +917,21 @@ class Repo:
             assert tag.name == kver.tag_name
             yield (kver, tag)
 
-    def get_target_release_info(self) -> TargetReleaseSearchInfo:
+    def get_target_release_info(
+        self,
+        *,
+        eval_date: datetime | None = None,
+    ) -> TargetReleaseSearchInfo:
         """Choose the target release for the next stable merge."""
 
         # Choose the most recent release whose age is at least min_age and is
         # not the newest release.
 
+        if eval_date is None:
+            eval_date = NOW
+
         min_age = timedelta(weeks=4)
-        max_date = NOW - min_age
+        max_date = eval_date - min_age
 
         merged_kver: KernelVersion = self.get_last_merged_release(self.cros_branch)
         merged_tag: Tag = self.resolve_tag_name(merged_kver.tag_name)
@@ -953,7 +960,7 @@ class Repo:
             kernel_major_version = self.kernel_major_version,
             last_merged_release_tag = merged_tag,
             newest_release_tag = newest_tag,
-            now = NOW,
+            eval_date = eval_date,
             search_min_age = min_age,
             search_max_date = max_date,
             target_release_tag = target_tag,
@@ -1043,7 +1050,7 @@ class TargetReleaseSearchInfo:
     _: KW_ONLY
 
     kernel_major_version: KernelVersion
-    now: datetime
+    eval_date: datetime
     last_merged_release_tag: Tag
     newest_release_tag: Tag
     search_min_age: timedelta

@@ -9,6 +9,7 @@ import subprocess
 import sys
 from collections.abc import Callable
 from dataclasses import KW_ONLY, dataclass
+from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from textwrap import dedent
@@ -46,6 +47,7 @@ from cros_ksm.util import (
     eprint,
     format_utc,
     log,
+    parse_utc_datetime,
     shquote_args,
 )
 
@@ -215,6 +217,19 @@ def cmd_last_merged_release(
     kver: KernelVersion = repo.get_last_merged_release(rev)
     print(kver)
 
+def _parse_date_param(
+    _ctx: click.Context,
+    _param: click.Parameter,
+    value: str | None,
+) -> datetime | None:
+    if value is None:
+        return None
+
+    try:
+        return parse_utc_datetime(value)
+    except ValueError:
+        raise click.BadParameter(f"invalid ISO 8601 date: {value}")
+
 @main.command(
     name = "choose-release",
     help = dedent("""\
@@ -237,15 +252,27 @@ def cmd_last_merged_release(
     "-v", "--verbose",
     is_flag = True,
 )
+@click.option(
+    "eval_date",
+    "-d", "--date",
+    metavar = "<date>",
+    callback = _parse_date_param,
+    help = dedent("""\
+        Evaluate release tags as of <date> (in ISO 8601 format, e.g.
+        YYYY-MM-DD) instead of the current time when calculating tag age.
+        Dates without a timezone offset are assumed to be in UTC.
+    """),
+)
 @option_kernel_major_version
 @click.pass_context
 def cmd_choose_release(
     ctx: click.Context,
     /, *,
     verbose: bool,
+    eval_date: datetime | None,
 ):
     repo = cli_open_repo(ctx)
-    info = repo.get_target_release_info()
+    info = repo.get_target_release_info(eval_date=eval_date)
 
     if verbose:
         def eprint_tag(pretty_name, tag):
@@ -255,7 +282,7 @@ def cmd_choose_release(
                 eprint(f"{pretty_name}: {tag.name} {format_utc(tag.tagger_date)}")
 
         eprint(f"kernel major version: {info.kernel_major_version}")
-        eprint(f"now: {format_utc(info.now)}")
+        eprint(f"eval date: {format_utc(info.eval_date)}")
         eprint(f"search min age: {info.search_min_age}")
         eprint(f"search max date: {format_utc(info.search_max_date)}")
         eprint_tag("last merged release tag", info.last_merged_release_tag)
