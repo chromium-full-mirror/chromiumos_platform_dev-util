@@ -73,16 +73,15 @@ CACHED_ENTRIES = 12
 
 TELEMETRY_FOLDER = "telemetry_src"
 # Each entry lists the compression variants of one dependency, in the order
-# they are tried. Older builds only publish bzip2 and transitional builds may
-# publish both. bzip2 goes first because extracting it needs no extra tooling,
-# whereas zstd makes chromite find or fetch pzstd; zstd is used once a build
-# stops publishing bzip2. The variants are local files, so the order costs no
-# extra request.
+# they are tried. Current builds only publish .tar.zst; pre-R158 builds fall
+# back to .tar.bz2.
+# TODO(b/580903568): Drop the .tar.bz2 fallback once pre-R158 branches
+# (including R156 LTS) reach EOL.
 TELEMETRY_DEPS = [
-    ("dep-telemetry_dep.tar.bz2", "dep-telemetry_dep.tar.zst"),
-    ("dep-page_cycler_dep.tar.bz2", "dep-page_cycler_dep.tar.zst"),
-    ("dep-chrome_test.tar.bz2", "dep-chrome_test.tar.zst"),
-    ("dep-perf_data_dep.tar.bz2", "dep-perf_data_dep.tar.zst"),
+    ("dep-telemetry_dep.tar.zst", "dep-telemetry_dep.tar.bz2"),
+    ("dep-page_cycler_dep.tar.zst", "dep-page_cycler_dep.tar.bz2"),
+    ("dep-chrome_test.tar.zst", "dep-chrome_test.tar.bz2"),
+    ("dep-perf_data_dep.tar.zst", "dep-perf_data_dep.tar.bz2"),
 ]
 
 # Sets up global to share between classes.
