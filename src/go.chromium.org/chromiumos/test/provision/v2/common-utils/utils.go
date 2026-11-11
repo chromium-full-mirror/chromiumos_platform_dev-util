@@ -31,7 +31,7 @@ func WaitLongRunningOp(ctx context.Context, log *log.Logger, operation *longrunn
 	}
 	switch result := operation.GetResult().(type) {
 	case *longrunning.Operation_Error:
-		return nil, fmt.Errorf(result.Error.Message)
+		return nil, fmt.Errorf("%s", result.Error.Message)
 	case *longrunning.Operation_Response:
 		return result.Response, nil
 	default:

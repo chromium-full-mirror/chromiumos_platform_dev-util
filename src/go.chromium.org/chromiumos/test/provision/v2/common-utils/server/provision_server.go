@@ -121,7 +121,7 @@ func (ps *ProvisionServer) Install(ctx context.Context, req *api.InstallRequest)
 	fv := ""
 	stringValue := &wrapperspb.StringValue{}
 	if err := md.UnmarshalTo(stringValue); err != nil {
-		ps.options.Log.Printf("Error unmarshalling:", err)
+		ps.options.Log.Printf("Error unmarshalling: %v", err)
 		fv = "No Status"
 	} else {
 		fv = stringValue.GetValue()

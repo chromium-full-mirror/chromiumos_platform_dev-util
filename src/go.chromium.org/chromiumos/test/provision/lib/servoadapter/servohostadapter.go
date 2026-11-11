@@ -72,7 +72,7 @@ func (s *ServoHostAdapter) RunCmd(ctx context.Context, cmd string, args []string
 	log.Println("[ServoHost] running command:", req.Command)
 	resp, err := s.execCmder.ExecCmd(ctx, &req, grpc.EmptyCallOption{})
 	if resp.GetExitInfo().GetStatus() != 0 || err != nil {
-		annotatedErr := errors.Annotate(err, string(resp.GetStderr())).Err()
+		annotatedErr := errors.Annotate(err, "%s", string(resp.GetStderr())).Err()
 		annotatedErr = errors.Annotate(annotatedErr, "ExecCmdRequest failed on remote ServoHost").Err()
 		return string(resp.GetStdout()), annotatedErr
 	}
