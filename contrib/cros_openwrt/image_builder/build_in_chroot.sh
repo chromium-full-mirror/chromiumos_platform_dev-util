@@ -9,7 +9,7 @@
 set -e
 
 PROJECT_EXE_NAME="$1"
-GO_VERSION="go1.23.1"
+GO_VERSION="go1.25.14"
 
 SCRIPT_DIR="$(dirname "$(realpath -e "${BASH_SOURCE[0]}")")"
 PROJECT_GOPATH="${SCRIPT_DIR}/go"
