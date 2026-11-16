@@ -75,7 +75,7 @@ func PushCompressedExecutable(ctx context.Context, c *ssh.Client, b []byte) (str
 	// A in-memory device file is used instead of tmpfs to workaround LSM restrictions
 	// https://crrev.com/c/3834992
 	devicePath := path.Join(tempDir, "device")
-	if _, err := c.RunSimpleOutput("fallocate --length=32M " + devicePath); err != nil {
+	if _, err := c.RunSimpleOutput("fallocate --length=64M " + devicePath); err != nil {
 		return "", err
 	}
 	if _, err := c.RunSimpleOutput("mkfs.ext4 " + devicePath); err != nil {
