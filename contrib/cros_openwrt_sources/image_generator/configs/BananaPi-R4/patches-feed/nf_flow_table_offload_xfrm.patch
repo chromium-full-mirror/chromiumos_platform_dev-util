@@ -1,0 +1,24 @@
+diff --git a/25.12/files/target/linux/mediatek/patches-6.12/999-ppe-29-netfilter-add-xfrm-offload.patch b/25.12/files/target/linux/mediatek/patches-6.12/999-ppe-29-netfilter-add-xfrm-offload.patch
+index 9cc66bd..f1bfa56 100644
+--- a/25.12/files/target/linux/mediatek/patches-6.12/999-ppe-29-netfilter-add-xfrm-offload.patch
++++ b/25.12/files/target/linux/mediatek/patches-6.12/999-ppe-29-netfilter-add-xfrm-offload.patch
+@@ -24,16 +24,18 @@
+  	case FLOW_OFFLOAD_XMIT_NEIGH:
+  		other_tuple = &flow->tuplehash[!dir].tuple;
+  		ifindex = other_tuple->iifidx;
+-@@ -602,6 +605,12 @@ static void flow_offload_encap_tunnel(co
++@@ -602,6 +605,14 @@ static void flow_offload_encap_tunnel(co
+  			entry->tunnel = tun_info;
+  		}
+  	}
+ +
+++#ifdef CONFIG_XFRM
+ +	if (dst && dst_xfrm(dst)) {
+ +		entry = flow_action_entry_next(flow_rule);
+ +		entry->id = FLOW_ACTION_IPSEC_PUSH;
+ +		memcpy(&entry->ipsec.xs, dst->xfrm, sizeof(struct xfrm_state));
+ +	}
+++#endif
+  }
+  
+  static void flow_offload_decap_tunnel(const struct flow_offload *flow,
