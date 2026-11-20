@@ -1,0 +1,83 @@
+diff --git a/autobuild/unified/filogic/mac80211/rules b/autobuild/unified/filogic/mac80211/rules
+index f14b193..8cb666d 100644
+--- a/autobuild/unified/filogic/mac80211/rules
++++ b/autobuild/unified/filogic/mac80211/rules
+@@ -6,7 +6,6 @@
+ 
+ . ${ab_global}/kasan.sh
+ list_add_after $(hooks autobuild_prepare) wifi_change_kernel_config change_kernel_coredump_conf
+-list_add_after $(hooks autobuild_prepare) change_kernel_coredump_conf change_openwrt_relayd_conf
+ 
+ change_kernel_coredump_conf() {
+ 	kernel_config_enable CONFIG_DEV_COREDUMP
+diff --git a/autobuild/unified/filogic/rules b/autobuild/unified/filogic/rules
+index 7ef9fa3..cebba41 100755
+--- a/autobuild/unified/filogic/rules
++++ b/autobuild/unified/filogic/rules
+@@ -1,7 +1,5 @@
+ list_add_after $(hooks autobuild_prepare) platform_change_kernel_config filogic_change_kernel_config
+ list_add_after $(hooks autobuild_prepare) filogic_change_kernel_config change_kernel_flowoffload_conf
+-list_append $(hooks autobuild_prepare) airoha_firmware_install
+-list_add_after $(hooks autobuild_prepare) airoha_firmware_install copy_phy_firmware
+ 
+ if [ -n "${internal_build}" ]; then
+ 	. "${ab_root}/global-dev/internal.sh"
+@@ -31,9 +29,7 @@ help_add_line "  secure_boot - Enable secure_boot, including signing, anti-rollb
+ 
+ platform_change_openwrt_config() {
+ 	# Enable the following packages for eMMC QVL
+-	openwrt_config_enable CONFIG_PACKAGE_fio
+ 	openwrt_config_enable CONFIG_PACKAGE_lsblk
+-	openwrt_config_enable CONFIG_PACKAGE_sfdisk
+ 	openwrt_config_enable CONFIG_PACKAGE_mmc-utils
+ }
+ 
+@@ -49,12 +45,11 @@ filogic_change_kernel_config() {
+ 	kernel_config_enable CONFIG_PCIEASPM_POWER_SUPERSAVE
+ 
+ 	# APSoC related configs
+-	kernel_config_enable CONFIG_EXTRA_FIRMWARE "\"airoha/EthMD32.dm.bin airoha/EthMD32.DSP.bin as21x1x_fw.bin Rhe-05.06-Candidate9-AQR_Mediatek_23B_P5_ID45824_LCLVER1.cld AQR-G4_v5.7.0-AQR_EVB_Generic_X3410_StdCfg_MDISwap_USX_ID46316_VER2148.cld airoha/an8811hb/EthMD32_CRC.DM.bin airoha/an8811hb/EthMD32_CRC.DSP.bin\""
+-	kernel_config_enable CONFIG_EXTRA_FIRMWARE_DIR "\"drivers/base/firmware_loader/builtin\""
+-	kernel_config_enable CONFIG_AIR_EN8811H_PHY
+-	kernel_config_enable CONFIG_AIR_EN8811H_PHY_DEBUGFS
++	kernel_config_enable CONFIG_EXTRA_FIRMWARE "\"\""
++	kernel_config_disable CONFIG_AIR_EN8811H_PHY
++	kernel_config_disable CONFIG_AIR_EN8811H_PHY_DEBUGFS
+ 	kernel_config_enable CONFIG_MT753X_GSW
+-	kernel_config_enable CONFIG_AN8855_GSW
++	kernel_config_disable CONFIG_AN8855_GSW
+ 	kernel_config_disable CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE
+ 	kernel_config_enable CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE
+ 	kernel_config_enable CONFIG_CPU_FREQ_THERMAL
+@@ -67,11 +62,12 @@ filogic_change_kernel_config() {
+ 	kernel_config_disable CONFIG_MEDIATEK_NETSYS_V2
+ 	kernel_config_disable CONFIG_MEDIATEK_NETSYS_V3
+ 	kernel_config_enable CONFIG_PTP_1588_CLOCK
+-	kernel_config_enable CONFIG_AS21XXX_PHY
+-	kernel_config_enable CONFIG_AQUANTIA_PHY
+-	kernel_config_enable CONFIG_AIROHA_AN8801_PHY
+-	kernel_config_enable CONFIG_AIR_AN8811HB_PHY
+-	kernel_config_enable CONFIG_AIR_AN8811HB_PHY_DEBUGFS
++	kernel_config_disable CONFIG_AS21XXX_PHY
++	kernel_config_disable CONFIG_AQUANTIA_PHY
++	kernel_config_disable CONFIG_AIROHA_AN8801_PHY
++	kernel_config_disable CONFIG_AIR_AN8811HB_PHY
++	kernel_config_disable CONFIG_AIR_AN8811HB_PHY_DEBUGFS
++	kernel_config_disable CONFIG_MEDIATEK_2P5GE_PHY
+ 	kernel_config_enable CONFIG_MTK_DEVAPC
+ 	kernel_config_enable CONFIG_IIO
+ 	kernel_config_disable CONFIG_ZTS8032
+diff --git a/autobuild/unified/rules b/autobuild/unified/rules
+index 74bd2ae..fa12c0f 100755
+--- a/autobuild/unified/rules
++++ b/autobuild/unified/rules
+@@ -264,9 +264,6 @@ prepare_openwrt_config() {
+ 	exec_log "cp -f \"${openwrt_config_file}\" \"${ab_tmp}/${ab_branch}.config\""
+ 	exec_log "STAGING_DIR_HOST=\"${openwrt_root}/staging_dir/host\" \"${openwrt_root}/scripts/config/aconf\" -m -M -o \"${ab_tmp}/${ab_branch}_defconfig\" -k \"${openwrt_root}/Config.in\" ${kconfig_files}"
+ 
+-	# To enable MediaTek's ethernet PHY tool for MT7531 Gphy,
+-	# MT7981's built-in Gphy, MT7988's & MT7987's built-in 2.5Gphy
+-	openwrt_config_enable CONFIG_PACKAGE_ephy-utils
+ 	openwrt_config_disable CONFIG_PACKAGE_ethtool
+ 	openwrt_config_enable CONFIG_PACKAGE_ethtool-full
+ }
