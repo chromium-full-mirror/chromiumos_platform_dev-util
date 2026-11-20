@@ -54,6 +54,11 @@ if [ "${CREATE_ARCHIVE}" = true ]; then
     cp "${GENERATED_FILES_DIR}/etc/cros/${BUILD_INFO_FILE_NAME}" .
     tar -cJf "${archive_name}" -C "${sysupgrade_dir}" "${sysupgrade_basename}" "${metadata_files[@]}"
     echo "Tar archive created: ${OUTPUT_DIR}/${archive_name}"
+
+    sources_archive_name="${IMAGE_PROFILE}-sources_${archive_timestamp}.tar.gz"
+    python3 "${OPENWRT_DIR}/collect_sources.py" \
+        "${OPENWRT_DIR}" "${DEVICE}" "${sysupgrade_dir}" \
+        "${OUTPUT_DIR}/${sources_archive_name}" "${metadata_files[@]}"
 fi
 
 if [ "${DEBUG}" = true ]; then

@@ -202,6 +202,8 @@ def collect_notices(openwrt_dir: Path) -> str:
 
     sections = [
         "THIRD-PARTY SOFTWARE NOTICES AND INFORMATION\n\n"
+        "Corresponding source archives are distributed in the companion "
+        "*-sources.tar.gz bundle.\n\n"
         "INSTALLED PACKAGES\n"
     ]
     for manifest in manifests:
