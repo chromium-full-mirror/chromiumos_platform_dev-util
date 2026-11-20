@@ -93,6 +93,7 @@ COPY --chown=openwrtuser:openwrtuser custom_files /build/openwrt/files
 COPY --chown=openwrtuser:openwrtuser custom_packages /build/openwrt/package
 COPY --chown=openwrtuser:openwrtuser configs /build/openwrt/configs
 COPY --chown=openwrtuser:openwrtuser validate_patches.sh /build/openwrt/
+COPY --chown=openwrtuser:openwrtuser collect_notices.py /build/openwrt/
 COPY --chown=openwrtuser:openwrtuser run.sh /build/openwrt/
 
 # Potentially needed by some configure scripts within the OpenWrt build,
