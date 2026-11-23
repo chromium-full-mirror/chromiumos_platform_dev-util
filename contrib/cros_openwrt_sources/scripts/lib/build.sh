@@ -39,7 +39,7 @@ generate_ssh_banner() {
     echo "
     ------------------------------------------------------------
     ChromeOS Test OpenWRT
-    * Documentation: go/cros-openwrt
+    * Documentation: https://chromium.googlesource.com/chromiumos/platform/dev-util/+/HEAD/contrib/cros_openwrt_sources/
     * Device: ${DEVICE_NAME}
     * ImageUUID: ${IMAGE_UUID}
     ------------------------------------------------------------
