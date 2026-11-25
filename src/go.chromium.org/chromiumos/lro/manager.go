@@ -213,9 +213,9 @@ func (m *Manager) WaitOperation(ctx context.Context, req *longrunning.WaitOperat
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("name %s does not exist", name))
 	}
 
-	if req.Timeout != nil && req.Timeout.Seconds > 0 {
+	if d := req.GetTimeout().AsDuration(); d > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(req.Timeout.GetSeconds()))
+		ctx, cancel = context.WithTimeout(ctx, d)
 		defer cancel()
 	}
 
